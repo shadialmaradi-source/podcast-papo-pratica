@@ -1,12 +1,60 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { SpotifyConnect } from "@/components/SpotifyConnect";
+import { PodcastBrowser } from "@/components/PodcastBrowser";
+import { ExerciseGenerator } from "@/components/ExerciseGenerator";
+
+type AppState = "connect" | "browse" | "exercise";
+
+interface Podcast {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  difficulty: "A1" | "A2" | "B1" | "B2" | "C1";
+  category: string;
+  rating: number;
+  thumbnail: string;
+}
 
 const Index = () => {
+  const [appState, setAppState] = useState<AppState>("connect");
+  const [selectedPodcast, setSelectedPodcast] = useState<Podcast | null>(null);
+
+  const handleSpotifyConnect = () => {
+    setAppState("browse");
+  };
+
+  const handlePodcastSelect = (podcast: Podcast) => {
+    setSelectedPodcast(podcast);
+    setAppState("exercise");
+  };
+
+  const handleExerciseComplete = () => {
+    setAppState("browse");
+    setSelectedPodcast(null);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      {appState === "connect" && (
+        <SpotifyConnect onConnect={handleSpotifyConnect} />
+      )}
+      
+      {appState === "browse" && (
+        <div className="container mx-auto px-4 py-8">
+          <PodcastBrowser onSelectPodcast={handlePodcastSelect} />
+        </div>
+      )}
+      
+      {appState === "exercise" && selectedPodcast && (
+        <div className="container mx-auto px-4 py-8">
+          <ExerciseGenerator
+            podcastTitle={selectedPodcast.title}
+            difficulty={selectedPodcast.difficulty}
+            onComplete={handleExerciseComplete}
+          />
+        </div>
+      )}
     </div>
   );
 };
