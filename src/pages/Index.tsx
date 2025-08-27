@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { SpotifyConnect } from "@/components/SpotifyConnect";
 import { PodcastBrowser } from "@/components/PodcastBrowser";
 import { ExerciseGenerator } from "@/components/ExerciseGenerator";
 
-type AppState = "connect" | "browse" | "exercise";
+type AppState = "language" | "connect" | "browse" | "exercise";
 
 interface Podcast {
   id: string;
@@ -17,8 +18,14 @@ interface Podcast {
 }
 
 const Index = () => {
-  const [appState, setAppState] = useState<AppState>("connect");
+  const [appState, setAppState] = useState<AppState>("language");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
   const [selectedPodcast, setSelectedPodcast] = useState<Podcast | null>(null);
+
+  const handleLanguageSelect = (language: string) => {
+    setSelectedLanguage(language);
+    setAppState("connect");
+  };
 
   const handleSpotifyConnect = () => {
     setAppState("browse");
@@ -36,6 +43,10 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {appState === "language" && (
+        <LanguageSelector onLanguageSelect={handleLanguageSelect} />
+      )}
+      
       {appState === "connect" && (
         <SpotifyConnect onConnect={handleSpotifyConnect} />
       )}
@@ -51,6 +62,7 @@ const Index = () => {
           <ExerciseGenerator
             podcastTitle={selectedPodcast.title}
             difficulty={selectedPodcast.difficulty}
+            language={selectedLanguage}
             onComplete={handleExerciseComplete}
           />
         </div>

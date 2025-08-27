@@ -32,6 +32,7 @@ interface Exercise {
 interface ExerciseGeneratorProps {
   podcastTitle: string;
   difficulty: string;
+  language: string;
   onComplete: () => void;
 }
 
@@ -69,7 +70,7 @@ const mockExercises: Exercise[] = [
   }
 ];
 
-export function ExerciseGenerator({ podcastTitle, difficulty, onComplete }: ExerciseGeneratorProps) {
+export function ExerciseGenerator({ podcastTitle, difficulty, language, onComplete }: ExerciseGeneratorProps) {
   const [currentExercise, setCurrentExercise] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, any>>({});
   const [showResults, setShowResults] = useState<Record<string, boolean>>({});
