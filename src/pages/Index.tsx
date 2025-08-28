@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { LanguageSelector } from "@/components/LanguageSelector";
-import { SpotifyConnect } from "@/components/SpotifyConnect";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { Navigate } from "react-router-dom";
+import Dashboard from "@/components/Dashboard";
 import { PodcastBrowser } from "@/components/PodcastBrowser";
 import { ExerciseGenerator } from "@/components/ExerciseGenerator";
 
-type AppState = "language" | "connect" | "browse" | "exercise";
+type AppState = "dashboard" | "podcasts" | "exercises" | "profile";
 
 interface Podcast {
   id: string;
@@ -18,51 +19,53 @@ interface Podcast {
 }
 
 const Index = () => {
-  const [appState, setAppState] = useState<AppState>("language");
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
+  const { user, loading } = useAuth();
+  const [appState, setAppState] = useState<AppState>("dashboard");
   const [selectedPodcast, setSelectedPodcast] = useState<Podcast | null>(null);
 
-  const handleLanguageSelect = (language: string) => {
-    setSelectedLanguage(language);
-    setAppState("connect");
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
-  const handleSpotifyConnect = () => {
-    setAppState("browse");
-  };
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
 
   const handlePodcastSelect = (podcast: Podcast) => {
     setSelectedPodcast(podcast);
-    setAppState("exercise");
+    setAppState("exercises");
   };
 
   const handleExerciseComplete = () => {
-    setAppState("browse");
-    setSelectedPodcast(null);
+    setAppState("podcasts");
+  };
+
+  const handleNavigate = (page: 'podcasts' | 'profile') => {
+    setAppState(page);
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {appState === "language" && (
-        <LanguageSelector onLanguageSelect={handleLanguageSelect} />
+    <div className="min-h-screen">
+      {appState === "dashboard" && (
+        <Dashboard onNavigate={handleNavigate} />
       )}
       
-      {appState === "connect" && (
-        <SpotifyConnect onConnect={handleSpotifyConnect} />
-      )}
-      
-      {appState === "browse" && (
+      {appState === "podcasts" && (
         <div className="container mx-auto px-4 py-8">
           <PodcastBrowser onSelectPodcast={handlePodcastSelect} />
         </div>
       )}
       
-      {appState === "exercise" && selectedPodcast && (
+      {appState === "exercises" && selectedPodcast && (
         <div className="container mx-auto px-4 py-8">
           <ExerciseGenerator
             podcastTitle={selectedPodcast.title}
             difficulty={selectedPodcast.difficulty}
-            language={selectedLanguage}
+            language="portuguese"
             onComplete={handleExerciseComplete}
           />
         </div>
