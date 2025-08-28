@@ -227,6 +227,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "user_exercise_results_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_exercise_results_podcast_id_fkey"
             columns: ["podcast_id"]
             isOneToOne: false
@@ -281,10 +288,77 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      exercises_public: {
+        Row: {
+          created_at: string | null
+          difficulty: string | null
+          exercise_type: string | null
+          explanation: string | null
+          id: string | null
+          options: Json | null
+          order_index: number | null
+          podcast_id: string | null
+          question: string | null
+          xp_reward: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          difficulty?: string | null
+          exercise_type?: string | null
+          explanation?: string | null
+          id?: string | null
+          options?: Json | null
+          order_index?: number | null
+          podcast_id?: string | null
+          question?: string | null
+          xp_reward?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          difficulty?: string | null
+          exercise_type?: string | null
+          explanation?: string | null
+          id?: string | null
+          options?: Json | null
+          order_index?: number | null
+          podcast_id?: string | null
+          question?: string | null
+          xp_reward?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercises_podcast_id_fkey"
+            columns: ["podcast_id"]
+            isOneToOne: false
+            referencedRelation: "podcasts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      check_exercise_answer: {
+        Args: { exercise_id_param: string; user_answer_param: string }
+        Returns: {
+          correct_answer: string
+          explanation: string
+          is_correct: boolean
+          xp_reward: number
+        }[]
+      }
+      get_podcast_exercises: {
+        Args: { podcast_id_param: string }
+        Returns: {
+          difficulty: string
+          exercise_type: string
+          id: string
+          options: Json
+          order_index: number
+          podcast_id: string
+          question: string
+          xp_reward: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
