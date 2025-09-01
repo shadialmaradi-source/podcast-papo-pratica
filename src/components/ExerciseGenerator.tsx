@@ -8,66 +8,63 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Star, Heart, RefreshCw } from "lucide-react";
+import { CheckCircle, XCircle, Star, Heart, RefreshCw, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { 
   Exercise, 
   ExerciseResult,
-  getPodcastExercises, 
+  getEpisodeExercises, 
   checkExerciseAnswer, 
   saveExerciseResult, 
   updateUserProgress,
   decreaseHearts 
 } from "@/services/exerciseService";
+import { PodcastEpisode } from "@/services/podcastService";
 
 interface ExerciseGeneratorProps {
-  podcastTitle: string;
-  difficulty: string;
-  language: string;
+  episode: PodcastEpisode;
   onComplete: () => void;
+  onBack: () => void;
 }
 
-// Mock podcast ID for now - in real app this would come from props
-const MOCK_PODCAST_ID = "mock-podcast-1";
-
-// Mock exercises for fallback
-const mockExercises: Exercise[] = [
+// Mock exercises for fallback when no real exercises exist
+const createMockExercises = (episode: PodcastEpisode): Exercise[] => [
   {
     id: "mock-1",
-    podcast_id: "mock-podcast-1",
+    episode_id: episode.id,
     question: "What is the main theme of this podcast episode?",
     exercise_type: "multiple_choice",
-    options: ["Technology", "Food", "Travel", "Health"],
-    difficulty: "B1",
+    options: ["Culture", "Technology", "Travel", "History"],
+    difficulty: episode.podcast_source?.difficulty_level || "B1",
     xp_reward: 10,
     order_index: 0,
   },
   {
     id: "mock-2", 
-    podcast_id: "mock-podcast-1",
-    question: "Complete the sentence: 'The speaker mentioned that the best time to visit is ___'",
+    episode_id: episode.id,
+    question: "Complete the sentence: 'The speaker mentioned that ___'",
     exercise_type: "fill_blank",
-    difficulty: "A2",
+    difficulty: episode.podcast_source?.difficulty_level || "A2",
     xp_reward: 10,
     order_index: 1,
   },
   {
     id: "mock-3",
-    podcast_id: "mock-podcast-1", 
-    question: "Define the word 'wanderlust'",
+    episode_id: episode.id, 
+    question: "What does the key term from this episode mean?",
     exercise_type: "vocabulary",
-    difficulty: "B2",
+    difficulty: episode.podcast_source?.difficulty_level || "B2",
     xp_reward: 15,
     order_index: 2,
     options: {
-      word: "wanderlust",
-      definition: "A strong desire to travel",
-      example: "Her wanderlust led her to visit over 30 countries."
+      word: "example",
+      definition: "A representative instance",
+      example: "This episode is a good example of language learning content."
     }
   }
 ];
 
-export const ExerciseGenerator = ({ podcastTitle, difficulty, language, onComplete }: ExerciseGeneratorProps) => {
+export const ExerciseGenerator = ({ episode, onComplete, onBack }: ExerciseGeneratorProps) => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
@@ -83,18 +80,17 @@ export const ExerciseGenerator = ({ podcastTitle, difficulty, language, onComple
 
   const loadExercises = async () => {
     try {
-      // In a real app, we'd get the actual podcast ID from props
-      const data = await getPodcastExercises(MOCK_PODCAST_ID);
+      const data = await getEpisodeExercises(episode.id);
       if (data.length === 0) {
         // If no exercises in DB, use mock data
-        setExercises(mockExercises);
+        setExercises(createMockExercises(episode));
       } else {
         setExercises(data);
       }
     } catch (error) {
       console.error('Error loading exercises:', error);
       // Fallback to mock data
-      setExercises(mockExercises);
+      setExercises(createMockExercises(episode));
     } finally {
       setLoading(false);
     }
@@ -140,7 +136,7 @@ export const ExerciseGenerator = ({ podcastTitle, difficulty, language, onComple
       // Save the result
       await saveExerciseResult(
         currentExercise.id,
-        MOCK_PODCAST_ID,
+        episode.id,
         answer,
         result.is_correct,
         result.is_correct ? result.xp_reward : 0
@@ -224,16 +220,22 @@ export const ExerciseGenerator = ({ podcastTitle, difficulty, language, onComple
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <Card className="max-w-2xl mx-auto border-0 shadow-xl">
         <CardHeader className="text-center space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <Button variant="outline" size="sm" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </div>
           <div className="space-y-2">
             <CardTitle className="text-2xl">
-              {podcastTitle}
+              {episode.title}
             </CardTitle>
             <CardDescription>
-              Esercizi di {language} - Livello {difficulty}
+              {episode.podcast_source?.title} - Level {episode.podcast_source?.difficulty_level}
             </CardDescription>
             <div className="flex items-center gap-4 justify-center">
-              <Badge variant={difficulty === "A1" ? "default" : "secondary"}>
-                {difficulty}
+              <Badge variant={episode.podcast_source?.difficulty_level === "A1" ? "default" : "secondary"}>
+                {episode.podcast_source?.difficulty_level}
               </Badge>
               <div className="flex items-center gap-1">
                 <Heart className="h-4 w-4 text-red-500" />

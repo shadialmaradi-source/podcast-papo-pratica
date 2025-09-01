@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface Exercise {
   id: string;
-  podcast_id: string;
+  episode_id: string;
   question: string;
   exercise_type: 'multiple_choice' | 'fill_blank' | 'vocabulary' | 'reflection';
   options?: any;
@@ -19,9 +19,9 @@ export interface ExerciseResult {
 }
 
 // Secure function to get exercises without exposing correct answers
-export const getPodcastExercises = async (podcastId: string): Promise<Exercise[]> => {
-  const { data, error } = await supabase.rpc('get_podcast_exercises', {
-    podcast_id_param: podcastId
+export const getEpisodeExercises = async (episodeId: string): Promise<Exercise[]> => {
+  const { data, error } = await supabase.rpc('get_episode_exercises', {
+    episode_id_param: episodeId
   });
 
   if (error) {
@@ -56,7 +56,7 @@ export const checkExerciseAnswer = async (
 // Save user exercise result
 export const saveExerciseResult = async (
   exerciseId: string,
-  podcastId: string,
+  episodeId: string,
   userAnswer: string,
   isCorrect: boolean,
   xpEarned: number
@@ -69,7 +69,7 @@ export const saveExerciseResult = async (
     .upsert({
       user_id: currentUser.user.id,
       exercise_id: exerciseId,
-      podcast_id: podcastId,
+      episode_id: episodeId,
       user_answer: userAnswer,
       is_correct: isCorrect,
       xp_earned: xpEarned,

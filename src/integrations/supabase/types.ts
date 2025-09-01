@@ -46,12 +46,12 @@ export type Database = {
           correct_answer: string
           created_at: string | null
           difficulty: string
+          episode_id: string | null
           exercise_type: string
           explanation: string | null
           id: string
           options: Json | null
           order_index: number | null
-          podcast_id: string
           question: string
           xp_reward: number | null
         }
@@ -59,12 +59,12 @@ export type Database = {
           correct_answer: string
           created_at?: string | null
           difficulty: string
+          episode_id?: string | null
           exercise_type: string
           explanation?: string | null
           id?: string
           options?: Json | null
           order_index?: number | null
-          podcast_id: string
           question: string
           xp_reward?: number | null
         }
@@ -72,24 +72,128 @@ export type Database = {
           correct_answer?: string
           created_at?: string | null
           difficulty?: string
+          episode_id?: string | null
           exercise_type?: string
           explanation?: string | null
           id?: string
           options?: Json | null
           order_index?: number | null
-          podcast_id?: string
           question?: string
           xp_reward?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "exercises_podcast_id_fkey"
-            columns: ["podcast_id"]
+            foreignKeyName: "exercises_episode_id_fkey"
+            columns: ["episode_id"]
             isOneToOne: false
-            referencedRelation: "podcasts"
+            referencedRelation: "podcast_episodes"
             referencedColumns: ["id"]
           },
         ]
+      }
+      podcast_episodes: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          description: string | null
+          duration: number | null
+          episode_number: number | null
+          episode_url: string
+          id: string
+          podcast_source_id: string
+          publish_date: string | null
+          season_number: number | null
+          title: string
+          transcript: string | null
+          transcript_language: string | null
+          updated_at: string
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          episode_number?: number | null
+          episode_url: string
+          id?: string
+          podcast_source_id: string
+          publish_date?: string | null
+          season_number?: number | null
+          title: string
+          transcript?: string | null
+          transcript_language?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          episode_number?: number | null
+          episode_url?: string
+          id?: string
+          podcast_source_id?: string
+          publish_date?: string | null
+          season_number?: number | null
+          title?: string
+          transcript?: string | null
+          transcript_language?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "podcast_episodes_podcast_source_id_fkey"
+            columns: ["podcast_source_id"]
+            isOneToOne: false
+            referencedRelation: "podcast_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      podcast_sources: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          difficulty_level: string
+          id: string
+          is_public: boolean | null
+          language: string
+          rss_url: string
+          spotify_chart_rank: number | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          difficulty_level: string
+          id?: string
+          is_public?: boolean | null
+          language: string
+          rss_url: string
+          spotify_chart_rank?: number | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          difficulty_level?: string
+          id?: string
+          is_public?: boolean | null
+          language?: string
+          rss_url?: string
+          spotify_chart_rank?: number | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       podcasts: {
         Row: {
@@ -184,14 +288,58 @@ export type Database = {
         }
         Relationships: []
       }
+      user_episode_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          episode_id: string | null
+          id: string
+          is_completed: boolean | null
+          is_favorite: boolean | null
+          last_position: number | null
+          progress_percentage: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          episode_id?: string | null
+          id?: string
+          is_completed?: boolean | null
+          is_favorite?: boolean | null
+          last_position?: number | null
+          progress_percentage?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          episode_id?: string | null
+          id?: string
+          is_completed?: boolean | null
+          is_favorite?: boolean | null
+          last_position?: number | null
+          progress_percentage?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_episode_progress_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "podcast_episodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_exercise_results: {
         Row: {
           attempts: number | null
           completed_at: string | null
+          episode_id: string | null
           exercise_id: string
           id: string
           is_correct: boolean
-          podcast_id: string
           user_answer: string | null
           user_id: string
           xp_earned: number | null
@@ -199,10 +347,10 @@ export type Database = {
         Insert: {
           attempts?: number | null
           completed_at?: string | null
+          episode_id?: string | null
           exercise_id: string
           id?: string
           is_correct: boolean
-          podcast_id: string
           user_answer?: string | null
           user_id: string
           xp_earned?: number | null
@@ -210,71 +358,27 @@ export type Database = {
         Update: {
           attempts?: number | null
           completed_at?: string | null
+          episode_id?: string | null
           exercise_id?: string
           id?: string
           is_correct?: boolean
-          podcast_id?: string
           user_answer?: string | null
           user_id?: string
           xp_earned?: number | null
         }
         Relationships: [
           {
+            foreignKeyName: "user_exercise_results_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "podcast_episodes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_exercise_results_exercise_id_fkey"
             columns: ["exercise_id"]
             isOneToOne: false
             referencedRelation: "exercises"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_exercise_results_podcast_id_fkey"
-            columns: ["podcast_id"]
-            isOneToOne: false
-            referencedRelation: "podcasts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_podcast_progress: {
-        Row: {
-          completed_at: string | null
-          created_at: string | null
-          id: string
-          is_completed: boolean | null
-          is_favorite: boolean | null
-          last_position: number | null
-          podcast_id: string
-          progress_percentage: number | null
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          is_completed?: boolean | null
-          is_favorite?: boolean | null
-          last_position?: number | null
-          podcast_id: string
-          progress_percentage?: number | null
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          is_completed?: boolean | null
-          is_favorite?: boolean | null
-          last_position?: number | null
-          podcast_id?: string
-          progress_percentage?: number | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_podcast_progress_podcast_id_fkey"
-            columns: ["podcast_id"]
-            isOneToOne: false
-            referencedRelation: "podcasts"
             referencedColumns: ["id"]
           },
         ]
@@ -293,15 +397,15 @@ export type Database = {
           xp_reward: number
         }[]
       }
-      get_podcast_exercises: {
-        Args: { podcast_id_param: string }
+      get_episode_exercises: {
+        Args: { episode_id_param: string }
         Returns: {
           difficulty: string
+          episode_id: string
           exercise_type: string
           id: string
           options: Json
           order_index: number
-          podcast_id: string
           question: string
           xp_reward: number
         }[]

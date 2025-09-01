@@ -2,26 +2,20 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import Dashboard from "@/components/Dashboard";
-import { PodcastBrowser } from "@/components/PodcastBrowser";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { PodcastLibrary } from "@/components/PodcastLibrary";
+import { EpisodeSelector } from "@/components/EpisodeSelector";
 import { ExerciseGenerator } from "@/components/ExerciseGenerator";
+import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "dashboard" | "podcasts" | "exercises" | "profile";
-
-interface Podcast {
-  id: string;
-  title: string;
-  description: string;
-  duration: string;
-  difficulty: "A1" | "A2" | "B1" | "B2" | "C1";
-  category: string;
-  rating: number;
-  thumbnail: string;
-}
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile";
 
 const Index = () => {
   const { user, loading } = useAuth();
-  const [appState, setAppState] = useState<AppState>("dashboard");
-  const [selectedPodcast, setSelectedPodcast] = useState<Podcast | null>(null);
+  const [appState, setAppState] = useState<AppState>("language-select");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
+  const [selectedPodcast, setSelectedPodcast] = useState<PodcastSource | null>(null);
+  const [selectedEpisode, setSelectedEpisode] = useState<PodcastEpisode | null>(null);
 
   if (loading) {
     return (
@@ -35,38 +29,84 @@ const Index = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const handlePodcastSelect = (podcast: Podcast) => {
+  const handleLanguageSelect = (language: string) => {
+    setSelectedLanguage(language);
+    setAppState("dashboard");
+  };
+
+  const handleNavigateToPodcasts = () => {
+    setAppState("podcasts");
+  };
+
+  const handlePodcastSelect = (podcast: PodcastSource) => {
     setSelectedPodcast(podcast);
+    setAppState("episodes");
+  };
+
+  const handleEpisodeSelect = (episode: PodcastEpisode) => {
+    setSelectedEpisode(episode);
     setAppState("exercises");
   };
 
   const handleExerciseComplete = () => {
+    setAppState("episodes");
+  };
+
+  const handleBackToEpisodes = () => {
+    setAppState("episodes");
+  };
+
+  const handleBackToPodcasts = () => {
     setAppState("podcasts");
   };
 
+  const handleBackToDashboard = () => {
+    setAppState("dashboard");
+  };
+
   const handleNavigate = (page: 'podcasts' | 'profile') => {
-    setAppState(page);
+    if (page === 'podcasts') {
+      handleNavigateToPodcasts();
+    } else {
+      setAppState(page);
+    }
   };
 
   return (
     <div className="min-h-screen">
+      {appState === "language-select" && (
+        <LanguageSelector onLanguageSelect={handleLanguageSelect} />
+      )}
+
       {appState === "dashboard" && (
         <Dashboard onNavigate={handleNavigate} />
       )}
       
       {appState === "podcasts" && (
-        <div className="container mx-auto px-4 py-8">
-          <PodcastBrowser onSelectPodcast={handlePodcastSelect} />
+        <div className="container mx-auto">
+          <PodcastLibrary 
+            selectedLanguage={selectedLanguage}
+            onSelectPodcast={handlePodcastSelect}
+          />
+        </div>
+      )}
+
+      {appState === "episodes" && selectedPodcast && (
+        <div className="container mx-auto">
+          <EpisodeSelector 
+            podcast={selectedPodcast}
+            onSelectEpisode={handleEpisodeSelect}
+            onBack={handleBackToPodcasts}
+          />
         </div>
       )}
       
-      {appState === "exercises" && selectedPodcast && (
+      {appState === "exercises" && selectedEpisode && (
         <div className="container mx-auto px-4 py-8">
           <ExerciseGenerator
-            podcastTitle={selectedPodcast.title}
-            difficulty={selectedPodcast.difficulty}
-            language="portuguese"
+            episode={selectedEpisode}
             onComplete={handleExerciseComplete}
+            onBack={handleBackToEpisodes}
           />
         </div>
       )}
