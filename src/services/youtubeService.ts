@@ -39,30 +39,54 @@ export const getVideoInfo = async (videoId: string): Promise<VideoInfo> => {
 // Extract transcript from YouTube video
 export const getVideoTranscript = async (videoId: string): Promise<string> => {
   try {
-    // Use youtube-transcript-api (free public API)
-    const response = await fetch(`https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`);
-    
-    if (!response.ok) {
-      throw new Error('Transcript not available');
+    // Try multiple transcript APIs in order
+    const APIs = [
+      {
+        url: `https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`,
+        parser: (data: any) => Array.isArray(data) ? data.map((item: any) => item.text).join(' ') : null
+      },
+      {
+        url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
+        parser: (data: any) => data.events?.map((event: any) => 
+          event.segs?.map((seg: any) => seg.utf8).join('') || ''
+        ).join(' ') || null
+      }
+    ];
+
+    for (const api of APIs) {
+      try {
+        console.log(`Trying transcript API: ${api.url}`);
+        
+        const response = await fetch(api.url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          mode: 'cors'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('API Response received:', typeof data);
+          
+          const transcript = api.parser(data);
+          
+          if (transcript && transcript.trim().length > 0) {
+            console.log(`Transcript loaded successfully, length: ${transcript.length}`);
+            return transcript.trim();
+          }
+        }
+      } catch (error) {
+        console.log(`API ${api.url} failed:`, error);
+        continue; // Try next API
+      }
     }
     
-    const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(data.error);
-    }
-    
-    // Combine all transcript segments into one text
-    const transcript = data.map((item: any) => item.text).join(' ');
-    
-    if (!transcript || transcript.trim().length === 0) {
-      throw new Error('No transcript text found');
-    }
-    
-    return transcript;
+    throw new Error('All transcript APIs failed - no captions available');
   } catch (error) {
     console.error('Error fetching transcript:', error);
-    throw new Error('Could not fetch transcript for this video. Please try another video with captions enabled.');
+    throw new Error('This video does not have captions available or the transcript service is temporarily unavailable. Please try another video with captions or use manual transcript input.');
   }
 };
 

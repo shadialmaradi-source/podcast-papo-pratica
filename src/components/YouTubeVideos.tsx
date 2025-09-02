@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,7 +17,8 @@ import {
   CheckCircle,
   Loader2,
   Clock,
-  Eye
+  Eye,
+  Edit3
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -61,6 +63,8 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false);
   const [transcriptError, setTranscriptError] = useState("");
+  const [manualTranscript, setManualTranscript] = useState("");
+  const [showManualInput, setShowManualInput] = useState(false);
 
   const levels = [
     { code: "A1", name: "Beginner (A1)", color: "bg-green-500", description: "Basic vocabulary and simple sentences" },
@@ -154,14 +158,42 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
     setTranscriptError("");
     
     try {
+      console.log(`Loading transcript for video: ${currentVideo.id}`);
       const transcript = await getVideoTranscript(currentVideo.id);
+      console.log(`Transcript loaded, length: ${transcript.length}`);
+      
       setCurrentVideo(prev => prev ? { ...prev, transcript } : null);
       setShowTranscript(true);
-    } catch (error) {
-      setTranscriptError("Failed to load transcript. This video may not have captions available.");
+      
+      toast({
+        title: "Transcript Loaded Successfully!",
+        description: `${transcript.length} characters loaded`,
+      });
+    } catch (error: any) {
+      const errorMessage = error.message || "Failed to load transcript";
+      setTranscriptError(errorMessage);
       console.error('Error loading transcript:', error);
+      
+      toast({
+        title: "Transcript Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsLoadingTranscript(false);
+    }
+  };
+
+  const handleManualTranscript = () => {
+    if (currentVideo && manualTranscript.trim()) {
+      setCurrentVideo(prev => prev ? { ...prev, transcript: manualTranscript } : null);
+      setShowManualInput(false);
+      setManualTranscript("");
+      
+      toast({
+        title: "Manual Transcript Added!",
+        description: "You can now generate exercises with this transcript.",
+      });
     }
   };
 
@@ -356,7 +388,15 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
               </DialogContent>
             </Dialog>
 
-            {/* Generate Exercises Button */}
+            {/* Manual Transcript Input Button */}
+            <Button 
+              variant="outline" 
+              className="gap-2" 
+              onClick={() => setShowManualInput(!showManualInput)}
+            >
+              <Edit3 className="h-4 w-4" />
+              Manual Transcript
+            </Button>
             <Dialog>
               <DialogTrigger asChild>
                 <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80">
@@ -422,6 +462,52 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
               </DialogContent>
             </Dialog>
           </div>
+
+          {/* Manual Transcript Input */}
+          {showManualInput && (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Edit3 className="h-5 w-5" />
+                  Manual Transcript Input
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+                  <p><strong>How to get a transcript:</strong></p>
+                  <ol className="list-decimal list-inside mt-2 space-y-1">
+                    <li>Go to the YouTube video</li>
+                    <li>Click the "..." menu below the video</li>
+                    <li>Select "Show transcript"</li>
+                    <li>Copy the transcript text and paste it here</li>
+                  </ol>
+                </div>
+                <Textarea
+                  placeholder="Paste the video transcript here..."
+                  value={manualTranscript}
+                  onChange={(e) => setManualTranscript(e.target.value)}
+                  className="min-h-[200px]"
+                />
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleManualTranscript}
+                    disabled={!manualTranscript.trim()}
+                  >
+                    Use This Transcript
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowManualInput(false);
+                      setManualTranscript("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
