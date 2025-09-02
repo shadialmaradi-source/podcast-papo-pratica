@@ -55,11 +55,11 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
   const [showTranscript, setShowTranscript] = useState(false);
   const [timeListened, setTimeListened] = useState(0);
   const [showExercisePrompt, setShowExercisePrompt] = useState(false);
-  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
