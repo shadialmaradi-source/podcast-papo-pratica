@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ArrowLeft, 
   Play, 
@@ -14,7 +16,9 @@ import {
   FileText, 
   Clock,
   BookOpen,
-  Target
+  Target,
+  SkipBack,
+  SkipForward
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { PodcastEpisode } from "@/services/podcastService";
@@ -52,7 +56,12 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
   const [timeListened, setTimeListened] = useState(0);
   const [showExercisePrompt, setShowExercisePrompt] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(1);
   
+  const audioRef = useRef<HTMLAudioElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const levels = [
@@ -63,25 +72,6 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     { code: "C1", name: "Advanced (C1)", color: "bg-destructive" },
     { code: "C2", name: "Proficiency (C2)", color: "bg-destructive" },
   ];
-
-  // Extract Spotify episode ID from URL or use a default one
-  const getSpotifyEpisodeId = (episode: PodcastEpisode): string => {
-    // Try to extract from episode URL if it contains Spotify info
-    if (episode.episode_url?.includes('spotify.com/episode/')) {
-      return episode.episode_url.split('episode/')[1].split('?')[0];
-    }
-    
-    // Use verified working Spotify episode IDs
-    const defaultEpisodes = {
-      'portuguese': '6i6LrJ4BDnw9cUtV9pzc4a', // Portuguese episode
-      'spanish': '7Hh8dJkobw8EZ7gfgdLR3y',    // Spanish episode  
-      'french': '2kSRw7NbhJqmh8WNY8Qm3Z',     // French episode
-      'german': '1ZdQgZKjbQq8WzmLp7qgGX',     // German episode
-      'english': '2LwQgJzLTpKJ7o3VqFgXdl'    // English episode
-    };
-    
-    return defaultEpisodes[episode.podcast_source?.language as keyof typeof defaultEpisodes] || defaultEpisodes.english;
-  };
 
   useEffect(() => {
     if (isPlaying) {
@@ -112,6 +102,25 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     };
   }, [isPlaying]);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const updateTime = () => setCurrentTime(audio.currentTime);
+    const updateDuration = () => setDuration(audio.duration);
+    const handleEnded = () => setIsPlaying(false);
+    
+    audio.addEventListener('timeupdate', updateTime);
+    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('ended', handleEnded);
+    
+    return () => {
+      audio.removeEventListener('timeupdate', updateTime);
+      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+
   const formatTimeListened = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -123,10 +132,71 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     return `${minutes}m ${secs}s`;
   };
 
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const togglePlayPause = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleSeek = (value: number[]) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    audio.currentTime = value[0];
+    setCurrentTime(value[0]);
+  };
+
+  const handleVolumeChange = (value: number[]) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    const newVolume = value[0] / 100;
+    audio.volume = newVolume;
+    setVolume(newVolume);
+  };
+
+  const handleSpeedChange = (speed: string) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    const rate = parseFloat(speed);
+    audio.playbackRate = rate;
+    setPlaybackRate(rate);
+  };
+
+  const skipForward = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    audio.currentTime = Math.min(audio.currentTime + 15, audio.duration);
+  };
+
+  const skipBackward = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    audio.currentTime = Math.max(audio.currentTime - 15, 0);
+  };
+
   const handleStartExercises = (level: string) => {
     setSelectedLevel(level);
     onStartExercises(level);
   };
+
+  // Use audio_url from episode or fallback
+  const audioUrl = episode.audio_url || 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav';
 
   return (
     <div className="space-y-6 p-6">
@@ -163,35 +233,90 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Spotify Embed Player */}
-          <div className="space-y-4">
-            <iframe
-              src={`https://open.spotify.com/embed/episode/${getSpotifyEpisodeId(episode)}?utm_source=generator&theme=0`}
-              width="100%"
-              height="352"
-              frameBorder="0"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              className="rounded-lg"
-            />
-          </div>
-
-          {/* Listening Time Tracker */}
-          <div className="bg-muted/50 rounded-lg p-4">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                <span>Listening Time: {formatTimeListened(timeListened)}</span>
+          {/* Hidden Audio Element */}
+          <audio
+            ref={audioRef}
+            src={audioUrl}
+            preload="metadata"
+          />
+          
+          {/* Custom Audio Player */}
+          <Card className="p-6 space-y-4 bg-gradient-to-br from-primary/5 to-secondary/5">
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <Slider
+                value={[currentTime]}
+                max={duration || 100}
+                step={1}
+                onValueChange={handleSeek}
+                className="w-full"
+              />
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
               </div>
+            </div>
+
+            {/* Playback Controls */}
+            <div className="flex items-center justify-center space-x-4">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsPlaying(!isPlaying)}
+                onClick={skipBackward}
+                className="w-10 h-10 rounded-full"
               >
-                {isPlaying ? "Pause Timer" : "Start Timer"}
+                <SkipBack className="w-4 h-4" />
+              </Button>
+              
+              <Button
+                onClick={togglePlayPause}
+                size="lg"
+                className="w-16 h-16 rounded-full"
+              >
+                {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={skipForward}
+                className="w-10 h-10 rounded-full"
+              >
+                <SkipForward className="w-4 h-4" />
               </Button>
             </div>
-          </div>
+
+            {/* Volume and Speed Controls */}
+            <div className="flex items-center justify-between space-x-4">
+              <div className="flex items-center space-x-2 flex-1">
+                <Volume2 className="w-4 h-4 text-muted-foreground" />
+                <Slider
+                  value={[volume * 100]}
+                  max={100}
+                  step={1}
+                  onValueChange={handleVolumeChange}
+                  className="flex-1 max-w-24"
+                />
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Speed:</span>
+                <Select value={playbackRate.toString()} onValueChange={handleSpeedChange}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.5">0.5x</SelectItem>
+                    <SelectItem value="0.75">0.75x</SelectItem>
+                    <SelectItem value="1">1x</SelectItem>
+                    <SelectItem value="1.25">1.25x</SelectItem>
+                    <SelectItem value="1.5">1.5x</SelectItem>
+                    <SelectItem value="2">2x</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </Card>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
@@ -208,11 +333,18 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
                 </DialogHeader>
                 <ScrollArea className="h-[60vh] pr-4">
                   <div className="space-y-4 text-sm leading-relaxed">
-                    {getMockTranscript(episode.title).split('\n').map((paragraph, index) => (
-                      <p key={index} className="text-muted-foreground">
-                        {paragraph.trim()}
-                      </p>
-                    ))}
+                    {episode.transcript ? 
+                      episode.transcript.split('\n').map((paragraph, index) => (
+                        <p key={index} className="text-muted-foreground">
+                          {paragraph.trim()}
+                        </p>
+                      )) :
+                      getMockTranscript(episode.title).split('\n').map((paragraph, index) => (
+                        <p key={index} className="text-muted-foreground">
+                          {paragraph.trim()}
+                        </p>
+                      ))
+                    }
                   </div>
                 </ScrollArea>
               </DialogContent>
