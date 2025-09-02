@@ -4,11 +4,13 @@ export interface Exercise {
   id: string;
   episode_id: string;
   question: string;
-  exercise_type: 'multiple_choice' | 'fill_blank' | 'vocabulary' | 'reflection';
+  exercise_type: 'multiple_choice' | 'fill_blank' | 'vocabulary' | 'reflection' | 'analysis' | 'synthesis' | 'comprehension' | 'reorder';
   options?: any;
   difficulty: string;
   xp_reward: number;
   order_index: number;
+  correct_answer?: string;
+  explanation?: string;
 }
 
 export interface ExerciseResult {
@@ -31,7 +33,7 @@ export const getEpisodeExercises = async (episodeId: string): Promise<Exercise[]
 
   return (data || []).map((exercise: any) => ({
     ...exercise,
-    exercise_type: exercise.exercise_type as 'multiple_choice' | 'fill_blank' | 'vocabulary' | 'reflection'
+    exercise_type: exercise.exercise_type as 'multiple_choice' | 'fill_blank' | 'vocabulary' | 'reflection' | 'analysis' | 'synthesis' | 'comprehension' | 'reorder'
   }));
 };
 

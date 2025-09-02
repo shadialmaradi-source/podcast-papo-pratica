@@ -23,48 +23,177 @@ import { PodcastEpisode } from "@/services/podcastService";
 
 interface ExerciseGeneratorProps {
   episode: PodcastEpisode;
+  level: string;
   onComplete: () => void;
   onBack: () => void;
 }
 
 // Mock exercises for fallback when no real exercises exist
-const createMockExercises = (episode: PodcastEpisode): Exercise[] => [
-  {
-    id: "mock-1",
-    episode_id: episode.id,
-    question: "What is the main theme of this podcast episode?",
-    exercise_type: "multiple_choice",
-    options: ["Culture", "Technology", "Travel", "History"],
-    difficulty: episode.podcast_source?.difficulty_level || "B1",
-    xp_reward: 10,
-    order_index: 0,
-  },
-  {
-    id: "mock-2", 
-    episode_id: episode.id,
-    question: "Complete the sentence: 'The speaker mentioned that ___'",
-    exercise_type: "fill_blank",
-    difficulty: episode.podcast_source?.difficulty_level || "A2",
-    xp_reward: 10,
-    order_index: 1,
-  },
-  {
-    id: "mock-3",
-    episode_id: episode.id, 
-    question: "What does the key term from this episode mean?",
-    exercise_type: "vocabulary",
-    difficulty: episode.podcast_source?.difficulty_level || "B2",
-    xp_reward: 15,
-    order_index: 2,
-    options: {
-      word: "example",
-      definition: "A representative instance",
-      example: "This episode is a good example of language learning content."
-    }
-  }
-];
+const createMockExercises = (episode: PodcastEpisode, level: string): Exercise[] => {
+  const baseExercises = {
+    "A1": [
+      {
+        id: "mock-a1-1",
+        episode_id: episode.id,
+        question: "What time of day is mentioned in the episode?",
+        exercise_type: "multiple_choice" as const,
+        options: ["Morning", "Afternoon", "Evening", "Night"],
+        difficulty: "A1",
+        xp_reward: 5,
+        order_index: 0,
+        correct_answer: "Morning",
+        explanation: "The speaker talks about morning routines at the beginning."
+      },
+      {
+        id: "mock-a1-2", 
+        episode_id: episode.id,
+        question: "Complete: 'I usually ___ breakfast at 7 AM'",
+        exercise_type: "fill_blank" as const,
+        difficulty: "A1",
+        xp_reward: 5,
+        order_index: 1,
+        correct_answer: "eat",
+        explanation: "The verb 'eat' is used for consuming food."
+      }
+    ],
+    "A2": [
+      {
+        id: "mock-a2-1",
+        episode_id: episode.id,
+        question: "According to the speaker, what is the best way to learn a language?",
+        exercise_type: "multiple_choice" as const,
+        options: ["Reading books", "Daily practice", "Watching movies", "Studying grammar"],
+        difficulty: "A2",
+        xp_reward: 7,
+        order_index: 0,
+        correct_answer: "Daily practice",
+        explanation: "The speaker emphasizes the importance of consistent daily practice."
+      },
+      {
+        id: "mock-a2-2", 
+        episode_id: episode.id,
+        question: "Fill in the blank: 'The most important thing is to ___ every day'",
+        exercise_type: "fill_blank" as const,
+        difficulty: "A2",
+        xp_reward: 7,
+        order_index: 1,
+        correct_answer: "practice",
+        explanation: "Consistent practice is key to language learning success."
+      }
+    ],
+    "B1": [
+      {
+        id: "mock-b1-1",
+        episode_id: episode.id,
+        question: "What cultural difference does the speaker highlight about morning routines?",
+        exercise_type: "multiple_choice" as const,
+        options: [
+          "Some cultures skip breakfast entirely", 
+          "Different cultures have varying meal times", 
+          "Exercise habits vary by country",
+          "Work schedules differ globally"
+        ],
+        difficulty: "B1",
+        xp_reward: 10,
+        order_index: 0,
+        correct_answer: "Different cultures have varying meal times",
+        explanation: "The speaker discusses how meal timing varies across cultures."
+      },
+      {
+        id: "mock-b1-2",
+        episode_id: episode.id, 
+        question: "Rearrange these words: 'important / very / is / consistency / language / in / learning'",
+        exercise_type: "reorder" as const,
+        difficulty: "B1",
+        xp_reward: 10,
+        order_index: 1,
+        correct_answer: "Consistency is very important in language learning",
+        explanation: "This sentence structure follows subject-verb-object pattern with emphasis."
+      }
+    ],
+    "B2": [
+      {
+        id: "mock-b2-1",
+        episode_id: episode.id,
+        question: "Analyze the speaker's argument about habit formation. What evidence do they provide?",
+        exercise_type: "comprehension" as const,
+        difficulty: "B2",
+        xp_reward: 12,
+        order_index: 0,
+        correct_answer: "The speaker mentions scientific studies and personal experience",
+        explanation: "The argument combines research evidence with anecdotal experience."
+      },
+      {
+        id: "mock-b2-2",
+        episode_id: episode.id, 
+        question: "What does 'establish a routine' mean in this context?",
+        exercise_type: "vocabulary" as const,
+        difficulty: "B2",
+        xp_reward: 12,
+        order_index: 1,
+        options: {
+          word: "establish a routine",
+          definition: "To create and maintain regular habits",
+          example: "It's important to establish a routine when learning a new language."
+        },
+        correct_answer: "To create and maintain regular habits",
+        explanation: "Establishing a routine means creating consistent, repeated actions."
+      }
+    ],
+    "C1": [
+      {
+        id: "mock-c1-1",
+        episode_id: episode.id,
+        question: "Critically evaluate the speaker's methodology for language acquisition. What are the strengths and potential weaknesses?",
+        exercise_type: "analysis" as const,
+        difficulty: "C1",
+        xp_reward: 15,
+        order_index: 0,
+        correct_answer: "Strengths include practical applicability; weaknesses may include lack of formal structure",
+        explanation: "Critical analysis requires examining both positive and negative aspects."
+      },
+      {
+        id: "mock-c1-2",
+        episode_id: episode.id, 
+        question: "Discuss how the cultural perspectives presented might influence language learning outcomes.",
+        exercise_type: "reflection" as const,
+        difficulty: "C1",
+        xp_reward: 15,
+        order_index: 1,
+        correct_answer: "Cultural awareness enhances understanding and motivation",
+        explanation: "Cultural context provides deeper meaning and connection to the language."
+      }
+    ],
+    "C2": [
+      {
+        id: "mock-c2-1",
+        episode_id: episode.id,
+        question: "Synthesize the key principles discussed and propose an alternative framework for language learning that addresses the limitations mentioned.",
+        exercise_type: "synthesis" as const,
+        difficulty: "C2",
+        xp_reward: 20,
+        order_index: 0,
+        correct_answer: "A multimodal approach combining structured learning with immersive practice",
+        explanation: "Advanced synthesis requires integrating concepts and creating new solutions."
+      },
+      {
+        id: "mock-c2-2",
+        episode_id: episode.id, 
+        question: "Analyze the sociolinguistic implications of the cultural differences described. How might these impact cross-cultural communication?",
+        exercise_type: "analysis" as const,
+        difficulty: "C2",
+        xp_reward: 20,
+        order_index: 1,
+        correct_answer: "Cultural patterns influence communication styles and expectations",
+        explanation: "Understanding sociolinguistic factors is crucial for effective intercultural dialogue."
+      }
+    ]
+  };
 
-export const ExerciseGenerator = ({ episode, onComplete, onBack }: ExerciseGeneratorProps) => {
+  return baseExercises[level as keyof typeof baseExercises] || baseExercises["A1"];
+};
+
+export const ExerciseGenerator = ({ episode, level, onComplete, onBack }: ExerciseGeneratorProps) => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
@@ -82,15 +211,17 @@ export const ExerciseGenerator = ({ episode, onComplete, onBack }: ExerciseGener
     try {
       const data = await getEpisodeExercises(episode.id);
       if (data.length === 0) {
-        // If no exercises in DB, use mock data
-        setExercises(createMockExercises(episode));
+        // If no exercises in DB, use mock data for the specified level
+        setExercises(createMockExercises(episode, level));
       } else {
-        setExercises(data);
+        // Filter exercises by level
+        const levelFilteredExercises = data.filter(ex => ex.difficulty === level);
+        setExercises(levelFilteredExercises.length > 0 ? levelFilteredExercises : createMockExercises(episode, level));
       }
     } catch (error) {
       console.error('Error loading exercises:', error);
-      // Fallback to mock data
-      setExercises(createMockExercises(episode));
+      // Fallback to mock data for the specified level
+      setExercises(createMockExercises(episode, level));
     } finally {
       setLoading(false);
     }
@@ -169,21 +300,11 @@ export const ExerciseGenerator = ({ episode, onComplete, onBack }: ExerciseGener
   };
 
   const getMockCorrectAnswer = () => {
-    switch (currentExercise.id) {
-      case "mock-1": return "Travel";
-      case "mock-2": return "spring";
-      case "mock-3": return "A strong desire to travel";
-      default: return "";
-    }
+    return currentExercise.correct_answer || "";
   };
 
   const getMockExplanation = () => {
-    switch (currentExercise.id) {
-      case "mock-1": return "The podcast discusses various travel destinations and tips for travelers.";
-      case "mock-2": return "The speaker clearly states that spring offers the best weather conditions.";
-      case "mock-3": return "Wanderlust refers to the irresistible urge to travel and explore the world.";
-      default: return "";
-    }
+    return currentExercise.explanation || "Good attempt! Keep practicing to improve your skills.";
   };
 
   const nextExercise = () => {
@@ -231,11 +352,11 @@ export const ExerciseGenerator = ({ episode, onComplete, onBack }: ExerciseGener
               {episode.title}
             </CardTitle>
             <CardDescription>
-              {episode.podcast_source?.title} - Level {episode.podcast_source?.difficulty_level}
+              {episode.podcast_source?.title} - Exercises for Level {level}
             </CardDescription>
             <div className="flex items-center gap-4 justify-center">
-              <Badge variant={episode.podcast_source?.difficulty_level === "A1" ? "default" : "secondary"}>
-                {episode.podcast_source?.difficulty_level}
+              <Badge variant="default" className="bg-primary">
+                Level {level}
               </Badge>
               <div className="flex items-center gap-1">
                 <Heart className="h-4 w-4 text-red-500" />
@@ -338,16 +459,36 @@ export const ExerciseGenerator = ({ episode, onComplete, onBack }: ExerciseGener
               </div>
             )}
 
-            {currentExercise.exercise_type === "reflection" && (
+            {(currentExercise.exercise_type === "reflection" || 
+              currentExercise.exercise_type === "analysis" || 
+              currentExercise.exercise_type === "synthesis" ||
+              currentExercise.exercise_type === "comprehension") && (
               <div className="space-y-2">
-                <Label htmlFor="reflection">La tua riflessione:</Label>
+                <Label htmlFor="reflection">Your answer:</Label>
                 <Textarea
                   id="reflection"
                   value={selectedAnswer}
                   onChange={(e) => setSelectedAnswer(e.target.value)}
-                  placeholder="Condividi i tuoi pensieri..."
+                  placeholder="Share your thoughts and analysis..."
                   disabled={showResult}
                   rows={4}
+                />
+              </div>
+            )}
+
+            {currentExercise.exercise_type === "reorder" && (
+              <div className="space-y-2">
+                <Label htmlFor="reorder">Reorder the words to form a correct sentence:</Label>
+                <Input
+                  id="reorder"
+                  value={selectedAnswer}
+                  onChange={(e) => setSelectedAnswer(e.target.value)}
+                  placeholder="Write the reordered sentence..."
+                  disabled={showResult}
+                  className={showResult ? 
+                    (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
+                    : ""
+                  }
                 />
               </div>
             )}

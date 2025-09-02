@@ -16,6 +16,7 @@ const Index = () => {
   const [selectedLanguage, setSelectedLanguage] = useState<string>("");
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastSource | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<PodcastEpisode | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<string>("A1");
 
   if (loading) {
     return (
@@ -45,6 +46,12 @@ const Index = () => {
 
   const handleEpisodeSelect = (episode: PodcastEpisode) => {
     setSelectedEpisode(episode);
+    // Keep in episodes view for the player
+  };
+
+  const handleStartExercises = (episode: PodcastEpisode, level: string) => {
+    setSelectedEpisode(episode);
+    setSelectedLevel(level);
     setAppState("exercises");
   };
 
@@ -96,6 +103,7 @@ const Index = () => {
           <EpisodeSelector 
             podcast={selectedPodcast}
             onSelectEpisode={handleEpisodeSelect}
+            onStartExercises={handleStartExercises}
             onBack={handleBackToPodcasts}
           />
         </div>
@@ -105,6 +113,7 @@ const Index = () => {
         <div className="container mx-auto px-4 py-8">
           <ExerciseGenerator
             episode={selectedEpisode}
+            level={selectedLevel}
             onComplete={handleExerciseComplete}
             onBack={handleBackToEpisodes}
           />

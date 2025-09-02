@@ -7,17 +7,20 @@ import { ArrowLeft, Play, Clock, Calendar, BookOpen, CheckCircle } from "lucide-
 import { motion } from "framer-motion";
 import { getPodcastEpisodes, getUserEpisodeProgress, PodcastEpisode, PodcastSource } from "@/services/podcastService";
 import { formatDistanceToNow } from "date-fns";
+import { EpisodePlayer } from "./EpisodePlayer";
 
 interface EpisodeSelectorProps {
   podcast: PodcastSource;
   onSelectEpisode: (episode: PodcastEpisode) => void;
+  onStartExercises: (episode: PodcastEpisode, level: string) => void;
   onBack: () => void;
 }
 
-export function EpisodeSelector({ podcast, onSelectEpisode, onBack }: EpisodeSelectorProps) {
+export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, onBack }: EpisodeSelectorProps) {
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
   const [episodeProgress, setEpisodeProgress] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [selectedEpisode, setSelectedEpisode] = useState<PodcastEpisode | null>(null);
 
   useEffect(() => {
     loadEpisodes();
@@ -55,11 +58,37 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onBack }: EpisodeSel
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const handleEpisodeSelect = (episode: PodcastEpisode) => {
+    setSelectedEpisode(episode);
+    onSelectEpisode(episode);
+  };
+
+  const handleStartExercises = (level: string) => {
+    if (selectedEpisode) {
+      onStartExercises(selectedEpisode, level);
+    }
+  };
+
+  const handleBackToList = () => {
+    setSelectedEpisode(null);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
+    );
+  }
+
+  // Show episode player if an episode is selected
+  if (selectedEpisode) {
+    return (
+      <EpisodePlayer
+        episode={selectedEpisode}
+        onStartExercises={handleStartExercises}
+        onBack={handleBackToList}
+      />
     );
   }
 
@@ -111,7 +140,7 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onBack }: EpisodeSel
                 >
                   <Card 
                     className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
-                    onClick={() => onSelectEpisode(episode)}
+                    onClick={() => handleEpisodeSelect(episode)}
                   >
                     <CardHeader>
                       <div className="flex items-start justify-between">
