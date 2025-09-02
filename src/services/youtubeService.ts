@@ -12,58 +12,57 @@ interface TranscriptSegment {
   duration: number;
 }
 
-// Mock YouTube API service (in real implementation, use YouTube Data API v3)
 export const getVideoInfo = async (videoId: string): Promise<VideoInfo> => {
-  // In a real implementation, this would call YouTube Data API v3
-  // For now, return mock data
-  return {
-    id: videoId,
-    title: "Language Learning Tutorial",
-    description: "Learn effective techniques for language acquisition through authentic content.",
-    duration: "15:42",
-    thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-  };
+  try {
+    // Use YouTube oEmbed API (no API key required)
+    const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+    
+    if (!response.ok) {
+      throw new Error('Video not found');
+    }
+    
+    const data = await response.json();
+    
+    return {
+      id: videoId,
+      title: data.title || 'YouTube Video',
+      description: data.author_name ? `Video by ${data.author_name}` : 'YouTube Video',
+      duration: 'N/A', // oEmbed doesn't provide duration
+      thumbnail: data.thumbnail_url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+    };
+  } catch (error) {
+    console.error('Error fetching video info:', error);
+    throw new Error('Could not fetch video information.');
+  }
 };
 
 // Extract transcript from YouTube video
 export const getVideoTranscript = async (videoId: string): Promise<string> => {
   try {
-    // In a real implementation, you would use the youtube-transcript library
-    // For now, return a realistic mock transcript
-    const mockTranscript = `
-Welcome to this comprehensive guide on language learning through authentic video content.
-
-Today we're going to explore how you can dramatically improve your language skills by using real YouTube videos as your primary learning material. This method has been proven effective by thousands of language learners worldwide.
-
-First, let's talk about the importance of comprehensible input. When you watch videos that are just slightly above your current level, you create the perfect conditions for natural language acquisition. Your brain automatically starts picking up patterns, vocabulary, and pronunciation.
-
-The key is to choose content that genuinely interests you. If you're passionate about cooking, watch cooking shows in your target language. If you love technology, find tech reviews and tutorials. This emotional connection makes the learning process much more effective.
-
-Let me share three essential strategies:
-
-Strategy number one: Start with subtitles in your target language, not your native language. This forces your brain to make connections between the spoken and written forms of the language. Initially, you might feel overwhelmed, but stick with it. Your comprehension will improve rapidly.
-
-Strategy number two: Practice active listening. Don't just passively consume content. Pause frequently to repeat what you heard. Shadow the speaker - try to match their pronunciation and intonation. This builds your speaking muscles while improving listening skills.
-
-Strategy number three: Take notes of new vocabulary and phrases. But here's the crucial part - don't just write translations. Write the context where you heard the word. Context is everything in language learning. A word like "run" can mean different things depending on the situation.
-
-Remember, consistency beats intensity every time. It's better to watch 15 minutes of authentic content daily than to have a three-hour study session once a week. Your brain needs regular exposure to process and internalize the language patterns.
-
-One common mistake learners make is jumping to content that's too difficult. If you understand less than 70% of what you're hearing, the material is probably too advanced. You'll just get frustrated and give up. Be patient with yourself and choose appropriate level content.
-
-Another important aspect is cultural immersion. Videos don't just teach you language - they teach you culture. You learn how people actually speak, their gestures, their humor, their way of thinking. This cultural competence is just as important as linguistic competence.
-
-Finally, don't be afraid to watch the same video multiple times. Each viewing reveals new details. The first time you might catch the general idea. The second time you'll notice specific vocabulary. The third time you'll pick up subtle pronunciation features.
-
-Language learning is a marathon, not a sprint. Enjoy the journey, celebrate small victories, and trust the process. With authentic video content as your guide, you'll develop natural, fluent communication skills that textbooks simply cannot provide.
-
-Thank you for watching, and I wish you the best on your language learning adventure!
-    `.trim();
-
-    return mockTranscript;
+    // Use youtube-transcript-api (free public API)
+    const response = await fetch(`https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`);
+    
+    if (!response.ok) {
+      throw new Error('Transcript not available');
+    }
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    // Combine all transcript segments into one text
+    const transcript = data.map((item: any) => item.text).join(' ');
+    
+    if (!transcript || transcript.trim().length === 0) {
+      throw new Error('No transcript text found');
+    }
+    
+    return transcript;
   } catch (error) {
     console.error('Error fetching transcript:', error);
-    throw new Error('Could not fetch transcript for this video. Please try another video or check if captions are available.');
+    throw new Error('Could not fetch transcript for this video. Please try another video with captions enabled.');
   }
 };
 
@@ -74,28 +73,33 @@ export const extractVocabulary = (transcript: string, level: string): string[] =
     .split(/\s+/)
     .filter(word => word.length > 2);
 
-  const vocabularyByLevel = {
-    A1: words.filter(word => 
-      ['learn', 'language', 'video', 'watch', 'listen', 'speak', 'understand', 'practice', 'study', 'new', 'important', 'good', 'time', 'content'].includes(word)
-    ),
-    A2: words.filter(word => 
-      ['improve', 'effective', 'method', 'vocabulary', 'pronunciation', 'authentic', 'strategy', 'progress', 'skill', 'natural', 'perfect', 'create', 'connect', 'repeat'].includes(word)
-    ),
-    B1: words.filter(word => 
-      ['comprehensible', 'acquisition', 'dramatically', 'patterns', 'passionate', 'emotional', 'overwhelmed', 'comprehension', 'context', 'consistency', 'intensity'].includes(word)
-    ),
-    B2: words.filter(word => 
-      ['comprehensive', 'primarily', 'automatically', 'initially', 'frequently', 'intonation', 'crucial', 'translations', 'internalize', 'appropriate', 'frustrated'].includes(word)
-    ),
-    C1: words.filter(word => 
-      ['dramatically', 'comprehensible', 'acquisition', 'automatically', 'overwhelmed', 'comprehension', 'consistency', 'internalize', 'appropriate', 'competence', 'linguistic'].includes(word)
-    ),
-    C2: words.filter(word => 
-      ['comprehensive', 'acquisition', 'automatically', 'overwhelmed', 'internalize', 'competence', 'linguistic', 'cultural', 'immersion', 'subtleties', 'nuanced'].includes(word)
-    )
+  // Get word frequency
+  const wordCount = words.reduce((acc, word) => {
+    acc[word] = (acc[word] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Filter out very common words (articles, pronouns, etc.)
+  const stopWords = new Set(['the', 'and', 'you', 'that', 'this', 'are', 'for', 'with', 'can', 'will', 'have', 'not', 'but', 'they', 'our', 'your', 'all', 'any', 'may', 'she', 'her', 'him', 'his', 'its', 'was', 'were', 'been', 'has', 'had', 'did', 'get', 'got', 'how', 'who', 'what', 'why', 'when', 'where']);
+  
+  // Get unique words sorted by frequency and length (prefer longer, more frequent words)
+  const uniqueWords = Object.entries(wordCount)
+    .filter(([word]) => !stopWords.has(word) && word.length > 3)
+    .sort(([, a], [, b]) => b - a)
+    .map(([word]) => word);
+
+  // Filter by complexity based on level
+  const complexityFilters = {
+    A1: (word: string) => word.length <= 6 && /^[a-z]+$/.test(word),
+    A2: (word: string) => word.length <= 8 && /^[a-z]+$/.test(word),
+    B1: (word: string) => word.length <= 10,
+    B2: (word: string) => word.length <= 12,
+    C1: (word: string) => word.length <= 15,
+    C2: (word: string) => true
   };
 
-  return [...new Set(vocabularyByLevel[level as keyof typeof vocabularyByLevel] || vocabularyByLevel.A1)].slice(0, 15);
+  const filter = complexityFilters[level as keyof typeof complexityFilters] || complexityFilters.A1;
+  return uniqueWords.filter(filter).slice(0, 15);
 };
 
 // Generate contextual sentences from transcript
