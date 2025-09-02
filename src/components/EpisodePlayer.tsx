@@ -138,16 +138,32 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const togglePlayPause = () => {
+  const togglePlayPause = async () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      console.error('Audio element not found');
+      return;
+    }
+
+    console.log('Audio URL:', audio.src);
+    console.log('Audio ready state:', audio.readyState);
 
     if (isPlaying) {
       audio.pause();
+      setIsPlaying(false);
     } else {
-      audio.play();
+      try {
+        await audio.play();
+        setIsPlaying(true);
+      } catch (error) {
+        console.error('Error playing audio:', error);
+        toast({
+          title: "Audio Error",
+          description: "Unable to play audio. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSeek = (value: number[]) => {
@@ -195,8 +211,8 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     onStartExercises(level);
   };
 
-  // Use audio_url from episode or fallback
-  const audioUrl = episode.audio_url || 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav';
+  // Use audio_url from episode or fallback to a working test audio
+  const audioUrl = episode.audio_url || 'https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3';
 
   return (
     <div className="space-y-6 p-6">
