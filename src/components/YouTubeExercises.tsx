@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,15 @@ import {
   Target,
   Youtube,
   Trophy,
-  Star
+  Star,
+  Loader2,
+  BookOpen,
+  Brain
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { getVideoTranscript } from "@/services/youtubeService";
+import { generateTranscriptBasedExercises, Exercise } from "@/services/exerciseGeneratorService";
 
 interface YouTubeExercisesProps {
   videoId: string;
@@ -25,212 +30,45 @@ interface YouTubeExercisesProps {
   onComplete: () => void;
 }
 
-interface Exercise {
-  id: string;
-  type: "multiple-choice" | "fill-blank" | "open-ended" | "true-false";
-  question: string;
-  options?: string[];
-  correctAnswer: string;
-  explanation: string;
-  points: number;
-}
 
-// Mock exercise data based on CEFR levels
-const generateExercises = (videoId: string, level: string): Exercise[] => {
-  const baseExercises = {
-    A1: [
-      {
-        id: "a1-1",
-        type: "multiple-choice" as const,
-        question: "What is the main topic of this video?",
-        options: ["Cooking", "Language Learning", "Travel", "Music"],
-        correctAnswer: "Language Learning",
-        explanation: "The video focuses on language learning strategies and tips.",
-        points: 10
-      },
-      {
-        id: "a1-2",
-        type: "true-false" as const,
-        question: "The speaker mentions practice as important for language learning.",
-        options: ["True", "False"],
-        correctAnswer: "True",
-        explanation: "Practice is emphasized throughout the video as a key element.",
-        points: 10
-      },
-      {
-        id: "a1-3",
-        type: "multiple-choice" as const,
-        question: "How many main points does the speaker make?",
-        options: ["2", "3", "4", "5"],
-        correctAnswer: "3",
-        explanation: "The speaker covers three main learning strategies.",
-        points: 10
-      }
-    ],
-    A2: [
-      {
-        id: "a2-1",
-        type: "multiple-choice" as const,
-        question: "According to the video, what is the best way to improve listening skills?",
-        options: ["Reading books", "Regular practice with authentic content", "Memorizing vocabulary", "Grammar exercises"],
-        correctAnswer: "Regular practice with authentic content",
-        explanation: "The speaker emphasizes using real-world content for listening practice.",
-        points: 15
-      },
-      {
-        id: "a2-2",
-        type: "fill-blank" as const,
-        question: "The speaker says: 'Consistency is _____ than intensity when learning languages.'",
-        correctAnswer: "better",
-        explanation: "Regular, consistent practice is more effective than occasional intensive study.",
-        points: 15
-      },
-      {
-        id: "a2-3",
-        type: "true-false" as const,
-        question: "The video suggests that beginners should only use subtitles in their native language.",
-        options: ["True", "False"],
-        correctAnswer: "False",
-        explanation: "The video recommends gradually transitioning to target language subtitles.",
-        points: 15
-      }
-    ],
-    B1: [
-      {
-        id: "b1-1",
-        type: "multiple-choice" as const,
-        question: "What does the speaker mean by 'scaffolding' in language learning?",
-        options: [
-          "Building physical structures", 
-          "Gradually reducing support as skills improve", 
-          "Using only advanced materials", 
-          "Avoiding all assistance"
-        ],
-        correctAnswer: "Gradually reducing support as skills improve",
-        explanation: "Scaffolding refers to providing support that is gradually removed as learners become more independent.",
-        points: 20
-      },
-      {
-        id: "b1-2",
-        type: "fill-blank" as const,
-        question: "Complete this quote: 'Language acquisition is not a _____ process, but rather a _____ one that requires patience.'",
-        correctAnswer: "linear, gradual",
-        explanation: "The speaker emphasizes that language learning doesn't happen in a straight line but gradually over time.",
-        points: 20
-      },
-      {
-        id: "b1-3",
-        type: "open-ended" as const,
-        question: "Summarize the speaker's advice about dealing with difficult vocabulary in one sentence.",
-        correctAnswer: "Focus on understanding general meaning rather than every single word",
-        explanation: "The key is to develop tolerance for ambiguity and focus on overall comprehension.",
-        points: 20
-      }
-    ],
-    B2: [
-      {
-        id: "b2-1",
-        type: "multiple-choice" as const,
-        question: "The speaker's argument about motivation could be best described as:",
-        options: [
-          "Motivation is innate and cannot be changed",
-          "External motivation is more effective than internal motivation",
-          "Motivation fluctuates and requires cultivation",
-          "Motivation is only important for beginners"
-        ],
-        correctAnswer: "Motivation fluctuates and requires cultivation",
-        explanation: "The speaker discusses how motivation varies and needs to be actively maintained.",
-        points: 25
-      },
-      {
-        id: "b2-2",
-        type: "open-ended" as const,
-        question: "Analyze how the speaker's tone changes when discussing different learning strategies. What does this reveal about their perspective?",
-        correctAnswer: "The tone becomes more enthusiastic when discussing active learning methods",
-        explanation: "Notice the speaker's energy and emphasis when talking about interactive vs passive learning.",
-        points: 25
-      },
-      {
-        id: "b2-3",
-        type: "fill-blank" as const,
-        question: "The speaker uses the metaphor of language learning as a '_____' to illustrate the importance of regular practice.",
-        correctAnswer: "journey",
-        explanation: "The journey metaphor emphasizes the ongoing, gradual nature of language acquisition.",
-        points: 25
-      }
-    ],
-    C1: [
-      {
-        id: "c1-1",
-        type: "open-ended" as const,
-        question: "Critically evaluate the speaker's claim that 'authentic materials are always superior to textbook content.' What are the potential limitations of this approach?",
-        correctAnswer: "While authentic materials provide real-world context, they may lack systematic progression and could overwhelm beginners",
-        explanation: "A nuanced view considers both benefits and drawbacks of different material types.",
-        points: 30
-      },
-      {
-        id: "c1-2",
-        type: "multiple-choice" as const,
-        question: "The speaker's rhetorical strategy primarily relies on:",
-        options: [
-          "Statistical evidence and research citations",
-          "Personal anecdotes and experiential learning",
-          "Theoretical frameworks and academic discourse",
-          "Emotional appeals and motivational language"
-        ],
-        correctAnswer: "Personal anecdotes and experiential learning",
-        explanation: "The speaker frequently draws from personal experience to support their arguments.",
-        points: 30
-      },
-      {
-        id: "c1-3",
-        type: "open-ended" as const,
-        question: "How does the speaker's implicit bias toward technology-assisted learning affect the validity of their recommendations?",
-        correctAnswer: "The bias may overlook traditional methods that could be effective for certain learning styles",
-        explanation: "Critical analysis requires examining unstated assumptions and potential blind spots.",
-        points: 30
-      }
-    ],
-    C2: [
-      {
-        id: "c2-1",
-        type: "open-ended" as const,
-        question: "Deconstruct the speaker's argument structure and identify any logical fallacies or unsupported claims. How might these weaknesses affect the credibility of their overall message?",
-        correctAnswer: "The argument relies heavily on anecdotal evidence and hasty generalizations, which may undermine claims about universal applicability",
-        explanation: "Advanced analysis requires identifying specific logical structures and their limitations.",
-        points: 35
-      },
-      {
-        id: "c2-2",
-        type: "open-ended" as const,
-        question: "Synthesize the speaker's methodology with current second language acquisition theories. Where do you see convergence and divergence?",
-        correctAnswer: "The approach aligns with Krashen's input hypothesis but diverges from skill-building theories by underemphasizing explicit instruction",
-        explanation: "This requires deep knowledge of SLA theory and ability to make sophisticated connections.",
-        points: 35
-      },
-      {
-        id: "c2-3",
-        type: "open-ended" as const,
-        question: "Propose an alternative framework that addresses the limitations you've identified while preserving the strengths of the speaker's approach.",
-        correctAnswer: "A hybrid model incorporating systematic progression with authentic materials, balanced explicit and implicit instruction",
-        explanation: "Creating new frameworks demonstrates mastery-level understanding and creative application.",
-        points: 35
-      }
-    ]
-  };
-
-  return baseExercises[level as keyof typeof baseExercises] || baseExercises.A1;
-};
 
 export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTubeExercisesProps) {
-  const [exercises] = useState(() => generateExercises(videoId, level));
+  const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const currentExercise = exercises[currentExerciseIndex];
-  const progress = ((currentExerciseIndex + 1) / exercises.length) * 100;
+  const progress = exercises.length > 0 ? ((currentExerciseIndex + 1) / exercises.length) * 100 : 0;
+
+  // Load exercises based on transcript
+  useEffect(() => {
+    const loadExercises = async () => {
+      setIsLoading(true);
+      setError("");
+      
+      try {
+        const transcript = await getVideoTranscript(videoId);
+        const generatedExercises = generateTranscriptBasedExercises(transcript, level, videoId);
+        setExercises(generatedExercises);
+        
+        toast({
+          title: "Exercises Generated! 🎯",
+          description: `10 transcript-based exercises created for ${level} level.`,
+        });
+      } catch (err) {
+        setError("Failed to generate exercises. Please try another video.");
+        console.error('Error generating exercises:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadExercises();
+  }, [videoId, level]);
 
   const levelInfo = {
     A1: { name: "Beginner", color: "bg-green-500" },
@@ -284,10 +122,21 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
         );
 
       case "fill-blank":
-      case "open-ended":
+      case "flashcard":
         return (
           <Textarea
-            placeholder="Type your answer here..."
+            placeholder={currentExercise.type === "flashcard" ? "Type the definition or meaning..." : "Type your answer here..."}
+            value={userAnswer}
+            onChange={(e) => handleAnswerChange(e.target.value)}
+            className="min-h-[100px]"
+          />
+        );
+
+      case "sentence-order":
+        // For sentence ordering, we'll use a simple textarea for now
+        return (
+          <Textarea
+            placeholder="Type the words in the correct order..."
             value={userAnswer}
             onChange={(e) => handleAnswerChange(e.target.value)}
             className="min-h-[100px]"
@@ -299,6 +148,82 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
     }
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Video
+          </Button>
+          
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Brain className="h-6 w-6" />
+              Generating Exercises
+            </h2>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6 text-center space-y-4">
+            <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary" />
+            <div>
+              <h3 className="font-semibold text-lg">Creating Custom Exercises</h3>
+              <p className="text-muted-foreground">
+                Analyzing video transcript and generating {level}-level exercises...
+              </p>
+            </div>
+            <div className="max-w-md mx-auto">
+              <Progress value={66} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-2">
+                This may take a few moments...
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Video
+          </Button>
+          
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <XCircle className="h-6 w-6 text-destructive" />
+              Exercise Generation Failed
+            </h2>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6 text-center space-y-4">
+            <XCircle className="h-12 w-12 mx-auto text-destructive" />
+            <div>
+              <h3 className="font-semibold text-lg">Unable to Generate Exercises</h3>
+              <p className="text-muted-foreground">
+                {error}
+              </p>
+            </div>
+            <Button onClick={onBack} variant="outline">
+              Try Another Video
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Results state
   if (showResults) {
     const maxScore = exercises.reduce((total, exercise) => total + exercise.points, 0);
     const percentage = Math.round((score / maxScore) * 100);
@@ -332,7 +257,7 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-md mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-lg mx-auto">
               <div className="text-center">
                 <div className="text-2xl font-bold">{exercises.length}</div>
                 <div className="text-sm text-muted-foreground">Exercises</div>
@@ -340,6 +265,10 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
               <div className="text-center">
                 <div className="text-2xl font-bold">{score}</div>
                 <div className="text-sm text-muted-foreground">Points</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold">{percentage}%</div>
+                <div className="text-sm text-muted-foreground">Accuracy</div>
               </div>
               <div className="text-center">
                 <Badge className={`${levelInfo[level as keyof typeof levelInfo]?.color} text-white`}>
@@ -416,7 +345,7 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
         <div className="flex-1">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Target className="h-6 w-6" />
-            YouTube Video Exercises
+            Transcript-Based Exercises
           </h2>
           <div className="flex items-center gap-2 mt-1">
             <Badge className={`${levelInfo[level as keyof typeof levelInfo]?.color} text-white`}>
@@ -425,6 +354,10 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
             <Badge variant="outline">
               <Youtube className="h-3 w-3 mr-1" />
               Video: {videoId}
+            </Badge>
+            <Badge variant="outline" className="bg-green-50 text-green-700">
+              <BookOpen className="h-3 w-3 mr-1" />
+              10 Custom Exercises
             </Badge>
           </div>
         </div>
@@ -443,51 +376,52 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
         </CardContent>
       </Card>
 
-      {/* Current Exercise */}
-      <motion.div
-        key={currentExercise.id}
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -20 }}
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Question {currentExerciseIndex + 1}</span>
-              <div className="flex items-center gap-1">
-                <Star className="h-4 w-4 text-warning fill-warning" />
-                <span className="text-sm font-normal">{currentExercise.points} points</span>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <p className="text-lg leading-relaxed">{currentExercise.question}</p>
+      {/* Exercise Content */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Exercise {currentExerciseIndex + 1}</span>
+            <div className="flex gap-2">
+              <Badge variant="outline" className="text-xs">
+                {currentExercise.type.replace('-', ' ').toUpperCase()}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {currentExercise.points} pts
+              </Badge>
             </div>
-
-            <div>
-              {renderExercise()}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <h3 className="font-medium mb-4 text-lg leading-relaxed">{currentExercise.question}</h3>
+            {renderExercise()}
+          </div>
+          
+          {currentExercise.type === "flashcard" && (
+            <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+              <p><strong>Tip:</strong> Think about the meaning in the context of the video content.</p>
             </div>
-
-            <div className="flex justify-between">
-              <Button 
-                variant="outline" 
-                onClick={() => setCurrentExerciseIndex(Math.max(0, currentExerciseIndex - 1))}
-                disabled={currentExerciseIndex === 0}
-              >
-                Previous
-              </Button>
-              
-              <Button 
-                onClick={handleNext}
-                disabled={!answers[currentExercise.id]?.trim()}
-              >
-                {currentExerciseIndex === exercises.length - 1 ? "Finish" : "Next"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          )}
+          
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              disabled={currentExerciseIndex === 0}
+              onClick={() => setCurrentExerciseIndex(currentExerciseIndex - 1)}
+            >
+              Previous
+            </Button>
+            
+            <Button 
+              onClick={handleNext}
+              disabled={!answers[currentExercise.id]?.trim()}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {currentExerciseIndex === exercises.length - 1 ? "Finish & See Results" : "Next Exercise"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
