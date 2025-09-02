@@ -59,7 +59,6 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
   };
 
   const handleEpisodeSelect = (episode: PodcastEpisode) => {
-    setSelectedEpisode(episode);
     onSelectEpisode(episode);
   };
 
@@ -81,16 +80,7 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
     );
   }
 
-  // Show episode player if an episode is selected
-  if (selectedEpisode) {
-    return (
-      <EpisodePlayer
-        episode={selectedEpisode}
-        onStartExercises={handleStartExercises}
-        onBack={handleBackToList}
-      />
-    );
-  }
+  // Remove the embedded player logic since we're using a separate player page
 
   return (
     <div className="space-y-6 p-6">
