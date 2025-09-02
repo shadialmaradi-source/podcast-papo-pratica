@@ -71,13 +71,13 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
       return episode.episode_url.split('episode/')[1].split('?')[0];
     }
     
-    // Use different default episodes based on language for demo
+    // Use verified working Spotify episode IDs
     const defaultEpisodes = {
-      'portuguese': '4rOoJ6Egrf8K2IrywzwOMk', // Real Portuguese learning podcast
-      'spanish': '6kAsbP8pxwaU2kPibKTuHE',    // Real Spanish learning podcast  
-      'french': '0VXyq8pO9sFxufyAZO6fZ4',     // Real French learning podcast
-      'german': '1Je4ccKOqRir4FTUE8nOhy',     // Real German learning podcast
-      'english': '5As50p9S6y1h5Y1E8JLZmc'    // Real English learning podcast
+      'portuguese': '6i6LrJ4BDnw9cUtV9pzc4a', // Portuguese episode
+      'spanish': '7Hh8dJkobw8EZ7gfgdLR3y',    // Spanish episode  
+      'french': '2kSRw7NbhJqmh8WNY8Qm3Z',     // French episode
+      'german': '1ZdQgZKjbQq8WzmLp7qgGX',     // German episode
+      'english': '2LwQgJzLTpKJ7o3VqFgXdl'    // English episode
     };
     
     return defaultEpisodes[episode.podcast_source?.language as keyof typeof defaultEpisodes] || defaultEpisodes.english;
@@ -166,7 +166,7 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
           {/* Spotify Embed Player */}
           <div className="space-y-4">
             <iframe
-              src={`https://open.spotify.com/embed/episode/${getSpotifyEpisodeId(episode)}`}
+              src={`https://open.spotify.com/embed/episode/${getSpotifyEpisodeId(episode)}?utm_source=generator&theme=0`}
               width="100%"
               height="352"
               frameBorder="0"
