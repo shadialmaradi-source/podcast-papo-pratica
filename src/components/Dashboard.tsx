@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Flame, Star, Heart, Trophy, BookOpen, User, LogOut } from "lucide-react";
+import { Flame, Star, Heart, Trophy, BookOpen, User, LogOut, Youtube } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface UserProfile {
@@ -24,7 +24,7 @@ interface UserProfile {
 }
 
 interface DashboardProps {
-  onNavigate: (page: 'podcasts' | 'profile') => void;
+  onNavigate: (page: 'podcasts' | 'profile' | 'youtube') => void;
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
@@ -319,22 +319,34 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           </motion.div>
         </div>
 
-        {/* Action Button */}
+        {/* Action Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="mt-8 text-center"
+          className="mt-8"
         >
-          <Button 
-            size="lg" 
-            className="text-lg px-8 py-6"
-            variant="learning"
-            onClick={() => onNavigate('podcasts')}
-          >
-            <BookOpen className="h-5 w-5 mr-2" />
-            Inizia ad Imparare
-          </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-6"
+              variant="learning"
+              onClick={() => onNavigate('podcasts')}
+            >
+              <BookOpen className="h-5 w-5 mr-2" />
+              Esplora Podcast
+            </Button>
+            
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-6"
+              variant="outline"
+              onClick={() => onNavigate('youtube')}
+            >
+              <Youtube className="h-5 w-5 mr-2 text-red-500" />
+              Video YouTube
+            </Button>
+          </div>
         </motion.div>
       </div>
     </div>

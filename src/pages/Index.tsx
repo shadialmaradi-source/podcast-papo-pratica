@@ -6,9 +6,11 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { PodcastLibrary } from "@/components/PodcastLibrary";
 import { EpisodeSelector } from "@/components/EpisodeSelector";
 import { ExerciseGenerator } from "@/components/ExerciseGenerator";
+import { YouTubeVideos } from "@/components/YouTubeVideos";
+import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile";
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -17,6 +19,7 @@ const Index = () => {
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastSource | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<PodcastEpisode | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string>("A1");
+  const [selectedVideoId, setSelectedVideoId] = useState<string>("");
 
   if (loading) {
     return (
@@ -71,12 +74,24 @@ const Index = () => {
     setAppState("dashboard");
   };
 
-  const handleNavigate = (page: 'podcasts' | 'profile') => {
+  const handleNavigate = (page: 'podcasts' | 'profile' | 'youtube') => {
     if (page === 'podcasts') {
       handleNavigateToPodcasts();
+    } else if (page === 'youtube') {
+      setAppState('youtube');
     } else {
       setAppState(page);
     }
+  };
+
+  const handleYouTubeExercises = (videoId: string, level: string) => {
+    setSelectedVideoId(videoId);
+    setSelectedLevel(level);
+    setAppState("youtube-exercises");
+  };
+
+  const handleBackToYouTube = () => {
+    setAppState("youtube");
   };
 
   return (
@@ -116,6 +131,26 @@ const Index = () => {
             level={selectedLevel}
             onComplete={handleExerciseComplete}
             onBack={handleBackToEpisodes}
+          />
+        </div>
+      )}
+
+      {appState === "youtube" && (
+        <div className="container mx-auto">
+          <YouTubeVideos 
+            onBack={handleBackToDashboard}
+            onStartExercises={handleYouTubeExercises}
+          />
+        </div>
+      )}
+
+      {appState === "youtube-exercises" && selectedVideoId && (
+        <div className="container mx-auto px-4 py-8">
+          <YouTubeExercises
+            videoId={selectedVideoId}
+            level={selectedLevel}
+            onBack={handleBackToYouTube}
+            onComplete={handleBackToYouTube}
           />
         </div>
       )}
