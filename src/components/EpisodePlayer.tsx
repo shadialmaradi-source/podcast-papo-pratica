@@ -48,15 +48,11 @@ Thank you for joining us today, and we hope you find this episode both education
 
 export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [showTranscript, setShowTranscript] = useState(false);
   const [timeListened, setTimeListened] = useState(0);
   const [showExercisePrompt, setShowExercisePrompt] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   
-  const audioRef = useRef<HTMLAudioElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const levels = [
@@ -67,6 +63,25 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     { code: "C1", name: "Advanced (C1)", color: "bg-destructive" },
     { code: "C2", name: "Proficiency (C2)", color: "bg-destructive" },
   ];
+
+  // Extract Spotify episode ID from URL or use a default one
+  const getSpotifyEpisodeId = (episode: PodcastEpisode): string => {
+    // Try to extract from episode URL if it contains Spotify info
+    if (episode.episode_url?.includes('spotify.com/episode/')) {
+      return episode.episode_url.split('episode/')[1].split('?')[0];
+    }
+    
+    // Use different default episodes based on language for demo
+    const defaultEpisodes = {
+      'portuguese': '4rOoJ6Egrf8K2IrywzwOMk', // Real Portuguese learning podcast
+      'spanish': '6kAsbP8pxwaU2kPibKTuHE',    // Real Spanish learning podcast  
+      'french': '0VXyq8pO9sFxufyAZO6fZ4',     // Real French learning podcast
+      'german': '1Je4ccKOqRir4FTUE8nOhy',     // Real German learning podcast
+      'english': '5As50p9S6y1h5Y1E8JLZmc'    // Real English learning podcast
+    };
+    
+    return defaultEpisodes[episode.podcast_source?.language as keyof typeof defaultEpisodes] || defaultEpisodes.english;
+  };
 
   useEffect(() => {
     if (isPlaying) {
@@ -97,53 +112,6 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     };
   }, [isPlaying]);
 
-  const handlePlayPause = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const handleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-      
-      // Update progress in database every 30 seconds
-      if (Math.floor(audioRef.current.currentTime) % 30 === 0) {
-        const progressPercentage = (audioRef.current.currentTime / duration) * 100;
-        updateEpisodeProgress(
-          episode.id,
-          progressPercentage,
-          audioRef.current.currentTime,
-          progressPercentage >= 95
-        );
-      }
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
   const formatTimeListened = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -159,8 +127,6 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     setSelectedLevel(level);
     onStartExercises(level);
   };
-
-  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <div className="space-y-6 p-6">
@@ -197,48 +163,33 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Audio Element */}
-          <audio
-            ref={audioRef}
-            src={episode.audio_url || "/audio/sample-episode.mp3"}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-            onEnded={() => setIsPlaying(false)}
-            preload="metadata"
-          />
+          {/* Spotify Embed Player */}
+          <div className="space-y-4">
+            <iframe
+              src={`https://open.spotify.com/embed/episode/${getSpotifyEpisodeId(episode)}`}
+              width="100%"
+              height="352"
+              frameBorder="0"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+              className="rounded-lg"
+            />
+          </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-4">
-            <Button
-              onClick={handlePlayPause}
-              size="lg"
-              className="rounded-full w-12 h-12"
-            >
-              {isPlaying ? (
-                <Pause className="h-6 w-6" />
-              ) : (
-                <Play className="h-6 w-6" />
-              )}
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMute}
-            >
-              {isMuted ? (
-                <VolumeX className="h-4 w-4" />
-              ) : (
-                <Volume2 className="h-4 w-4" />
-              )}
-            </Button>
-
-            <div className="flex-1 space-y-2">
-              <Progress value={progressPercentage} className="h-2" />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
+          {/* Listening Time Tracker */}
+          <div className="bg-muted/50 rounded-lg p-4">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                <span>Listening Time: {formatTimeListened(timeListened)}</span>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPlaying(!isPlaying)}
+              >
+                {isPlaying ? "Pause Timer" : "Start Timer"}
+              </Button>
             </div>
           </div>
 
