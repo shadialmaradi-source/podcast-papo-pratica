@@ -8,10 +8,9 @@ import { EpisodeSelector } from "@/components/EpisodeSelector";
 import { ExerciseGenerator } from "@/components/ExerciseGenerator";
 import { YouTubeVideos } from "@/components/YouTubeVideos";
 import { YouTubeExercises } from "@/components/YouTubeExercises";
-import { PodcastPlayer } from "@/components/PodcastPlayer";
 import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "player" | "exercises" | "profile" | "youtube" | "youtube-exercises";
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -50,7 +49,7 @@ const Index = () => {
 
   const handleEpisodeSelect = (episode: PodcastEpisode) => {
     setSelectedEpisode(episode);
-    setAppState("player");
+    // Keep in episodes view for the player
   };
 
   const handleStartExercises = (episode: PodcastEpisode, level: string) => {
@@ -64,11 +63,6 @@ const Index = () => {
   };
 
   const handleBackToEpisodes = () => {
-    setAppState("episodes");
-  };
-
-  const handleBackToEpisodesFromPlayer = () => {
-    setSelectedEpisode(null);
     setAppState("episodes");
   };
 
@@ -128,13 +122,6 @@ const Index = () => {
             onBack={handleBackToPodcasts}
           />
         </div>
-      )}
-
-      {appState === "player" && selectedEpisode && (
-        <PodcastPlayer
-          episode={selectedEpisode}
-          onBack={handleBackToEpisodesFromPlayer}
-        />
       )}
       
       {appState === "exercises" && selectedEpisode && (
