@@ -43,25 +43,22 @@ export function ItalianPodcastCard({ podcast, episode, onStartExercises }: Itali
   const [showTranscript, setShowTranscript] = useState(false);
 
   const renderEmbedPlayer = () => {
-    // Handle Spotify show URLs by converting to embed format
-    if (episode.audio_url && episode.audio_url.includes('spotify.com/show/')) {
-      const showId = episode.audio_url.split('show/')[1];
-      const embedUrl = `https://open.spotify.com/embed/show/${showId}?utm_source=generator&theme=0`;
-      
-      return (
-        <div className="w-full h-80 rounded-lg overflow-hidden">
-          <iframe
-            src={embedUrl}
-            width="100%"
-            height="100%"
-            allowFullScreen
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-            className="border-0"
-          />
-        </div>
-      );
-    }
+    // Use specific episode embed iframe
+    return (
+      <div className="w-full rounded-lg overflow-hidden">
+        <iframe
+          data-testid="embed-iframe"
+          style={{ borderRadius: '12px' }}
+          src="https://open.spotify.com/embed/episode/2sg5YB59AWkzVEfDy7kbpY?utm_source=generator"
+          width="100%"
+          height="352"
+          frameBorder="0"
+          allowFullScreen
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        />
+      </div>
+    );
 
     // Fallback card with link to episode
     return (
