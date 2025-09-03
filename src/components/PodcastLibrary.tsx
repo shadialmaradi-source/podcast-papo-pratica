@@ -5,11 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Play, BookOpen, Clock, Star, Search } from "lucide-react";
 import { motion } from "framer-motion";
-import { getPodcastsByLanguage, searchPodcasts, PodcastSource } from "@/services/podcastService";
+import { PODCAST_SOURCES, PodcastSource } from "@/data/podcastSources";
+import { PodcastEpisodeCard } from "./PodcastEpisodeCard";
 
 interface PodcastLibraryProps {
   selectedLanguage: string;
   onSelectPodcast: (podcast: PodcastSource) => void;
+  onStartExercises: (episode: any, level: string) => void;
 }
 
 const languageNames: Record<string, string> = {
@@ -23,19 +25,21 @@ const languageNames: Record<string, string> = {
 
 const getDifficultyColor = (difficulty: string) => {
   switch (difficulty) {
-    case "A1": case "A2": return "bg-green-100 text-green-800 border-green-200";
-    case "B1": case "B2": return "bg-yellow-100 text-yellow-800 border-yellow-200";
-    case "C1": case "C2": return "bg-red-100 text-red-800 border-red-200";
-    default: return "bg-gray-100 text-gray-800 border-gray-200";
+    case "A1": case "A2": return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400";
+    case "B1": case "B2": return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400";
+    case "C1": case "C2": return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400";
+    default: return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400";
   }
 };
 
-export function PodcastLibrary({ selectedLanguage, onSelectPodcast }: PodcastLibraryProps) {
+export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExercises }: PodcastLibraryProps) {
   const [podcasts, setPodcasts] = useState<PodcastSource[]>([]);
   const [filteredPodcasts, setFilteredPodcasts] = useState<PodcastSource[]>([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [selectedPodcast, setSelectedPodcast] = useState<PodcastSource | null>(null);
+  const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   
   const difficulties = ["all", "A1", "A2", "B1", "B2", "C1", "C2"];
 
@@ -47,16 +51,11 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast }: PodcastLib
     filterPodcasts();
   }, [podcasts, selectedDifficulty, searchQuery]);
 
-  const loadPodcasts = async () => {
-    try {
-      setLoading(true);
-      const data = await getPodcastsByLanguage(selectedLanguage);
-      setPodcasts(data);
-    } catch (error) {
-      console.error('Error loading podcasts:', error);
-    } finally {
-      setLoading(false);
-    }
+  const loadPodcasts = () => {
+    const data = PODCAST_SOURCES.filter(
+      podcast => podcast.language === selectedLanguage
+    );
+    setPodcasts(data);
   };
 
   const filterPodcasts = () => {
@@ -78,10 +77,32 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast }: PodcastLib
     setFilteredPodcasts(filtered);
   };
 
-  if (loading) {
+  const handleSelectPodcast = (podcast: PodcastSource) => {
+    if (podcast.episodes.length > 0) {
+      setSelectedPodcast(podcast);
+      setSelectedEpisode(podcast.episodes[0]); // Select first episode
+    } else {
+      onSelectPodcast(podcast);
+    }
+  };
+
+  const handleBackToList = () => {
+    setSelectedPodcast(null);
+    setSelectedEpisode(null);
+  };
+
+  // Show episode card if podcast and episode are selected
+  if (selectedPodcast && selectedEpisode) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="p-6">
+        <Button variant="outline" onClick={handleBackToList} className="mb-6">
+          ← Back to Podcasts
+        </Button>
+        <PodcastEpisodeCard
+          podcast={selectedPodcast}
+          episode={selectedEpisode}
+          onStartExercises={onStartExercises}
+        />
       </div>
     );
   }
@@ -139,7 +160,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast }: PodcastLib
           >
             <Card 
               className="group hover:shadow-xl transition-all duration-300 cursor-pointer border-0 shadow-lg h-full"
-              onClick={() => onSelectPodcast(podcast)}
+              onClick={() => handleSelectPodcast(podcast)}
             >
               <CardHeader className="space-y-3">
                 <div className="relative aspect-square rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 overflow-hidden">

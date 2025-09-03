@@ -109,6 +109,7 @@ const Index = () => {
           <PodcastLibrary 
             selectedLanguage={selectedLanguage}
             onSelectPodcast={handlePodcastSelect}
+            onStartExercises={handleStartExercises}
           />
         </div>
       )}
