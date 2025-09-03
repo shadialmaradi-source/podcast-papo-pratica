@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Play, BookOpen, Clock, Star, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { PODCAST_SOURCES, PodcastSource } from "@/data/podcastSources";
-import { PodcastEpisodeCard } from "./PodcastEpisodeCard";
+import { ItalianPodcastCard } from "./ItalianPodcastCard";
 
 interface PodcastLibraryProps {
   selectedLanguage: string;
@@ -98,7 +98,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
         <Button variant="outline" onClick={handleBackToList} className="mb-6">
           ← Back to Podcasts
         </Button>
-        <PodcastEpisodeCard
+        <ItalianPodcastCard
           podcast={selectedPodcast}
           episode={selectedEpisode}
           onStartExercises={onStartExercises}

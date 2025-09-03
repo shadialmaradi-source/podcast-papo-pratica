@@ -216,9 +216,25 @@ const createMockExercises = (episode: PodcastEpisode, level: string): Exercise[]
           correct_answer: "eat",
           explanation: "The verb 'eat' is used for consuming food."
         }
-      ]
-    }
-  };
+            ]
+          },
+          italian: {
+            B1: [
+              {
+                question: "Quando è nata ufficialmente la RAI?",
+                options: ["Anni Quaranta", "Anni Cinquanta", "Anni Sessanta", "Anni Settanta"],
+                correct_answer: "Anni Cinquanta",
+                explanation: "La storia della televisione italiana inizia ufficialmente negli anni Cinquanta con la nascita della RAI."
+              },
+              {
+                question: "Cosa sono gli sceneggiati televisivi?",
+                options: ["Programmi di varietà", "Serie televisive con storie", "Telegiornali", "Show comici"],
+                correct_answer: "Serie televisive con storie",
+                explanation: "Gli sceneggiati erano le prime serie TV italiane, come Il Commissario Maigret."
+              }
+            ]
+          }
+        };
 
   const texts = exerciseTexts[language as keyof typeof exerciseTexts] || exerciseTexts.english;
   const levelExercises = texts[level as keyof typeof texts] || texts.A1;
