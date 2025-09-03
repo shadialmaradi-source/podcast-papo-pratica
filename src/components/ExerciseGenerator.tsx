@@ -237,7 +237,7 @@ const createMockExercises = (episode: PodcastEpisode, level: string): Exercise[]
         };
 
   const texts = exerciseTexts[language as keyof typeof exerciseTexts] || exerciseTexts.english;
-  const levelExercises = texts[level as keyof typeof texts] || texts.A1;
+  const levelExercises = (texts as any)[level] || (texts as any).A1 || exerciseTexts.english.A1;
 
   return levelExercises.map((exercise, index) => ({
     id: `mock-${language}-${level}-${index + 1}`,
