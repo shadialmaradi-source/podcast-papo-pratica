@@ -1,0 +1,16 @@
+-- Delete existing exercises for the Italian episode
+DELETE FROM exercises WHERE episode_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+-- Insert comprehensive exercise sets for Italian TV History episode
+-- A1 LEVEL - SET 1: COMPREHENSION (10 questions)
+INSERT INTO exercises (episode_id, exercise_type, question, options, correct_answer, explanation, difficulty, xp_reward, order_index) VALUES
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'multiple_choice', 'Cosa parla questo podcast?', '["La storia della televisione italiana", "La storia del cinema italiano", "La storia della radio italiana", "La storia dei giornali italiani"]', 'La storia della televisione italiana', 'Il podcast parla della storia della televisione in Italia, dalle sue origini ai giorni nostri.', 'A1', 10, 1),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'multiple_choice', 'Quando è nata la televisione in Italia?', '["Negli anni 1950", "Negli anni 1940", "Negli anni 1960", "Negli anni 1930"]', 'Negli anni 1950', 'La televisione italiana è nata ufficialmente negli anni 1950 con la RAI.', 'A1', 10, 2),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'true_false', 'La RAI è stata la prima televisione italiana.', '["Vero", "Falso"]', 'Vero', 'Si, la RAI (Radiotelevisione Italiana) è stata la prima emittente televisiva in Italia.', 'A1', 10, 3),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'multiple_choice', 'Che cosa significa RAI?', '["Radiotelevisione Italiana", "Radio Italiana", "Televisione Italiana", "Rete Italiana"]', 'Radiotelevisione Italiana', 'RAI significa Radiotelevisione Italiana, il servizio pubblico radiotelevisivo italiano.', 'A1', 10, 4),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'multiple_choice', 'Quanti canali aveva la televisione italiana all inizio?', '["Uno", "Due", "Tre", "Quattro"]', 'Uno', 'All inizio la televisione italiana aveva solo un canale, Rai 1 (allora chiamato Programma Nazionale).', 'A1', 10, 5),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'true_false', 'All inizio poche famiglie avevano la televisione.', '["Vero", "Falso"]', 'Vero', 'Negli anni cinquanta la televisione era un lusso e poche famiglie potevano permettersela.', 'A1', 10, 6),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'multiple_choice', 'Dove guardavano la televisione le persone senza TV?', '["Nei bar", "Nelle chiese", "Nelle scuole", "Nei parchi"]', 'Nei bar', 'Molte persone senza televisione si riunivano nei bar per guardare i programmi insieme.', 'A1', 10, 7),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'multiple_choice', 'Che tipo di programmi c erano all inizio?', '["Programmi semplici", "Programmi molto complicati", "Solo film", "Solo notizie"]', 'Programmi semplici', 'I primi programmi televisivi erano semplici: notizie, varietà e alcuni programmi educativi.', 'A1', 10, 8),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'true_false', 'La televisione ha cambiato la vita degli italiani.', '["Vero", "Falso"]', 'Vero', 'La televisione ha profondamente trasformato la società italiana, influenzando cultura, lingua e abitudini.', 'A1', 10, 9),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'multiple_choice', 'La televisione italiana è diventata più popolare negli anni...', '["1960", "1940", "1970", "1980"]', '1960', 'Negli anni sessanta la televisione si diffuse rapidamente nelle case italiane.', 'A1', 10, 10);
