@@ -78,12 +78,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
   };
 
   const handleSelectPodcast = (podcast: PodcastSource) => {
-    if (podcast.episodes.length > 0) {
-      setSelectedPodcast(podcast);
-      setSelectedEpisode(podcast.episodes[0]); // Select first episode
-    } else {
-      onSelectPodcast(podcast);
-    }
+    onSelectPodcast(podcast);
   };
 
   const handleBackToList = () => {
@@ -137,7 +132,12 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
       </div>
 
       {/* Podcasts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {loading ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading podcasts...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPodcasts.map((podcast, index) => (
           <motion.div
             key={podcast.id}
@@ -212,7 +212,8 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
             </Card>
           </motion.div>
         ))}
-      </div>
+        </div>
+      )}
 
       {filteredPodcasts.length === 0 && (
         <div className="text-center py-12">
