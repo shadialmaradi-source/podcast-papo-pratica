@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Play, BookOpen, Clock, Star, Search } from "lucide-react";
 import { motion } from "framer-motion";
-import { PODCAST_SOURCES, PodcastSource } from "@/data/podcastSources";
+import { PodcastSource, getPodcastsByLanguage } from "@/services/podcastService";
 import { ItalianPodcastCard } from "./ItalianPodcastCard";
 
 interface PodcastLibraryProps {
@@ -51,11 +51,19 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
     filterPodcasts();
   }, [podcasts, selectedDifficulty, searchQuery]);
 
-  const loadPodcasts = () => {
-    const data = PODCAST_SOURCES.filter(
-      podcast => podcast.language === selectedLanguage
-    );
-    setPodcasts(data);
+  const loadPodcasts = async () => {
+    console.log('PodcastLibrary: Loading podcasts for language:', selectedLanguage);
+    setLoading(true);
+    try {
+      const data = await getPodcastsByLanguage(selectedLanguage);
+      console.log('PodcastLibrary: Found podcasts:', data);
+      setPodcasts(data);
+    } catch (error) {
+      console.error('PodcastLibrary: Error loading podcasts:', error);
+      setPodcasts([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filterPodcasts = () => {
