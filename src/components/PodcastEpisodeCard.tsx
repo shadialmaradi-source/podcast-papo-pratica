@@ -61,7 +61,7 @@ export function PodcastEpisodeCard({ podcast, episode, onStartExercises }: Podca
       );
     }
 
-    // Fallback player card
+    // Fallback player card for other languages
     return (
       <Card className="p-6 bg-gradient-to-br from-primary/5 to-secondary/5">
         <div className="flex items-center gap-4">
@@ -72,7 +72,9 @@ export function PodcastEpisodeCard({ podcast, episode, onStartExercises }: Podca
           />
           <div className="flex-1">
             <h4 className="font-semibold">{episode.title}</h4>
-            <p className="text-sm text-muted-foreground">{episode.duration ? `${Math.floor(episode.duration / 60)} min` : 'Duration unknown'}</p>
+            <p className="text-sm text-muted-foreground">
+              {episode.duration ? `${Math.floor(episode.duration / 60)} min` : 'Duration unknown'}
+            </p>
           </div>
           <Button asChild>
             <a href={episode.episode_url} target="_blank" rel="noopener noreferrer">
@@ -113,7 +115,7 @@ This excerpt demonstrates the type of content and language level appropriate for
           <Badge className={getDifficultyColor(podcast.difficulty_level)} variant="outline">
             🎧 {podcast.difficulty_level}
           </Badge>
-          <Badge variant="secondary">{podcast.category}</Badge>
+          <Badge variant="secondary">{podcast.category || 'General'}</Badge>
         </div>
         
         <div>
@@ -126,7 +128,7 @@ This excerpt demonstrates the type of content and language level appropriate for
               📝 Summary
             </h3>
             <p className="text-sm text-muted-foreground">
-              {`This episode of ${podcast.title} covers important topics for ${podcast.difficulty_level} level learners, featuring authentic conversations and cultural insights.`}
+              This episode of {podcast.title} covers important topics for {podcast.difficulty_level} level learners, featuring authentic conversations and cultural insights.
             </p>
           </Card>
         </div>
@@ -180,7 +182,7 @@ This excerpt demonstrates the type of content and language level appropriate for
               <div className="space-y-4 text-sm leading-relaxed">
                 <div className="p-4 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-2">
-                    Note: This is a short excerpt. Full transcript available at the official podcast page.
+                    Note: This is a short excerpt. Full transcript available at the original episode.
                   </p>
                 </div>
                 {generateMockTranscript().split('\n').map((paragraph, index) => (
