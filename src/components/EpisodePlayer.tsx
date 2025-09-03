@@ -240,102 +240,77 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
         </div>
       </div>
 
-      {/* Audio Player */}
+      {/* Spotify Embed */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Volume2 className="h-5 w-5" />
-            Audio Player
+            <Play className="h-5 w-5" />
+            Listen to Episode
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Hidden Audio Element */}
-          <audio
-            ref={audioRef}
-            src={audioUrl}
-            preload="metadata"
-          />
-          
-          {/* Custom Audio Player */}
-          <Card className="p-6 space-y-4 bg-gradient-to-br from-primary/5 to-secondary/5">
-            {/* Progress Bar */}
-            <div className="space-y-2">
-              <Slider
-                value={[currentTime]}
-                max={duration || 100}
-                step={1}
-                onValueChange={handleSeek}
-                className="w-full"
-              />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
+        <CardContent>
+          <div className="w-full">
+            <iframe 
+              data-testid="embed-iframe" 
+              style={{borderRadius: "12px"}} 
+              src="https://open.spotify.com/embed/episode/2sg5YB59AWkzVEfDy7kbpY?utm_source=generator" 
+              width="100%" 
+              height="152" 
+              frameBorder="0" 
+              allowFullScreen={true}
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+              loading="lazy"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-            {/* Playback Controls */}
-            <div className="flex items-center justify-center space-x-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={skipBackward}
-                className="w-10 h-10 rounded-full"
+      {/* Exercise Levels Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
+            Practice Exercises
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Choose your language level to start practicing with this episode
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {levels.map((level) => (
+              <motion.div
+                key={level.code}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <SkipBack className="w-4 h-4" />
-              </Button>
-              
-              <Button
-                onClick={togglePlayPause}
-                size="lg"
-                className="w-16 h-16 rounded-full"
-              >
-                {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={skipForward}
-                className="w-10 h-10 rounded-full"
-              >
-                <SkipForward className="w-4 h-4" />
-              </Button>
-            </div>
+                <Button
+                  variant="outline"
+                  className="w-full h-auto p-6 flex flex-col gap-3 hover:shadow-md transition-all"
+                  onClick={() => handleStartExercises(level.code)}
+                >
+                  <Badge className={`${level.color} text-white text-lg px-3 py-1`}>
+                    {level.code}
+                  </Badge>
+                  <div className="text-center">
+                    <div className="font-medium text-sm">
+                      {level.name.split(' ')[0]}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {level.name.split(' ').slice(1).join(' ')}
+                    </div>
+                  </div>
+                </Button>
+              </motion.div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-            {/* Volume and Speed Controls */}
-            <div className="flex items-center justify-between space-x-4">
-              <div className="flex items-center space-x-2 flex-1">
-                <Volume2 className="w-4 h-4 text-muted-foreground" />
-                <Slider
-                  value={[volume * 100]}
-                  max={100}
-                  step={1}
-                  onValueChange={handleVolumeChange}
-                  className="flex-1 max-w-24"
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">Speed:</span>
-                <Select value={playbackRate.toString()} onValueChange={handleSpeedChange}>
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0.5">0.5x</SelectItem>
-                    <SelectItem value="0.75">0.75x</SelectItem>
-                    <SelectItem value="1">1x</SelectItem>
-                    <SelectItem value="1.25">1.25x</SelectItem>
-                    <SelectItem value="1.5">1.5x</SelectItem>
-                    <SelectItem value="2">2x</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </Card>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
+      {/* Additional Actions */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-3">
             <Dialog open={showTranscript} onOpenChange={setShowTranscript}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -365,107 +340,7 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
                 </ScrollArea>
               </DialogContent>
             </Dialog>
-
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-gradient-to-r from-primary to-primary-light">
-                  <BookOpen className="h-4 w-4" />
-                  Start Exercises
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Choose Your Level
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Select your current language level to get appropriate exercises:
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {levels.map((level) => (
-                      <motion.div
-                        key={level.code}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Button
-                          variant="outline"
-                          className="w-full h-auto p-4 flex flex-col gap-2"
-                          onClick={() => handleStartExercises(level.code)}
-                        >
-                          <Badge className={`${level.color} text-white`}>
-                            {level.code}
-                          </Badge>
-                          <span className="text-sm font-medium">
-                            {level.name}
-                          </span>
-                        </Button>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
-
-          {/* Exercise Prompt after 15 minutes */}
-          {showExercisePrompt && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-r from-warning/10 to-accent/10 border border-warning/20 rounded-lg p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold text-warning-foreground">
-                    Great listening! Time for exercises? 🎯
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    You've been listening for 15 minutes. Test your comprehension!
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowExercisePrompt(false)}
-                  >
-                    Later
-                  </Button>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="bg-warning hover:bg-warning/90">
-                        Start Now
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Choose Your Level</DialogTitle>
-                      </DialogHeader>
-                      <div className="grid grid-cols-2 gap-3">
-                        {levels.map((level) => (
-                          <Button
-                            key={level.code}
-                            variant="outline"
-                            className="h-auto p-4 flex flex-col gap-2"
-                            onClick={() => handleStartExercises(level.code)}
-                          >
-                            <Badge className={`${level.color} text-white`}>
-                              {level.code}
-                            </Badge>
-                            <span className="text-sm">{level.name}</span>
-                          </Button>
-                        ))}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </div>
-            </motion.div>
-          )}
         </CardContent>
       </Card>
 
