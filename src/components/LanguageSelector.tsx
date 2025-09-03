@@ -14,40 +14,16 @@ interface LanguageSelectorProps {
 
 const languages: Language[] = [
   {
-    code: "spanish",
-    name: "Español",
-    flag: "🇪🇸",
-    description: "Learn Spanish with top podcasts from Spain and Latin America"
-  },
-  {
-    code: "english",
-    name: "English",
-    flag: "🇺🇸",
-    description: "Master English with engaging podcast content"
-  },
-  {
     code: "portuguese",
     name: "Português",
     flag: "🇧🇷",
     description: "Learn Brazilian Portuguese through podcasts"
   },
   {
-    code: "french",
-    name: "Français",
-    flag: "🇫🇷",
-    description: "Apprenez le français avec des podcasts authentiques"
-  },
-  {
     code: "italian",
     name: "Italiano",
     flag: "🇮🇹",
     description: "Impara l'italiano attraverso i podcast"
-  },
-  {
-    code: "german",
-    name: "Deutsch",
-    flag: "🇩🇪",
-    description: "Lerne Deutsch mit beliebten deutschen Podcasts"
   }
 ];
 

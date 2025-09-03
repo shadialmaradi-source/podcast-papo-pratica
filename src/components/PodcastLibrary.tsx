@@ -15,12 +15,8 @@ interface PodcastLibraryProps {
 }
 
 const languageNames: Record<string, string> = {
-  'spanish': 'Español',
-  'english': 'English',
   'portuguese': 'Português',
-  'french': 'Français',
-  'italian': 'Italiano',
-  'german': 'Deutsch'
+  'italian': 'Italiano'
 };
 
 const getDifficultyColor = (difficulty: string) => {
