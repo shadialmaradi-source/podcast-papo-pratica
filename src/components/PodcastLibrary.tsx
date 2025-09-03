@@ -92,20 +92,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
   };
 
   // Show episode card if podcast and episode are selected
-  if (selectedPodcast && selectedEpisode) {
-    return (
-      <div className="p-6">
-        <Button variant="outline" onClick={handleBackToList} className="mb-6">
-          ← Back to Podcasts
-        </Button>
-        <ItalianPodcastCard
-          podcast={selectedPodcast}
-          episode={selectedEpisode}
-          onStartExercises={onStartExercises}
-        />
-      </div>
-    );
-  }
+  // Note: Direct episode display removed to focus on podcast library functionality
 
   return (
     <div className="space-y-6 p-6">
