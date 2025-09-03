@@ -42,26 +42,29 @@ export function PodcastEpisodeCard({ podcast, episode, onStartExercises }: Podca
   };
 
   const renderEmbedPlayer = () => {
-    // For Italian podcast - use specific Spotify embed
-    if (podcast.language === 'italian') {
-      return (
-        <div className="w-full rounded-lg overflow-hidden">
-          <iframe
-            data-testid="embed-iframe"
-            style={{ borderRadius: '12px' }}
-            src="https://open.spotify.com/embed/episode/2sg5YB59AWkzVEfDy7kbpY?utm_source=generator"
-            width="100%"
-            height="352"
-            frameBorder="0"
-            allowFullScreen
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-          />
-        </div>
-      );
+    // Extract Spotify episode ID from episode URL if it's a Spotify URL
+    if (episode.episode_url?.includes('open.spotify.com/episode/')) {
+      const episodeId = episode.episode_url.split('episode/')[1]?.split('?')[0];
+      if (episodeId) {
+        return (
+          <div className="w-full rounded-lg overflow-hidden">
+            <iframe
+              data-testid="embed-iframe"
+              style={{ borderRadius: '12px' }}
+              src={`https://open.spotify.com/embed/episode/${episodeId}?utm_source=generator`}
+              width="100%"
+              height="352"
+              frameBorder="0"
+              allowFullScreen
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+            />
+          </div>
+        );
+      }
     }
 
-    // Fallback player card for other languages
+    // Fallback player card for non-Spotify URLs
     return (
       <Card className="p-6 bg-gradient-to-br from-primary/5 to-secondary/5">
         <div className="flex items-center gap-4">
