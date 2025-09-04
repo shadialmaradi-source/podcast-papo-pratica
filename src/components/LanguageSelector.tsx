@@ -26,6 +26,7 @@ const languages: Language[] = [
     flag: "🇬🇧",
     description: "Learn English through podcasts"
   },
+  const languages: Language[] = [
   {
     code: "italian",
     name: "Italiano",
