@@ -240,30 +240,36 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
         </div>
       </div>
 
-      {/* Spotify Embed */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Play className="h-5 w-5" />
-            Listen to Episode
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full">
-            <iframe 
-              data-testid="embed-iframe" 
-              style={{borderRadius: "12px"}} 
-              src="https://open.spotify.com/embed/episode/2sg5YB59AWkzVEfDy7kbpY?utm_source=generator" 
-              width="100%" 
-              height="152" 
-              frameBorder="0" 
-              allowFullScreen={true}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-              loading="lazy"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Dynamic Spotify Embed */}
+<Card>
+  <CardHeader>
+    <CardTitle className="flex items-center gap-2">
+      <Play className="h-5 w-5" />
+      Listen to Episode
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="w-full">
+      {episode?.episode_url ? (
+        <iframe 
+          data-testid="embed-iframe" 
+          style={{borderRadius: "12px"}} 
+          src={`${episode.episode_url.replace('/episode/', '/embed/episode/')}?utm_source=generator`}
+          width="100%" 
+          height="152" 
+          frameBorder="0" 
+          allowFullScreen={true}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+          loading="lazy"
+        />
+      ) : (
+        <div className="flex items-center justify-center h-[152px] bg-gray-100 rounded-xl">
+          <p className="text-gray-500">No Spotify episode available</p>
+        </div>
+      )}
+    </div>
+  </CardContent>
+</Card>
 
       {/* Exercise Levels Section */}
       <Card>
