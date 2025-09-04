@@ -19,14 +19,12 @@ const languages: Language[] = [
     flag: "🇧🇷",
     description: "Learn Brazilian Portuguese through podcasts"
   },
-  ]
-  const languages: Language[] = [
   {
     code: "english",
     name: "English",
     flag: "🇬🇧",
     description: "Learn English through podcasts"
-  },]
+  },
   {
     code: "italian",
     name: "Italiano",
@@ -34,7 +32,6 @@ const languages: Language[] = [
     description: "Impara l'italiano attraverso i podcast"
   }
 ];
-
 export const LanguageSelector = ({ onLanguageSelect }: LanguageSelectorProps) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 flex items-center justify-center p-4">
