@@ -515,7 +515,7 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                       value={option} 
 id={`option-${index}`}
   disabled={showResult}
-/>                    />
+/>                   
                     <Label 
                       htmlFor={`option-${index}`} 
                       className={`cursor-pointer ${
@@ -534,55 +534,41 @@ id={`option-${index}`}
             )}
 
             {currentExercise.exercise_type === "fill_blank" && (
+              <div className="space-y-2">
+                <Label htmlFor="answer">
+                  {episode.podcast_source?.language === 'portuguese' ? 'Sua resposta:' :
+                   episode.podcast_source?.language === 'spanish' ? 'Tu respuesta:' :
+                   episode.podcast_source?.language === 'french' ? 'Votre réponse:' :
+                   episode.podcast_source?.language === 'german' ? 'Ihre Antwort:' : 'Your answer:'}
+                </Label>
+                <Input
+                  id="answer"
+                  value={selectedAnswer}
+                  onChange={(e) => setSelectedAnswer(e.target.value)}
+                  placeholder={episode.podcast_source?.language === 'portuguese' ? 'Digite sua resposta...' :
+                              episode.podcast_source?.language === 'spanish' ? 'Escribe tu respuesta...' :
+                              episode.podcast_source?.language === 'french' ? 'Tapez votre réponse...' :
+                              episode.podcast_source?.language === 'german' ? 'Geben Sie Ihre Antwort ein...' : 'Enter your answer...'}
+                  disabled={showResult}
+                  className={showResult ? 
+                    (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
+                    : ""
+                  } {currentExercise.exercise_type === "open_question" && (
   <div className="space-y-2">
-    <Label htmlFor="answer">
-      {episode.podcast_source?.language === 'portuguese' ? 'Sua resposta:' :
-       episode.podcast_source?.language === 'spanish' ? 'Tu respuesta:' :
-       episode.podcast_source?.language === 'french' ? 'Votre réponse:' :
-       episode.podcast_source?.language === 'german' ? 'Ihre Antwort:' : 'Your answer:'}
-    </Label>
-    <Input
-      id="answer"
-      value={selectedAnswer}
-      onChange={(e) => setSelectedAnswer(e.target.value)}
-      placeholder={episode.podcast_source?.language === 'portuguese' ? 'Digite sua resposta...' :
-                  episode.podcast_source?.language === 'spanish' ? 'Escribe tu respuesta...' :
-                  episode.podcast_source?.language === 'french' ? 'Tapez votre réponse...' :
-                  episode.podcast_source?.language === 'german' ? 'Geben Sie Ihre Antwort ein...' : 'Enter your answer...'}
-      disabled={showResult}
-      className={showResult ? 
-        (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-        : ""
-      }
-    />
-  </div>
-)}
-
-{currentExercise.exercise_type === "open_question" && (
-  <div className="space-y-2">
-    <Label htmlFor="open-answer">
-      {episode.podcast_source?.language === 'portuguese' ? 'Sua resposta:' :
-       episode.podcast_source?.language === 'spanish' ? 'Tu respuesta:' :
-       episode.podcast_source?.language === 'french' ? 'Votre réponse:' :
-       episode.podcast_source?.language === 'german' ? 'Ihre Antwort:' : 'Your answer:'}
-    </Label>
+    <Label htmlFor="open-answer">Your answer:</Label>
     <Textarea
       id="open-answer"
       value={selectedAnswer}
       onChange={(e) => setSelectedAnswer(e.target.value)}
-      placeholder={episode.podcast_source?.language === 'portuguese' ? 'Escreva sua resposta...' :
-                  episode.podcast_source?.language === 'spanish' ? 'Escribe tu respuesta...' :
-                  episode.podcast_source?.language === 'french' ? 'Écrivez votre réponse...' :
-                  episode.podcast_source?.language === 'german' ? 'Schreiben Sie Ihre Antwort...' : 'Write your answer...'}
+      placeholder="Write your answer..."
       disabled={showResult}
       rows={3}
-      className={showResult ? 
-        (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-        : ""
-      }
     />
   </div>
 )}
+                />
+              </div>
+            )}
 
             {currentExercise.exercise_type === "vocabulary" && (
               <div className="space-y-4">
