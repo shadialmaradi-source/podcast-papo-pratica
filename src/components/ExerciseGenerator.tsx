@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { CheckCircle, XCircle, Star, Heart, RefreshCw, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
+import { OrderingComponent } from './OrderingComponent'; // Adjust path as needed
 import { 
   Exercise, 
   ExerciseResult,
@@ -569,21 +570,7 @@ id={`option-${index}`}
                 />
               </div>
             )}
-{currentExercise.exercise_type === "ordering" && (
-  <div className="space-y-4">
-    <div className="text-sm text-gray-600 mb-4">
-      {episode.podcast_source?.language === 'italian' ? 'Trascina per riordinare:' : 'Drag to reorder:'}
-    </div>
-    {/* Add your ordering component here */}
-    <OrderingComponent 
-      items={currentExercise.options}
-      onOrderChange={setSelectedAnswer}
-      disabled={showResult}
-      correctOrder={exerciseResult?.correct_answer}
-      showResult={showResult}
-    />
-  </div>
-)}
+
             {currentExercise.exercise_type === "vocabulary" && (
               <div className="space-y-4">
                 {currentExercise.options && typeof currentExercise.options === 'object' && 
@@ -629,19 +616,26 @@ id={`option-${index}`}
               </div>
             )}
 
-            {currentExercise.exercise_type === "reorder" && (
-              <div className="space-y-2">
-                <Label htmlFor="reorder">Reorder the words to form a correct sentence:</Label>
-                <Input
-                  id="reorder"
-                  value={selectedAnswer}
-                  onChange={(e) => setSelectedAnswer(e.target.value)}
-                  placeholder="Write the reordered sentence..."
-                  disabled={showResult}
-                  className={showResult ? 
-                    (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-                    : ""
-                  }
+           {currentExercise.exercise_type === "reorder" && (
+  <div className="space-y-2">
+    <Label htmlFor="reorder">
+      {episode.podcast_source?.language === 'italian' ? 'Riordina gli elementi (separali con virgole):' :
+       episode.podcast_source?.language === 'portuguese' ? 'Reordene os elementos (separe com vírgulas):' :
+       episode.podcast_source?.language === 'spanish' ? 'Reordena los elementos (sepáralos con comas):' :
+       episode.podcast_source?.language === 'french' ? 'Réorganisez les éléments (séparez avec des virgules):' :
+       episode.podcast_source?.language === 'german' ? 'Ordnen Sie die Elemente neu (mit Kommas trennen):' :
+       'Reorder the elements (separate with commas):'}
+    </Label>
+    <Input
+      id="reorder"
+      value={selectedAnswer}
+      onChange={(e) => setSelectedAnswer(e.target.value)}
+      placeholder={episode.podcast_source?.language === 'italian' ? 'Es: RAI, varietà anni 60, TV private anni 80...' :
+                  episode.podcast_source?.language === 'portuguese' ? 'Ex: RAI, variedade anos 60, TV privada anos 80...' :
+                  episode.podcast_source?.language === 'spanish' ? 'Ej: RAI, variedad años 60, TV privada años 80...' :
+                  episode.podcast_source?.language === 'french' ? 'Ex: RAI, variété années 60, TV privée années 80...' :
+                  episode.podcast_source?.language === 'german' ? 'Z.B: RAI, Varietät 60er Jahre, Privat-TV 80er Jahre...' :
+                  'e.g: RAI, variety 60s, pri
                 />
               </div>
             )}
