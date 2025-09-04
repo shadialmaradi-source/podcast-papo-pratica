@@ -251,6 +251,8 @@ const createMockExercises = (episode: PodcastEpisode, level: string, intensity: 
     finalExercises.push(sourceExercise);
   }
 
+  console.log('Generated exercises:', finalExercises.length, 'exercises for level:', level);
+
   return finalExercises.map((exercise, index) => ({
     id: `mock-${language}-${level}-${index + 1}`,
     episode_id: episode.id,
