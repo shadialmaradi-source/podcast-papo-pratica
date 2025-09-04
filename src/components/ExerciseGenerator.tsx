@@ -497,14 +497,13 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
             className="space-y-4"
           >
             {currentExercise.exercise_type === "multiple_choice" && (
-              <RadioGroup value={selectedAnswer} onValueChange={setSelectedAnswer}>
+              <RadioGroup value={selectedAnswer} onValueChange={setSelectedAnswer} disabled={showResult}>
                 {currentExercise.options && Array.isArray(currentExercise.options) && 
                  currentExercise.options.map((option: string, index: number) => (
                   <div key={index} className="flex items-center space-x-2">
                     <RadioGroupItem 
                       value={option} 
                       id={`option-${index}`}
-                      disabled={showResult}
                     />
                     <Label 
                       htmlFor={`option-${index}`} 
