@@ -32,7 +32,16 @@ interface ExerciseGeneratorProps {
 // Mock exercises for fallback when no real exercises exist
 const createMockExercises = (episode: PodcastEpisode, level: string, intensity: string): Exercise[] => {
   const language = episode.podcast_source?.language || 'english';
-  
+  // Map new level system to CEFR levels for mock exercises
+const levelMap: Record<string, string> = {
+  'beginner': 'A1',
+  'intermediate': 'B1', 
+  'advanced': 'C1'
+};
+console.log('Creating mock exercises:', { episode: episode.title, level, intensity, language });
+
+const cefrLevel = levelMap[level] || 'A1'; // Fallback to A1 if level not found
+
   const exerciseTexts = {
     portuguese: {
       A1: [
@@ -250,16 +259,15 @@ const createMockExercises = (episode: PodcastEpisode, level: string, intensity: 
     const sourceExercise = selectedExercises[i % selectedExercises.length];
     finalExercises.push(sourceExercise);
   }
-
-  console.log('Generated exercises:', finalExercises.length, 'exercises for level:', level);
+  // Instead of using 'level' directly, use 'cefrLevel'
+const availableExercises = exerciseTexts[language]?.[cefrLevel] || exerciseTexts.english.A1;
 
   return finalExercises.map((exercise, index) => ({
     id: `mock-${language}-${level}-${index + 1}`,
     episode_id: episode.id,
     question: exercise.question,
-exercise_type: exercise.exercise_type || (exercise.options ? "multiple_choice" : "fill_blank"),
-
-  options: exercise.options,
+    exercise_type: exercise.options ? "multiple_choice" as const : "fill_blank" as const,
+    options: exercise.options,
     difficulty: level,
     intensity,
     xp_reward: level === "beginner" ? 5 : level === "intermediate" ? 10 : 15,
@@ -500,16 +508,14 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
             className="space-y-4"
           >
             {currentExercise.exercise_type === "multiple_choice" && (
-<RadioGroup value={selectedAnswer} onValueChange={setSelectedAnswer}>
-                {currentExercise.options && Array.isArray(currentExercise.options) && 
+<RadioGroup value={selectedAnswer} onValueChange={showResult ? undefined : setSelectedAnswer}>                {currentExercise.options && Array.isArray(currentExercise.options) && 
                  currentExercise.options.map((option: string, index: number) => (
                   <div key={index} className="flex items-center space-x-2">
                     <RadioGroupItem 
-  value={option} 
-  id={`option-${index}`}
+                      value={option} 
+id={`option-${index}`}
   disabled={showResult}
-/>
-
+/>                    />
                     <Label 
                       htmlFor={`option-${index}`} 
                       className={`cursor-pointer ${
@@ -547,7 +553,19 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                   className={showResult ? 
                     (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
                     : ""
-                  }
+                  } {currentExercise.exercise_type === "open_question" && (
+  <div className="space-y-2">
+    <Label htmlFor="open-answer">Your answer:</Label>
+    <Textarea
+      id="open-answer"
+      value={selectedAnswer}
+      onChange={(e) => setSelectedAnswer(e.target.value)}
+      placeholder="Write your answer..."
+      disabled={showResult}
+      rows={3}
+    />
+  </div>
+)}
                 />
               </div>
             )}
