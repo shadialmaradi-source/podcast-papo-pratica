@@ -258,7 +258,8 @@ const createMockExercises = (episode: PodcastEpisode, level: string, intensity: 
     exercise_type: exercise.options ? "multiple_choice" as const : "fill_blank" as const,
     options: exercise.options,
     difficulty: level,
-    xp_reward: level === "A1" ? 5 : level === "A2" ? 7 : level === "B1" ? 10 : level === "B2" ? 12 : level === "C1" ? 15 : 20,
+    intensity,
+    xp_reward: level === "beginner" ? 5 : level === "intermediate" ? 10 : 15,
     order_index: index,
     correct_answer: exercise.correct_answer,
     explanation: exercise.explanation
@@ -281,18 +282,19 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
 
   const loadExercises = async () => {
     try {
-      const data = await getEpisodeExercises(episode.id);
+      const data = await getEpisodeExercises(episode.id, level, intensity);
       if (data.length === 0) {
-        // If no exercises in DB, use mock data for the specified level
+        // If no exercises in DB, use mock data for the specified level and intensity
         setExercises(createMockExercises(episode, level, intensity));
       } else {
-        // Filter exercises by level
-        const levelFilteredExercises = data.filter(ex => ex.difficulty === level);
-        setExercises(levelFilteredExercises.length > 0 ? levelFilteredExercises : createMockExercises(episode, level, intensity));
+        // Apply intensity filtering if needed (limit based on intensity)
+        const targetCount = intensity === 'light' ? 10 : 20;
+        const limitedExercises = data.slice(0, targetCount);
+        setExercises(limitedExercises.length > 0 ? limitedExercises : createMockExercises(episode, level, intensity));
       }
     } catch (error) {
       console.error('Error loading exercises:', error);
-      // Fallback to mock data for the specified level
+      // Fallback to mock data for the specified level and intensity
       setExercises(createMockExercises(episode, level, intensity));
     } finally {
       setLoading(false);

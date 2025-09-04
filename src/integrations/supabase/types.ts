@@ -50,6 +50,8 @@ export type Database = {
           exercise_type: string
           explanation: string | null
           id: string
+          intensity: string | null
+          mode: string | null
           options: Json | null
           order_index: number | null
           question: string
@@ -63,6 +65,8 @@ export type Database = {
           exercise_type: string
           explanation?: string | null
           id?: string
+          intensity?: string | null
+          mode?: string | null
           options?: Json | null
           order_index?: number | null
           question: string
@@ -76,6 +80,8 @@ export type Database = {
           exercise_type?: string
           explanation?: string | null
           id?: string
+          intensity?: string | null
+          mode?: string | null
           options?: Json | null
           order_index?: number | null
           question?: string
@@ -398,12 +404,19 @@ export type Database = {
         }[]
       }
       get_episode_exercises: {
-        Args: { episode_id_param: string }
+        Args:
+          | {
+              difficulty_param?: string
+              episode_id_param: string
+              intensity_param?: string
+            }
+          | { episode_id_param: string }
         Returns: {
           difficulty: string
           episode_id: string
           exercise_type: string
           id: string
+          intensity: string
           options: Json
           order_index: number
           question: string

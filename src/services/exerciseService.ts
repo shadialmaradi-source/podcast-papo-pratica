@@ -7,6 +7,7 @@ export interface Exercise {
   exercise_type: 'multiple_choice' | 'fill_blank' | 'vocabulary' | 'reflection' | 'analysis' | 'synthesis' | 'comprehension' | 'reorder';
   options?: any;
   difficulty: string;
+  intensity: string;
   xp_reward: number;
   order_index: number;
   correct_answer?: string;
@@ -21,9 +22,15 @@ export interface ExerciseResult {
 }
 
 // Secure function to get exercises without exposing correct answers
-export const getEpisodeExercises = async (episodeId: string): Promise<Exercise[]> => {
+export const getEpisodeExercises = async (
+  episodeId: string, 
+  difficulty?: string, 
+  intensity?: string
+): Promise<Exercise[]> => {
   const { data, error } = await supabase.rpc('get_episode_exercises', {
-    episode_id_param: episodeId
+    episode_id_param: episodeId,
+    difficulty_param: difficulty,
+    intensity_param: intensity
   });
 
   if (error) {
