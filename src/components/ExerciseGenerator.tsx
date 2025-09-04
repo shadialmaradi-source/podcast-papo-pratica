@@ -508,58 +508,52 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
             className="space-y-4"
           >
             {currentExercise.exercise_type === "multiple_choice" && (
-  <RadioGroup value={selectedAnswer} onValueChange={showResult ? undefined : setSelectedAnswer}>
-    {currentExercise.options && Array.isArray(currentExercise.options) && 
-     currentExercise.options.map((option: string, index: number) => (
-      <div key={index} className="flex items-center space-x-2">
-        <RadioGroupItem 
-          value={option} 
-          id={`option-${index}`}
-          disabled={showResult}
-        />
-        <Label 
-          htmlFor={`option-${index}`} 
-          className={`cursor-pointer ${
-            showResult && exerciseResult?.correct_answer === option 
-              ? "text-green-600 font-semibold" 
-              : showResult && selectedAnswer === option && !exerciseResult?.is_correct
-              ? "text-red-600"
-              : ""
-          }`}
-        >
-          {option}
-        </Label>
-      </div>
-    ))}
-  </RadioGroup>
-)}
+<RadioGroup value={selectedAnswer} onValueChange={showResult ? undefined : setSelectedAnswer}>                {currentExercise.options && Array.isArray(currentExercise.options) && 
+                 currentExercise.options.map((option: string, index: number) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <RadioGroupItem 
+                      value={option} 
+id={`option-${index}`}
+  disabled={showResult}
+/>                    />
+                    <Label 
+                      htmlFor={`option-${index}`} 
+                      className={`cursor-pointer ${
+                        showResult && exerciseResult?.correct_answer === option 
+                          ? "text-green-600 font-semibold" 
+                          : showResult && selectedAnswer === option && !exerciseResult?.is_correct
+                          ? "text-red-600"
+                          : ""
+                      }`}
+                    >
+                      {option}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            )}
 
-{currentExercise.exercise_type === "fill_blank" && (
-  <div className="space-y-2">
-    <Label htmlFor="answer">
-      {episode.podcast_source?.language === 'portuguese' ? 'Sua resposta:' :
-       episode.podcast_source?.language === 'spanish' ? 'Tu respuesta:' :
-       episode.podcast_source?.language === 'french' ? 'Votre réponse:' :
-       episode.podcast_source?.language === 'german' ? 'Ihre Antwort:' : 'Your answer:'}
-    </Label>
-    <Input
-      id="answer"
-      value={selectedAnswer}
-      onChange={(e) => setSelectedAnswer(e.target.value)}
-      placeholder={episode.podcast_source?.language === 'portuguese' ? 'Digite sua resposta...' :
-                  episode.podcast_source?.language === 'spanish' ? 'Escribe tu respuesta...' :
-                  episode.podcast_source?.language === 'french' ? 'Tapez votre réponse...' :
-                  episode.podcast_source?.language === 'german' ? 'Geben Sie Ihre Antwort ein...' : 'Enter your answer...'}
-      disabled={showResult}
-      className={showResult ? 
-        (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-        : ""
-      }
-    />
-  </div>
-)}
-
-{currentExercise.exercise_type === "open_question" && (
+            {currentExercise.exercise_type === "fill_blank" && (
+              <div className="space-y-2">
+                <Label htmlFor="answer">
+                  {episode.podcast_source?.language === 'portuguese' ? 'Sua resposta:' :
+                   episode.podcast_source?.language === 'spanish' ? 'Tu respuesta:' :
+                   episode.podcast_source?.language === 'french' ? 'Votre réponse:' :
+                   episode.podcast_source?.language === 'german' ? 'Ihre Antwort:' : 'Your answer:'}
+                </Label>
+                <Input
+                  id="answer"
+                  value={selectedAnswer}
+                  onChange={(e) => setSelectedAnswer(e.target.value)}
+                  placeholder={episode.podcast_source?.language === 'portuguese' ? 'Digite sua resposta...' :
+                              episode.podcast_source?.language === 'spanish' ? 'Escribe tu respuesta...' :
+                              episode.podcast_source?.language === 'french' ? 'Tapez votre réponse...' :
+                              episode.podcast_source?.language === 'german' ? 'Geben Sie Ihre Antwort ein...' : 'Enter your answer...'}
+                  disabled={showResult}
+                  className={showResult ? 
+                    (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
+                    : ""
+                  } {currentExercise.exercise_type === "open_question" && (
   <div className="space-y-2">
     <Label htmlFor="open-answer">Your answer:</Label>
     <Textarea
@@ -572,35 +566,24 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     />
   </div>
 )}
-
-{currentExercise.exercise_type === "vocabulary" && (
+                />
+              </div>
+            )}
+{currentExercise.exercise_type === "ordering" && (
   <div className="space-y-4">
-    {currentExercise.options && typeof currentExercise.options === 'object' && 
-     currentExercise.options.word && (
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="p-4">
-          <h4 className="font-semibold text-blue-900">Parola: {currentExercise.options.word}</h4>
-          <p className="text-blue-700">Esempio: {currentExercise.options.example}</p>
-        </CardContent>
-      </Card>
-    )}
-    <div className="space-y-2">
-      <Label htmlFor="vocab-answer">Definizione:</Label>
-      <Textarea
-        id="vocab-answer"
-        value={selectedAnswer}
-        onChange={(e) => setSelectedAnswer(e.target.value)}
-        placeholder="Scrivi la definizione della parola..."
-        disabled={showResult}
-        className={showResult ? 
-          (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-          : ""
-        }
-      />
+    <div className="text-sm text-gray-600 mb-4">
+      {episode.podcast_source?.language === 'italian' ? 'Trascina per riordinare:' : 'Drag to reorder:'}
     </div>
+    {/* Add your ordering component here */}
+    <OrderingComponent 
+      items={currentExercise.options}
+      onOrderChange={setSelectedAnswer}
+      disabled={showResult}
+      correctOrder={exerciseResult?.correct_answer}
+      showResult={showResult}
+    />
   </div>
 )}
-
             {currentExercise.exercise_type === "vocabulary" && (
               <div className="space-y-4">
                 {currentExercise.options && typeof currentExercise.options === 'object' && 
