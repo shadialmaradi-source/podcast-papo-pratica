@@ -19,14 +19,15 @@ const languages: Language[] = [
     flag: "🇧🇷",
     description: "Learn Brazilian Portuguese through podcasts"
   },
-  const languages: Language[] = [
+  ];
+const languages: Language[] = [
   {
     code: "english",
     name: "English",
     flag: "🇬🇧",
     description: "Learn English through podcasts"
   },
-  const languages: Language[] = [
+  ];
   {
     code: "italian",
     name: "Italiano",
