@@ -10,7 +10,6 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { CheckCircle, XCircle, Star, Heart, RefreshCw, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
-import { OrderingComponent } from './OrderingComponent'; // Adjust path as needed
 import { 
   Exercise, 
   ExerciseResult,
@@ -616,26 +615,52 @@ id={`option-${index}`}
               </div>
             )}
 
-           {currentExercise.exercise_type === "reorder" && (
+            {currentExercise.exercise_type === "reorder" && (
   <div className="space-y-2">
+    {/* Show the items that need to be reordered */}
+    {currentExercise.question.includes(':') && (
+      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+        <p className="text-sm font-medium text-blue-800 mb-2">
+          {episode.podcast_source?.language === 'italian' ? 'Elementi da riordinare:' : 'Items to reorder:'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {currentExercise.question.split(':')[1]
+            .split(',')
+            .map((item, index) => (
+              <span key={index} className="px-2 py-1 bg-blue-100 text-blue-900 rounded text-sm">
+                {item.trim()}
+              </span>
+            ))}
+        </div>
+      </div>
+    )}
+    
     <Label htmlFor="reorder">
-      {episode.podcast_source?.language === 'italian' ? 'Riordina gli elementi (separali con virgole):' :
-       episode.podcast_source?.language === 'portuguese' ? 'Reordene os elementos (separe com vírgulas):' :
-       episode.podcast_source?.language === 'spanish' ? 'Reordena los elementos (sepáralos con comas):' :
-       episode.podcast_source?.language === 'french' ? 'Réorganisez les éléments (séparez avec des virgules):' :
-       episode.podcast_source?.language === 'german' ? 'Ordnen Sie die Elemente neu (mit Kommas trennen):' :
-       'Reorder the elements (separate with commas):'}
+      {episode.podcast_source?.language === 'italian' ? 'Scrivi gli elementi nell\'ordine corretto (separali con virgole):' :
+       episode.podcast_source?.language === 'portuguese' ? 'Escreva os elementos na ordem correta (separe com vírgulas):' :
+       episode.podcast_source?.language === 'spanish' ? 'Escribe los elementos en el orden correcto (sepáralos con comas):' :
+       episode.podcast_source?.language === 'french' ? 'Écrivez les éléments dans le bon ordre (séparez avec des virgules):' :
+       episode.podcast_source?.language === 'german' ? 'Schreiben Sie die Elemente in der richtigen Reihenfolge (mit Kommas trennen):' :
+       'Write the elements in the correct order (separate with commas):'}
     </Label>
     <Input
       id="reorder"
       value={selectedAnswer}
       onChange={(e) => setSelectedAnswer(e.target.value)}
-      placeholder={episode.podcast_source?.language === 'italian' ? 'Es: RAI, varietà anni 60, TV private anni 80...' :
-                  episode.podcast_source?.language === 'portuguese' ? 'Ex: RAI, variedade anos 60, TV privada anos 80...' :
-                  episode.podcast_source?.language === 'spanish' ? 'Ej: RAI, variedad años 60, TV privada años 80...' :
-                  episode.podcast_source?.language === 'french' ? 'Ex: RAI, variété années 60, TV privée années 80...' :
-                  episode.podcast_source?.language === 'german' ? 'Z.B: RAI, Varietät 60er Jahre, Privat-TV 80er Jahre...' :
-                  'e.g: RAI, variety 60s, pri
+      placeholder={episode.podcast_source?.language === 'italian' ? 'Es: RAI, varietà anni 60, TV private anni 80, reality anni 90/2000' :
+                  episode.podcast_source?.language === 'portuguese' ? 'Ex: RAI, variedade anos 60, TV privada anos 80, reality anos 90/2000' :
+                  episode.podcast_source?.language === 'spanish' ? 'Ej: RAI, variedad años 60, TV privada años 80, reality años 90/2000' :
+                  episode.podcast_source?.language === 'french' ? 'Ex: RAI, variété années 60, TV privée années 80, télé-réalité années 90/2000' :
+                  episode.podcast_source?.language === 'german' ? 'Z.B: RAI, Varietät 60er Jahre, Privat-TV 80er Jahre, Reality 90er/2000er' :
+                  'e.g: RAI, variety 60s, private TV 80s, reality 90s/2000s'}
+      disabled={showResult}
+      className={showResult ? 
+        (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
+        : ""
+      }
+    />
+  </div>
+)}
                 />
               </div>
             )}
