@@ -508,32 +508,33 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
             className="space-y-4"
           >
             {currentExercise.exercise_type === "multiple_choice" && (
-<RadioGroup value={selectedAnswer} onValueChange={showResult ? undefined : setSelectedAnswer}>                {currentExercise.options && Array.isArray(currentExercise.options) && 
-                 currentExercise.options.map((option: string, index: number) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <RadioGroupItem 
-                      value={option} 
-id={`option-${index}`}
-  disabled={showResult}
-/>                    />
-                    <Label 
-                      htmlFor={`option-${index}`} 
-                      className={`cursor-pointer ${
-                        showResult && exerciseResult?.correct_answer === option 
-                          ? "text-green-600 font-semibold" 
-                          : showResult && selectedAnswer === option && !exerciseResult?.is_correct
-                          ? "text-red-600"
-                          : ""
-                      }`}
-                    >
-                      {option}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            )}
+  <RadioGroup value={selectedAnswer} onValueChange={showResult ? undefined : setSelectedAnswer}>
+    {currentExercise.options && Array.isArray(currentExercise.options) && 
+     currentExercise.options.map((option: string, index: number) => (
+      <div key={index} className="flex items-center space-x-2">
+        <RadioGroupItem 
+          value={option} 
+          id={`option-${index}`}
+          disabled={showResult}
+        />
+        <Label 
+          htmlFor={`option-${index}`} 
+          className={`cursor-pointer ${
+            showResult && exerciseResult?.correct_answer === option 
+              ? "text-green-600 font-semibold" 
+              : showResult && selectedAnswer === option && !exerciseResult?.is_correct
+              ? "text-red-600"
+              : ""
+          }`}
+        >
+          {option}
+        </Label>
+      </div>
+    ))}
+  </RadioGroup>
+)}
 
-    {currentExercise.exercise_type === "fill_blank" && (
+{currentExercise.exercise_type === "fill_blank" && (
   <div className="space-y-2">
     <Label htmlFor="answer">
       {episode.podcast_source?.language === 'portuguese' ? 'Sua resposta:' :
@@ -571,6 +572,35 @@ id={`option-${index}`}
     />
   </div>
 )}
+
+{currentExercise.exercise_type === "vocabulary" && (
+  <div className="space-y-4">
+    {currentExercise.options && typeof currentExercise.options === 'object' && 
+     currentExercise.options.word && (
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
+          <h4 className="font-semibold text-blue-900">Parola: {currentExercise.options.word}</h4>
+          <p className="text-blue-700">Esempio: {currentExercise.options.example}</p>
+        </CardContent>
+      </Card>
+    )}
+    <div className="space-y-2">
+      <Label htmlFor="vocab-answer">Definizione:</Label>
+      <Textarea
+        id="vocab-answer"
+        value={selectedAnswer}
+        onChange={(e) => setSelectedAnswer(e.target.value)}
+        placeholder="Scrivi la definizione della parola..."
+        disabled={showResult}
+        className={showResult ? 
+          (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
+          : ""
+        }
+      />
+    </div>
+  </div>
+)}
+
             {currentExercise.exercise_type === "vocabulary" && (
               <div className="space-y-4">
                 {currentExercise.options && typeof currentExercise.options === 'object' && 
