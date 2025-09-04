@@ -514,8 +514,8 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                     <RadioGroupItem 
                       value={option} 
 id={`option-${index}`}
-  disabled={showResult} 
-                      />
+  disabled={showResult}
+/>                    />
                     <Label 
                       htmlFor={`option-${index}`} 
                       className={`cursor-pointer ${
@@ -551,18 +551,20 @@ id={`option-${index}`}
                               episode.podcast_source?.language === 'german' ? 'Geben Sie Ihre Antwort ein...' : 'Enter your answer...'}
                   disabled={showResult}
                   className={showResult ? 
-  (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-  : ""
-}>
-  {currentExercise.exercise_type === "open_question" && (
-    <div className="space-y-2">
-      <Label htmlFor="open-answer">Your answer:</Label>
-      <Textarea
-        // ... rest of your textarea props
-      />
-    </div>
-  )}
-</div>
+                    (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
+                    : ""
+                  } {currentExercise.exercise_type === "open_question" && (
+  <div className="space-y-2">
+    <Label htmlFor="open-answer">Your answer:</Label>
+    <Textarea
+      id="open-answer"
+      value={selectedAnswer}
+      onChange={(e) => setSelectedAnswer(e.target.value)}
+      placeholder="Write your answer..."
+      disabled={showResult}
+      rows={3}
+  </div>
+)}
                 />
               </div>
             )}
