@@ -19,6 +19,13 @@ const languages: Language[] = [
     flag: "🇧🇷",
     description: "Learn Brazilian Portuguese through podcasts"
   },
+  const languages: Language[] = [
+  {
+    code: "english",
+    name: "English",
+    flag: "🇬🇧",
+    description: "Learn English through podcasts"
+  },
   {
     code: "italian",
     name: "Italiano",
