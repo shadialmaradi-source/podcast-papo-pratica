@@ -489,86 +489,91 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">
-              {episode.podcast_source?.language === 'portuguese' ? `Pergunta ${currentExerciseIndex + 1} de ${exercises.length}` :
-               episode.podcast_source?.language === 'spanish' ? `Pregunta ${currentExerciseIndex + 1} de ${exercises.length}` :
-               episode.podcast_source?.language === 'french' ? `Question ${currentExerciseIndex + 1} sur ${exercises.length}` :
-               episode.podcast_source?.language === 'german' ? `Frage ${currentExerciseIndex + 1} von ${exercises.length}` :
-               `Question ${currentExerciseIndex + 1} of ${exercises.length}`}
-            </h3>
-            <p className="text-foreground">{currentExercise.question}</p>
-          </div>
-
-          <motion.div
-            key={currentExerciseIndex}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4"
-          >
-            {currentExercise.exercise_type === "multiple_choice" && (
-<RadioGroup value={selectedAnswer} onValueChange={showResult ? undefined : setSelectedAnswer}>                {currentExercise.options && Array.isArray(currentExercise.options) && 
-                 currentExercise.options.map((option: string, index: number) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <RadioGroupItem 
-                      value={option} 
-id={`option-${index}`}
-  disabled={showResult}
-/>                    />
-                    <Label 
-                      htmlFor={`option-${index}`} 
-                      className={`cursor-pointer ${
-                        showResult && exerciseResult?.correct_answer === option 
-                          ? "text-green-600 font-semibold" 
-                          : showResult && selectedAnswer === option && !exerciseResult?.is_correct
-                          ? "text-red-600"
-                          : ""
-                      }`}
-                    >
-                      {option}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            )}
-
-            {currentExercise.exercise_type === "fill_blank" && (
-              <div className="space-y-2">
-                <Label htmlFor="answer">
-                  {episode.podcast_source?.language === 'portuguese' ? 'Sua resposta:' :
-                   episode.podcast_source?.language === 'spanish' ? 'Tu respuesta:' :
-                   episode.podcast_source?.language === 'french' ? 'Votre réponse:' :
-                   episode.podcast_source?.language === 'german' ? 'Ihre Antwort:' : 'Your answer:'}
-                </Label>
-                <Input
-                  id="answer"
-                  value={selectedAnswer}
-                  onChange={(e) => setSelectedAnswer(e.target.value)}
-                  placeholder={episode.podcast_source?.language === 'portuguese' ? 'Digite sua resposta...' :
-                              episode.podcast_source?.language === 'spanish' ? 'Escribe tu respuesta...' :
-                              episode.podcast_source?.language === 'french' ? 'Tapez votre réponse...' :
-                              episode.podcast_source?.language === 'german' ? 'Geben Sie Ihre Antwort ein...' : 'Enter your answer...'}
-                  disabled={showResult}
-                  className={showResult ? 
-                    (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-                    : ""
-                  } {currentExercise.exercise_type === "open_question" && (
-  <div className="space-y-2">
-    <Label htmlFor="open-answer">Your answer:</Label>
-    <Textarea
-      id="open-answer"
-      value={selectedAnswer}
-      onChange={(e) => setSelectedAnswer(e.target.value)}
-      placeholder="Write your answer..."
-      disabled={showResult}
-      rows={3}
+  <div className="text-center">
+    <h3 className="text-lg font-semibold mb-2">
+      {episode.podcast_source?.language === 'portuguese' ? `Pergunta ${currentExerciseIndex + 1} de ${exercises.length}` :
+       episode.podcast_source?.language === 'spanish' ? `Pregunta ${currentExerciseIndex + 1} de ${exercises.length}` :
+       episode.podcast_source?.language === 'french' ? `Question ${currentExerciseIndex + 1} sur ${exercises.length}` :
+       episode.podcast_source?.language === 'german' ? `Frage ${currentExerciseIndex + 1} von ${exercises.length}` :
+       `Question ${currentExerciseIndex + 1} of ${exercises.length}`}
+    </h3>
+    <p className="text-foreground">{currentExercise.question}</p>
   </div>
-)}
-                />
-              </div>
-            )}
 
+  <motion.div
+    key={currentExerciseIndex}
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ duration: 0.3 }}
+    className="space-y-4"
+  >
+    {currentExercise.exercise_type === "multiple_choice" && (
+      <RadioGroup value={selectedAnswer} onValueChange={showResult ? undefined : setSelectedAnswer}>
+        {currentExercise.options && Array.isArray(currentExercise.options) && 
+         currentExercise.options.map((option: string, index: number) => (
+          <div key={index} className="flex items-center space-x-2">
+            <RadioGroupItem 
+              value={option} 
+              id={`option-${index}`}
+              disabled={showResult}
+            />                   
+            <Label 
+              htmlFor={`option-${index}`} 
+              className={`cursor-pointer ${
+                showResult && exerciseResult?.correct_answer === option 
+                  ? "text-green-600 font-semibold" 
+                  : showResult && selectedAnswer === option && !exerciseResult?.is_correct
+                  ? "text-red-600"
+                  : ""
+              }`}
+            >
+              {option}
+            </Label>
+          </div>
+        ))}
+      </RadioGroup>
+    )}
+
+    {currentExercise.exercise_type === "fill_blank" && (
+      <div className="space-y-2">
+        <Label htmlFor="answer">
+          {episode.podcast_source?.language === 'portuguese' ? 'Sua resposta:' :
+           episode.podcast_source?.language === 'spanish' ? 'Tu respuesta:' :
+           episode.podcast_source?.language === 'french' ? 'Votre réponse:' :
+           episode.podcast_source?.language === 'german' ? 'Ihre Antwort:' : 'Your answer:'}
+        </Label>
+        <Input
+          id="answer"
+          value={selectedAnswer}
+          onChange={(e) => setSelectedAnswer(e.target.value)}
+          placeholder={episode.podcast_source?.language === 'portuguese' ? 'Digite sua resposta...' :
+                      episode.podcast_source?.language === 'spanish' ? 'Escribe tu respuesta...' :
+                      episode.podcast_source?.language === 'french' ? 'Tapez votre réponse...' :
+                      episode.podcast_source?.language === 'german' ? 'Geben Sie Ihre Antwort ein...' : 'Enter your answer...'}
+          disabled={showResult}
+          className={showResult ? 
+            (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
+            : ""
+          }
+        />
+      </div>
+    )}
+
+    {currentExercise.exercise_type === "open_question" && (
+      <div className="space-y-2">
+        <Label htmlFor="open-answer">Your answer:</Label>
+        <Textarea
+          id="open-answer"
+          value={selectedAnswer}
+          onChange={(e) => setSelectedAnswer(e.target.value)}
+          placeholder="Write your answer..."
+          disabled={showResult}
+          rows={3}
+        />
+      </div>
+    )}
+  </motion.div>
+</CardContent>
             {currentExercise.exercise_type === "vocabulary" && (
               <div className="space-y-4">
                 {currentExercise.options && typeof currentExercise.options === 'object' && 
