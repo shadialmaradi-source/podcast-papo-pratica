@@ -15,23 +15,28 @@ export interface Exercise {
 export const generateTranscriptBasedExercises = (
   transcript: string, 
   level: string, 
-  videoId: string
+  exerciseCount: number = 10
 ): Exercise[] => {
   const exercises: Exercise[] = [];
+  
+  // Generate different exercise types based on count needed
+  const baseId = Date.now().toString();
+  
+  if (exerciseCount <= 10) {
+    // Standard 10 exercise set
+    exercises.push(...generateMultipleChoiceExercises(transcript, level, baseId).slice(0, 3));
+    exercises.push(...generateFillBlankExercises(transcript, level, baseId).slice(0, 3));
+    exercises.push(...generateFlashcardExercises(transcript, level, baseId).slice(0, 2));
+    exercises.push(...generateTrueFalseExercises(transcript, level, baseId).slice(0, 2));
+  } else {
+    // Extended 20 exercise set
+    exercises.push(...generateMultipleChoiceExercises(transcript, level, baseId).slice(0, 6));
+    exercises.push(...generateFillBlankExercises(transcript, level, baseId).slice(0, 6));
+    exercises.push(...generateFlashcardExercises(transcript, level, baseId).slice(0, 4));
+    exercises.push(...generateTrueFalseExercises(transcript, level, baseId).slice(0, 4));
+  }
 
-  // Generate multiple choice exercises (3 exercises)
-  exercises.push(...generateMultipleChoiceExercises(transcript, level, videoId));
-  
-  // Generate fill-in-the-blank exercises (3 exercises)
-  exercises.push(...generateFillBlankExercises(transcript, level, videoId));
-  
-  // Generate flashcard exercises (2 exercises)
-  exercises.push(...generateFlashcardExercises(transcript, level, videoId));
-  
-  // Generate true/false exercises (2 exercises)
-  exercises.push(...generateTrueFalseExercises(transcript, level, videoId));
-
-  return exercises.slice(0, 10); // Ensure exactly 10 exercises
+  return exercises.slice(0, exerciseCount);
 };
 
 // Generate multiple choice exercises

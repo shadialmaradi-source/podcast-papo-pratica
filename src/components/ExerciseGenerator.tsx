@@ -24,12 +24,13 @@ import { PodcastEpisode } from "@/services/podcastService";
 interface ExerciseGeneratorProps {
   episode: PodcastEpisode;
   level: string;
+  intensity: string;
   onComplete: () => void;
   onBack: () => void;
 }
 
 // Mock exercises for fallback when no real exercises exist
-const createMockExercises = (episode: PodcastEpisode, level: string): Exercise[] => {
+const createMockExercises = (episode: PodcastEpisode, level: string, intensity: string): Exercise[] => {
   const language = episode.podcast_source?.language || 'english';
   
   const exerciseTexts = {
@@ -237,9 +238,20 @@ const createMockExercises = (episode: PodcastEpisode, level: string): Exercise[]
         };
 
   const texts = exerciseTexts[language as keyof typeof exerciseTexts] || exerciseTexts.english;
-  const levelExercises = (texts as any)[level] || (texts as any).A1 || exerciseTexts.english.A1;
+  const levelExercises = (texts as any)[level] || (texts as any).beginner || exerciseTexts.english.A1;
+  
+  // Determine number of exercises based on intensity
+  const exerciseCount = intensity === "intense" ? 20 : 10;
+  const selectedExercises = levelExercises.slice(0, Math.min(exerciseCount, levelExercises.length));
+  
+  // If we need more exercises than available, repeat them with variations
+  const finalExercises = [];
+  for (let i = 0; i < exerciseCount; i++) {
+    const sourceExercise = selectedExercises[i % selectedExercises.length];
+    finalExercises.push(sourceExercise);
+  }
 
-  return levelExercises.map((exercise, index) => ({
+  return finalExercises.map((exercise, index) => ({
     id: `mock-${language}-${level}-${index + 1}`,
     episode_id: episode.id,
     question: exercise.question,
@@ -253,7 +265,7 @@ const createMockExercises = (episode: PodcastEpisode, level: string): Exercise[]
   }));
 };
 
-export const ExerciseGenerator = ({ episode, level, onComplete, onBack }: ExerciseGeneratorProps) => {
+export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBack }: ExerciseGeneratorProps) => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
@@ -272,16 +284,16 @@ export const ExerciseGenerator = ({ episode, level, onComplete, onBack }: Exerci
       const data = await getEpisodeExercises(episode.id);
       if (data.length === 0) {
         // If no exercises in DB, use mock data for the specified level
-        setExercises(createMockExercises(episode, level));
+        setExercises(createMockExercises(episode, level, intensity));
       } else {
         // Filter exercises by level
         const levelFilteredExercises = data.filter(ex => ex.difficulty === level);
-        setExercises(levelFilteredExercises.length > 0 ? levelFilteredExercises : createMockExercises(episode, level));
+        setExercises(levelFilteredExercises.length > 0 ? levelFilteredExercises : createMockExercises(episode, level, intensity));
       }
     } catch (error) {
       console.error('Error loading exercises:', error);
       // Fallback to mock data for the specified level
-      setExercises(createMockExercises(episode, level));
+      setExercises(createMockExercises(episode, level, intensity));
     } finally {
       setLoading(false);
     }
@@ -440,11 +452,14 @@ export const ExerciseGenerator = ({ episode, level, onComplete, onBack }: Exerci
               {episode.title}
             </CardTitle>
             <CardDescription>
-              {episode.podcast_source?.title} - Exercises for Level {level}
+              {episode.podcast_source?.title} - {level} Level - {intensity === "intense" ? "Intense" : "Light"} Mode
             </CardDescription>
             <div className="flex items-center gap-4 justify-center">
               <Badge variant="default" className="bg-primary">
-                Level {level}
+                {level}
+              </Badge>
+              <Badge variant="outline" className={intensity === "intense" ? "bg-orange-100 text-orange-800" : "bg-green-100 text-green-800"}>
+                {intensity === "intense" ? "Intense" : "Light"} ({exercises.length} questions)
               </Badge>
               <div className="flex items-center gap-1">
                 <Heart className="h-4 w-4 text-red-500" />

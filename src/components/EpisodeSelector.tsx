@@ -12,7 +12,7 @@ import { EpisodePlayer } from "./EpisodePlayer";
 interface EpisodeSelectorProps {
   podcast: PodcastSource;
   onSelectEpisode: (episode: PodcastEpisode) => void;
-  onStartExercises: (episode: PodcastEpisode, level: string) => void;
+  onStartExercises: (episode: PodcastEpisode, level: string, intensity: string) => void;
   onBack: () => void;
 }
 
@@ -63,9 +63,9 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
     onSelectEpisode(episode);
   };
 
-  const handleStartExercises = (level: string) => {
+  const handleStartExercises = (level: string, intensity: string) => {
     if (selectedEpisode) {
-      onStartExercises(selectedEpisode, level);
+      onStartExercises(selectedEpisode, level, intensity);
     }
   };
 

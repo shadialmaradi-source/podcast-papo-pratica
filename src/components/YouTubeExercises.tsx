@@ -26,13 +26,14 @@ import { generateTranscriptBasedExercises, Exercise } from "@/services/exerciseG
 interface YouTubeExercisesProps {
   videoId: string;
   level: string;
+  intensity: string;
   onBack: () => void;
   onComplete: () => void;
 }
 
 
 
-export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTubeExercisesProps) {
+export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete }: YouTubeExercisesProps) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -52,12 +53,18 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
       
       try {
         const transcript = await getVideoTranscript(videoId);
-        const generatedExercises = generateTranscriptBasedExercises(transcript, level, videoId);
+        if (!transcript) {
+          setError("No transcript available for this video");
+          return;
+        }
+        
+        const exerciseCount = intensity === "intense" ? 20 : 10;
+        const generatedExercises = generateTranscriptBasedExercises(transcript, level, exerciseCount);
         setExercises(generatedExercises);
         
         toast({
           title: "Exercises Generated! 🎯",
-          description: `10 transcript-based exercises created for ${level} level.`,
+          description: `${intensity === "intense" ? "20" : "10"} transcript-based exercises created for ${level} level.`,
         });
       } catch (err) {
         setError("Failed to generate exercises. Please try another video.");
@@ -68,7 +75,7 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
     };
 
     loadExercises();
-  }, [videoId, level]);
+  }, [videoId, level, intensity]);
 
   const levelInfo = {
     A1: { name: "Beginner", color: "bg-green-500" },
@@ -355,9 +362,9 @@ export function YouTubeExercises({ videoId, level, onBack, onComplete }: YouTube
               <Youtube className="h-3 w-3 mr-1" />
               Video: {videoId}
             </Badge>
-            <Badge variant="outline" className="bg-green-50 text-green-700">
+            <Badge variant="outline" className={intensity === "intense" ? "bg-orange-100 text-orange-800" : "bg-green-100 text-green-800"}>
               <BookOpen className="h-3 w-3 mr-1" />
-              10 Custom Exercises
+              {intensity === "intense" ? "20" : "10"} Custom Exercises - {intensity === "intense" ? "Intense" : "Light"}
             </Badge>
           </div>
         </div>

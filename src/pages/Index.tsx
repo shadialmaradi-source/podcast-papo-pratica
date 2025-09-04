@@ -18,7 +18,8 @@ const Index = () => {
   const [selectedLanguage, setSelectedLanguage] = useState<string>("");
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastSource | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<PodcastEpisode | null>(null);
-  const [selectedLevel, setSelectedLevel] = useState<string>("A1");
+  const [selectedLevel, setSelectedLevel] = useState<string>("beginner");
+  const [selectedIntensity, setSelectedIntensity] = useState<string>("light");
   const [selectedVideoId, setSelectedVideoId] = useState<string>("");
 
   if (loading) {
@@ -52,9 +53,10 @@ const Index = () => {
     // Keep in episodes view for the player
   };
 
-  const handleStartExercises = (episode: PodcastEpisode, level: string) => {
+  const handleStartExercises = (episode: PodcastEpisode, level: string, intensity: string) => {
     setSelectedEpisode(episode);
     setSelectedLevel(level);
+    setSelectedIntensity(intensity);
     setAppState("exercises");
   };
 
@@ -84,9 +86,10 @@ const Index = () => {
     }
   };
 
-  const handleYouTubeExercises = (videoId: string, level: string) => {
+  const handleYouTubeExercises = (videoId: string, level: string, intensity: string) => {
     setSelectedVideoId(videoId);
     setSelectedLevel(level);
+    setSelectedIntensity(intensity);
     setAppState("youtube-exercises");
   };
 
@@ -130,6 +133,7 @@ const Index = () => {
           <ExerciseGenerator
             episode={selectedEpisode}
             level={selectedLevel}
+            intensity={selectedIntensity}
             onComplete={handleExerciseComplete}
             onBack={handleBackToEpisodes}
           />
@@ -150,6 +154,7 @@ const Index = () => {
           <YouTubeExercises
             videoId={selectedVideoId}
             level={selectedLevel}
+            intensity={selectedIntensity}
             onBack={handleBackToYouTube}
             onComplete={handleBackToYouTube}
           />

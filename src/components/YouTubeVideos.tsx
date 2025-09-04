@@ -23,10 +23,11 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { getVideoInfo, getVideoTranscript } from "@/services/youtubeService";
+import { LevelIntensitySelector } from "./LevelIntensitySelector";
 
 interface YouTubeVideosProps {
   onBack: () => void;
-  onStartExercises: (videoId: string, level: string) => void;
+  onStartExercises: (videoId: string, level: string, intensity: string) => void;
 }
 
 interface VideoData {
@@ -65,6 +66,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
   const [transcriptError, setTranscriptError] = useState("");
   const [manualTranscript, setManualTranscript] = useState("");
   const [showManualInput, setShowManualInput] = useState(false);
+  const [showLevelSelector, setShowLevelSelector] = useState(false);
 
   const levels = [
     { code: "A1", name: "Beginner (A1)", color: "bg-green-500", description: "Basic vocabulary and simple sentences" },
@@ -123,7 +125,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
     }
   };
 
-  const handleStartExercises = async (level: string) => {
+  const handleLevelSelect = async (level: string, intensity: string) => {
     if (!currentVideo) return;
     
     // Check if transcript is already loaded
@@ -134,7 +136,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
       try {
         const transcript = await getVideoTranscript(currentVideo.id);
         setCurrentVideo(prev => prev ? { ...prev, transcript } : null);
-        onStartExercises(currentVideo.id, level);
+        onStartExercises(currentVideo.id, level, intensity);
       } catch (error) {
         setTranscriptError("Failed to load transcript. Please try another video.");
         console.error('Error loading transcript:', error);
@@ -147,7 +149,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
         setIsLoadingTranscript(false);
       }
     } else {
-      onStartExercises(currentVideo.id, level);
+      onStartExercises(currentVideo.id, level, intensity);
     }
   };
 
@@ -397,70 +399,13 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
               <Edit3 className="h-4 w-4" />
               Manual Transcript
             </Button>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80">
-                  <BookOpen className="h-4 w-4" />
-                  Generate Exercises
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Choose Your Level
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Select your current language level to get exercises based on the actual video transcript:
-                  </p>
-                  
-                  {transcriptError && (
-                    <div className="flex items-center gap-2 text-destructive text-sm p-3 border border-destructive/20 rounded-lg bg-destructive/5">
-                      <AlertCircle className="h-4 w-4" />
-                      {transcriptError}
-                    </div>
-                  )}
-                  
-                  <div className="grid grid-cols-1 gap-3">
-                    {levels.map((level) => (
-                      <motion.div
-                        key={level.code}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Button
-                          variant="outline"
-                          className="w-full h-auto p-4 flex items-center justify-between text-left"
-                          onClick={() => handleStartExercises(level.code)}
-                          disabled={isLoadingTranscript}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Badge className={`${level.color} text-white`}>
-                              {level.code}
-                            </Badge>
-                            <div>
-                              <div className="font-medium">{level.name}</div>
-                              <div className="text-xs text-muted-foreground">{level.description}</div>
-                            </div>
-                          </div>
-                          {isLoadingTranscript ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <BookOpen className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </motion.div>
-                    ))}
-                  </div>
-                  
-                  <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
-                    <p><strong>Note:</strong> Exercises will be generated based on the actual video transcript, providing contextual and relevant practice material.</p>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button 
+              className="gap-2 bg-gradient-to-r from-primary to-primary/80"
+              onClick={() => setShowLevelSelector(true)}
+            >
+              <BookOpen className="h-4 w-4" />
+              Generate Exercises
+            </Button>
           </div>
 
           {/* Manual Transcript Input */}
@@ -510,6 +455,14 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
           )}
         </div>
       )}
+
+      {/* Level and Intensity Selector */}
+      <LevelIntensitySelector
+        isOpen={showLevelSelector}
+        onClose={() => setShowLevelSelector(false)}
+        onSelect={handleLevelSelect}
+        title="Choose YouTube Exercise Settings"
+      />
 
       {/* Instructions when no video loaded */}
       {!currentVideo && (

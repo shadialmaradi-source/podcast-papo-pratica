@@ -24,10 +24,11 @@ import { motion } from "framer-motion";
 import { PodcastEpisode } from "@/services/podcastService";
 import { updateEpisodeProgress } from "@/services/podcastService";
 import { toast } from "@/hooks/use-toast";
+import { LevelIntensitySelector } from "./LevelIntensitySelector";
 
 interface EpisodePlayerProps {
   episode: PodcastEpisode;
-  onStartExercises: (level: string) => void;
+  onStartExercises: (level: string, intensity: string) => void;
   onBack: () => void;
 }
 
@@ -60,6 +61,7 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  const [showLevelSelector, setShowLevelSelector] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -203,9 +205,10 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     audio.currentTime = Math.max(audio.currentTime - 15, 0);
   };
 
-  const handleStartExercises = (level: string) => {
+  const handleLevelSelect = (level: string, intensity: string) => {
     setSelectedLevel(level);
-    onStartExercises(level);
+    onStartExercises(level, intensity);
+    setShowLevelSelector(false);
   };
 
   // Use audio_url from episode or fallback to a working test audio
@@ -281,11 +284,11 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Button
-                  variant="outline"
-                  className="w-full h-auto p-6 flex flex-col gap-3 hover:shadow-md transition-all"
-                  onClick={() => handleStartExercises(level.code)}
-                >
+                 <Button
+                   variant="outline"
+                   className="w-full h-auto p-6 flex flex-col gap-3 hover:shadow-md transition-all"
+                   onClick={() => setShowLevelSelector(true)}
+                 >
                   <Badge className={`${level.color} text-white text-lg px-3 py-1`}>
                     {level.code}
                   </Badge>
@@ -349,9 +352,17 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
         <CardContent>
           <p className="text-muted-foreground leading-relaxed">
             {episode.description || "No description available for this episode."}
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+           </p>
+         </CardContent>
+       </Card>
+
+       {/* Level and Intensity Selector */}
+       <LevelIntensitySelector
+         isOpen={showLevelSelector}
+         onClose={() => setShowLevelSelector(false)}
+         onSelect={handleLevelSelect}
+         title="Choose Exercise Settings"
+       />
+     </div>
+   );
+ }

@@ -11,7 +11,7 @@ import { ItalianPodcastCard } from "./ItalianPodcastCard";
 interface PodcastLibraryProps {
   selectedLanguage: string;
   onSelectPodcast: (podcast: PodcastSource) => void;
-  onStartExercises: (episode: any, level: string) => void;
+  onStartExercises: (episode: any, level: string, intensity: string) => void;
 }
 
 const languageNames: Record<string, string> = {
