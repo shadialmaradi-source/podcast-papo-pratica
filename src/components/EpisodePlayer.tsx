@@ -65,12 +65,9 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const levels = [
-    { code: "A1", name: "Beginner (A1)", color: "bg-green-500" },
-    { code: "A2", name: "Elementary (A2)", color: "bg-green-600" },
-    { code: "B1", name: "Intermediate (B1)", color: "bg-warning" },
-    { code: "B2", name: "Upper-Intermediate (B2)", color: "bg-warning" },
-    { code: "C1", name: "Advanced (C1)", color: "bg-destructive" },
-    { code: "C2", name: "Proficiency (C2)", color: "bg-destructive" },
+    { code: "beginner", name: "Beginner", color: "bg-green-500" },
+    { code: "intermediate", name: "Intermediate", color: "bg-warning" },
+    { code: "advanced", name: "Advanced", color: "bg-destructive" },
   ];
 
   useEffect(() => {

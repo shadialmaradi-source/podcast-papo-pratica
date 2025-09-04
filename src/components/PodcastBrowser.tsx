@@ -9,7 +9,7 @@ interface Podcast {
   title: string;
   description: string;
   duration: string;
-  difficulty: "A1" | "A2" | "B1" | "B2" | "C1";
+  difficulty: "beginner" | "intermediate" | "advanced";
   category: string;
   rating: number;
   thumbnail: string;
@@ -26,7 +26,7 @@ const mockPodcasts: Podcast[] = [
     title: "Café da Manhã Brasileiro",
     description: "Uma conversa sobre tradições matinais no Brasil",
     duration: "12:30",
-    difficulty: "A2",
+    difficulty: "beginner",
     category: "Cultura",
     rating: 4.8,
     thumbnail: "/api/placeholder/200/200"
@@ -36,7 +36,7 @@ const mockPodcasts: Podcast[] = [
     title: "Tecnologia e Futuro",
     description: "Discussão sobre inovações tecnológicas brasileiras",
     duration: "25:45",
-    difficulty: "B2",
+    difficulty: "advanced",
     category: "Tecnologia",
     rating: 4.6,
     thumbnail: "/api/placeholder/200/200"
@@ -46,7 +46,7 @@ const mockPodcasts: Podcast[] = [
     title: "História do Carnaval",
     description: "A evolução do carnaval brasileiro através dos séculos",
     duration: "18:15",
-    difficulty: "B1",
+    difficulty: "intermediate",
     category: "História",
     rating: 4.9,
     thumbnail: "/api/placeholder/200/200"
@@ -55,9 +55,9 @@ const mockPodcasts: Podcast[] = [
 
 const getDifficultyColor = (difficulty: string) => {
   switch (difficulty) {
-    case "A1": case "A2": return "bg-success text-success-foreground";
-    case "B1": case "B2": return "bg-warning text-warning-foreground";
-    case "C1": return "bg-destructive text-destructive-foreground";
+    case "beginner": return "bg-success text-success-foreground";
+    case "intermediate": return "bg-warning text-warning-foreground";
+    case "advanced": return "bg-destructive text-destructive-foreground";
     default: return "bg-muted text-muted-foreground";
   }
 };
@@ -65,7 +65,7 @@ const getDifficultyColor = (difficulty: string) => {
 export function PodcastBrowser({ onSelectPodcast }: PodcastBrowserProps) {
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
   
-  const difficulties = ["all", "A1", "A2", "B1", "B2", "C1"];
+  const difficulties = ["all", "beginner", "intermediate", "advanced"];
   
   const filteredPodcasts = selectedDifficulty === "all" 
     ? mockPodcasts 

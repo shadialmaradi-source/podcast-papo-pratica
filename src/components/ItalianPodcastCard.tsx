@@ -23,20 +23,17 @@ interface ItalianPodcastCardProps {
 
 const getDifficultyColor = (difficulty: string) => {
   switch (difficulty) {
-    case "A1": case "A2": return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400";
-    case "B1": case "B2": return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400";
-    case "C1": case "C2": return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400";
+    case "beginner": return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400";
+    case "intermediate": return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400";
+    case "advanced": return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400";
     default: return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400";
   }
 };
 
 const levels = [
-  { code: "A1", name: "Beginner (A1)", color: "bg-green-500" },
-  { code: "A2", name: "Elementary (A2)", color: "bg-green-600" },
-  { code: "B1", name: "Intermediate (B1)", color: "bg-yellow-500" },
-  { code: "B2", name: "Upper-Intermediate (B2)", color: "bg-yellow-600" },
-  { code: "C1", name: "Advanced (C1)", color: "bg-red-500" },
-  { code: "C2", name: "Proficiency (C2)", color: "bg-red-600" },
+  { code: "beginner", name: "Beginner", color: "bg-green-500" },
+  { code: "intermediate", name: "Intermediate", color: "bg-warning" },
+  { code: "advanced", name: "Advanced", color: "bg-destructive" },
 ];
 
 export function ItalianPodcastCard({ podcast, episode, onStartExercises }: ItalianPodcastCardProps) {

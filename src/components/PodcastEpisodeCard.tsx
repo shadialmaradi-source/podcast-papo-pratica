@@ -18,12 +18,9 @@ import type { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
 // Difficulty level configurations
 const DIFFICULTY_LEVELS = [
-  { code: "A1", name: "Beginner (A1)", color: "bg-green-500" },
-  { code: "A2", name: "Elementary (A2)", color: "bg-blue-500" },
-  { code: "B1", name: "Intermediate (B1)", color: "bg-yellow-500" },
-  { code: "B2", name: "Upper-Intermediate (B2)", color: "bg-orange-500" },
-  { code: "C1", name: "Advanced (C1)", color: "bg-red-500" },
-  { code: "C2", name: "Proficiency (C2)", color: "bg-red-600" },
+  { code: "beginner", name: "Beginner", color: "bg-green-500" },
+  { code: "intermediate", name: "Intermediate", color: "bg-warning" },
+  { code: "advanced", name: "Advanced", color: "bg-destructive" },
 ];
 
 interface PodcastEpisodeCardProps {

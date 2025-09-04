@@ -37,7 +37,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastSource | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   
-  const difficulties = ["all", "A1", "A2", "B1", "B2", "C1", "C2"];
+  const difficulties = ["all", "beginner", "intermediate", "advanced"];
 
   useEffect(() => {
     loadPodcasts();
