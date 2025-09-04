@@ -257,8 +257,9 @@ const createMockExercises = (episode: PodcastEpisode, level: string, intensity: 
     id: `mock-${language}-${level}-${index + 1}`,
     episode_id: episode.id,
     question: exercise.question,
-    exercise_type: exercise.options ? "multiple_choice" as const : "fill_blank" as const,
-    options: exercise.options,
+exercise_type: exercise.exercise_type || (exercise.options ? "multiple_choice" : "fill_blank"),
+
+  options: exercise.options,
     difficulty: level,
     intensity,
     xp_reward: level === "beginner" ? 5 : level === "intermediate" ? 10 : 15,
