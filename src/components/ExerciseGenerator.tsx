@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Star, Heart, RefreshCw, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle, Star, Heart, RefreshCw, ArrowLeft, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { 
   Exercise, 
@@ -29,218 +29,45 @@ interface ExerciseGeneratorProps {
   onBack: () => void;
 }
 
-// Mock exercises for fallback when no real exercises exist
+// Mock exercises - only used as absolute fallback
 const createMockExercises = (episode: PodcastEpisode, level: string, intensity: string): Exercise[] => {
   const language = episode.podcast_source?.language || 'english';
-  // Map new level system to CEFR levels for mock exercises
-const levelMap: Record<string, string> = {
-  'beginner': 'A1',
-  'intermediate': 'B1', 
-  'advanced': 'C1'
-};
-console.log('Creating mock exercises:', { episode: episode.title, level, intensity, language });
-
-const cefrLevel = levelMap[level] || 'A1'; // Fallback to A1 if level not found
+  const levelMap: Record<string, string> = {
+    'beginner': 'A1',
+    'intermediate': 'B1', 
+    'advanced': 'C1'
+  };
+  
+  const cefrLevel = levelMap[level] || 'A1';
 
   const exerciseTexts = {
-    portuguese: {
-      A1: [
-        {
-          question: "Qual é o horário mencionado no episódio?",
-          options: ["Manhã", "Tarde", "Noite", "Madrugada"],
-          correct_answer: "Manhã",
-          explanation: "O locutor fala sobre rotinas matinais no início do episódio."
-        },
-        {
-          question: "Complete: 'Eu geralmente ___ café da manhã às 7h'",
-          correct_answer: "tomo",
-          explanation: "O verbo 'tomar' é usado para café da manhã em português."
-        }
-      ],
-      A2: [
-        {
-          question: "Segundo o locutor, qual é a melhor forma de aprender um idioma?",
-          options: ["Ler livros", "Praticar diariamente", "Assistir filmes", "Estudar gramática"],
-          correct_answer: "Praticar diariamente",
-          explanation: "O locutor enfatiza a importância da prática consistente todos os dias."
-        },
-        {
-          question: "Complete: 'O mais importante é ___ todos os dias'",
-          correct_answer: "praticar",
-          explanation: "A prática consistente é fundamental para o sucesso no aprendizado."
-        }
-      ],
-      B1: [
-        {
-          question: "Que diferença cultural o locutor destaca sobre as rotinas matinais?",
-          options: [
-            "Algumas culturas não tomam café da manhã",
-            "Diferentes culturas têm horários de refeição variados",
-            "Hábitos de exercício variam por país",
-            "Horários de trabalho diferem globalmente"
-          ],
-          correct_answer: "Diferentes culturas têm horários de refeição variados",
-          explanation: "O locutor discute como os horários das refeições variam entre culturas."
-        }
-      ],
-      B2: [
-        {
-          question: "Analise o argumento do locutor sobre formação de hábitos. Que evidências são fornecidas?",
-          correct_answer: "O locutor menciona estudos científicos e experiência pessoal",
-          explanation: "O argumento combina evidências de pesquisa com experiência anedótica."
-        }
-      ],
-      C1: [
-        {
-          question: "Avalie criticamente a metodologia do locutor para aquisição de linguagem. Quais são os pontos fortes e fracos?",
-          correct_answer: "Pontos fortes incluem aplicabilidade prática; fracos podem incluir falta de estrutura formal",
-          explanation: "A análise crítica requer examinar aspectos positivos e negativos."
-        }
-      ],
-      C2: [
-        {
-          question: "Sintetize os princípios-chave discutidos e proponha uma estrutura alternativa para aprendizado de idiomas.",
-          correct_answer: "Uma abordagem multimodal combinando aprendizado estruturado com prática imersiva",
-          explanation: "A síntese avançada requer integrar conceitos e criar novas soluções."
-        }
-      ]
-    },
-    spanish: {
-      A1: [
-        {
-          question: "¿Qué hora del día se menciona en el episodio?",
-          options: ["Mañana", "Tarde", "Noche", "Madrugada"],
-          correct_answer: "Mañana",
-          explanation: "El locutor habla sobre rutinas matutinas al inicio del episodio."
-        },
-        {
-          question: "Completa: 'Yo generalmente ___ desayuno a las 7h'",
-          correct_answer: "tomo",
-          explanation: "El verbo 'tomar' se usa para el desayuno en español."
-        }
-      ],
-      A2: [
-        {
-          question: "Según el locutor, ¿cuál es la mejor forma de aprender un idioma?",
-          options: ["Leer libros", "Practicar diariamente", "Ver películas", "Estudiar gramática"],
-          correct_answer: "Practicar diariamente",
-          explanation: "El locutor enfatiza la importancia de la práctica consistente todos los días."
-        }
-      ],
-      B1: [
-        {
-          question: "¿Qué diferencia cultural destaca el locutor sobre las rutinas matutinas?",
-          options: [
-            "Algunas culturas no desayunan",
-            "Diferentes culturas tienen horarios de comida variados",
-            "Los hábitos de ejercicio varían por país",
-            "Los horarios de trabajo difieren globalmente"
-          ],
-          correct_answer: "Diferentes culturas tienen horarios de comida variados",
-          explanation: "El locutor discute cómo los horarios de las comidas varían entre culturas."
-        }
-      ],
-      B2: [
-        {
-          question: "Analiza el argumento del locutor sobre la formación de hábitos. ¿Qué evidencias proporciona?",
-          correct_answer: "El locutor menciona estudios científicos y experiencia personal",
-          explanation: "El argumento combina evidencia de investigación con experiencia anecdótica."
-        }
-      ],
-      C1: [
-        {
-          question: "Evalúa críticamente la metodología del locutor para la adquisición del lenguaje.",
-          correct_answer: "Fortalezas incluyen aplicabilidad práctica; debilidades pueden incluir falta de estructura formal",
-          explanation: "El análisis crítico requiere examinar aspectos positivos y negativos."
-        }
-      ],
-      C2: [
-        {
-          question: "Sintetiza los principios clave discutidos y propón un marco alternativo.",
-          correct_answer: "Un enfoque multimodal que combine aprendizaje estructurado con práctica inmersiva",
-          explanation: "La síntesis avanzada requiere integrar conceptos y crear nuevas soluciones."
-        }
-      ]
-    },
-    french: {
-      A1: [
-        {
-          question: "Quel moment de la journée est mentionné dans l'épisode?",
-          options: ["Matin", "Après-midi", "Soir", "Nuit"],
-          correct_answer: "Matin",
-          explanation: "Le présentateur parle des routines matinales au début de l'épisode."
-        },
-        {
-          question: "Complétez: 'Je ___ généralement le petit-déjeuner à 7h'",
-          correct_answer: "prends",
-          explanation: "Le verbe 'prendre' est utilisé pour le petit-déjeuner en français."
-        }
-      ],
-      A2: [
-        {
-          question: "Selon le présentateur, quelle est la meilleure façon d'apprendre une langue?",
-          options: ["Lire des livres", "Pratiquer quotidiennement", "Regarder des films", "Étudier la grammaire"],
-          correct_answer: "Pratiquer quotidiennement",
-          explanation: "Le présentateur souligne l'importance de la pratique quotidienne."
-        }
-      ],
-      B1: [
-        {
-          question: "Quelle différence culturelle le présentateur souligne-t-il sur les routines matinales?",
-          options: [
-            "Certaines cultures ne prennent pas de petit-déjeuner",
-            "Différentes cultures ont des horaires de repas variés",
-            "Les habitudes d'exercice varient selon les pays",
-            "Les horaires de travail diffèrent globalement"
-          ],
-          correct_answer: "Différentes cultures ont des horaires de repas variés",
-          explanation: "Le présentateur discute comment les horaires des repas varient entre cultures."
-        }
-      ]
-    },
-    german: {
-      A1: [
-        {
-          question: "Welche Tageszeit wird in der Episode erwähnt?",
-          options: ["Morgen", "Nachmittag", "Abend", "Nacht"],
-          correct_answer: "Morgen",
-          explanation: "Der Sprecher spricht über Morgenroutinen zu Beginn der Episode."
-        },
-        {
-          question: "Vervollständigen Sie: 'Ich ___ normalerweise um 7 Uhr Frühstück'",
-          correct_answer: "esse",
-          explanation: "Das Verb 'essen' wird für das Frühstück auf Deutsch verwendet."
-        }
-      ]
-    },
     english: {
       A1: [
         {
-          question: "What time of day is mentioned in the episode?",
-          options: ["Morning", "Afternoon", "Evening", "Night"],
-          correct_answer: "Morning",
-          explanation: "The speaker talks about morning routines at the beginning."
+          question: "What is the main topic discussed in this episode?",
+          options: ["Language learning", "Technology", "Travel", "Food"],
+          correct_answer: "Language learning",
+          explanation: "This episode focuses on effective language learning strategies."
         },
         {
-          question: "Complete: 'I usually ___ breakfast at 7 AM'",
-          correct_answer: "eat",
-          explanation: "The verb 'eat' is used for consuming food."
+          question: "Complete the sentence: 'Practice makes ___'",
+          correct_answer: "perfect",
+          explanation: "The common phrase is 'practice makes perfect'."
         }
-      ]
-    },
-    italian: {
+      ],
       B1: [
         {
-          question: "Quando è nata ufficialmente la RAI?",
-          options: ["Anni Quaranta", "Anni Cinquanta", "Anni Sessanta", "Anni Settanta"],
-          correct_answer: "Anni Cinquanta",
-          explanation: "La storia della televisione italiana inizia ufficialmente negli anni Cinquanta con la nascita della RAI."
-        },
+          question: "According to the speaker, what is the most effective way to learn a language?",
+          options: ["Reading books only", "Daily practice with variety", "Memorizing grammar rules", "Watching movies only"],
+          correct_answer: "Daily practice with variety",
+          explanation: "The speaker emphasizes consistent daily practice using various methods."
+        }
+      ],
+      C1: [
         {
-          question: "Cosa sono gli sceneggiati televisivi?",
-          options: ["Programmi di varietà", "Serie televisive con storie", "Telegiornali", "Show comici"],
-          correct_answer: "Serie televisive con storie",
-          explanation: "Gli sceneggiati erano le prime serie TV italiane, come Il Commissario Maigret."
+          question: "Analyze the methodology discussed for language acquisition. What are its key strengths?",
+          correct_answer: "Combines structured learning with practical application and addresses different learning styles",
+          explanation: "Advanced analysis requires identifying multiple components and their synergistic effects."
         }
       ]
     }
@@ -249,17 +76,13 @@ const cefrLevel = levelMap[level] || 'A1'; // Fallback to A1 if level not found
   const texts = exerciseTexts[language as keyof typeof exerciseTexts] || exerciseTexts.english;
   const levelExercises = (texts as any)[cefrLevel] || (texts as any).A1 || exerciseTexts.english.A1;
   
-  // Determine number of exercises based on intensity
   const exerciseCount = intensity === "intense" ? 20 : 10;
-  
-  // If we need more exercises than available, repeat them with variations
   const finalExercises = [];
+  
   for (let i = 0; i < exerciseCount; i++) {
     const sourceExercise = levelExercises[i % levelExercises.length];
     finalExercises.push(sourceExercise);
   }
-  
-  console.log('Generated exercises:', finalExercises.length, 'exercises for level:', level)
 
   return finalExercises.map((exercise, index) => ({
     id: `mock-${language}-${level}-${index + 1}`,
@@ -285,27 +108,73 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const [totalXP, setTotalXP] = useState(0);
   const [hearts, setHearts] = useState(5);
   const [loading, setLoading] = useState(true);
+  const [usingMockData, setUsingMockData] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadExercises();
   }, []);
 
   const loadExercises = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const data = await getEpisodeExercises(episode.id, level, intensity);
-      if (data.length === 0) {
-        // If no exercises in DB, use mock data for the specified level and intensity
-        setExercises(createMockExercises(episode, level, intensity));
+      console.log('Fetching exercises from database for:', { 
+        episodeId: episode.id, 
+        level, 
+        intensity 
+      });
+      
+      // First, try to get exercises from the database
+      const dbExercises = await getEpisodeExercises(episode.id, level, intensity);
+      
+      console.log('Database exercises found:', dbExercises.length);
+      
+      if (dbExercises && dbExercises.length > 0) {
+        // Apply intensity filtering
+        const targetCount = intensity === 'intense' ? 20 : 10;
+        const filteredExercises = dbExercises.slice(0, targetCount);
+        
+        setExercises(filteredExercises);
+        setUsingMockData(false);
+        
+        console.log('Using database exercises:', filteredExercises.length);
+        
+        toast({
+          title: "Exercises Loaded",
+          description: `Loaded ${filteredExercises.length} exercises from database`,
+        });
+        
       } else {
-        // Apply intensity filtering if needed (limit based on intensity)
-        const targetCount = intensity === 'light' ? 10 : 20;
-        const limitedExercises = data.slice(0, targetCount);
-        setExercises(limitedExercises.length > 0 ? limitedExercises : createMockExercises(episode, level, intensity));
+        // No database exercises found, use mock data as fallback
+        console.log('No database exercises found, using mock data');
+        
+        const mockExercises = createMockExercises(episode, level, intensity);
+        setExercises(mockExercises);
+        setUsingMockData(true);
+        
+        toast({
+          title: "Using Sample Exercises",
+          description: "No specific exercises found for this episode. Using sample exercises.",
+          variant: "default",
+        });
       }
+      
     } catch (error) {
-      console.error('Error loading exercises:', error);
-      // Fallback to mock data for the specified level and intensity
-      setExercises(createMockExercises(episode, level, intensity));
+      console.error('Error loading exercises from database:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load exercises');
+      
+      // Fallback to mock data on error
+      const mockExercises = createMockExercises(episode, level, intensity);
+      setExercises(mockExercises);
+      setUsingMockData(true);
+      
+      toast({
+        title: "Connection Error",
+        description: "Could not connect to database. Using sample exercises.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -318,107 +187,90 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     setShowResult(true);
 
     try {
-      // For mock exercises, simulate the answer checking
-      if (currentExercise.id.startsWith('mock-')) {
-        const mockResult: ExerciseResult = {
-          is_correct: answer.toLowerCase().trim() === getMockCorrectAnswer().toLowerCase().trim(),
-          correct_answer: getMockCorrectAnswer(),
+      let result: ExerciseResult;
+      
+      // Handle mock exercises differently
+      if (usingMockData || currentExercise.id.startsWith('mock-')) {
+        const mockCorrectAnswer = getMockCorrectAnswer();
+        const isCorrect = answer.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
+        
+        result = {
+          is_correct: isCorrect,
+          correct_answer: mockCorrectAnswer,
           explanation: getMockExplanation(),
           xp_reward: currentExercise.xp_reward
         };
-        setExerciseResult(mockResult);
         
-        if (mockResult.is_correct) {
-          setTotalXP(prev => prev + mockResult.xp_reward);
-          toast({
-            title: episode.podcast_source?.language === 'portuguese' ? "Correto! ✅" : 
-                   episode.podcast_source?.language === 'spanish' ? "¡Correcto! ✅" :
-                   episode.podcast_source?.language === 'french' ? "Correct! ✅" :
-                   episode.podcast_source?.language === 'german' ? "Richtig! ✅" : "Correct! ✅",
-            description: `+${mockResult.xp_reward} XP`,
-          });
-        } else {
-          setHearts(prev => Math.max(0, prev - 1));
-          toast({
-            title: episode.podcast_source?.language === 'portuguese' ? "Incorreto ❌" : 
-                   episode.podcast_source?.language === 'spanish' ? "Incorrecto ❌" :
-                   episode.podcast_source?.language === 'french' ? "Incorrect ❌" :
-                   episode.podcast_source?.language === 'german' ? "Falsch ❌" : "Incorrect ❌",
-            description: mockResult.explanation || (
-              episode.podcast_source?.language === 'portuguese' ? "Tente novamente!" :
-              episode.podcast_source?.language === 'spanish' ? "¡Inténtalo de nuevo!" :
-              episode.podcast_source?.language === 'french' ? "Essayez encore!" :
-              episode.podcast_source?.language === 'german' ? "Versuchen Sie es erneut!" : "Try again!"
-            ),
-            variant: "destructive",
-          });
-        }
-        return;
+        setExerciseResult(result);
+        
+        // For mock exercises, simulate saving (but don't actually save to DB)
+        console.log('Mock exercise result:', result);
+        
+      } else {
+        // Real database exercise
+        result = await checkExerciseAnswer(currentExercise.id, answer);
+        setExerciseResult(result);
+
+        // Save the result to database
+        await saveExerciseResult(
+          currentExercise.id,
+          episode.id,
+          answer,
+          result.is_correct,
+          result.is_correct ? result.xp_reward : 0
+        );
+        
+        console.log('Database exercise result:', result);
       }
 
-      const result = await checkExerciseAnswer(currentExercise.id, answer);
-      setExerciseResult(result);
-
-      // Save the result
-      await saveExerciseResult(
-        currentExercise.id,
-        episode.id,
-        answer,
-        result.is_correct,
-        result.is_correct ? result.xp_reward : 0
-      );
-
+      // Handle correct/incorrect logic
       if (result.is_correct) {
         setTotalXP(prev => prev + result.xp_reward);
-        await updateUserProgress(result.xp_reward);
+        
+        // Only update user progress for real database exercises
+        if (!usingMockData && !currentExercise.id.startsWith('mock-')) {
+          await updateUserProgress(result.xp_reward);
+        }
+        
         toast({
-          title: episode.podcast_source?.language === 'portuguese' ? "Correto! ✅" : 
-                 episode.podcast_source?.language === 'spanish' ? "¡Correcto! ✅" :
-                 episode.podcast_source?.language === 'french' ? "Correct! ✅" :
-                 episode.podcast_source?.language === 'german' ? "Richtig! ✅" : "Correct! ✅",
+          title: getLocalizedText('correct'),
           description: `+${result.xp_reward} XP`,
         });
       } else {
-        const newHearts = await decreaseHearts();
-        setHearts(newHearts);
+        // Handle heart decrease
+        if (!usingMockData && !currentExercise.id.startsWith('mock-')) {
+          const newHearts = await decreaseHearts();
+          setHearts(newHearts);
+        } else {
+          setHearts(prev => Math.max(0, prev - 1));
+        }
+        
         toast({
-          title: episode.podcast_source?.language === 'portuguese' ? "Incorreto ❌" : 
-                 episode.podcast_source?.language === 'spanish' ? "Incorrecto ❌" :
-                 episode.podcast_source?.language === 'french' ? "Incorrect ❌" :
-                 episode.podcast_source?.language === 'german' ? "Falsch ❌" : "Incorrect ❌",
-          description: result.explanation || (
-            episode.podcast_source?.language === 'portuguese' ? "Tente novamente!" :
-            episode.podcast_source?.language === 'spanish' ? "¡Inténtalo de nuevo!" :
-            episode.podcast_source?.language === 'french' ? "Essayez encore!" :
-            episode.podcast_source?.language === 'german' ? "Versuchen Sie es erneut!" : "Try again!"
-          ),
+          title: getLocalizedText('incorrect'),
+          description: result.explanation || getLocalizedText('tryAgain'),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error('Error handling answer:', error);
       toast({
-        title: episode.podcast_source?.language === 'portuguese' ? "Erro" : 
-               episode.podcast_source?.language === 'spanish' ? "Error" :
-               episode.podcast_source?.language === 'french' ? "Erreur" :
-               episode.podcast_source?.language === 'german' ? "Fehler" : "Error",
-        description: episode.podcast_source?.language === 'portuguese' ? "Erro ao processar resposta" :
-                     episode.podcast_source?.language === 'spanish' ? "Error al procesar respuesta" :
-                     episode.podcast_source?.language === 'french' ? "Erreur lors du traitement de la réponse" :
-                     episode.podcast_source?.language === 'german' ? "Fehler beim Verarbeiten der Antwort" : "Error processing answer",
+        title: getLocalizedText('error'),
+        description: getLocalizedText('errorProcessing'),
         variant: "destructive",
       });
     }
   };
 
   const getMockCorrectAnswer = () => {
-    const exerciseData = createMockExercises(episode, level, intensity)[currentExerciseIndex];
-    return exerciseData?.correct_answer || "";
+    if (!usingMockData) return "";
+    const mockExercises = createMockExercises(episode, level, intensity);
+    return mockExercises[currentExerciseIndex]?.correct_answer || "";
   };
 
   const getMockExplanation = () => {
-    const exerciseData = createMockExercises(episode, level, intensity)[currentExerciseIndex];
-    return exerciseData?.explanation || "";
+    if (!usingMockData) return "";
+    const mockExercises = createMockExercises(episode, level, intensity);
+    return mockExercises[currentExerciseIndex]?.explanation || "";
   };
 
   const handleNext = () => {
@@ -428,7 +280,6 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
       setShowResult(false);
       setExerciseResult(null);
     } else {
-      // Last exercise completed
       onComplete();
     }
   };
@@ -436,41 +287,16 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const getLocalizedText = (key: string) => {
     const lang = episode.podcast_source?.language || 'english';
     const texts = {
-      back: {
-        portuguese: 'Voltar',
-        spanish: 'Volver',
-        french: 'Retour',
-        german: 'Zurück',
-        english: 'Back'
-      },
-      exercise: {
-        portuguese: 'Exercício',
-        spanish: 'Ejercicio',
-        french: 'Exercice',
-        german: 'Übung',
-        english: 'Exercise'
-      },
-      of: {
-        portuguese: 'de',
-        spanish: 'de',
-        french: 'de',
-        german: 'von',
-        english: 'of'
-      },
-      next: {
-        portuguese: 'Próximo',
-        spanish: 'Siguiente',
-        french: 'Suivant',
-        german: 'Weiter',
-        english: 'Next'
-      },
-      finish: {
-        portuguese: 'Finalizar',
-        spanish: 'Terminar',
-        french: 'Terminer',
-        german: 'Beenden',
-        english: 'Finish'
-      }
+      back: { portuguese: 'Voltar', spanish: 'Volver', french: 'Retour', german: 'Zurück', english: 'Back' },
+      exercise: { portuguese: 'Exercício', spanish: 'Ejercicio', french: 'Exercice', german: 'Übung', english: 'Exercise' },
+      of: { portuguese: 'de', spanish: 'de', french: 'de', german: 'von', english: 'of' },
+      next: { portuguese: 'Próximo', spanish: 'Siguiente', french: 'Suivant', german: 'Weiter', english: 'Next' },
+      finish: { portuguese: 'Finalizar', spanish: 'Terminar', french: 'Terminer', german: 'Beenden', english: 'Finish' },
+      correct: { portuguese: 'Correto! ✅', spanish: '¡Correcto! ✅', french: 'Correct! ✅', german: 'Richtig! ✅', english: 'Correct! ✅' },
+      incorrect: { portuguese: 'Incorreto ❌', spanish: 'Incorrecto ❌', french: 'Incorrect ❌', german: 'Falsch ❌', english: 'Incorrect ❌' },
+      tryAgain: { portuguese: 'Tente novamente!', spanish: '¡Inténtalo de nuevo!', french: 'Essayez encore!', german: 'Versuchen Sie es erneut!', english: 'Try again!' },
+      error: { portuguese: 'Erro', spanish: 'Error', french: 'Erreur', german: 'Fehler', english: 'Error' },
+      errorProcessing: { portuguese: 'Erro ao processar resposta', spanish: 'Error al procesar respuesta', french: 'Erreur lors du traitement de la réponse', german: 'Fehler beim Verarbeiten der Antwort', english: 'Error processing answer' }
     };
     return texts[key as keyof typeof texts]?.[lang as keyof typeof texts[keyof typeof texts]] || texts[key as keyof typeof texts]?.english || key;
   };
@@ -484,13 +310,18 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     return names[level as keyof typeof names] || level;
   };
 
+  // Retry loading exercises from database
+  const retryLoadExercises = async () => {
+    await loadExercises();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
         <Card className="max-w-md mx-auto text-center p-8">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Loading Exercises...</h3>
-          <p className="text-muted-foreground">Preparing your learning session</p>
+          <p className="text-muted-foreground">Connecting to database...</p>
         </Card>
       </div>
     );
@@ -502,8 +333,16 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
         <Card className="max-w-md mx-auto text-center p-8">
           <XCircle className="h-8 w-8 text-destructive mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Exercises Available</h3>
-          <p className="text-muted-foreground mb-4">We couldn't find any exercises for this episode.</p>
-          <Button onClick={onBack}>Go Back</Button>
+          <p className="text-muted-foreground mb-4">
+            {error ? `Database error: ${error}` : 'Could not load exercises for this episode.'}
+          </p>
+          <div className="space-y-2">
+            <Button onClick={retryLoadExercises} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+            <Button onClick={onBack}>Go Back</Button>
+          </div>
         </Card>
       </div>
     );
@@ -521,14 +360,29 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
               <ArrowLeft className="h-4 w-4 mr-2" />
               {getLocalizedText('back')}
             </Button>
+            
+            {/* Show indicator if using mock data */}
+            {usingMockData && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <AlertCircle className="h-3 w-3" />
+                <span>Sample Mode</span>
+              </div>
+            )}
           </div>
+          
           <div className="space-y-2">
             <CardTitle className="text-2xl">
               {episode.title}
             </CardTitle>
             <CardDescription>
               {episode.podcast_source?.title} - {getLevelDisplayName(level)} Level - {intensity === "intense" ? "Intense" : "Light"} Mode
+              {usingMockData && (
+                <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                  Using sample exercises - database exercises not available
+                </div>
+              )}
             </CardDescription>
+            
             <div className="flex items-center gap-4 justify-center">
               <Badge variant="outline">
                 {getLocalizedText('exercise')} {currentExerciseIndex + 1} {getLocalizedText('of')} {exercises.length}
@@ -547,7 +401,23 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
               </div>
             </div>
           </div>
+          
           <Progress value={progress} className="w-full" />
+          
+          {/* Database connection retry button */}
+          {usingMockData && (
+            <div className="pt-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={retryLoadExercises}
+                className="text-xs"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Try Database Again
+              </Button>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="space-y-6">
