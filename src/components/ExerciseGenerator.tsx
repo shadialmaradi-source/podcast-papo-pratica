@@ -226,41 +226,40 @@ const cefrLevel = levelMap[level] || 'A1'; // Fallback to A1 if level not found
           correct_answer: "eat",
           explanation: "The verb 'eat' is used for consuming food."
         }
-            ]
-          },
-          italian: {
-            B1: [
-              {
-                question: "Quando è nata ufficialmente la RAI?",
-                options: ["Anni Quaranta", "Anni Cinquanta", "Anni Sessanta", "Anni Settanta"],
-                correct_answer: "Anni Cinquanta",
-                explanation: "La storia della televisione italiana inizia ufficialmente negli anni Cinquanta con la nascita della RAI."
-              },
-              {
-                question: "Cosa sono gli sceneggiati televisivi?",
-                options: ["Programmi di varietà", "Serie televisive con storie", "Telegiornali", "Show comici"],
-                correct_answer: "Serie televisive con storie",
-                explanation: "Gli sceneggiati erano le prime serie TV italiane, come Il Commissario Maigret."
-              }
-            ]
-          }
-        };
+      ]
+    },
+    italian: {
+      B1: [
+        {
+          question: "Quando è nata ufficialmente la RAI?",
+          options: ["Anni Quaranta", "Anni Cinquanta", "Anni Sessanta", "Anni Settanta"],
+          correct_answer: "Anni Cinquanta",
+          explanation: "La storia della televisione italiana inizia ufficialmente negli anni Cinquanta con la nascita della RAI."
+        },
+        {
+          question: "Cosa sono gli sceneggiati televisivi?",
+          options: ["Programmi di varietà", "Serie televisive con storie", "Telegiornali", "Show comici"],
+          correct_answer: "Serie televisive con storie",
+          explanation: "Gli sceneggiati erano le prime serie TV italiane, come Il Commissario Maigret."
+        }
+      ]
+    }
+  };
 
   const texts = exerciseTexts[language as keyof typeof exerciseTexts] || exerciseTexts.english;
-  const levelExercises = (texts as any)[level] || (texts as any).beginner || exerciseTexts.english.A1;
+  const levelExercises = (texts as any)[cefrLevel] || (texts as any).A1 || exerciseTexts.english.A1;
   
   // Determine number of exercises based on intensity
   const exerciseCount = intensity === "intense" ? 20 : 10;
-  const selectedExercises = levelExercises.slice(0, Math.min(exerciseCount, levelExercises.length));
   
   // If we need more exercises than available, repeat them with variations
   const finalExercises = [];
   for (let i = 0; i < exerciseCount; i++) {
-    const sourceExercise = selectedExercises[i % selectedExercises.length];
+    const sourceExercise = levelExercises[i % levelExercises.length];
     finalExercises.push(sourceExercise);
   }
-  // Instead of using 'level' directly, use 'cefrLevel'
-const availableExercises = exerciseTexts[language]?.[cefrLevel] || exerciseTexts.english.A1;
+  
+  console.log('Generated exercises:', finalExercises.length, 'exercises for level:', level)
 
   return finalExercises.map((exercise, index) => ({
     id: `mock-${language}-${level}-${index + 1}`,
@@ -403,46 +402,109 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                episode.podcast_source?.language === 'spanish' ? "Error" :
                episode.podcast_source?.language === 'french' ? "Erreur" :
                episode.podcast_source?.language === 'german' ? "Fehler" : "Error",
-        description: episode.podcast_source?.language === 'portuguese' ? "Problema ao verificar a resposta" :
-                     episode.podcast_source?.language === 'spanish' ? "Problema al verificar la respuesta" :
-                     episode.podcast_source?.language === 'french' ? "Problème lors de la vérification de la réponse" :
-                     episode.podcast_source?.language === 'german' ? "Problem beim Überprüfen der Antwort" : "Problem checking answer",
+        description: episode.podcast_source?.language === 'portuguese' ? "Erro ao processar resposta" :
+                     episode.podcast_source?.language === 'spanish' ? "Error al procesar respuesta" :
+                     episode.podcast_source?.language === 'french' ? "Erreur lors du traitement de la réponse" :
+                     episode.podcast_source?.language === 'german' ? "Fehler beim Verarbeiten der Antwort" : "Error processing answer",
         variant: "destructive",
       });
     }
   };
 
   const getMockCorrectAnswer = () => {
-    return currentExercise.correct_answer || "";
+    const exerciseData = createMockExercises(episode, level, intensity)[currentExerciseIndex];
+    return exerciseData?.correct_answer || "";
   };
 
   const getMockExplanation = () => {
-    return currentExercise.explanation || "Good attempt! Keep practicing to improve your skills.";
+    const exerciseData = createMockExercises(episode, level, intensity)[currentExerciseIndex];
+    return exerciseData?.explanation || "";
   };
 
-  const nextExercise = () => {
+  const handleNext = () => {
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentExerciseIndex(prev => prev + 1);
       setSelectedAnswer("");
       setShowResult(false);
       setExerciseResult(null);
     } else {
+      // Last exercise completed
       onComplete();
     }
   };
 
-  const resetExercises = () => {
-    setCurrentExerciseIndex(0);
-    setSelectedAnswer("");
-    setShowResult(false);
-    setExerciseResult(null);
-    setTotalXP(0);
+  const getLocalizedText = (key: string) => {
+    const lang = episode.podcast_source?.language || 'english';
+    const texts = {
+      back: {
+        portuguese: 'Voltar',
+        spanish: 'Volver',
+        french: 'Retour',
+        german: 'Zurück',
+        english: 'Back'
+      },
+      exercise: {
+        portuguese: 'Exercício',
+        spanish: 'Ejercicio',
+        french: 'Exercice',
+        german: 'Übung',
+        english: 'Exercise'
+      },
+      of: {
+        portuguese: 'de',
+        spanish: 'de',
+        french: 'de',
+        german: 'von',
+        english: 'of'
+      },
+      next: {
+        portuguese: 'Próximo',
+        spanish: 'Siguiente',
+        french: 'Suivant',
+        german: 'Weiter',
+        english: 'Next'
+      },
+      finish: {
+        portuguese: 'Finalizar',
+        spanish: 'Terminar',
+        french: 'Terminer',
+        german: 'Beenden',
+        english: 'Finish'
+      }
+    };
+    return texts[key as keyof typeof texts]?.[lang as keyof typeof texts[keyof typeof texts]] || texts[key as keyof typeof texts]?.english || key;
+  };
+
+  const getLevelDisplayName = (level: string) => {
+    const names = {
+      beginner: "Beginner",
+      intermediate: "Intermediate", 
+      advanced: "Advanced"
+    };
+    return names[level as keyof typeof names] || level;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
+        <Card className="max-w-md mx-auto text-center p-8">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Loading Exercises...</h3>
+          <p className="text-muted-foreground">Preparing your learning session</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (exercises.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
+        <Card className="max-w-md mx-auto text-center p-8">
+          <XCircle className="h-8 w-8 text-destructive mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Exercises Available</h3>
+          <p className="text-muted-foreground mb-4">We couldn't find any exercises for this episode.</p>
+          <Button onClick={onBack}>Go Back</Button>
+        </Card>
       </div>
     );
   }
@@ -457,7 +519,7 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
           <div className="flex items-center justify-between mb-4">
             <Button variant="outline" size="sm" onClick={onBack}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              {getLocalizedText('back')}
             </Button>
           </div>
           <div className="space-y-2">
@@ -465,206 +527,72 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
               {episode.title}
             </CardTitle>
             <CardDescription>
-              {episode.podcast_source?.title} - {level} Level - {intensity === "intense" ? "Intense" : "Light"} Mode
+              {episode.podcast_source?.title} - {getLevelDisplayName(level)} Level - {intensity === "intense" ? "Intense" : "Light"} Mode
             </CardDescription>
             <div className="flex items-center gap-4 justify-center">
-              <Badge variant="default" className="bg-primary">
-                {level}
+              <Badge variant="outline">
+                {getLocalizedText('exercise')} {currentExerciseIndex + 1} {getLocalizedText('of')} {exercises.length}
               </Badge>
-              <Badge variant="outline" className={intensity === "intense" ? "bg-orange-100 text-orange-800" : "bg-green-100 text-green-800"}>
-                {intensity === "intense" ? "Intense" : "Light"} ({exercises.length} questions)
-              </Badge>
-              <div className="flex items-center gap-1">
-                <Heart className="h-4 w-4 text-red-500" />
-                <span className="text-sm font-medium">{hearts}</span>
-              </div>
               <div className="flex items-center gap-1">
                 <Star className="h-4 w-4 text-yellow-500" />
                 <span className="text-sm font-medium">{totalXP} XP</span>
               </div>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Heart 
+                    key={i} 
+                    className={`h-4 w-4 ${i < hearts ? 'text-red-500 fill-current' : 'text-gray-300'}`} 
+                  />
+                ))}
+              </div>
             </div>
           </div>
-          
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="w-full" />
         </CardHeader>
 
         <CardContent className="space-y-6">
-  <div className="text-center">
-    <h3 className="text-lg font-semibold mb-2">
-      {episode.podcast_source?.language === 'portuguese' ? `Pergunta ${currentExerciseIndex + 1} de ${exercises.length}` :
-       episode.podcast_source?.language === 'spanish' ? `Pregunta ${currentExerciseIndex + 1} de ${exercises.length}` :
-       episode.podcast_source?.language === 'french' ? `Question ${currentExerciseIndex + 1} sur ${exercises.length}` :
-       episode.podcast_source?.language === 'german' ? `Frage ${currentExerciseIndex + 1} von ${exercises.length}` :
-       `Question ${currentExerciseIndex + 1} of ${exercises.length}`}
-    </h3>
-    <p className="text-foreground">{currentExercise.question}</p>
-  </div>
+          <motion.div
+            key={currentExerciseIndex}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-4"
+          >
+            <div className="text-lg font-medium leading-relaxed">
+              {currentExercise.question}
+            </div>
 
-  <motion.div
-    key={currentExerciseIndex}
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    transition={{ duration: 0.3 }}
-    className="space-y-4"
-  >
-    {currentExercise.exercise_type === "multiple_choice" && (
-      <RadioGroup value={selectedAnswer} onValueChange={showResult ? undefined : setSelectedAnswer}>
-        {currentExercise.options && Array.isArray(currentExercise.options) && 
-         currentExercise.options.map((option: string, index: number) => (
-          <div key={index} className="flex items-center space-x-2">
-            <RadioGroupItem 
-              value={option} 
-              id={`option-${index}`}
-              disabled={showResult}
-            />                   
-            <Label 
-              htmlFor={`option-${index}`} 
-              className={`cursor-pointer ${
-                showResult && exerciseResult?.correct_answer === option 
-                  ? "text-green-600 font-semibold" 
-                  : showResult && selectedAnswer === option && !exerciseResult?.is_correct
-                  ? "text-red-600"
-                  : ""
-              }`}
-            >
-              {option}
-            </Label>
-          </div>
-        ))}
-      </RadioGroup>
-    )}
-
-    {currentExercise.exercise_type === "fill_blank" && (
-      <div className="space-y-2">
-        <Label htmlFor="answer">
-          {episode.podcast_source?.language === 'portuguese' ? 'Sua resposta:' :
-           episode.podcast_source?.language === 'spanish' ? 'Tu respuesta:' :
-           episode.podcast_source?.language === 'french' ? 'Votre réponse:' :
-           episode.podcast_source?.language === 'german' ? 'Ihre Antwort:' : 'Your answer:'}
-        </Label>
-        <Input
-          id="answer"
-          value={selectedAnswer}
-          onChange={(e) => setSelectedAnswer(e.target.value)}
-          placeholder={episode.podcast_source?.language === 'portuguese' ? 'Digite sua resposta...' :
-                      episode.podcast_source?.language === 'spanish' ? 'Escribe tu respuesta...' :
-                      episode.podcast_source?.language === 'french' ? 'Tapez votre réponse...' :
-                      episode.podcast_source?.language === 'german' ? 'Geben Sie Ihre Antwort ein...' : 'Enter your answer...'}
-          disabled={showResult}
-          className={showResult ? 
-            (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-            : ""
-          }
-        />
-      </div>
-    )}
-
-    {currentExercise.exercise_type === "open_question" && (
-      <div className="space-y-2">
-        <Label htmlFor="open-answer">Your answer:</Label>
-        <Textarea
-          id="open-answer"
-          value={selectedAnswer}
-          onChange={(e) => setSelectedAnswer(e.target.value)}
-          placeholder="Write your answer..."
-          disabled={showResult}
-          rows={3}
-        />
-      </div>
-    )}
-  </motion.div>
-</CardContent>
-            {currentExercise.exercise_type === "vocabulary" && (
-              <div className="space-y-4">
-                {currentExercise.options && typeof currentExercise.options === 'object' && 
-                 currentExercise.options.word && (
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardContent className="p-4">
-                      <h4 className="font-semibold text-blue-900">Parola: {currentExercise.options.word}</h4>
-                      <p className="text-blue-700">Esempio: {currentExercise.options.example}</p>
-                    </CardContent>
-                  </Card>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="vocab-answer">Definizione:</Label>
-                  <Textarea
-                    id="vocab-answer"
-                    value={selectedAnswer}
-                    onChange={(e) => setSelectedAnswer(e.target.value)}
-                    placeholder="Scrivi la definizione della parola..."
-                    disabled={showResult}
-                    className={showResult ? 
-                      (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-                      : ""
-                    }
-                  />
-                </div>
-              </div>
+            {currentExercise.exercise_type === "multiple_choice" && currentExercise.options && (
+              <RadioGroup 
+                value={selectedAnswer} 
+                onValueChange={setSelectedAnswer}
+                className="space-y-3"
+              >
+                {currentExercise.options.map((option: string, index: number) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <RadioGroupItem 
+                      value={option} 
+                      id={`option-${index}`}
+                      disabled={showResult}
+                    />
+                    <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
+                      {option}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
             )}
 
-            {(currentExercise.exercise_type === "reflection" || 
-              currentExercise.exercise_type === "analysis" || 
-              currentExercise.exercise_type === "synthesis" ||
-              currentExercise.exercise_type === "comprehension") && (
-              <div className="space-y-2">
-                <Label htmlFor="reflection">Your answer:</Label>
-                <Textarea
-                  id="reflection"
+            {currentExercise.exercise_type === "fill_blank" && (
+              <div className="space-y-3">
+                <Label htmlFor="answer-input">Your answer:</Label>
+                <Input
+                  id="answer-input"
                   value={selectedAnswer}
                   onChange={(e) => setSelectedAnswer(e.target.value)}
-                  placeholder="Share your thoughts and analysis..."
+                  placeholder="Type your answer here..."
                   disabled={showResult}
-                  rows={4}
-                />
-              </div>
-            )}
-
-            {currentExercise.exercise_type === "reorder" && (
-  <div className="space-y-2">
-    {/* Show the items that need to be reordered */}
-    {currentExercise.question.includes(':') && (
-      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-sm font-medium text-blue-800 mb-2">
-          {episode.podcast_source?.language === 'italian' ? 'Elementi da riordinare:' : 'Items to reorder:'}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {currentExercise.question.split(':')[1]
-            .split(',')
-            .map((item, index) => (
-              <span key={index} className="px-2 py-1 bg-blue-100 text-blue-900 rounded text-sm">
-                {item.trim()}
-              </span>
-            ))}
-        </div>
-      </div>
-    )}
-    
-    <Label htmlFor="reorder">
-      {episode.podcast_source?.language === 'italian' ? 'Scrivi gli elementi nell\'ordine corretto (separali con virgole):' :
-       episode.podcast_source?.language === 'portuguese' ? 'Escreva os elementos na ordem correta (separe com vírgulas):' :
-       episode.podcast_source?.language === 'spanish' ? 'Escribe los elementos en el orden correcto (sepáralos con comas):' :
-       episode.podcast_source?.language === 'french' ? 'Écrivez les éléments dans le bon ordre (séparez avec des virgules):' :
-       episode.podcast_source?.language === 'german' ? 'Schreiben Sie die Elemente in der richtigen Reihenfolge (mit Kommas trennen):' :
-       'Write the elements in the correct order (separate with commas):'}
-    </Label>
-    <Input
-      id="reorder"
-      value={selectedAnswer}
-      onChange={(e) => setSelectedAnswer(e.target.value)}
-      placeholder={episode.podcast_source?.language === 'italian' ? 'Es: RAI, varietà anni 60, TV private anni 80, reality anni 90/2000' :
-                  episode.podcast_source?.language === 'portuguese' ? 'Ex: RAI, variedade anos 60, TV privada anos 80, reality anos 90/2000' :
-                  episode.podcast_source?.language === 'spanish' ? 'Ej: RAI, variedad años 60, TV privada años 80, reality años 90/2000' :
-                  episode.podcast_source?.language === 'french' ? 'Ex: RAI, variété années 60, TV privée années 80, télé-réalité années 90/2000' :
-                  episode.podcast_source?.language === 'german' ? 'Z.B: RAI, Varietät 60er Jahre, Privat-TV 80er Jahre, Reality 90er/2000er' :
-                  'e.g: RAI, variety 60s, private TV 80s, reality 90s/2000s'}
-      disabled={showResult}
-      className={showResult ? 
-        (exerciseResult?.is_correct ? "border-green-500" : "border-red-500") 
-        : ""
-      }
-    />
-  </div>
-)}
+                  className="text-lg"
                 />
               </div>
             )}
@@ -673,105 +601,65 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-lg border-2 ${
+                className={`p-4 rounded-lg border ${
                   exerciseResult.is_correct 
-                    ? "bg-green-50 border-green-200" 
-                    : "bg-red-50 border-red-200"
+                    ? 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800' 
+                    : 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800'
                 }`}
               >
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-start gap-3">
                   {exerciseResult.is_correct ? (
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
                   ) : (
-                    <XCircle className="h-5 w-5 text-red-600" />
+                    <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
                   )}
-                  <span className={`font-semibold ${
-                    exerciseResult.is_correct ? "text-green-700" : "text-red-700"
-                  }`}>
-                    {episode.podcast_source?.language === 'portuguese' ? "Correto!" : 
-                     episode.podcast_source?.language === 'spanish' ? "¡Correcto!" :
-                     episode.podcast_source?.language === 'french' ? "Correct!" :
-                     episode.podcast_source?.language === 'german' ? "Richtig!" : "Correct!"}
-                  </span>
-                </div>
-                <div className="text-sm">
-                  {!exerciseResult.is_correct && (
-                    <p className="text-red-600 mb-1">
-                      <strong>
-                        {episode.podcast_source?.language === 'portuguese' ? 'Resposta correta:' :
-                         episode.podcast_source?.language === 'spanish' ? 'Respuesta correcta:' :
-                         episode.podcast_source?.language === 'french' ? 'Bonne réponse:' :
-                         episode.podcast_source?.language === 'german' ? 'Richtige Antwort:' : 'Correct answer:'}
-                      </strong> {exerciseResult.correct_answer}
+                  <div className="flex-1">
+                    <p className={`font-medium ${
+                      exerciseResult.is_correct ? 'text-green-800 dark:text-green-100' : 'text-red-800 dark:text-red-100'
+                    }`}>
+                      {exerciseResult.is_correct ? 'Correct!' : 'Incorrect'}
                     </p>
-                  )}
-                  {exerciseResult.explanation && (
-                    <p className="text-gray-600">
-                      <strong>
-                        {episode.podcast_source?.language === 'portuguese' ? 'Explicação:' :
-                         episode.podcast_source?.language === 'spanish' ? 'Explicación:' :
-                         episode.podcast_source?.language === 'french' ? 'Explication:' :
-                         episode.podcast_source?.language === 'german' ? 'Erklärung:' : 'Explanation:'}
-                      </strong> {exerciseResult.explanation}
-                    </p>
-                  )}
-                  {exerciseResult.is_correct && (
-                    <p className="text-green-600">
-                      <strong>
-                        {episode.podcast_source?.language === 'portuguese' ? 'XP ganhos:' :
-                         episode.podcast_source?.language === 'spanish' ? 'XP ganados:' :
-                         episode.podcast_source?.language === 'french' ? 'XP gagnés:' :
-                         episode.podcast_source?.language === 'german' ? 'XP erhalten:' : 'XP earned:'}
-                      </strong> +{exerciseResult.xp_reward}
-                    </p>
-                  )}
+                    {!exerciseResult.is_correct && (
+                      <p className="text-sm text-red-700 dark:text-red-200 mt-1">
+                        Correct answer: <span className="font-medium">{exerciseResult.correct_answer}</span>
+                      </p>
+                    )}
+                    {exerciseResult.explanation && (
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                        {exerciseResult.explanation}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
 
-            <div className="flex gap-3 pt-4">
-              <Button 
-                onClick={resetExercises} 
-                variant="outline" 
-                size="lg"
-                className="flex items-center gap-2"
+            <div className="flex justify-between pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (currentExerciseIndex > 0) {
+                    setCurrentExerciseIndex(prev => prev - 1);
+                    setSelectedAnswer("");
+                    setShowResult(false);
+                    setExerciseResult(null);
+                  }
+                }}
+                disabled={currentExerciseIndex === 0}
               >
-                  <RefreshCw className="h-4 w-4" />
-                  {episode.podcast_source?.language === 'portuguese' ? 'Recomeçar' :
-                   episode.podcast_source?.language === 'spanish' ? 'Reiniciar' :
-                   episode.podcast_source?.language === 'french' ? 'Recommencer' :
-                   episode.podcast_source?.language === 'german' ? 'Neu starten' : 'Restart'}
+                Previous
               </Button>
-              
-              {showResult ? (
+
+              {!showResult ? (
                 <Button 
-                  onClick={nextExercise} 
-                  size="lg"
-                  className="flex-1"
-                  variant="learning"
+                  onClick={() => handleAnswer(selectedAnswer)}
+                  disabled={!selectedAnswer.trim()}
                 >
-                  {currentExerciseIndex < exercises.length - 1 ? 
-                    (episode.podcast_source?.language === 'portuguese' ? "Próximo" :
-                     episode.podcast_source?.language === 'spanish' ? "Siguiente" :
-                     episode.podcast_source?.language === 'french' ? "Suivant" :
-                     episode.podcast_source?.language === 'german' ? "Weiter" : "Next") :
-                    (episode.podcast_source?.language === 'portuguese' ? "Completar" :
-                     episode.podcast_source?.language === 'spanish' ? "Completar" :
-                     episode.podcast_source?.language === 'french' ? "Terminer" :
-                     episode.podcast_source?.language === 'german' ? "Abschließen" : "Complete")}
+                  Submit
                 </Button>
               ) : (
-                <Button 
-                  onClick={() => handleAnswer(selectedAnswer)} 
-                  disabled={!selectedAnswer.trim()}
-                  size="lg"
-                  className="flex-1"
-                  variant="learning"
-                >
-                  {episode.podcast_source?.language === 'portuguese' ? 'Confirmar' :
-                   episode.podcast_source?.language === 'spanish' ? 'Confirmar' :
-                   episode.podcast_source?.language === 'french' ? 'Confirmer' :
-                   episode.podcast_source?.language === 'german' ? 'Bestätigen' : 'Confirm'}
+                <Button onClick={handleNext}>
+                  {currentExerciseIndex === exercises.length - 1 ? getLocalizedText('finish') : getLocalizedText('next')}
                 </Button>
               )}
             </div>
