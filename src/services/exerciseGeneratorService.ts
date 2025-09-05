@@ -2,13 +2,15 @@ import { extractVocabulary, getContextualSentences } from './youtubeService';
 
 export interface Exercise {
   id: string;
-  type: "multiple-choice" | "fill-blank" | "flashcard" | "sentence-order" | "true-false";
+  type: "MCQ" | "TF" | "Matching" | "Sequencing" | "Cloze" | "SpotError";
   question: string;
-  options?: string[];
+  options: string[];
   correctAnswer: string;
   explanation: string;
   points: number;
   difficulty: string;
+  level: string;
+  mode: "light" | "intense";
 }
 
 // Generate exercises based on actual transcript content
@@ -18,117 +20,120 @@ export const generateTranscriptBasedExercises = (
   exerciseCount: number = 10
 ): Exercise[] => {
   const exercises: Exercise[] = [];
-  
-  // Generate different exercise types based on count needed
+  const mode = exerciseCount <= 10 ? "light" : "intense";
   const baseId = Date.now().toString();
   
-  if (exerciseCount <= 10) {
-    // Standard 10 exercise set
-    exercises.push(...generateMultipleChoiceExercises(transcript, level, baseId).slice(0, 3));
-    exercises.push(...generateFillBlankExercises(transcript, level, baseId).slice(0, 3));
-    exercises.push(...generateFlashcardExercises(transcript, level, baseId).slice(0, 2));
-    exercises.push(...generateTrueFalseExercises(transcript, level, baseId).slice(0, 2));
+  if (mode === "light") {
+    // Light mode: 10 questions, easier and clearer
+    exercises.push(...generateMCQExercises(transcript, level, mode, baseId, 3));
+    exercises.push(...generateTrueFalseExercises(transcript, level, mode, baseId, 2));
+    exercises.push(...generateClozeExercises(transcript, level, mode, baseId, 2));
+    exercises.push(...generateMatchingExercises(transcript, level, mode, baseId, 2));
+    exercises.push(...generateSequencingExercises(transcript, level, mode, baseId, 1));
   } else {
-    // Extended 20 exercise set
-    exercises.push(...generateMultipleChoiceExercises(transcript, level, baseId).slice(0, 6));
-    exercises.push(...generateFillBlankExercises(transcript, level, baseId).slice(0, 6));
-    exercises.push(...generateFlashcardExercises(transcript, level, baseId).slice(0, 4));
-    exercises.push(...generateTrueFalseExercises(transcript, level, baseId).slice(0, 4));
+    // Intense mode: 20 questions, harder with more similar options
+    exercises.push(...generateMCQExercises(transcript, level, mode, baseId, 6));
+    exercises.push(...generateTrueFalseExercises(transcript, level, mode, baseId, 4));
+    exercises.push(...generateClozeExercises(transcript, level, mode, baseId, 4));
+    exercises.push(...generateMatchingExercises(transcript, level, mode, baseId, 3));
+    exercises.push(...generateSequencingExercises(transcript, level, mode, baseId, 2));
+    exercises.push(...generateSpotErrorExercises(transcript, level, mode, baseId, 1));
   }
 
   return exercises.slice(0, exerciseCount);
 };
 
-// Generate multiple choice exercises
-const generateMultipleChoiceExercises = (transcript: string, level: string, videoId: string): Exercise[] => {
+// Generate multiple choice questions (MCQ)
+const generateMCQExercises = (transcript: string, level: string, mode: "light" | "intense", videoId: string, count: number): Exercise[] => {
   const exercises: Exercise[] = [];
   const sentences = getContextualSentences(transcript, 10);
   const vocabulary = extractVocabulary(transcript, level);
+  const topics = extractTopicsFromTranscript(transcript);
   
   if (sentences.length === 0) return exercises;
 
-  // Exercise 1: Main topic comprehension based on actual content
-  const firstSentence = sentences[0];
-  const topics = extractTopicsFromTranscript(transcript);
-  const mainTopic = topics[0] || 'the main topic';
-  
-  exercises.push({
-    id: `mc-1-${videoId}`,
-    type: 'multiple-choice',
-    question: `What is the main topic discussed in this video?`,
-    options: [
-      mainTopic,
-      'Cooking recipes',
-      'Sports training',
-      'Computer programming'
-    ],
-    correctAnswer: mainTopic,
-    explanation: `The video primarily discusses ${mainTopic.toLowerCase()}.`,
-    points: getPointsByLevel(level),
-    difficulty: level
-  });
-
-  // Exercise 2: Vocabulary in context from actual transcript
-  if (vocabulary.length > 0) {
-    const word = vocabulary[0];
-    const sentenceWithWord = sentences.find(s => s.toLowerCase().includes(word.toLowerCase()));
+  for (let i = 0; i < count && i < sentences.length; i++) {
+    const isIntense = mode === "intense";
     
-    if (sentenceWithWord) {
+    if (i === 0) {
+      // Main topic comprehension
+      const mainTopic = topics[0] || 'general discussion';
+      const distractors = isIntense 
+        ? ['educational content', 'informational material', 'tutorial content'] 
+        : ['cooking recipes', 'sports training', 'computer programming'];
+      
       exercises.push({
-        id: `mc-2-${videoId}`,
-        type: 'multiple-choice',
-        question: `In the context "${sentenceWithWord.substring(0, 80)}...", what does "${word}" most likely mean?`,
-        options: [
-          generateDefinition(word, sentenceWithWord),
-          'Something completely unrelated',
-          'A type of food',
-          'A place or location'
-        ],
-        correctAnswer: generateDefinition(word, sentenceWithWord),
-        explanation: `Based on the context, "${word}" refers to ${generateDefinition(word, sentenceWithWord).toLowerCase()}.`,
+        id: `mcq-${i + 1}-${videoId}`,
+        type: 'MCQ',
+        question: `What is the main topic discussed in this video?`,
+        options: [mainTopic, ...distractors],
+        correctAnswer: mainTopic,
+        explanation: `The video primarily discusses ${mainTopic.toLowerCase()}.`,
         points: getPointsByLevel(level),
-        difficulty: level
+        difficulty: level,
+        level,
+        mode
+      });
+    } else if (vocabulary.length > i - 1) {
+      // Vocabulary comprehension
+      const word = vocabulary[i - 1];
+      const definition = generateDefinition(word, sentences[i]);
+      const distractors = isIntense
+        ? [generateSimilarDefinition(word), generateCloseDefinition(word), generateRelatedDefinition(word)]
+        : ['something unrelated', 'a type of food', 'a place or location'];
+      
+      exercises.push({
+        id: `mcq-${i + 1}-${videoId}`,
+        type: 'MCQ',
+        question: `What does "${word}" mean in this context?`,
+        options: [definition, ...distractors],
+        correctAnswer: definition,
+        explanation: `"${word}" refers to ${definition.toLowerCase()} based on the video context.`,
+        points: getPointsByLevel(level),
+        difficulty: level,
+        level,
+        mode
+      });
+    } else {
+      // Content comprehension
+      const sentence = sentences[i];
+      const shortSentence = sentence.substring(0, 60) + '...';
+      const distractors = isIntense
+        ? [generateSimilarSentence(sentence), generateRelatedSentence(sentence), generateCloseContent(sentence)]
+        : ['The weather is always sunny', 'Cats are better than dogs', 'Pizza is the best food'];
+      
+      exercises.push({
+        id: `mcq-${i + 1}-${videoId}`,
+        type: 'MCQ',
+        question: 'Which statement is mentioned in the video?',
+        options: [shortSentence, ...distractors],
+        correctAnswer: shortSentence,
+        explanation: 'This statement was directly mentioned in the video transcript.',
+        points: getPointsByLevel(level),
+        difficulty: level,
+        level,
+        mode
       });
     }
-  }
-
-  // Exercise 3: Content comprehension from transcript
-  if (sentences.length > 2) {
-    const randomSentence = sentences[Math.floor(Math.random() * Math.min(3, sentences.length))];
-    exercises.push({
-      id: `mc-3-${videoId}`,
-      type: 'multiple-choice',
-      question: 'Which statement is mentioned in the video?',
-      options: [
-        randomSentence.substring(0, 60) + '...',
-        'The weather is always sunny',
-        'Cats are better than dogs',
-        'Pizza is the best food'
-      ],
-      correctAnswer: randomSentence.substring(0, 60) + '...',
-      explanation: 'This statement was directly mentioned in the video transcript.',
-      points: getPointsByLevel(level),
-      difficulty: level
-    });
   }
 
   return exercises;
 };
 
-// Generate fill in the blank exercises
-const generateFillBlankExercises = (transcript: string, level: string, videoId: string): Exercise[] => {
+// Generate cloze exercises (fill-in-the-gap with predefined options)
+const generateClozeExercises = (transcript: string, level: string, mode: "light" | "intense", videoId: string, count: number): Exercise[] => {
   const exercises: Exercise[] = [];
-  const vocabulary = extractVocabulary(transcript, level);
   const sentences = getContextualSentences(transcript, 8);
+  const vocabulary = extractVocabulary(transcript, level);
   
   if (sentences.length === 0) return exercises;
 
-  // Find sentences with key vocabulary words to create blanks
-  for (let i = 0; i < Math.min(3, sentences.length); i++) {
+  for (let i = 0; i < count && i < sentences.length; i++) {
     const sentence = sentences[i];
     const words = sentence.split(' ');
+    const isIntense = mode === "intense";
     
-    // Find a good word to remove (not too short, not a common word)
+    // Find a good word to remove
     const targetWord = words.find(word => 
       word.length > 4 && 
       !['that', 'this', 'they', 'with', 'from', 'have', 'will', 'when', 'what', 'where'].includes(word.toLowerCase()) &&
@@ -136,119 +141,210 @@ const generateFillBlankExercises = (transcript: string, level: string, videoId: 
     );
 
     if (targetWord) {
+      const cleanWord = targetWord.toLowerCase().replace(/[^\w]/g, '');
       const blankSentence = sentence.replace(new RegExp(`\\b${targetWord}\\b`, 'i'), '______');
       
+      // Generate options based on intensity
+      let options: string[];
+      if (isIntense) {
+        // Multiple gaps for intense mode
+        const gaps = isIntense ? 2 : 1;
+        options = [cleanWord, generateSimilarWord(cleanWord), generateRelatedWord(cleanWord), generateCloseWord(cleanWord)];
+      } else {
+        options = [cleanWord, vocabulary[0] || 'different', vocabulary[1] || 'unrelated', 'incorrect'];
+      }
+      
       exercises.push({
-        id: `fill-${i + 1}-${videoId}`,
-        type: 'fill-blank',
+        id: `cloze-${i + 1}-${videoId}`,
+        type: 'Cloze',
         question: `Fill in the blank: "${blankSentence}"`,
-        options: [],
-        correctAnswer: targetWord.toLowerCase().replace(/[^\w]/g, ''),
-        explanation: `The word "${targetWord}" fits the context of the sentence from the video.`,
+        options: options.filter(Boolean),
+        correctAnswer: cleanWord,
+        explanation: `The word "${cleanWord}" fits the context of the sentence from the video.`,
         points: getPointsByLevel(level),
-        difficulty: level
+        difficulty: level,
+        level,
+        mode
       });
     }
-  }
-
-  // If we couldn't generate enough exercises, add a simple vocabulary one
-  if (exercises.length === 0 && vocabulary.length > 0) {
-    const word = vocabulary[0];
-    exercises.push({
-      id: `fill-vocab-${videoId}`,
-      type: 'fill-blank',
-      question: `Complete with a word from the video: "The video discusses many important _____."`,
-      options: [],
-      correctAnswer: word,
-      explanation: `"${word}" is a key term mentioned in the video.`,
-      points: getPointsByLevel(level),
-      difficulty: level
-    });
   }
 
   return exercises;
 };
 
-// Generate flashcard exercises
-const generateFlashcardExercises = (transcript: string, level: string, videoId: string): Exercise[] => {
+// Generate matching exercises (pair items)
+const generateMatchingExercises = (transcript: string, level: string, mode: "light" | "intense", videoId: string, count: number): Exercise[] => {
   const exercises: Exercise[] = [];
   const vocabulary = extractVocabulary(transcript, level);
+  const sentences = getContextualSentences(transcript, 10);
   
-  if (vocabulary.length === 0) return exercises;
+  if (vocabulary.length < 3) return exercises;
 
-  // Create flashcards for actual vocabulary from the transcript
-  vocabulary.slice(0, 3).forEach((term, index) => {
-    // Find context sentence for the term
-    const sentences = getContextualSentences(transcript, 20);
-    const contextSentence = sentences.find(s => s.toLowerCase().includes(term.toLowerCase()));
+  for (let i = 0; i < count; i++) {
+    const isIntense = mode === "intense";
+    const pairCount = isIntense ? 6 : 4;
     
-    const definition = generateDefinition(term, contextSentence || '');
+    // Create vocabulary-definition pairs
+    const pairs = vocabulary.slice(0, pairCount).map(word => ({
+      term: word,
+      definition: generateDefinition(word, sentences.find(s => s.includes(word)) || '')
+    }));
     
-    exercises.push({
-      id: `flash-${index + 1}-${videoId}`,
-      type: 'flashcard',
-      question: `What does "${term}" mean in the context of this video?`,
-      options: [],
-      correctAnswer: definition,
-      explanation: contextSentence ? 
-        `From the video: "${contextSentence.substring(0, 100)}..."` : 
-        `"${term}" is a key concept discussed in the video.`,
-      points: getPointsByLevel(level),
-      difficulty: level
-    });
-  });
+    if (pairs.length >= 3) {
+      // Format as matching exercise
+      const terms = pairs.map(p => p.term);
+      const definitions = pairs.map(p => p.definition);
+      
+      exercises.push({
+        id: `matching-${i + 1}-${videoId}`,
+        type: 'Matching',
+        question: `Match each term with its correct definition:`,
+        options: [...terms, ...definitions],
+        correctAnswer: JSON.stringify(pairs),
+        explanation: `These terms and definitions are based on the video content.`,
+        points: getPointsByLevel(level) * 2,
+        difficulty: level,
+        level,
+        mode
+      });
+    }
+  }
 
   return exercises;
 };
 
 // Generate true/false exercises
-const generateTrueFalseExercises = (transcript: string, level: string, videoId: string): Exercise[] => {
+const generateTrueFalseExercises = (transcript: string, level: string, mode: "light" | "intense", videoId: string, count: number): Exercise[] => {
   const exercises: Exercise[] = [];
   const sentences = getContextualSentences(transcript, 10);
   
   if (sentences.length === 0) return exercises;
 
-  // Create true statements from actual transcript content
-  const trueStatements = sentences.slice(0, 2).map(sentence => ({
-    statement: sentence.length > 100 ? sentence.substring(0, 100) + '...' : sentence,
-    answer: 'true',
-    explanation: 'This statement is directly mentioned in the video.'
-  }));
-
-  // Create false statements by modifying transcript content
-  const falseStatements = [
-    {
-      statement: 'The video is about cooking recipes.',
-      answer: 'false',
-      explanation: 'This is not what the video discusses based on the transcript.'
+  for (let i = 0; i < count; i++) {
+    const isTrue = i % 2 === 0;
+    
+    if (isTrue && sentences.length > i) {
+      // True statement from transcript
+      const sentence = sentences[i];
+      const statement = sentence.length > 80 ? sentence.substring(0, 80) + '...' : sentence;
+      
+      exercises.push({
+        id: `tf-${i + 1}-${videoId}`,
+        type: 'TF',
+        question: `True or False: ${statement}`,
+        options: ['True', 'False'],
+        correctAnswer: 'True',
+        explanation: 'This statement is directly mentioned in the video.',
+        points: getPointsByLevel(level),
+        difficulty: level,
+        level,
+        mode
+      });
+    } else {
+      // False statement
+      const falseStatements = [
+        'The video is about cooking recipes.',
+        'This content focuses on sports training.',
+        'The main topic is computer programming.',
+        'The video discusses weather patterns.',
+        'This is a tutorial about gardening.'
+      ];
+      
+      exercises.push({
+        id: `tf-${i + 1}-${videoId}`,
+        type: 'TF',
+        question: `True or False: ${falseStatements[i % falseStatements.length]}`,
+        options: ['True', 'False'],
+        correctAnswer: 'False',
+        explanation: 'This statement does not match the video content.',
+        points: getPointsByLevel(level),
+        difficulty: level,
+        level,
+        mode
+      });
     }
-  ];
+  }
 
-  // Add true statements
-  trueStatements.forEach((q, index) => {
-    exercises.push({
-      id: `tf-true-${index + 1}-${videoId}`,
-      type: 'true-false',
-      question: `True or False: ${q.statement}`,
-      options: ['True', 'False'],
-      correctAnswer: 'True',
-      explanation: q.explanation,
-      points: getPointsByLevel(level),
-      difficulty: level
-    });
-  });
+  return exercises;
+};
 
-  // Add one false statement
-  exercises.push({
-    id: `tf-false-1-${videoId}`,
-    type: 'true-false',
-    question: `True or False: ${falseStatements[0].statement}`,
-    options: ['True', 'False'],
-    correctAnswer: 'False',
-    explanation: falseStatements[0].explanation,
-    points: getPointsByLevel(level),
-    difficulty: level
-  });
+// Generate sequencing exercises (order events)
+const generateSequencingExercises = (transcript: string, level: string, mode: "light" | "intense", videoId: string, count: number): Exercise[] => {
+  const exercises: Exercise[] = [];
+  const sentences = getContextualSentences(transcript, 12);
+  
+  if (sentences.length < 4) return exercises;
+
+  for (let i = 0; i < count; i++) {
+    const isIntense = mode === "intense";
+    const sequenceLength = isIntense ? 6 : 4;
+    
+    // Take consecutive sentences from transcript
+    const sequence = sentences.slice(i * sequenceLength, i * sequenceLength + sequenceLength).map((s, idx) => 
+      s.length > 60 ? s.substring(0, 60) + '...' : s
+    );
+    
+    if (sequence.length >= 3) {
+      // Shuffle the sequence for the options
+      const shuffled = [...sequence].sort(() => Math.random() - 0.5);
+      
+      exercises.push({
+        id: `seq-${i + 1}-${videoId}`,
+        type: 'Sequencing',
+        question: `Put these statements in the correct order as they appear in the video:`,
+        options: shuffled,
+        correctAnswer: JSON.stringify(sequence),
+        explanation: 'This is the correct order based on the video timeline.',
+        points: getPointsByLevel(level) * 2,
+        difficulty: level,
+        level,
+        mode
+      });
+    }
+  }
+
+  return exercises;
+};
+
+// Generate spot the error exercises
+const generateSpotErrorExercises = (transcript: string, level: string, mode: "light" | "intense", videoId: string, count: number): Exercise[] => {
+  const exercises: Exercise[] = [];
+  const sentences = getContextualSentences(transcript, 8);
+  const vocabulary = extractVocabulary(transcript, level);
+  
+  if (sentences.length === 0) return exercises;
+
+  for (let i = 0; i < count && i < sentences.length; i++) {
+    const sentence = sentences[i];
+    const words = sentence.split(' ');
+    
+    // Replace a word with an incorrect one
+    const targetWordIndex = words.findIndex(word => 
+      word.length > 4 && 
+      !['that', 'this', 'they', 'with', 'from'].includes(word.toLowerCase())
+    );
+    
+    if (targetWordIndex !== -1) {
+      const correctWord = words[targetWordIndex];
+      const incorrectWord = vocabulary.find(v => v !== correctWord) || 'incorrect';
+      const errorSentence = words.map((word, idx) => 
+        idx === targetWordIndex ? incorrectWord : word
+      ).join(' ');
+      
+      exercises.push({
+        id: `error-${i + 1}-${videoId}`,
+        type: 'SpotError',
+        question: `Find the error in this sentence: "${errorSentence}"`,
+        options: [correctWord, incorrectWord, 'no error', 'grammar mistake'],
+        correctAnswer: correctWord,
+        explanation: `The word "${incorrectWord}" should be "${correctWord}" based on the video content.`,
+        points: getPointsByLevel(level),
+        difficulty: level,
+        level,
+        mode
+      });
+    }
+  }
 
   return exercises;
 };
@@ -332,4 +428,54 @@ const generateDefinition = (word: string, context: string): string => {
   }
   
   return 'a key concept from the video';
+};
+
+// Helper functions for generating similar distractors
+const generateSimilarDefinition = (word: string): string => {
+  const base = generateDefinition(word, '');
+  return base.replace(/\b\w+\b/, match => match === 'process' ? 'method' : 'technique');
+};
+
+const generateCloseDefinition = (word: string): string => {
+  return 'a related concept or idea';
+};
+
+const generateRelatedDefinition = (word: string): string => {
+  return 'something connected to the topic';
+};
+
+const generateSimilarSentence = (sentence: string): string => {
+  const words = sentence.split(' ');
+  if (words.length > 3) {
+    words[Math.floor(words.length / 2)] = 'similar';
+    return words.join(' ').substring(0, 60) + '...';
+  }
+  return 'A similar but different statement...';
+};
+
+const generateRelatedSentence = (sentence: string): string => {
+  return 'A related topic was discussed...';
+};
+
+const generateCloseContent = (sentence: string): string => {
+  return 'Content about a similar subject...';
+};
+
+const generateSimilarWord = (word: string): string => {
+  const similar = {
+    'learning': 'studying',
+    'important': 'significant',
+    'effective': 'efficient',
+    'method': 'approach',
+    'content': 'material'
+  };
+  return similar[word.toLowerCase() as keyof typeof similar] || 'related';
+};
+
+const generateRelatedWord = (word: string): string => {
+  return word.endsWith('ing') ? word.replace('ing', 'ed') : word + 's';
+};
+
+const generateCloseWord = (word: string): string => {
+  return word.length > 4 ? word.substring(0, word.length - 1) + 'e' : 'close';
 };

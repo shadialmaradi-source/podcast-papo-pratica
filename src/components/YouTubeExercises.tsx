@@ -33,6 +33,40 @@ interface YouTubeExercisesProps {
 
 
 
+// Helper function to check answer correctness for different exercise types
+const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean => {
+  if (!userAnswer) return false;
+  
+  switch (exercise.type) {
+    case "MCQ":
+    case "TF":
+    case "Cloze":
+    case "SpotError":
+      return userAnswer.toLowerCase().trim() === exercise.correctAnswer.toLowerCase().trim();
+    
+    case "Matching":
+      try {
+        const correctPairs = JSON.parse(exercise.correctAnswer);
+        const userPairs = userAnswer.split(',').filter(Boolean);
+        return userPairs.length === correctPairs.length; // Simplified check
+      } catch {
+        return false;
+      }
+    
+    case "Sequencing":
+      try {
+        const correctSequence = JSON.parse(exercise.correctAnswer);
+        const userSequence = userAnswer.split(',').map(i => parseInt(i)).filter(i => !isNaN(i));
+        return userSequence.length === correctSequence.length; // Simplified check
+      } catch {
+        return false;
+      }
+    
+    default:
+      return userAnswer.toLowerCase().trim() === exercise.correctAnswer.toLowerCase().trim();
+  }
+};
+
 export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete }: YouTubeExercisesProps) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -100,7 +134,7 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
       // Calculate final score
       const totalScore = exercises.reduce((total, exercise) => {
         const userAnswer = answers[exercise.id];
-        const isCorrect = userAnswer?.toLowerCase().trim() === exercise.correctAnswer.toLowerCase().trim();
+        const isCorrect = checkAnswerCorrectness(exercise, userAnswer);
         return total + (isCorrect ? exercise.points : 0);
       }, 0);
       
@@ -113,8 +147,8 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
     const userAnswer = answers[currentExercise.id] || "";
 
     switch (currentExercise.type) {
-      case "multiple-choice":
-      case "true-false":
+      case "MCQ":
+      case "TF":
         return (
           <RadioGroup value={userAnswer} onValueChange={handleAnswerChange}>
             {currentExercise.options?.map((option, index) => (
@@ -128,26 +162,133 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
           </RadioGroup>
         );
 
-      case "fill-blank":
-      case "flashcard":
+      case "Cloze":
         return (
-          <Textarea
-            placeholder={currentExercise.type === "flashcard" ? "Type the definition or meaning..." : "Type your answer here..."}
-            value={userAnswer}
-            onChange={(e) => handleAnswerChange(e.target.value)}
-            className="min-h-[100px]"
-          />
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Select the correct word to fill in the blank:
+            </p>
+            <RadioGroup value={userAnswer} onValueChange={handleAnswerChange}>
+              {currentExercise.options?.map((option, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <RadioGroupItem value={option} id={`cloze-${index}`} />
+                  <Label htmlFor={`cloze-${index}`} className="cursor-pointer">
+                    {option}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
         );
 
-      case "sentence-order":
-        // For sentence ordering, we'll use a simple textarea for now
+      case "Matching":
         return (
-          <Textarea
-            placeholder="Type the words in the correct order..."
-            value={userAnswer}
-            onChange={(e) => handleAnswerChange(e.target.value)}
-            className="min-h-[100px]"
-          />
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Click to match terms with their definitions (click pairs):
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Terms:</h4>
+                {currentExercise.options?.slice(0, Math.floor(currentExercise.options.length / 2)).map((term, index) => (
+                  <Button
+                    key={index}
+                    variant={userAnswer.includes(term) ? "default" : "outline"}
+                    size="sm"
+                    className="w-full text-left justify-start"
+                    onClick={() => {
+                      const pairs = userAnswer.split(',').filter(Boolean);
+                      const newPair = `${term}:${index}`;
+                      const updated = pairs.includes(newPair) 
+                        ? pairs.filter(p => p !== newPair).join(',')
+                        : [...pairs, newPair].join(',');
+                      handleAnswerChange(updated);
+                    }}
+                  >
+                    {term}
+                  </Button>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Definitions:</h4>
+                {currentExercise.options?.slice(Math.floor(currentExercise.options.length / 2)).map((definition, index) => (
+                  <Button
+                    key={index}
+                    variant={userAnswer.includes(definition) ? "default" : "outline"}
+                    size="sm"
+                    className="w-full text-left justify-start text-xs p-2 h-auto whitespace-normal"
+                    onClick={() => {
+                      const pairs = userAnswer.split(',').filter(Boolean);
+                      const newPair = `${definition}:${index}`;
+                      const updated = pairs.includes(newPair) 
+                        ? pairs.filter(p => p !== newPair).join(',')
+                        : [...pairs, newPair].join(',');
+                      handleAnswerChange(updated);
+                    }}
+                  >
+                    {definition}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case "Sequencing":
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Click the statements in the correct order (order matters):
+            </p>
+            <div className="space-y-2">
+              {currentExercise.options?.map((statement, index) => (
+                <Button
+                  key={index}
+                  variant={userAnswer.split(',').indexOf(index.toString()) !== -1 ? "default" : "outline"}
+                  size="sm"
+                  className="w-full text-left justify-start p-4 h-auto whitespace-normal relative"
+                  onClick={() => {
+                    const sequence = userAnswer.split(',').filter(Boolean);
+                    const indexStr = index.toString();
+                    if (sequence.includes(indexStr)) {
+                      // Remove from sequence
+                      const newSequence = sequence.filter(s => s !== indexStr);
+                      handleAnswerChange(newSequence.join(','));
+                    } else {
+                      // Add to sequence
+                      handleAnswerChange([...sequence, indexStr].join(','));
+                    }
+                  }}
+                >
+                  {userAnswer.split(',').indexOf(index.toString()) !== -1 && (
+                    <Badge className="absolute top-2 right-2 h-5 w-5 rounded-full p-0 text-xs">
+                      {userAnswer.split(',').indexOf(index.toString()) + 1}
+                    </Badge>
+                  )}
+                  {statement}
+                </Button>
+              ))}
+            </div>
+          </div>
+        );
+
+      case "SpotError":
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Select the correct word that should replace the error:
+            </p>
+            <RadioGroup value={userAnswer} onValueChange={handleAnswerChange}>
+              {currentExercise.options?.map((option, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <RadioGroupItem value={option} id={`error-${index}`} />
+                  <Label htmlFor={`error-${index}`} className="cursor-pointer">
+                    {option}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
         );
 
       default:
@@ -304,7 +445,7 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
           <CardContent className="space-y-4">
             {exercises.map((exercise, index) => {
               const userAnswer = answers[exercise.id] || "";
-              const isCorrect = userAnswer.toLowerCase().trim() === exercise.correctAnswer.toLowerCase().trim();
+              const isCorrect = checkAnswerCorrectness(exercise, userAnswer);
               
               return (
                 <div key={exercise.id} className="border rounded-lg p-4 space-y-2">
@@ -404,9 +545,9 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
             {renderExercise()}
           </div>
           
-          {currentExercise.type === "flashcard" && (
+          {(currentExercise.type === "Matching" || currentExercise.type === "Sequencing") && (
             <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-              <p><strong>Tip:</strong> Think about the meaning in the context of the video content.</p>
+              <p><strong>Tip:</strong> {currentExercise.type === "Matching" ? "Click pairs to match terms with definitions." : "Click statements in the order they appear in the video."}</p>
             </div>
           )}
           
