@@ -4,7 +4,7 @@ export interface Exercise {
   id: string;
   episode_id: string;
   question: string;
-  exercise_type: 'multiple_choice' | 'fill_blank' | 'vocabulary' | 'reflection' | 'analysis' | 'synthesis' | 'comprehension' | 'reorder';
+  exercise_type: 'multiple_choice' | 'true_false' | 'matching' | 'sequencing' | 'gap_fill' | 'fill_blank' | 'vocabulary' | 'reflection' | 'analysis' | 'synthesis' | 'comprehension' | 'reorder';
   options?: any;
   difficulty: string;
   intensity: string;
@@ -40,18 +40,21 @@ export const getEpisodeExercises = async (
 
   return (data || []).map((exercise: any) => ({
     ...exercise,
-    exercise_type: exercise.exercise_type as 'multiple_choice' | 'fill_blank' | 'vocabulary' | 'reflection' | 'analysis' | 'synthesis' | 'comprehension' | 'reorder'
+    exercise_type: exercise.exercise_type as 'multiple_choice' | 'true_false' | 'matching' | 'sequencing' | 'gap_fill' | 'fill_blank' | 'vocabulary' | 'reflection' | 'analysis' | 'synthesis' | 'comprehension' | 'reorder'
   }));
 };
 
 // Secure function to check exercise answers
 export const checkExerciseAnswer = async (
   exerciseId: string, 
-  userAnswer: string
+  userAnswer: string | any[]
 ): Promise<ExerciseResult> => {
+  // Convert arrays to JSON string for database function
+  const answerParam = typeof userAnswer === 'string' ? userAnswer : JSON.stringify(userAnswer);
+  
   const { data, error } = await supabase.rpc('check_exercise_answer', {
     exercise_id_param: exerciseId,
-    user_answer_param: userAnswer
+    user_answer_param: answerParam
   });
 
   if (error) {
@@ -66,7 +69,7 @@ export const checkExerciseAnswer = async (
 export const saveExerciseResult = async (
   exerciseId: string,
   episodeId: string,
-  userAnswer: string,
+  userAnswer: string | any[],
   isCorrect: boolean,
   xpEarned: number
 ) => {
@@ -79,7 +82,7 @@ export const saveExerciseResult = async (
       user_id: currentUser.user.id,
       exercise_id: exerciseId,
       episode_id: episodeId,
-      user_answer: userAnswer,
+      user_answer: typeof userAnswer === 'string' ? userAnswer : JSON.stringify(userAnswer),
       is_correct: isCorrect,
       xp_earned: xpEarned,
       attempts: 1

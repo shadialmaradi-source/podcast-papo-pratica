@@ -108,7 +108,6 @@ export type Database = {
           id: string
           podcast_source_id: string
           publish_date: string | null
-          season_number: number | null
           title: string
           transcript: string | null
           transcript_language: string | null
@@ -124,7 +123,6 @@ export type Database = {
           id?: string
           podcast_source_id: string
           publish_date?: string | null
-          season_number?: number | null
           title: string
           transcript?: string | null
           transcript_language?: string | null
@@ -140,7 +138,6 @@ export type Database = {
           id?: string
           podcast_source_id?: string
           publish_date?: string | null
-          season_number?: number | null
           title?: string
           transcript?: string | null
           transcript_language?: string | null

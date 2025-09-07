@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Star, Heart, RefreshCw, ArrowLeft, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Star, Heart, RefreshCw, ArrowLeft, AlertCircle, GripVertical } from "lucide-react";
 import { motion } from "framer-motion";
 import { 
   Exercise, 
@@ -67,7 +68,45 @@ const createMockExercises = (episode: PodcastEpisode, level: string, intensity: 
         {
           question: "Analyze the methodology discussed for language acquisition. What are its key strengths?",
           correct_answer: "Combines structured learning with practical application and addresses different learning styles",
-          explanation: "Advanced analysis requires identifying multiple components and their synergistic effects."
+          explanation: "Advanced analysis requires identifying multiple components and synergistic effects."
+        }
+      ]
+    },
+    italian: {
+      A1: [
+        {
+          question: "Le gemelle si chiamano Gina e Sunny.",
+          exercise_type: "true_false",
+          correct_answer: "true",
+          explanation: "Secondo il podcast, le gemelle si chiamano effettivamente Gina e Sunny."
+        },
+        {
+          question: "Qual è il colore preferito di Gina?",
+          options: ["Rosso", "Blu", "Verde", "Giallo"],
+          correct_answer: "Blu",
+          explanation: "Gina preferisce il colore blu."
+        },
+        {
+          question: "Completa la frase: 'La famiglia vive a ___'",
+          exercise_type: "gap_fill",
+          options: ["Roma", "Milano", "Napoli", "Firenze"],
+          correct_answer: "Roma",
+          explanation: "La famiglia vive nella capitale italiana, Roma."
+        }
+      ],
+      B1: [
+        {
+          question: "Secondo il racconto, quale tradizione italiana è più importante per la famiglia?",
+          options: ["La pasta della domenica", "Il caffè del mattino", "La passeggiata serale", "Il calcio"],
+          correct_answer: "La pasta della domenica",
+          explanation: "La famiglia tiene molto alla tradizione della pasta domenicale tutti insieme."
+        }
+      ],
+      C1: [
+        {
+          question: "Analizza il rapporto tra tradizione e modernità presentato nell'episodio",
+          correct_answer: "La famiglia cerca di mantenere le tradizioni italiane pur adattandosi alla vita moderna",
+          explanation: "Il podcast mostra come bilanciare valori tradizionali con esigenze contemporanee."
         }
       ]
     }
@@ -88,7 +127,7 @@ const createMockExercises = (episode: PodcastEpisode, level: string, intensity: 
     id: `mock-${language}-${level}-${index + 1}`,
     episode_id: episode.id,
     question: exercise.question,
-    exercise_type: exercise.options ? "multiple_choice" as const : "fill_blank" as const,
+    exercise_type: exercise.exercise_type || (exercise.options ? "multiple_choice" : "fill_blank"),
     options: exercise.options,
     difficulty: level,
     intensity,
@@ -102,7 +141,9 @@ const createMockExercises = (episode: PodcastEpisode, level: string, intensity: 
 export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBack }: ExerciseGeneratorProps) => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string>("");
+  const [selectedAnswer, setSelectedAnswer] = useState<string | any[]>("");
+  const [matchingAnswers, setMatchingAnswers] = useState<{[key: string]: string}>({});
+  const [sequenceItems, setSequenceItems] = useState<string[]>([]);
   const [showResult, setShowResult] = useState(false);
   const [exerciseResult, setExerciseResult] = useState<ExerciseResult | null>(null);
   const [totalXP, setTotalXP] = useState(0);
@@ -132,12 +173,15 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
       console.log('Database exercises found:', dbExercises.length);
       
       if (dbExercises && dbExercises.length > 0) {
-        // Apply intensity filtering
+    // Apply intensity filtering
         const targetCount = intensity === 'intense' ? 20 : 10;
         const filteredExercises = dbExercises.slice(0, targetCount);
         
         setExercises(filteredExercises);
         setUsingMockData(false);
+        
+        // Initialize exercise state
+        initializeExerciseState(filteredExercises[0]);
         
         console.log('Using database exercises:', filteredExercises.length);
         
@@ -153,6 +197,9 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
         const mockExercises = createMockExercises(episode, level, intensity);
         setExercises(mockExercises);
         setUsingMockData(true);
+        
+        // Initialize exercise state
+        initializeExerciseState(mockExercises[0]);
         
         toast({
           title: "Using Sample Exercises",
@@ -170,6 +217,9 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
       setExercises(mockExercises);
       setUsingMockData(true);
       
+      // Initialize exercise state
+      initializeExerciseState(mockExercises[0]);
+      
       toast({
         title: "Connection Error",
         description: "Could not connect to database. Using sample exercises.",
@@ -180,7 +230,21 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     }
   };
 
-  const handleAnswer = async (answer: string) => {
+  const initializeExerciseState = (exercise: Exercise) => {
+    if (!exercise) return;
+    
+    setSelectedAnswer("");
+    setMatchingAnswers({});
+    setSequenceItems([]);
+    
+    if (exercise.exercise_type === 'sequencing' && exercise.options) {
+      // Shuffle the items for sequencing
+      const items = Array.isArray(exercise.options) ? exercise.options : exercise.options.items || [];
+      setSequenceItems([...items].sort(() => Math.random() - 0.5));
+    }
+  };
+
+  const handleAnswer = async (answer: string | any[]) => {
     if (showResult) return;
 
     setSelectedAnswer(answer);
@@ -192,7 +256,8 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
       // Handle mock exercises differently
       if (usingMockData || currentExercise.id.startsWith('mock-')) {
         const mockCorrectAnswer = getMockCorrectAnswer();
-        const isCorrect = answer.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
+        const answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
+        const isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
         
         result = {
           is_correct: isCorrect,
@@ -275,12 +340,54 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
 
   const handleNext = () => {
     if (currentExerciseIndex < exercises.length - 1) {
-      setCurrentExerciseIndex(prev => prev + 1);
+      const nextIndex = currentExerciseIndex + 1;
+      setCurrentExerciseIndex(nextIndex);
       setSelectedAnswer("");
       setShowResult(false);
       setExerciseResult(null);
+      initializeExerciseState(exercises[nextIndex]);
     } else {
       onComplete();
+    }
+  };
+
+  const moveSequenceItem = (fromIndex: number, toIndex: number) => {
+    const newItems = [...sequenceItems];
+    const [movedItem] = newItems.splice(fromIndex, 1);
+    newItems.splice(toIndex, 0, movedItem);
+    setSequenceItems(newItems);
+    setSelectedAnswer(newItems);
+  };
+
+  const handleMatchingChange = (leftItem: string, rightValue: string) => {
+    const newAnswers = { ...matchingAnswers, [leftItem]: rightValue };
+    setMatchingAnswers(newAnswers);
+    
+    // Convert to array format for validation
+    const leftItems = currentExercise.options?.left || [];
+    const answerArray = leftItems.map((item: string) => newAnswers[item] || "");
+    setSelectedAnswer(answerArray);
+  };
+
+  const getAnswerForSubmission = () => {
+    if (currentExercise.exercise_type === 'matching') {
+      return Object.values(matchingAnswers);
+    } else if (currentExercise.exercise_type === 'sequencing') {
+      return sequenceItems;
+    } else {
+      return selectedAnswer;
+    }
+  };
+
+  const isAnswerComplete = () => {
+    if (currentExercise.exercise_type === 'matching') {
+      const leftItems = currentExercise.options?.left || [];
+      return leftItems.every((item: string) => matchingAnswers[item]);
+    } else if (currentExercise.exercise_type === 'sequencing') {
+      return sequenceItems.length > 0;
+    } else {
+      const answerStr = typeof selectedAnswer === 'string' ? selectedAnswer : JSON.stringify(selectedAnswer);
+      return Boolean(answerStr && answerStr.trim());
     }
   };
 
@@ -434,8 +541,8 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
 
             {currentExercise.exercise_type === "multiple_choice" && currentExercise.options && (
               <RadioGroup 
-                value={selectedAnswer} 
-                onValueChange={setSelectedAnswer}
+                value={typeof selectedAnswer === 'string' ? selectedAnswer : ''} 
+                onValueChange={(value) => setSelectedAnswer(value)}
                 className="space-y-3"
               >
                 {currentExercise.options.map((option: string, index: number) => (
@@ -453,12 +560,136 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
               </RadioGroup>
             )}
 
+            {currentExercise.exercise_type === "true_false" && (
+              <RadioGroup 
+                value={typeof selectedAnswer === 'string' ? selectedAnswer : ''} 
+                onValueChange={(value) => setSelectedAnswer(value)}
+                className="space-y-3"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="true" id="true" disabled={showResult} />
+                  <Label htmlFor="true" className="flex-1 cursor-pointer">True</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="false" id="false" disabled={showResult} />
+                  <Label htmlFor="false" className="flex-1 cursor-pointer">False</Label>
+                </div>
+              </RadioGroup>
+            )}
+
+            {currentExercise.exercise_type === "matching" && currentExercise.options && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Match these items:</Label>
+                    <div className="space-y-2 mt-2">
+                      {currentExercise.options.left?.map((item: string, index: number) => (
+                        <div key={index} className="p-2 border rounded bg-muted/30">
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">With these options:</Label>
+                    <div className="space-y-2 mt-2">
+                      {currentExercise.options.left?.map((leftItem: string, index: number) => (
+                        <Select 
+                          key={index}
+                          value={matchingAnswers[leftItem] || ""} 
+                          onValueChange={(value) => handleMatchingChange(leftItem, value)}
+                          disabled={showResult}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select match..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {currentExercise.options.right?.map((option: string, optIndex: number) => (
+                              <SelectItem key={optIndex} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentExercise.exercise_type === "sequencing" && (
+              <div className="space-y-3">
+                <Label>Drag to reorder these items correctly:</Label>
+                <div className="space-y-2">
+                  {sequenceItems.map((item, index) => (
+                    <motion.div
+                      key={`${item}-${index}`}
+                      className="flex items-center p-3 border rounded bg-background cursor-move"
+                      whileHover={{ scale: showResult ? 1 : 1.02 }}
+                      whileDrag={{ scale: 0.95 }}
+                      drag={!showResult ? "y" : false}
+                      dragConstraints={{ top: 0, bottom: 0 }}
+                      onDragEnd={(e, info) => {
+                        if (showResult) return;
+                        const draggedIndex = index;
+                        const offset = info.offset.y;
+                        const itemHeight = 60; // approximate height
+                        const targetIndex = Math.max(0, Math.min(
+                          sequenceItems.length - 1,
+                          draggedIndex + Math.round(offset / itemHeight)
+                        ));
+                        if (targetIndex !== draggedIndex) {
+                          moveSequenceItem(draggedIndex, targetIndex);
+                        }
+                      }}
+                    >
+                      <GripVertical className="h-4 w-4 text-muted-foreground mr-2" />
+                      <span className="flex-1">{item}</span>
+                      <span className="text-sm text-muted-foreground ml-2">#{index + 1}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {currentExercise.exercise_type === "gap_fill" && currentExercise.options && (
+              <div className="space-y-3">
+                <Label>Fill in the gap:</Label>
+                <div className="text-lg leading-relaxed">
+                  {currentExercise.question.split('___').map((part, index) => (
+                    <span key={index}>
+                      {part}
+                      {index < currentExercise.question.split('___').length - 1 && (
+                        <Select 
+                          value={typeof selectedAnswer === 'string' ? selectedAnswer : ''} 
+                          onValueChange={(value) => setSelectedAnswer(value)}
+                          disabled={showResult}
+                        >
+                          <SelectTrigger className="inline-flex w-auto min-w-32 mx-1">
+                            <SelectValue placeholder="?" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {currentExercise.options.map((option: string, optIndex: number) => (
+                              <SelectItem key={optIndex} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {currentExercise.exercise_type === "fill_blank" && (
               <div className="space-y-3">
                 <Label htmlFor="answer-input">Your answer:</Label>
                 <Input
                   id="answer-input"
-                  value={selectedAnswer}
+                  value={typeof selectedAnswer === 'string' ? selectedAnswer : ''}
                   onChange={(e) => setSelectedAnswer(e.target.value)}
                   placeholder="Type your answer here..."
                   disabled={showResult}
@@ -509,10 +740,12 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                 variant="outline"
                 onClick={() => {
                   if (currentExerciseIndex > 0) {
-                    setCurrentExerciseIndex(prev => prev - 1);
+      const prevIndex = currentExerciseIndex - 1;
+                    setCurrentExerciseIndex(prevIndex);
                     setSelectedAnswer("");
                     setShowResult(false);
                     setExerciseResult(null);
+                    initializeExerciseState(exercises[prevIndex]);
                   }
                 }}
                 disabled={currentExerciseIndex === 0}
@@ -522,8 +755,8 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
 
               {!showResult ? (
                 <Button 
-                  onClick={() => handleAnswer(selectedAnswer)}
-                  disabled={!selectedAnswer.trim()}
+                  onClick={() => handleAnswer(getAnswerForSubmission())}
+                  disabled={!isAnswerComplete()}
                 >
                   Submit
                 </Button>
