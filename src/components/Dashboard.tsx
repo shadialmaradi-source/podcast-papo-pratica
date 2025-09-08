@@ -19,7 +19,6 @@ interface UserProfile {
   total_xp: number;
   current_streak: number;
   longest_streak: number;
-  hearts: number;
   last_login_date: string | null;
 }
 
@@ -225,15 +224,15 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <Card className="border-0 shadow-lg bg-gradient-to-br from-red-500/10 to-pink-500/10">
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500/10 to-green-500/10">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-500/20 rounded-lg">
-                    <Heart className="h-5 w-5 text-red-500" />
+                  <div className="p-2 bg-emerald-500/20 rounded-lg">
+                    <BookOpen className="h-5 w-5 text-emerald-500" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Cuori</p>
-                    <p className="text-2xl font-bold">{profile?.hearts || 0}/5</p>
+                    <p className="text-sm text-muted-foreground">Livello</p>
+                    <p className="text-2xl font-bold">{profile?.current_level || 'A1'}</p>
                   </div>
                 </div>
               </CardContent>

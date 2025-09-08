@@ -250,7 +250,6 @@ export type Database = {
           current_streak: number | null
           display_name: string | null
           email: string | null
-          hearts: number | null
           id: string
           last_login_date: string | null
           longest_streak: number | null
@@ -265,7 +264,6 @@ export type Database = {
           current_streak?: number | null
           display_name?: string | null
           email?: string | null
-          hearts?: number | null
           id?: string
           last_login_date?: string | null
           longest_streak?: number | null
@@ -280,7 +278,6 @@ export type Database = {
           current_streak?: number | null
           display_name?: string | null
           email?: string | null
-          hearts?: number | null
           id?: string
           last_login_date?: string | null
           longest_streak?: number | null
@@ -418,6 +415,15 @@ export type Database = {
           order_index: number
           question: string
           xp_reward: number
+        }[]
+      }
+      get_next_episode: {
+        Args: { current_episode_id: string; language_param: string }
+        Returns: {
+          alternative_episode_id: string
+          alternative_episode_title: string
+          next_episode_id: string
+          next_episode_title: string
         }[]
       }
     }

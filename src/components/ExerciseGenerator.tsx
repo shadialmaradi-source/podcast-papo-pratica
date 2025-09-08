@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Star, Heart, RefreshCw, ArrowLeft, AlertCircle, GripVertical } from "lucide-react";
-import { motion } from "framer-motion";
+import { CheckCircle, XCircle, Star, RefreshCw, ArrowLeft, AlertCircle, GripVertical, PartyPopper, TrendingUp, BookOpen } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Exercise, 
   ExerciseResult,
@@ -18,7 +18,8 @@ import {
   checkExerciseAnswer, 
   saveExerciseResult, 
   updateUserProgress,
-  decreaseHearts 
+  markEpisodeCompleted,
+  getNextEpisodeSuggestions
 } from "@/services/exerciseService";
 import { PodcastEpisode } from "@/services/podcastService";
 
@@ -147,10 +148,13 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const [showResult, setShowResult] = useState(false);
   const [exerciseResult, setExerciseResult] = useState<ExerciseResult | null>(null);
   const [totalXP, setTotalXP] = useState(0);
-  const [hearts, setHearts] = useState(5);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [totalAnswers, setTotalAnswers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [usingMockData, setUsingMockData] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCompletion, setShowCompletion] = useState(false);
+  const [nextEpisodes, setNextEpisodes] = useState<any>(null);
 
   useEffect(() => {
     loadExercises();
@@ -302,19 +306,17 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
           description: `+${result.xp_reward} XP`,
         });
       } else {
-        // Handle heart decrease
-        if (!usingMockData && !currentExercise.id.startsWith('mock-')) {
-          const newHearts = await decreaseHearts();
-          setHearts(newHearts);
-        } else {
-          setHearts(prev => Math.max(0, prev - 1));
-        }
-        
         toast({
           title: getLocalizedText('incorrect'),
           description: result.explanation || getLocalizedText('tryAgain'),
           variant: "destructive",
         });
+      }
+      
+      // Track answers for accuracy
+      setTotalAnswers(prev => prev + 1);
+      if (result.is_correct) {
+        setCorrectAnswers(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error handling answer:', error);
@@ -499,12 +501,10 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                 <span className="text-sm font-medium">{totalXP} XP</span>
               </div>
               <div className="flex items-center gap-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Heart 
-                    key={i} 
-                    className={`h-4 w-4 ${i < hearts ? 'text-red-500 fill-current' : 'text-gray-300'}`} 
-                  />
-                ))}
+                <TrendingUp className="h-4 w-4 text-blue-500" />
+                <span className="text-sm font-medium">
+                  {totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0}% accurato
+                </span>
               </div>
             </div>
           </div>
@@ -771,4 +771,158 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
       </Card>
     </div>
   );
+
+  // Completion Screen
+  if (showCompletion) {
+    const accuracy = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-2xl mx-auto"
+        >
+          <Card className="border-0 shadow-2xl bg-gradient-to-br from-background to-primary/5">
+            <CardContent className="p-8 text-center">
+              {/* Celebration Animation */}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", delay: 0.2 }}
+                className="mb-6"
+              >
+                <div className="relative">
+                  <PartyPopper className="h-20 w-20 text-primary mx-auto" />
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5, repeat: Infinity, duration: 2 }}
+                    className="absolute -top-2 -right-2"
+                  >
+                    ✨
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.7, repeat: Infinity, duration: 2 }}
+                    className="absolute -bottom-2 -left-2"
+                  >
+                    🎉
+                  </motion.div>
+                </div>
+              </motion.div>
+              
+              <h2 className="text-3xl font-bold mb-2">Episodio Completato!</h2>
+              <p className="text-muted-foreground mb-8">Ottimo lavoro! Hai finito questo episodio.</p>
+              
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-6 mb-8">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-center"
+                >
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Star className="h-5 w-5 text-yellow-500" />
+                    <span className="text-2xl font-bold text-yellow-600">{totalXP}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">XP Guadagnati</p>
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-center"
+                >
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <TrendingUp className="h-5 w-5 text-green-500" />
+                    <span className="text-2xl font-bold text-green-600">{accuracy}%</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Precisione</p>
+                </motion.div>
+              </div>
+              
+              {/* Progress Bar */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="mb-8"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <BookOpen className="h-4 w-4" />
+                  <span className="text-sm font-medium">Progresso Episode</span>
+                </div>
+                <Progress value={100} className="h-2" />
+              </motion.div>
+              
+              {/* Next Episode Suggestions */}
+              {nextEpisodes && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="space-y-4 mb-8"
+                >
+                  <h3 className="text-lg font-semibold">Cosa Vuoi Fare Ora?</h3>
+                  
+                  <div className="grid gap-3">
+                    {nextEpisodes.next_episode_id && (
+                      <Button 
+                        className="w-full justify-start h-auto p-4"
+                        variant="default"
+                        onClick={() => {
+                          // Navigate to next episode
+                          onComplete();
+                        }}
+                      >
+                        <div className="text-left">
+                          <div className="font-medium">Prossimo Episodio →</div>
+                          <div className="text-sm opacity-80">{nextEpisodes.next_episode_title}</div>
+                        </div>
+                      </Button>
+                    )}
+                    
+                    {nextEpisodes.alternative_episode_id && (
+                      <Button 
+                        className="w-full justify-start h-auto p-4"
+                        variant="outline"
+                        onClick={() => {
+                          // Navigate to alternative episode
+                          onComplete();
+                        }}
+                      >
+                        <div className="text-left">
+                          <div className="font-medium">O Prova →</div>
+                          <div className="text-sm opacity-80">{nextEpisodes.alternative_episode_title}</div>
+                        </div>
+                      </Button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+              
+              {/* Back to Dashboard */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+              >
+                <Button 
+                  variant="ghost" 
+                  onClick={onComplete}
+                  className="w-full"
+                >
+                  Torna alla Dashboard
+                </Button>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
 };

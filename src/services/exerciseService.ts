@@ -104,7 +104,7 @@ export const updateUserProgress = async (xpToAdd: number) => {
   // Get current profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('total_xp, hearts')
+    .select('total_xp')
     .eq('user_id', currentUser.user.id)
     .single();
 
@@ -136,30 +136,40 @@ export const updateUserProgress = async (xpToAdd: number) => {
     });
 };
 
-// Decrease hearts when wrong answer
-export const decreaseHearts = async () => {
+// Mark episode as completed
+export const markEpisodeCompleted = async (episodeId: string) => {
   const { data: currentUser } = await supabase.auth.getUser();
   if (!currentUser.user) throw new Error('User not authenticated');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('hearts')
-    .eq('user_id', currentUser.user.id)
-    .single();
-
-  if (!profile) throw new Error('Profile not found');
-
-  const newHearts = Math.max(0, profile.hearts - 1);
-
   const { error } = await supabase
-    .from('profiles')
-    .update({ hearts: newHearts })
-    .eq('user_id', currentUser.user.id);
+    .from('user_episode_progress')
+    .upsert({
+      user_id: currentUser.user.id,
+      episode_id: episodeId,
+      is_completed: true,
+      completed_at: new Date().toISOString(),
+      progress_percentage: 100
+    }, {
+      onConflict: 'user_id,episode_id'
+    });
 
   if (error) {
-    console.error('Error decreasing hearts:', error);
+    console.error('Error marking episode as completed:', error);
+    throw error;
+  }
+};
+
+// Get next episode suggestions
+export const getNextEpisodeSuggestions = async (currentEpisodeId: string, language: string) => {
+  const { data, error } = await supabase.rpc('get_next_episode', {
+    current_episode_id: currentEpisodeId,
+    language_param: language
+  });
+
+  if (error) {
+    console.error('Error getting next episode suggestions:', error);
     throw error;
   }
 
-  return newHearts;
+  return data?.[0] || null;
 };
