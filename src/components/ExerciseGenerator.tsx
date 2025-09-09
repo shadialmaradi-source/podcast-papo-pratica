@@ -648,6 +648,106 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     );
   }
 
+  // Show completion screen when all exercises are done
+  if (showCompletion) {
+    const accuracy = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+        <Card className="max-w-2xl mx-auto border-0 shadow-xl">
+          <CardHeader className="text-center space-y-6">
+            <div className="flex justify-center">
+              <PartyPopper className="h-16 w-16 text-primary animate-pulse" />
+            </div>
+            
+            <div className="space-y-2">
+              <CardTitle className="text-3xl font-bold">Episode Completed!</CardTitle>
+              <CardDescription className="text-lg">
+                Great job on completing "{episode.title}"
+              </CardDescription>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 p-6 bg-muted rounded-lg">
+              <div className="text-center">
+                <div className="flex justify-center mb-2">
+                  <Star className="h-8 w-8 text-yellow-500" />
+                </div>
+                <div className="text-2xl font-bold text-primary">{totalXP}</div>
+                <div className="text-sm text-muted-foreground">XP Earned</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="flex justify-center mb-2">
+                  <TrendingUp className="h-8 w-8 text-blue-500" />
+                </div>
+                <div className="text-2xl font-bold text-primary">{accuracy}%</div>
+                <div className="text-sm text-muted-foreground">Accuracy</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="flex justify-center mb-2">
+                  <CheckCircle className="h-8 w-8 text-green-500" />
+                </div>
+                <div className="text-2xl font-bold text-primary">{correctAnswers}/{totalAnswers}</div>
+                <div className="text-sm text-muted-foreground">Correct</div>
+              </div>
+            </div>
+            
+            <Progress value={100} className="w-full h-3" />
+            <span className="text-sm text-muted-foreground">Episode Progress: 100%</span>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            {nextEpisodes && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Next Episode Suggestions
+                </h3>
+                
+                <div className="grid gap-3">
+                  {nextEpisodes.next_episode_title && (
+                    <Card className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">{nextEpisodes.next_episode_title}</h4>
+                          <p className="text-sm text-muted-foreground">Recommended next episode</p>
+                        </div>
+                        <Button size="sm">Continue</Button>
+                      </div>
+                    </Card>
+                  )}
+                  
+                  {nextEpisodes.alternative_episode_title && (
+                    <Card className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">{nextEpisodes.alternative_episode_title}</h4>
+                          <p className="text-sm text-muted-foreground">Alternative episode</p>
+                        </div>
+                        <Button variant="outline" size="sm">Try This</Button>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-3 pt-4">
+              <Button onClick={onBack} variant="outline" className="flex-1">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Library
+              </Button>
+              <Button onClick={onComplete} className="flex-1">
+                Continue Learning
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Main exercise interface
   const currentExercise = exercises[currentExerciseIndex];
   const progress = ((currentExerciseIndex + (showResult ? 1 : 0)) / exercises.length) * 100;
@@ -695,7 +795,7 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
               <div className="flex items-center gap-1">
                 <TrendingUp className="h-4 w-4 text-blue-500" />
                 <span className="text-sm font-medium">
-                  {totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0}% accurato
+                  {totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0}% accuracy
                 </span>
               </div>
             </div>
@@ -712,4 +812,169 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                 onClick={retryLoadExercises}
                 className="text-xs"
               >
-                <RefreshCw className="h-3 w-3 mr-1"
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Retry Database Connection
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Exercise content */}
+          {loading ? (
+            <div className="text-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+              <p>Loading exercises...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
+              <p className="text-destructive mb-4">{error}</p>
+              <Button onClick={loadExercises} variant="outline">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          ) : currentExercise ? (
+            <div className="space-y-6">
+              <motion.div
+                key={currentExercise.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
+                <h3 className="text-xl font-semibold mb-4">{currentExercise.question}</h3>
+                
+                {/* Multiple Choice */}
+                {currentExercise.exercise_type === 'multiple_choice' && (
+                  <RadioGroup
+                    value={selectedAnswer as string}
+                    onValueChange={setSelectedAnswer}
+                    disabled={showResult}
+                    className="space-y-3"
+                  >
+                    {currentExercise.options?.map((option: string, index: number) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <RadioGroupItem value={option} id={`option-${index}`} />
+                        <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
+                          {option}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
+                
+                {/* True/False */}
+                {currentExercise.exercise_type === 'true_false' && (
+                  <RadioGroup
+                    value={selectedAnswer as string}
+                    onValueChange={setSelectedAnswer}
+                    disabled={showResult}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="true" />
+                      <Label htmlFor="true" className="cursor-pointer">True</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="false" />
+                      <Label htmlFor="false" className="cursor-pointer">False</Label>
+                    </div>
+                  </RadioGroup>
+                )}
+                
+                {/* Fill in the blank */}
+                {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="answer">Your answer:</Label>
+                    <Input
+                      id="answer"
+                      value={selectedAnswer as string}
+                      onChange={(e) => setSelectedAnswer(e.target.value)}
+                      disabled={showResult}
+                      placeholder="Type your answer here..."
+                      className="w-full"
+                    />
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Result Display */}
+              <AnimatePresence>
+                {showResult && exerciseResult && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className={`p-4 rounded-lg border ${
+                      exerciseResult.is_correct 
+                        ? 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800' 
+                        : 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      {exerciseResult.is_correct ? (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-600" />
+                      )}
+                      <span className="font-medium">
+                        {exerciseResult.is_correct ? 'Correct!' : 'Incorrect'}
+                      </span>
+                      {exerciseResult.is_correct && (
+                        <Badge variant="secondary" className="ml-auto">
+                          +{exerciseResult.xp_reward} XP
+                        </Badge>
+                      )}
+                    </div>
+                    {!exerciseResult.is_correct && (
+                      <p className="text-sm text-muted-foreground mb-2">
+                        <strong>Correct answer:</strong> {exerciseResult.correct_answer}
+                      </p>
+                    )}
+                    {exerciseResult.explanation && (
+                      <p className="text-sm text-muted-foreground">
+                        {exerciseResult.explanation}
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                {!showResult ? (
+                  <Button 
+                    onClick={() => handleAnswer(getAnswerForSubmission())}
+                    disabled={!isAnswerComplete()}
+                    className="flex-1"
+                  >
+                    Submit Answer
+                  </Button>
+                ) : (
+                  <Button onClick={handleNext} className="flex-1">
+                    {currentExerciseIndex < exercises.length - 1 ? (
+                      <>
+                        {getLocalizedText('next')}
+                        <div className="ml-2 text-xs opacity-75">
+                          ({currentExerciseIndex + 2}/{exercises.length})
+                        </div>
+                      </>
+                    ) : (
+                      getLocalizedText('finish')
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p>No exercises available</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
