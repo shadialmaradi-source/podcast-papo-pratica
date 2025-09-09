@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { CheckCircle, XCircle, Star, RefreshCw, ArrowLeft, AlertCircle, GripVertical, PartyPopper, TrendingUp, BookOpen } from "lucide-react";
@@ -177,7 +176,7 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
       console.log('Database exercises found:', dbExercises.length);
       
       if (dbExercises && dbExercises.length > 0) {
-    // Apply intensity filtering
+        // Apply intensity filtering
         const targetCount = intensity === 'intense' ? 20 : 10;
         const filteredExercises = dbExercises.slice(0, targetCount);
         
@@ -340,7 +339,7 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     return mockExercises[currentExerciseIndex]?.explanation || "";
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentExerciseIndex < exercises.length - 1) {
       const nextIndex = currentExerciseIndex + 1;
       setCurrentExerciseIndex(nextIndex);
@@ -349,7 +348,45 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
       setExerciseResult(null);
       initializeExerciseState(exercises[nextIndex]);
     } else {
-      onComplete();
+      // All exercises completed - show completion screen
+      await handleEpisodeCompletion();
+    }
+  };
+
+  const handleEpisodeCompletion = async () => {
+    try {
+      console.log('Episode completion starting...');
+      
+      // Mark episode as completed and get next episode suggestions
+      if (!usingMockData) {
+        await markEpisodeCompleted(episode.id);
+        const suggestions = await getNextEpisodeSuggestions(episode.id, episode.podcast_source?.language || 'english');
+        setNextEpisodes(suggestions);
+        console.log('Next episode suggestions:', suggestions);
+      } else {
+        // Mock suggestions for demo
+        setNextEpisodes({
+          next_episode_id: 'next-123',
+          next_episode_title: 'Episode 122: Advanced Conversations',
+          alternative_episode_id: 'alt-456', 
+          alternative_episode_title: 'Episode 130: Travel Phrases'
+        });
+      }
+      
+      // Show completion screen
+      setShowCompletion(true);
+      console.log('Completion screen should now show');
+      
+    } catch (error) {
+      console.error('Error completing episode:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark episode as completed",
+        variant: "destructive",
+      });
+      
+      // Still show completion screen even if backend fails
+      setShowCompletion(true);
     }
   };
 
@@ -457,322 +494,7 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     );
   }
 
-  const currentExercise = exercises[currentExerciseIndex];
-  const progress = ((currentExerciseIndex + (showResult ? 1 : 0)) / exercises.length) * 100;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
-      <Card className="max-w-2xl mx-auto border-0 shadow-xl">
-        <CardHeader className="text-center space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="outline" size="sm" onClick={onBack}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {getLocalizedText('back')}
-            </Button>
-            
-            {/* Show indicator if using mock data */}
-            {usingMockData && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <AlertCircle className="h-3 w-3" />
-                <span>Sample Mode</span>
-              </div>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <CardTitle className="text-2xl">
-              {episode.title}
-            </CardTitle>
-            <CardDescription>
-              {episode.podcast_source?.title} - {getLevelDisplayName(level)} Level - {intensity === "intense" ? "Intense" : "Light"} Mode
-              {usingMockData && (
-                <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                  Using sample exercises - database exercises not available
-                </div>
-              )}
-            </CardDescription>
-            
-            <div className="flex items-center gap-4 justify-center">
-              <Badge variant="outline">
-                {getLocalizedText('exercise')} {currentExerciseIndex + 1} {getLocalizedText('of')} {exercises.length}
-              </Badge>
-              <div className="flex items-center gap-1">
-                <Star className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-medium">{totalXP} XP</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <TrendingUp className="h-4 w-4 text-blue-500" />
-                <span className="text-sm font-medium">
-                  {totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0}% accurato
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <Progress value={progress} className="w-full" />
-          
-          {/* Database connection retry button */}
-          {usingMockData && (
-            <div className="pt-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={retryLoadExercises}
-                className="text-xs"
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Try Database Again
-              </Button>
-            </div>
-          )}
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          <motion.div
-            key={currentExerciseIndex}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4"
-          >
-            <div className="text-lg font-medium leading-relaxed">
-              {currentExercise.question}
-            </div>
-
-            {currentExercise.exercise_type === "multiple_choice" && currentExercise.options && (
-              <RadioGroup 
-                value={typeof selectedAnswer === 'string' ? selectedAnswer : ''} 
-                onValueChange={(value) => setSelectedAnswer(value)}
-                className="space-y-3"
-              >
-                {currentExercise.options.map((option: string, index: number) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <RadioGroupItem 
-                      value={option} 
-                      id={`option-${index}`}
-                      disabled={showResult}
-                    />
-                    <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
-                      {option}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            )}
-
-            {currentExercise.exercise_type === "true_false" && (
-              <RadioGroup 
-                value={typeof selectedAnswer === 'string' ? selectedAnswer : ''} 
-                onValueChange={(value) => setSelectedAnswer(value)}
-                className="space-y-3"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="true" id="true" disabled={showResult} />
-                  <Label htmlFor="true" className="flex-1 cursor-pointer">True</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="false" id="false" disabled={showResult} />
-                  <Label htmlFor="false" className="flex-1 cursor-pointer">False</Label>
-                </div>
-              </RadioGroup>
-            )}
-
-            {currentExercise.exercise_type === "matching" && currentExercise.options && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Match these items:</Label>
-                    <div className="space-y-2 mt-2">
-                      {currentExercise.options.left?.map((item: string, index: number) => (
-                        <div key={index} className="p-2 border rounded bg-muted/30">
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">With these options:</Label>
-                    <div className="space-y-2 mt-2">
-                      {currentExercise.options.left?.map((leftItem: string, index: number) => (
-                        <Select 
-                          key={index}
-                          value={matchingAnswers[leftItem] || ""} 
-                          onValueChange={(value) => handleMatchingChange(leftItem, value)}
-                          disabled={showResult}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select match..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {currentExercise.options.right?.map((option: string, optIndex: number) => (
-                              <SelectItem key={optIndex} value={option}>
-                                {option}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {currentExercise.exercise_type === "sequencing" && (
-              <div className="space-y-3">
-                <Label>Drag to reorder these items correctly:</Label>
-                <div className="space-y-2">
-                  {sequenceItems.map((item, index) => (
-                    <motion.div
-                      key={`${item}-${index}`}
-                      className="flex items-center p-3 border rounded bg-background cursor-move"
-                      whileHover={{ scale: showResult ? 1 : 1.02 }}
-                      whileDrag={{ scale: 0.95 }}
-                      drag={!showResult ? "y" : false}
-                      dragConstraints={{ top: 0, bottom: 0 }}
-                      onDragEnd={(e, info) => {
-                        if (showResult) return;
-                        const draggedIndex = index;
-                        const offset = info.offset.y;
-                        const itemHeight = 60; // approximate height
-                        const targetIndex = Math.max(0, Math.min(
-                          sequenceItems.length - 1,
-                          draggedIndex + Math.round(offset / itemHeight)
-                        ));
-                        if (targetIndex !== draggedIndex) {
-                          moveSequenceItem(draggedIndex, targetIndex);
-                        }
-                      }}
-                    >
-                      <GripVertical className="h-4 w-4 text-muted-foreground mr-2" />
-                      <span className="flex-1">{item}</span>
-                      <span className="text-sm text-muted-foreground ml-2">#{index + 1}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {currentExercise.exercise_type === "gap_fill" && currentExercise.options && (
-              <div className="space-y-3">
-                <Label>Fill in the gap:</Label>
-                <div className="text-lg leading-relaxed">
-                  {currentExercise.question.split('___').map((part, index) => (
-                    <span key={index}>
-                      {part}
-                      {index < currentExercise.question.split('___').length - 1 && (
-                        <Select 
-                          value={typeof selectedAnswer === 'string' ? selectedAnswer : ''} 
-                          onValueChange={(value) => setSelectedAnswer(value)}
-                          disabled={showResult}
-                        >
-                          <SelectTrigger className="inline-flex w-auto min-w-32 mx-1">
-                            <SelectValue placeholder="?" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {currentExercise.options.map((option: string, optIndex: number) => (
-                              <SelectItem key={optIndex} value={option}>
-                                {option}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {currentExercise.exercise_type === "fill_blank" && (
-              <div className="space-y-3">
-                <Label htmlFor="answer-input">Your answer:</Label>
-                <Input
-                  id="answer-input"
-                  value={typeof selectedAnswer === 'string' ? selectedAnswer : ''}
-                  onChange={(e) => setSelectedAnswer(e.target.value)}
-                  placeholder="Type your answer here..."
-                  disabled={showResult}
-                  className="text-lg"
-                />
-              </div>
-            )}
-
-            {showResult && exerciseResult && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-lg border ${
-                  exerciseResult.is_correct 
-                    ? 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800' 
-                    : 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {exerciseResult.is_correct ? (
-                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                  )}
-                  <div className="flex-1">
-                    <p className={`font-medium ${
-                      exerciseResult.is_correct ? 'text-green-800 dark:text-green-100' : 'text-red-800 dark:text-red-100'
-                    }`}>
-                      {exerciseResult.is_correct ? 'Correct!' : 'Incorrect'}
-                    </p>
-                    {!exerciseResult.is_correct && (
-                      <p className="text-sm text-red-700 dark:text-red-200 mt-1">
-                        Correct answer: <span className="font-medium">{exerciseResult.correct_answer}</span>
-                      </p>
-                    )}
-                    {exerciseResult.explanation && (
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                        {exerciseResult.explanation}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            <div className="flex justify-between pt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (currentExerciseIndex > 0) {
-      const prevIndex = currentExerciseIndex - 1;
-                    setCurrentExerciseIndex(prevIndex);
-                    setSelectedAnswer("");
-                    setShowResult(false);
-                    setExerciseResult(null);
-                    initializeExerciseState(exercises[prevIndex]);
-                  }
-                }}
-                disabled={currentExerciseIndex === 0}
-              >
-                Previous
-              </Button>
-
-              {!showResult ? (
-                <Button 
-                  onClick={() => handleAnswer(getAnswerForSubmission())}
-                  disabled={!isAnswerComplete()}
-                >
-                  Submit
-                </Button>
-              ) : (
-                <Button onClick={handleNext}>
-                  {currentExerciseIndex === exercises.length - 1 ? getLocalizedText('finish') : getLocalizedText('next')}
-                </Button>
-              )}
-            </div>
-          </motion.div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  // Completion Screen
+  // Completion Screen - This is the key fix!
   if (showCompletion) {
     const accuracy = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
     
@@ -925,4 +647,69 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
       </div>
     );
   }
-};
+
+  // Main exercise interface
+  const currentExercise = exercises[currentExerciseIndex];
+  const progress = ((currentExerciseIndex + (showResult ? 1 : 0)) / exercises.length) * 100;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+      <Card className="max-w-2xl mx-auto border-0 shadow-xl">
+        <CardHeader className="text-center space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <Button variant="outline" size="sm" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {getLocalizedText('back')}
+            </Button>
+            
+            {/* Show indicator if using mock data */}
+            {usingMockData && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <AlertCircle className="h-3 w-3" />
+                <span>Sample Mode</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            <CardTitle className="text-2xl">
+              {episode.title}
+            </CardTitle>
+            <CardDescription>
+              {episode.podcast_source?.title} - {getLevelDisplayName(level)} Level - {intensity === "intense" ? "Intense" : "Light"} Mode
+              {usingMockData && (
+                <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                  Using sample exercises - database exercises not available
+                </div>
+              )}
+            </CardDescription>
+            
+            <div className="flex items-center gap-4 justify-center">
+              <Badge variant="outline">
+                {getLocalizedText('exercise')} {currentExerciseIndex + 1} {getLocalizedText('of')} {exercises.length}
+              </Badge>
+              <div className="flex items-center gap-1">
+                <Star className="h-4 w-4 text-yellow-500" />
+                <span className="text-sm font-medium">{totalXP} XP</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-4 w-4 text-blue-500" />
+                <span className="text-sm font-medium">
+                  {totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0}% accurato
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <Progress value={progress} className="w-full" />
+          
+          {/* Database connection retry button */}
+          {usingMockData && (
+            <div className="pt-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={retryLoadExercises}
+                className="text-xs"
+              >
+                <RefreshCw className="h-3 w-3 mr-1"
