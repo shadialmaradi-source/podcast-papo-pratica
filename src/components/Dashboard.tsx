@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
@@ -14,6 +15,8 @@ interface UserProfile {
   user_id: string;
   email: string | null;
   display_name: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
   selected_language: string;
   current_level: string;
   total_xp: number;
@@ -157,13 +160,26 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           animate={{ opacity: 1, y: 0 }}
           className="flex justify-between items-center mb-8"
         >
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
-              PodcastLearn
-            </h1>
-            <p className="text-muted-foreground">
-              Ciao, {profile?.display_name || user?.email}!
-            </p>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={profile?.avatar_url || ""} alt={profile?.display_name || ""} />
+              <AvatarFallback>
+                {(profile?.display_name || profile?.full_name || user?.email || "U")
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
+                ItalianPod
+              </h1>
+              <p className="text-muted-foreground">
+                Ciao, {profile?.display_name || profile?.full_name || user?.email}!
+              </p>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => onNavigate('profile')}>
