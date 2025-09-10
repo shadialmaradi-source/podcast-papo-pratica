@@ -13,12 +13,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Exercise, 
   ExerciseResult,
+  NextActionRecommendation,
   getEpisodeExercises, 
   checkExerciseAnswer, 
   saveExerciseResult, 
   updateUserProgress,
   markEpisodeCompleted,
-  getNextEpisodeSuggestions
+  getNextEpisodeSuggestions,
+  getNextRecommendation
 } from "@/services/exerciseService";
 import { PodcastEpisode } from "@/services/podcastService";
 
@@ -154,6 +156,7 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const [error, setError] = useState<string | null>(null);
   const [showCompletion, setShowCompletion] = useState(false);
   const [nextEpisodes, setNextEpisodes] = useState<any>(null);
+  const [nextRecommendation, setNextRecommendation] = useState<NextActionRecommendation | null>(null);
 
   useEffect(() => {
     loadExercises();
@@ -357,13 +360,41 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     try {
       console.log('Episode completion starting...');
       
-      // Mark episode as completed and get next episode suggestions
+      // Mark episode as completed and get next recommendation
       if (!usingMockData) {
         await markEpisodeCompleted(episode.id);
+        
+        // Get next action recommendation
+        const recommendation = await getNextRecommendation(
+          episode.id, 
+          level, 
+          intensity, 
+          episode.podcast_source?.language || 'english'
+        );
+        setNextRecommendation(recommendation);
+        
+        // Also get next episode suggestions for fallback
         const suggestions = await getNextEpisodeSuggestions(episode.id, episode.podcast_source?.language || 'english');
         setNextEpisodes(suggestions);
+        
+        console.log('Next recommendation:', recommendation);
         console.log('Next episode suggestions:', suggestions);
       } else {
+        // Mock recommendation for demo
+        const mockRecommendation: NextActionRecommendation = {
+          action: intensity === 'light' ? 'next_intensity' : 'next_level',
+          episodeId: episode.id,
+          level: intensity === 'light' ? level : (level === 'beginner' ? 'intermediate' : 'advanced'),
+          intensity: intensity === 'light' ? 'intense' : 'light',
+          description: intensity === 'light' 
+            ? `Great job! Ready to go deeper? Try the Intense mode for ${getLevelDisplayName(level)}.`
+            : `Awesome work! Let's move to ${level === 'beginner' ? 'Intermediate' : 'Advanced'} exercises.`,
+          buttonText: intensity === 'light' 
+            ? `Next: ${getLevelDisplayName(level)} Intense →`
+            : `Next: ${level === 'beginner' ? 'Intermediate' : 'Advanced'} Light →`
+        };
+        setNextRecommendation(mockRecommendation);
+        
         // Mock suggestions for demo
         setNextEpisodes({
           next_episode_id: 'next-123',
@@ -697,35 +728,77 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
             <span className="text-sm text-muted-foreground">Episode Progress: 100%</span>
           </CardHeader>
           
-          <CardContent className="space-y-6">
-            {nextEpisodes && (
+           <CardContent className="space-y-6">
+            {/* Next Action Recommendation */}
+            {nextRecommendation && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" />
-                  Next Episode Suggestions
-                </h3>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-center space-y-4"
+                >
+                  <h3 className="text-lg font-semibold">What's Next?</h3>
+                  <p className="text-muted-foreground">{nextRecommendation.description}</p>
+                  
+                  <Button 
+                    size="lg" 
+                    className="w-full"
+                    onClick={() => {
+                      // Handle navigation based on recommendation
+                      if (nextRecommendation.action === 'next_episode') {
+                        // Navigate to next episode
+                        onComplete();
+                      } else {
+                        // Navigate to same episode with new level/intensity
+                        window.location.reload(); // Temporary solution
+                      }
+                    }}
+                  >
+                    {nextRecommendation.buttonText}
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={onBack}
+                    className="text-sm"
+                  >
+                    or Choose another exercise
+                  </Button>
+                </motion.div>
+              </div>
+            )}
+
+            {/* Alternative Episodes */}
+            {nextEpisodes && (nextEpisodes.alternative_episode_title || nextEpisodes.next_episode_title) && (
+              <div className="space-y-4 pt-4 border-t">
+                <h4 className="font-medium text-center flex items-center justify-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  More Options
+                </h4>
                 
-                <div className="grid gap-3">
-                  {nextEpisodes.next_episode_title && (
-                    <Card className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="grid gap-2">
+                  {nextEpisodes.next_episode_title && nextRecommendation?.action !== 'next_episode' && (
+                    <Card className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="font-medium">{nextEpisodes.next_episode_title}</h4>
-                          <p className="text-sm text-muted-foreground">Recommended next episode</p>
+                          <h5 className="text-sm font-medium">{nextEpisodes.next_episode_title}</h5>
+                          <p className="text-xs text-muted-foreground">Next sequential episode</p>
                         </div>
-                        <Button size="sm">Continue</Button>
+                        <Button variant="outline" size="sm">Try</Button>
                       </div>
                     </Card>
                   )}
                   
                   {nextEpisodes.alternative_episode_title && (
-                    <Card className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                    <Card className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="font-medium">{nextEpisodes.alternative_episode_title}</h4>
-                          <p className="text-sm text-muted-foreground">Alternative episode</p>
+                          <h5 className="text-sm font-medium">{nextEpisodes.alternative_episode_title}</h5>
+                          <p className="text-xs text-muted-foreground">Different topic</p>
                         </div>
-                        <Button variant="outline" size="sm">Try This</Button>
+                        <Button variant="outline" size="sm">Try</Button>
                       </div>
                     </Card>
                   )}
@@ -737,9 +810,6 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
               <Button onClick={onBack} variant="outline" className="flex-1">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Library
-              </Button>
-              <Button onClick={onComplete} className="flex-1">
-                Continue Learning
               </Button>
             </div>
           </CardContent>

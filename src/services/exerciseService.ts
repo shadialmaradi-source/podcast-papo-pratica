@@ -173,3 +173,91 @@ export const getNextEpisodeSuggestions = async (currentEpisodeId: string, langua
 
   return data?.[0] || null;
 };
+
+export interface NextActionRecommendation {
+  action: 'next_intensity' | 'next_level' | 'next_episode';
+  episodeId: string;
+  episodeTitle?: string;
+  level: string;
+  intensity: string;
+  description: string;
+  buttonText: string;
+}
+
+// Get next action recommendation based on progression logic
+export const getNextRecommendation = async (
+  currentEpisodeId: string,
+  currentLevel: string,
+  currentIntensity: string,
+  language: string
+): Promise<NextActionRecommendation> => {
+  const { data: currentUser } = await supabase.auth.getUser();
+  if (!currentUser.user) throw new Error('User not authenticated');
+
+  // Progression logic
+  if (currentIntensity === 'light') {
+    // Light mode completed → suggest Intense mode same level, same episode
+    return {
+      action: 'next_intensity',
+      episodeId: currentEpisodeId,
+      level: currentLevel,
+      intensity: 'intense',
+      description: `Great job! Ready to go deeper? Try the Intense mode for ${getLevelDisplayName(currentLevel)}.`,
+      buttonText: `Next: ${getLevelDisplayName(currentLevel)} Intense →`
+    };
+  } else if (currentIntensity === 'intense') {
+    if (currentLevel === 'advanced') {
+      // Advanced Intense completed → suggest new episode (Beginner Light)
+      const nextEpisode = await getNextEpisodeSuggestions(currentEpisodeId, language);
+      return {
+        action: 'next_episode',
+        episodeId: nextEpisode?.next_episode_id || currentEpisodeId,
+        episodeTitle: nextEpisode?.next_episode_title,
+        level: 'beginner',
+        intensity: 'light',
+        description: "You've mastered this episode. Start the next one!",
+        buttonText: 'Start Next Episode →'
+      };
+    } else {
+      // Intense mode completed → suggest next level's Light mode same episode
+      const nextLevel = getNextLevel(currentLevel);
+      return {
+        action: 'next_level',
+        episodeId: currentEpisodeId,
+        level: nextLevel,
+        intensity: 'light',
+        description: `Awesome work! Let's move to ${getLevelDisplayName(nextLevel)} exercises.`,
+        buttonText: `Next: ${getLevelDisplayName(nextLevel)} Light →`
+      };
+    }
+  }
+
+  // Fallback
+  return {
+    action: 'next_episode',
+    episodeId: currentEpisodeId,
+    level: 'beginner',
+    intensity: 'light',
+    description: 'Continue your learning journey!',
+    buttonText: 'Continue Learning →'
+  };
+};
+
+// Helper functions
+const getLevelDisplayName = (level: string): string => {
+  const names = {
+    beginner: "Beginner",
+    intermediate: "Intermediate", 
+    advanced: "Advanced"
+  };
+  return names[level as keyof typeof names] || level;
+};
+
+const getNextLevel = (currentLevel: string): string => {
+  const progression = {
+    beginner: 'intermediate',
+    intermediate: 'advanced',
+    advanced: 'beginner' // Fallback
+  };
+  return progression[currentLevel as keyof typeof progression] || 'beginner';
+};
