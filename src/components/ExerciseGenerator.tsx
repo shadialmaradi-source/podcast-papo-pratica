@@ -356,70 +356,80 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     }
   };
 
-  const handleEpisodeCompletion = async () => {
-    try {
-      console.log('Episode completion starting...');
-      
-      // Mark episode as completed and get next recommendation
-      if (!usingMockData) {
-        await markEpisodeCompleted(episode.id);
-        
-        // Get next action recommendation
-        const recommendation = await getNextRecommendation(
-          episode.id, 
-          level, 
-          intensity, 
-          episode.podcast_source?.language || 'english'
-        );
-        setNextRecommendation(recommendation);
-        
-        // Also get next episode suggestions for fallback
-        const suggestions = await getNextEpisodeSuggestions(episode.id, episode.podcast_source?.language || 'english');
-        setNextEpisodes(suggestions);
-        
-        console.log('Next recommendation:', recommendation);
-        console.log('Next episode suggestions:', suggestions);
-      } else {
-        // Mock recommendation for demo
-        const mockRecommendation: NextActionRecommendation = {
-          action: intensity === 'light' ? 'next_intensity' : 'next_level',
-          episodeId: episode.id,
-          level: intensity === 'light' ? level : (level === 'beginner' ? 'intermediate' : 'advanced'),
-          intensity: intensity === 'light' ? 'intense' : 'light',
-          description: intensity === 'light' 
-            ? `Great job! Ready to go deeper? Try the Intense mode for ${getLevelDisplayName(level)}.`
-            : `Awesome work! Let's move to ${level === 'beginner' ? 'Intermediate' : 'Advanced'} exercises.`,
-          buttonText: intensity === 'light' 
-            ? `Next: ${getLevelDisplayName(level)} Intense →`
-            : `Next: ${level === 'beginner' ? 'Intermediate' : 'Advanced'} Light →`
-        };
-        setNextRecommendation(mockRecommendation);
-        
-        // Mock suggestions for demo
-        setNextEpisodes({
-          next_episode_id: 'next-123',
-          next_episode_title: 'Episode 122: Advanced Conversations',
-          alternative_episode_id: 'alt-456', 
-          alternative_episode_title: 'Episode 130: Travel Phrases'
-        });
-      }
-      
-      // Show completion screen
-      setShowCompletion(true);
-      console.log('Completion screen should now show');
-      
-    } catch (error) {
-      console.error('Error completing episode:', error);
+ const handleEpisodeCompletion = async () => {
+  try {
+    console.log('Episode completion starting...');
+    
+    // Add this check to ensure episode data is available
+    if (!episode || !episode.podcast_source) {
+      console.error('Error: Episode or podcast source data is missing.');
       toast({
         title: "Error",
-        description: "Failed to mark episode as completed",
+        description: "Episode data is not available. Please try again.",
         variant: "destructive",
       });
-      
-      // Still show completion screen even if backend fails
       setShowCompletion(true);
+      return; // Stop the function here
     }
-  };
+    
+    // Mark episode as completed and get next recommendation
+    if (!usingMockData) {
+      await markEpisodeCompleted(episode.id);
+      
+      const recommendation = await getNextRecommendation(
+        episode.id, 
+        level, 
+        intensity, 
+        episode.podcast_source.language || 'english'
+      );
+      setNextRecommendation(recommendation);
+      
+      const suggestions = await getNextEpisodeSuggestions(episode.id, episode.podcast_source.language || 'english');
+      setNextEpisodes(suggestions);
+      
+      console.log('Next recommendation:', recommendation);
+      console.log('Next episode suggestions:', suggestions);
+    } else {
+      // Mock recommendation for demo
+      const mockRecommendation: NextActionRecommendation = {
+        action: intensity === 'light' ? 'next_intensity' : 'next_level',
+        episodeId: episode.id,
+        level: intensity === 'light' ? level : (level === 'beginner' ? 'intermediate' : 'advanced'),
+        intensity: intensity === 'light' ? 'intense' : 'light',
+        description: intensity === 'light' 
+          ? `Great job! Ready to go deeper? Try the Intense mode for ${getLevelDisplayName(level)}.`
+          : `Awesome work! Let's move to ${getLevelDisplayName(level === 'beginner' ? 'intermediate' : 'advanced')} exercises.`,
+        buttonText: intensity === 'light' 
+          ? `Next: ${getLevelDisplayName(level)} Intense →`
+          : `Next: ${getLevelDisplayName(level === 'beginner' ? 'intermediate' : 'advanced')} Light →`
+      };
+      setNextRecommendation(mockRecommendation);
+      
+      // Mock suggestions for demo
+      setNextEpisodes({
+        next_episode_id: 'next-123',
+        next_episode_title: 'Episode 122: Advanced Conversations',
+        alternative_episode_id: 'alt-456', 
+        alternative_episode_title: 'Episode 130: Travel Phrases'
+      });
+    }
+    
+    // Show completion screen
+    setShowCompletion(true);
+    console.log('Completion screen should now show');
+    
+  } catch (error) {
+    console.error('Error completing episode:', error);
+    toast({
+      title: "Error",
+      description: "Failed to mark episode as completed",
+      variant: "destructive",
+    });
+    
+    // Still show completion screen even if backend fails
+    setShowCompletion(true);
+  }
+};
 
   const moveSequenceItem = (fromIndex: number, toIndex: number) => {
     const newItems = [...sequenceItems];
