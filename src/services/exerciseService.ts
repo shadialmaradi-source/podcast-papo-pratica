@@ -194,6 +194,25 @@ export const getNextRecommendation = async (
   const { data: currentUser } = await supabase.auth.getUser();
   if (!currentUser.user) throw new Error('User not authenticated');
 
+  // Helper functions
+  const getLevelDisplayName = (level: string): string => {
+    const names = {
+      beginner: "Beginner",
+      intermediate: "Intermediate", 
+      advanced: "Advanced"
+    };
+    return names[level as keyof typeof names] || level;
+  };
+
+  const getNextLevel = (currentLevel: string): string => {
+    const progression = {
+      beginner: 'intermediate',
+      intermediate: 'advanced',
+      advanced: 'beginner' // Fallback
+    };
+    return progression[currentLevel as keyof typeof progression] || 'beginner';
+  };
+
   // Progression logic
   if (currentIntensity === 'light') {
     // Light mode completed → suggest Intense mode same level, same episode
@@ -241,23 +260,4 @@ export const getNextRecommendation = async (
     description: 'Continue your learning journey!',
     buttonText: 'Continue Learning →'
   };
-};
-
-// Helper functions
-const getLevelDisplayName = (level: string): string => {
-  const names = {
-    beginner: "Beginner",
-    intermediate: "Intermediate", 
-    advanced: "Advanced"
-  };
-  return names[level as keyof typeof names] || level;
-};
-
-const getNextLevel = (currentLevel: string): string => {
-  const progression = {
-    beginner: 'intermediate',
-    intermediate: 'advanced',
-    advanced: 'beginner' // Fallback
-  };
-  return progression[currentLevel as keyof typeof progression] || 'beginner';
 };
