@@ -360,7 +360,7 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   try {
     console.log('Episode completion starting...');
     
-    // Add this check to ensure episode data is available
+    // Check if episode data is available
     if (!episode || !episode.podcast_source) {
       console.error('Error: Episode or podcast source data is missing.');
       toast({
