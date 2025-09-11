@@ -1015,7 +1015,26 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
 // ... existing code for fill in the blank ...
                 )}
               </motion.div>
-                
+
+              {/* True/False */}
+                {currentExercise.exercise_type === 'true_false' && (
+// ...
+                )}
+                
+                {/* MATCHING UI GOES HERE */}
+                
+                {/* Fill in the blank */}
+                {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
+// ...
+                )}
+              {/* MATCHING UI GOES HERE */}
+                
+                {/* SEQUENCING UI GOES HERE */}
+                
+                {/* Fill in the blank */}
+                {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
+// ...
+                )}
                 {/* Fill in the blank */}
                 {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
                   <div className="space-y-2">
