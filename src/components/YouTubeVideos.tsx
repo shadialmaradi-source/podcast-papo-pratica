@@ -461,6 +461,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
         isOpen={showLevelSelector}
         onClose={() => setShowLevelSelector(false)}
         onSelect={handleLevelSelect}
+        level="beginner"
         title="Choose YouTube Exercise Settings"
       />
 

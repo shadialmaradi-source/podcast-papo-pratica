@@ -363,12 +363,13 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
        </Card>
 
        {/* Level and Intensity Selector */}
-       <LevelIntensitySelector
-         isOpen={showLevelSelector}
-         onClose={() => setShowLevelSelector(false)}
-         onSelect={handleLevelSelect}
-         title="Choose Exercise Settings"
-       />
+        <LevelIntensitySelector
+          isOpen={showLevelSelector}
+          onClose={() => setShowLevelSelector(false)}
+          onSelect={handleLevelSelect}
+          level="beginner"
+          title="Choose Exercise Settings"
+        />
      </div>
    );
  }
