@@ -1002,17 +1002,14 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                 
                 {/* Multiple Choice */}
                 {currentExercise.exercise_type === 'multiple_choice' && (
-// ... existing code for multiple choice ...
                 )}
                 
                 {/* True/False */}
                 {currentExercise.exercise_type === 'true_false' && (
-// ... existing code for true/false ...
                 )}
                 
                 {/* Fill in the blank */}
                 {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
-// ... existing code for fill in the blank ...
                 )}
               </motion.div>
 
