@@ -941,125 +941,155 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                 Retry
               </Button>
             </div>
-          ) : currentExercise ? (
-            <div className="space-y-6">
-              <motion.div
-                key={currentExercise.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-4"
-              >
-                <h3 className="text-xl font-semibold mb-4">{currentExercise.question}</h3>
-                
-                {/* Multiple Choice */}
-                {currentExercise.exercise_type === 'multiple_choice' && (
-                  <RadioGroup
+         ) : currentExercise ? (
+    <div className="space-y-6">
+        <motion.div
+            key={currentExercise.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-4"
+        >
+            <h3 className="text-xl font-semibold mb-4">{currentExercise.question}</h3>
+            
+            {/* Multiple Choice */}
+            {currentExercise.exercise_type === 'multiple_choice' && (
+                <RadioGroup
                     value={selectedAnswer as string}
                     onValueChange={setSelectedAnswer}
                     disabled={showResult}
                     className="space-y-3"
-                  >
+                >
                     {currentExercise.options?.map((option: string, index: number) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <RadioGroupItem value={option} id={`option-${index}`} />
-                        <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
-                          {option}
-                        </Label>
-                      </div>
+                        <div key={index} className="flex items-center space-x-2">
+                            <RadioGroupItem value={option} id={`option-${index}`} />
+                            <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
+                                {option}
+                            </Label>
+                        </div>
                     ))}
-                  </RadioGroup>
-                )}
-                
-                {/* True/False */}
-                {currentExercise.exercise_type === 'true_false' && (
-                  <RadioGroup
+                </RadioGroup>
+            )}
+            
+            {/* True/False */}
+            {currentExercise.exercise_type === 'true_false' && (
+                <RadioGroup
                     value={selectedAnswer as string}
                     onValueChange={setSelectedAnswer}
                     disabled={showResult}
                     className="space-y-3"
-                  >
+                >
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="true" id="true" />
-                      <Label htmlFor="true" className="cursor-pointer">True</Label>
+                        <RadioGroupItem value="true" id="true" />
+                        <Label htmlFor="true" className="cursor-pointer">True</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="false" id="false" />
-                      <Label htmlFor="false" className="cursor-pointer">False</Label>
+                        <RadioGroupItem value="false" id="false" />
+                        <Label htmlFor="false" className="cursor-pointer">False</Label>
                     </div>
-                  </RadioGroup>
-                )}
-                ) : currentExercise ? (
-            <div className="space-y-6">
-              <motion.div
-                key={currentExercise.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-4"
-              >
-                <h3 className="text-xl font-semibold mb-4">{currentExercise.question}</h3>
-                
-                {/* Multiple Choice */}
-                {currentExercise.exercise_type === 'multiple_choice' && (
-                )}
-                
-                {/* True/False */}
-                {currentExercise.exercise_type === 'true_false' && (
-                )}
-                
-                {/* Fill in the blank */}
-                {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
-                )}
-              </motion.div>
+                </RadioGroup>
+            )}
 
-              {/* True/False */}
-                {currentExercise.exercise_type === 'true_false' && (
-                )}
-                
-                
-                {/* Fill in the blank */}
-                {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
-                )}
-                
-                
-                {/* Fill in the blank */}
-                {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
-                )}
-                
-                
-                {/* Fill in the blank */}
-                {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
-                )}
-                {/* Fill in the blank */}
-                {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
-                  <div className="space-y-2">
+            {/* Gap Fill (Dropdown) - THIS IS THE NEW CODE */}
+            {currentExercise.exercise_type === 'gap_fill' && (
+                <div className="space-y-2">
+                    <Label htmlFor="answer">Select the correct word:</Label>
+                    <Select
+                        value={selectedAnswer as string}
+                        onValueChange={setSelectedAnswer}
+                        disabled={showResult}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select an option" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {currentExercise.options?.map((option: string, index: number) => (
+                                <SelectItem key={index} value={option}>{option}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+            
+            {/* Fill in the blank (Text Input) */}
+            {currentExercise.exercise_type === 'fill_blank' && (
+                <div className="space-y-2">
                     <Label htmlFor="answer">Your answer:</Label>
                     <Input
-                      id="answer"
-                      value={selectedAnswer as string}
-                      onChange={(e) => setSelectedAnswer(e.target.value)}
-                      disabled={showResult}
-                      placeholder="Type your answer here..."
-                      className="w-full"
+                        id="answer"
+                        value={selectedAnswer as string}
+                        onChange={(e) => setSelectedAnswer(e.target.value)}
+                        disabled={showResult}
+                        placeholder="Type your answer here..."
+                        className="w-full"
                     />
-                  </div>
-                )}
-              </motion.div>
-
-              {/* Result Display */}
-              <AnimatePresence>
-                {showResult && exerciseResult && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className={`p-4 rounded-lg border ${
-                      exerciseResult.is_correct 
-                        ? 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800' 
-                        : 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800'
-                    }`}
-                  >
+                </div>
+            )}
+            
+            {/* MATCHING UI - THIS IS THE NEW CODE */}
+            {currentExercise.exercise_type === 'matching' && (
+                <div className="grid grid-cols-2 gap-4">
+                    {currentExercise.options?.left.map((leftItem: string, index: number) => (
+                        <div key={index} className="flex items-center justify-between p-2">
+                            <span className="font-medium">{leftItem}</span>
+                            <Select
+                                value={matchingAnswers[leftItem]}
+                                onValueChange={(value) => handleMatchingChange(leftItem, value)}
+                                disabled={showResult}
+                            >
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Select a match" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {currentExercise.options?.right.map((rightItem: string, rightIndex: number) => (
+                                        <SelectItem key={rightIndex} value={rightItem}>
+                                            {rightItem}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    ))}
+                </div>
+            )}
+            
+            {/* SEQUENCING UI - THIS IS THE NEW CODE */}
+            {currentExercise.exercise_type === 'sequencing' && (
+                <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Drag and drop the items to reorder them.</p>
+                    <div className="flex flex-col gap-2">
+                        {sequenceItems.map((item, index) => (
+                            <div key={index} className="flex items-center gap-2 p-3 border rounded-md bg-secondary/20 cursor-grab">
+                                <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                <span>{item}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+            
+        </motion.div>
+        {/* Result Display */}
+        <AnimatePresence>
+            {showResult && exerciseResult && (
+                <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className={`p-4 rounded-lg border ${
+                    exerciseResult.is_correct
+                    ? 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800'
+                    : 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800'
+                }`}
+                >
+                {/* ... existing code ... */}
+                </motion.div>
+            )}
+        </AnimatePresence>
+    </div>
+) : (
+    // ...
+)
                     <div className="flex items-center gap-2 mb-2">
                       {exerciseResult.is_correct ? (
                         <CheckCircle className="h-5 w-5 text-green-600" />
