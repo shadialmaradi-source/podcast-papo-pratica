@@ -33,6 +33,15 @@ interface ExerciseGeneratorProps {
 }
 
 // Mock exercises - only used as absolute fallback
+const getLevelDisplayName = (level: string): string => {
+  const names = {
+    beginner: "Beginner",
+    intermediate: "Intermediate", 
+    advanced: "Advanced"
+  };
+  return names[level as keyof typeof names] || level;
+};
+
 const createMockExercises = (episode: PodcastEpisode, level: string, intensity: string): Exercise[] => {
   const language = episode.podcast_source?.language || 'english';
   const levelMap: Record<string, string> = {
@@ -356,21 +365,39 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     }
   };
 
- const handleEpisodeCompletion = async () => {
-  try {
-    console.log('Episode completion starting...');
-    
-    // Check if episode data is available
-    if (!episode || !episode.podcast_source) {
-      console.error('Error: Episode or podcast source data is missing.');
-      toast({
-        title: "Error",
-        description: "Episode data is not available. Please try again.",
-        variant: "destructive",
-      });
-      setShowCompletion(true);
-      return; // Stop the function here
+  const handleNextRecommendation = (recommendation: NextActionRecommendation) => {
+    // Handle navigation based on recommendation
+    if (recommendation.action === 'next_episode') {
+      // Navigate to next episode
+      onComplete();
+    } else {
+      // Navigate to same episode with new level/intensity
+      // You can implement this to reload with new parameters
+      window.location.reload(); // Temporary solution
     }
+  };
+
+  const handleEpisodeSelect = (episodeId: string, episodeTitle: string) => {
+    // Handle episode selection - navigate to new episode
+    console.log('Selected episode:', episodeId, episodeTitle);
+    onComplete(); // Go back to episode selection
+  };
+
+  const handleEpisodeCompletion = async () => {
+    try {
+      console.log('Episode completion starting...');
+      
+      // Check if episode data is available
+      if (!episode || !episode.podcast_source) {
+        console.error('Error: Episode or podcast source data is missing.');
+        toast({
+          title: "Error",
+          description: "Episode data is not available. Please try again.",
+          variant: "destructive",
+        });
+        setShowCompletion(true);
+        return; // Stop the function here
+      }
     
     // Mark episode as completed and get next recommendation
     if (!usingMockData) {
@@ -738,88 +765,87 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
             <span className="text-sm text-muted-foreground">Episode Progress: 100%</span>
           </CardHeader>
           
-           <CardContent className="space-y-6">
-            {/* Next Action Recommendation */}
+          <CardContent className="space-y-6">
+            {/* Next Action Recommendation - Primary CTA */}
             {nextRecommendation && (
-              <div className="space-y-4">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-center space-y-4"
-                >
-                  <h3 className="text-lg font-semibold">What's Next?</h3>
-                  <p className="text-muted-foreground">{nextRecommendation.description}</p>
-                  
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="space-y-4"
+              >
+                <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+                  <CardContent className="pt-6">
+                    <div className="text-center space-y-4">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Ready for the Next Challenge?</h3>
+                        <p className="text-muted-foreground">{nextRecommendation.description}</p>
+                      </div>
+                      <Button 
+                        size="lg" 
+                        className="w-full"
+                        onClick={() => handleNextRecommendation(nextRecommendation)}
+                      >
+                        <TrendingUp className="h-4 w-4 mr-2" />
+                        {nextRecommendation.buttonText}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Secondary Options */}
+                <div className="text-center">
                   <Button 
-                    size="lg" 
-                    className="w-full"
-                    onClick={() => {
-                      // Handle navigation based on recommendation
-                      if (nextRecommendation.action === 'next_episode') {
-                        // Navigate to next episode
-                        onComplete();
-                      } else {
-                        // Navigate to same episode with new level/intensity
-                        window.location.reload(); // Temporary solution
-                      }
-                    }}
-                  >
-                    {nextRecommendation.buttonText}
-                  </Button>
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={onBack}
+                    variant="outline" 
+                    onClick={onComplete}
                     className="text-sm"
                   >
-                    or Choose another exercise
+                    Choose another exercise
                   </Button>
-                </motion.div>
-              </div>
+                </div>
+              </motion.div>
             )}
 
             {/* Alternative Episodes */}
             {nextEpisodes && (nextEpisodes.alternative_episode_title || nextEpisodes.next_episode_title) && (
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="font-medium text-center flex items-center justify-center gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  More Options
-                </h4>
-                
-                <div className="grid gap-2">
-                  {nextEpisodes.next_episode_title && nextRecommendation?.action !== 'next_episode' && (
-                    <Card className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h5 className="text-sm font-medium">{nextEpisodes.next_episode_title}</h5>
-                          <p className="text-xs text-muted-foreground">Next sequential episode</p>
-                        </div>
-                        <Button variant="outline" size="sm">Try</Button>
-                      </div>
-                    </Card>
-                  )}
-                  
-                  {nextEpisodes.alternative_episode_title && (
-                    <Card className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h5 className="text-sm font-medium">{nextEpisodes.alternative_episode_title}</h5>
-                          <p className="text-xs text-muted-foreground">Different topic</p>
-                        </div>
-                        <Button variant="outline" size="sm">Try</Button>
-                      </div>
-                    </Card>
-                  )}
-                </div>
-              </div>
+              <Card className="border-dashed">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-center text-base">Or explore other episodes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {nextEpisodes.next_episode_id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-sm"
+                        onClick={() => handleEpisodeSelect(nextEpisodes.next_episode_id, nextEpisodes.next_episode_title)}
+                      >
+                        <BookOpen className="h-3 w-3 mr-2" />
+                        Next: {nextEpisodes.next_episode_title}
+                      </Button>
+                    )}
+                    
+                    {nextEpisodes.alternative_episode_id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-sm"
+                        onClick={() => handleEpisodeSelect(nextEpisodes.alternative_episode_id, nextEpisodes.alternative_episode_title)}
+                      >
+                        <BookOpen className="h-3 w-3 mr-2" />
+                        Alternative: {nextEpisodes.alternative_episode_title}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             )}
-            
-            <div className="flex gap-3 pt-4">
-              <Button onClick={onBack} variant="outline" className="flex-1">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Library
+
+            <div className="text-center pt-2">
+              <Button variant="ghost" size="sm" onClick={onBack} className="text-muted-foreground">
+                <ArrowLeft className="h-3 w-3 mr-2" />
+                Back to podcasts
               </Button>
             </div>
           </CardContent>
