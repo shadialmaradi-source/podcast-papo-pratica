@@ -989,6 +989,32 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                     </div>
                   </RadioGroup>
                 )}
+                ) : currentExercise ? (
+            <div className="space-y-6">
+              <motion.div
+                key={currentExercise.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
+                <h3 className="text-xl font-semibold mb-4">{currentExercise.question}</h3>
+                
+                {/* Multiple Choice */}
+                {currentExercise.exercise_type === 'multiple_choice' && (
+// ... existing code for multiple choice ...
+                )}
+                
+                {/* True/False */}
+                {currentExercise.exercise_type === 'true_false' && (
+// ... existing code for true/false ...
+                )}
+                
+                {/* Fill in the blank */}
+                {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
+// ... existing code for fill in the blank ...
+                )}
+              </motion.div>
                 
                 {/* Fill in the blank */}
                 {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
