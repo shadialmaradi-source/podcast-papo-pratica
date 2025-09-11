@@ -952,43 +952,42 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
               >
                 <h3 className="text-xl font-semibold mb-4">{currentExercise.question}</h3>
                 
-                {/* Multiple Choice */}
                 {currentExercise.exercise_type === 'multiple_choice' && (
-                  <RadioGroup
-                    value={selectedAnswer as string}
-                    onValueChange={setSelectedAnswer}
-                    disabled={showResult}
-                    className="space-y-3"
-                  >
-                    {currentExercise.options?.map((option: string, index: number) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <RadioGroupItem value={option} id={`option-${index}`} />
-                        <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
+  <RadioGroup
+    value={selectedAnswer as string}
+    onValueChange={setSelectedAnswer}
+    disabled={showResult}
+    className="space-y-3"
+  >
+    {currentExercise.options?.map((option: string, index: number) => (
+      <div key={index} className="flex items-center space-x-2">
+        <RadioGroupItem value={option} id={`option-${index}`} />
+        <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
+          {option}
+        </Label>
+      </div>
+    ))}
+  </RadioGroup>
+)}
                 
-                {/* True/False */}
-                {currentExercise.exercise_type === 'true_false' && (
-                  <RadioGroup
-                    value={selectedAnswer as string}
-                    onValueChange={setSelectedAnswer}
-                    disabled={showResult}
-                    className="space-y-3"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="true" id="true" />
-                      <Label htmlFor="true" className="cursor-pointer">True</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="false" id="false" />
-                      <Label htmlFor="false" className="cursor-pointer">False</Label>
-                    </div>
-                  </RadioGroup>
-                )}
+{currentExercise.exercise_type === 'true_false' && (
+  <RadioGroup
+    value={selectedAnswer as string}
+    onValueChange={setSelectedAnswer}
+    disabled={showResult}
+    className="space-y-3"
+  >
+    <div className="flex items-center space-x-2">
+      <RadioGroupItem value="true" id="true" />
+      <Label htmlFor="true" className="cursor-pointer">True</Label>
+    </div>
+    <div className="flex items-center space-x-2">
+      <RadioGroupItem value="false" id="false" />
+      <Label htmlFor="false" className="cursor-pointer">False</Label>
+    </div>
+  </RadioGroup>
+)}
+                
                 ) : currentExercise ? (
             <div className="space-y-6">
               <motion.div
@@ -1002,14 +1001,17 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
                 
                 {/* Multiple Choice */}
                 {currentExercise.exercise_type === 'multiple_choice' && (
+// ... existing code for multiple choice ...
                 )}
                 
                 {/* True/False */}
                 {currentExercise.exercise_type === 'true_false' && (
+// ... existing code for true/false ...
                 )}
                 
                 {/* Fill in the blank */}
                 {(currentExercise.exercise_type === 'fill_blank' || currentExercise.exercise_type === 'gap_fill') && (
+// ... existing code for fill in the blank ...
                 )}
               </motion.div>
 
