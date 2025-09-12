@@ -18,10 +18,14 @@ import {
   BookOpen,
   Zap,
   Clock,
-  Users
+  Users,
+  Flame,
+  Gift
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { EngagementFeatures } from "./EngagementFeatures";
+import { PersonalizedRecommendations } from "./PersonalizedRecommendations";
 
 interface UserProfile {
   id: string;
@@ -363,8 +367,9 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
 
         {/* Tabs for different sections */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="progress">Progress</TabsTrigger>
             <TabsTrigger value="achievements">Achievements</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
@@ -488,6 +493,23 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="challenges" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <EngagementFeatures userId={user?.id || ''} />
+              </div>
+              <div>
+                <PersonalizedRecommendations 
+                  userId={user?.id || ''} 
+                  onRecommendationClick={(rec) => {
+                    console.log('Recommendation clicked:', rec);
+                    // Handle recommendation actions here
+                  }}
+                />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="progress" className="space-y-6">
