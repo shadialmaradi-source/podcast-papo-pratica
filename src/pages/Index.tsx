@@ -8,9 +8,11 @@ import { EpisodeSelector } from "@/components/EpisodeSelector";
 import { ExerciseGenerator } from "@/components/ExerciseGenerator";
 import { YouTubeVideos } from "@/components/YouTubeVideos";
 import { YouTubeExercises } from "@/components/YouTubeExercises";
+import { ProfilePage } from "@/components/ProfilePage";
+import { Leaderboard } from "@/components/Leaderboard";
 import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises";
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "leaderboard";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -86,6 +88,19 @@ const Index = () => {
     }
   };
 
+  const handleNavigateToLeaderboard = () => {
+    setAppState('leaderboard');
+  };
+
+  useEffect(() => {
+    const handleCustomNavigation = () => {
+      setAppState('leaderboard');
+    };
+
+    window.addEventListener('navigate-to-leaderboard', handleCustomNavigation);
+    return () => window.removeEventListener('navigate-to-leaderboard', handleCustomNavigation);
+  }, []);
+
   const handleYouTubeExercises = (videoId: string, level: string, intensity: string) => {
     setSelectedVideoId(videoId);
     setSelectedLevel(level);
@@ -105,6 +120,14 @@ const Index = () => {
 
       {appState === "dashboard" && (
         <Dashboard onNavigate={handleNavigate} />
+      )}
+
+      {appState === "profile" && (
+        <ProfilePage onBack={handleBackToDashboard} />
+      )}
+
+      {appState === "leaderboard" && (
+        <Leaderboard onBack={() => setAppState("profile")} />
       )}
       
       {appState === "podcasts" && (
