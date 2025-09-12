@@ -320,4 +320,57 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
         toast({
           title: getLocalizedText('incorrect'),
           description: result.explanation || getLocalizedText('tryAgain'),
-          variant:
+          variant: "destructive",
+        });
+      }
+
+      setTotalAnswers(prev => prev + 1);
+      if (result.is_correct) {
+        setCorrectAnswers(prev => prev + 1);
+      }
+
+    } catch (error) {
+      console.error('Error processing answer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process answer",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getMockCorrectAnswer = () => {
+    return currentExercise.correct_answer || "";
+  };
+
+  const getMockExplanation = () => {
+    return currentExercise.explanation || "Check your answer and try again.";
+  };
+
+  const getLocalizedText = (key: string) => {
+    const texts = {
+      correct: "Correct!",
+      incorrect: "Incorrect",
+      tryAgain: "Try again",
+    };
+    return texts[key as keyof typeof texts] || key;
+  };
+
+  // Rest of the component implementation would go here
+  const currentExercise = exercises[currentExerciseIndex];
+
+  if (loading) {
+    return <div>Loading exercises...</div>;
+  }
+
+  if (!currentExercise) {
+    return <div>No exercises available</div>;
+  }
+
+  return (
+    <div>
+      {/* Exercise UI would go here */}
+      <p>Exercise component placeholder</p>
+    </div>
+  );
+};
