@@ -339,6 +339,49 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     }
   };
 
+  const handleNextExercise = () => {
+    if (currentExerciseIndex < exercises.length - 1) {
+      setCurrentExerciseIndex(prev => prev + 1);
+      setShowResult(false);
+      setExerciseResult(null);
+      initializeExerciseState(exercises[currentExerciseIndex + 1]);
+    } else {
+      // Show completion screen
+      handleExerciseCompletion();
+    }
+  };
+
+  const handleExerciseCompletion = async () => {
+    try {
+      // Get next recommendation
+      const recommendation = await getNextRecommendation('user-id', episode.id, level, intensity);
+      setNextRecommendation(recommendation);
+      
+      // Get next episodes if needed
+      if (recommendation.episodeId !== episode.id) {
+        const suggestions = await getNextEpisodeSuggestions(episode.id, level);
+        setNextEpisodes(suggestions);
+      }
+      
+      setShowCompletion(true);
+    } catch (error) {
+      console.error('Error getting next recommendation:', error);
+      setShowCompletion(true);
+    }
+  };
+
+  const handleNextRecommendation = () => {
+    if (nextRecommendation) {
+      // Navigate to next recommended exercise
+      onComplete();
+    }
+  };
+
+  const handleEpisodeSelect = (episodeId: string) => {
+    // Handle episode selection
+    onComplete();
+  };
+
   const getMockCorrectAnswer = () => {
     return currentExercise.correct_answer || "";
   };
@@ -356,21 +399,246 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
     return texts[key as keyof typeof texts] || key;
   };
 
-  // Rest of the component implementation would go here
   const currentExercise = exercises[currentExerciseIndex];
+  const progress = exercises.length > 0 ? ((currentExerciseIndex + 1) / exercises.length) * 100 : 0;
+  const accuracy = totalAnswers > 0 ? (correctAnswers / totalAnswers) * 100 : 0;
 
   if (loading) {
-    return <div>Loading exercises...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Loading exercises...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!currentExercise) {
-    return <div>No exercises available</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 mx-auto mb-4 text-destructive" />
+          <p>No exercises available</p>
+          <Button onClick={onBack} className="mt-4">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showCompletion) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <PartyPopper className="h-16 w-16 mx-auto mb-6 text-primary" />
+          <h2 className="text-3xl font-bold mb-4">Exercise Complete!</h2>
+          
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <Star className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+                <p className="text-2xl font-bold">{totalXP}</p>
+                <p className="text-sm text-muted-foreground">XP Earned</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4 text-center">
+                <TrendingUp className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                <p className="text-2xl font-bold">{accuracy.toFixed(0)}%</p>
+                <p className="text-sm text-muted-foreground">Accuracy</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4 text-center">
+                <BookOpen className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+                <p className="text-2xl font-bold">{correctAnswers}/{totalAnswers}</p>
+                <p className="text-sm text-muted-foreground">Correct</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {nextRecommendation && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>What's Next?</CardTitle>
+                <CardDescription>{nextRecommendation.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={handleNextRecommendation} className="w-full mb-4">
+                  {nextRecommendation.buttonText}
+                </Button>
+                <Button variant="outline" onClick={onComplete} className="w-full">
+                  Choose another exercise
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Episode
+          </Button>
+        </motion.div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      {/* Exercise UI would go here */}
-      <p>Exercise component placeholder</p>
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+        <div className="flex items-center gap-4">
+          <Badge variant="secondary">
+            {getLevelDisplayName(level)} • {intensity === 'intense' ? 'Intense' : 'Light'}
+          </Badge>
+          {usingMockData && (
+            <Badge variant="outline">Sample Exercises</Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Progress */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span>Question {currentExerciseIndex + 1} of {exercises.length}</span>
+          <span>{totalXP} XP • {accuracy.toFixed(0)}% accuracy</span>
+        </div>
+        <Progress value={progress} className="h-2" />
+      </div>
+
+      {/* Exercise Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">
+            {currentExercise.question}
+          </CardTitle>
+          {currentExercise.exercise_type && (
+            <Badge variant="outline">
+              {currentExercise.exercise_type.replace('_', ' ')}
+            </Badge>
+          )}
+        </CardHeader>
+        <CardContent>
+          {/* Multiple Choice */}
+          {currentExercise.exercise_type === 'multiple_choice' && currentExercise.options && (
+            <RadioGroup
+              value={selectedAnswer as string}
+              onValueChange={setSelectedAnswer}
+              disabled={showResult}
+            >
+              {currentExercise.options.map((option, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <RadioGroupItem value={option} id={`option-${index}`} />
+                  <Label htmlFor={`option-${index}`}>{option}</Label>
+                </div>
+              ))}
+            </RadioGroup>
+          )}
+
+          {/* Fill in the blank */}
+          {(currentExercise.exercise_type === 'fill_blank' || !currentExercise.exercise_type) && (
+            <Input
+              value={selectedAnswer as string}
+              onChange={(e) => setSelectedAnswer(e.target.value)}
+              placeholder="Type your answer..."
+              disabled={showResult}
+            />
+          )}
+
+          {/* True/False */}
+          {currentExercise.exercise_type === 'true_false' && (
+            <RadioGroup
+              value={selectedAnswer as string}
+              onValueChange={setSelectedAnswer}
+              disabled={showResult}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="true" id="true" />
+                <Label htmlFor="true">True</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="false" id="false" />
+                <Label htmlFor="false">False</Label>
+              </div>
+            </RadioGroup>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Result Display */}
+      <AnimatePresence>
+        {showResult && exerciseResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Card className={exerciseResult.is_correct ? "border-green-500" : "border-red-500"}>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4 mb-4">
+                  {exerciseResult.is_correct ? (
+                    <CheckCircle className="h-8 w-8 text-green-500" />
+                  ) : (
+                    <XCircle className="h-8 w-8 text-red-500" />
+                  )}
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {exerciseResult.is_correct ? "Correct!" : "Incorrect"}
+                    </h3>
+                    {exerciseResult.is_correct && (
+                      <p className="text-sm text-muted-foreground">
+                        +{exerciseResult.xp_reward} XP
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                {!exerciseResult.is_correct && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium mb-1">Correct answer:</p>
+                    <p className="text-sm">{exerciseResult.correct_answer}</p>
+                  </div>
+                )}
+                
+                {exerciseResult.explanation && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium mb-1">Explanation:</p>
+                    <p className="text-sm text-muted-foreground">{exerciseResult.explanation}</p>
+                  </div>
+                )}
+                
+                <Button onClick={handleNextExercise} className="w-full">
+                  {currentExerciseIndex < exercises.length - 1 ? "Next Question" : "Complete Exercise"}
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Answer Button */}
+      {!showResult && (
+        <Button
+          onClick={() => handleAnswer(selectedAnswer)}
+          disabled={!selectedAnswer || selectedAnswer === ""}
+          className="w-full"
+        >
+          Submit Answer
+        </Button>
+      )}
     </div>
   );
 };
