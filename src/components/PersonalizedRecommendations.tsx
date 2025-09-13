@@ -139,7 +139,7 @@ export function PersonalizedRecommendations({
     }, {} as Record<string, DifficultyStats>);
 
     // Recommend progression if high accuracy
-    Object.entries(difficultyStats).forEach(([difficulty, stats]) => {
+    Object.entries(difficultyStats).forEach(([difficulty, stats]: [string, DifficultyStats]) => {
       const accuracy = stats.correct / stats.total;
       if (accuracy >= 0.8 && stats.total >= 5) {
         const nextDifficulty = difficulty === 'beginner' ? 'intermediate' : 
@@ -203,7 +203,7 @@ export function PersonalizedRecommendations({
 
     const totalExercises = exerciseResults.length;
     const underrepresentedTypes = Object.entries(typeStats)
-      .filter(([_, count]) => count / totalExercises < 0.2)
+      .filter(([_, count]: [string, number]) => count / totalExercises < 0.2)
       .map(([type]) => type);
 
     if (underrepresentedTypes.length > 0) {
