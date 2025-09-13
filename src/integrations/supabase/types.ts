@@ -142,6 +142,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          content: string
+          created_at: string
+          data: Json | null
+          id: string
+          sent_at: string | null
+          status: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       podcast_episodes: {
         Row: {
           audio_url: string | null
@@ -532,6 +568,39 @@ export type Database = {
           },
         ]
       }
+      user_notification_preferences: {
+        Row: {
+          created_at: string
+          email_daily_reminders: boolean
+          email_leaderboard_alerts: boolean
+          email_weekly_recaps: boolean
+          id: string
+          in_app_notifications: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_daily_reminders?: boolean
+          email_leaderboard_alerts?: boolean
+          email_weekly_recaps?: boolean
+          id?: string
+          in_app_notifications?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_daily_reminders?: boolean
+          email_leaderboard_alerts?: boolean
+          email_weekly_recaps?: boolean
+          id?: string
+          in_app_notifications?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_streak_data: {
         Row: {
           created_at: string
@@ -605,6 +674,19 @@ export type Database = {
           xp_reward: number
         }[]
       }
+      get_leaderboard_position_alerts: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          current_rank: number
+          current_xp: number
+          email: string
+          target_rank: number
+          target_user_email: string
+          target_xp: number
+          user_id: string
+          xp_gap: number
+        }[]
+      }
       get_next_episode: {
         Args: { current_episode_id: string; language_param: string }
         Returns: {
@@ -612,6 +694,26 @@ export type Database = {
           alternative_episode_title: string
           next_episode_id: string
           next_episode_title: string
+        }[]
+      }
+      get_users_needing_daily_reminders: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          current_streak: number
+          email: string
+          email_enabled: boolean
+          last_activity_date: string
+          user_id: string
+        }[]
+      }
+      get_weekly_recap_data: {
+        Args: { user_id_param: string }
+        Returns: {
+          episodes_completed: number
+          exercises_completed: number
+          new_badges: number
+          streak_days: number
+          total_xp: number
         }[]
       }
     }
