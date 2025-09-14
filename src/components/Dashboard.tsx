@@ -153,12 +153,12 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto p-4 sm:p-6 max-w-4xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex justify-between items-center mb-8"
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4"
         >
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
@@ -173,42 +173,42 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
                 ItalianPod
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm sm:text-base text-muted-foreground">
                 Ciao, {profile?.display_name || profile?.full_name || user?.email}!
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => onNavigate('profile')}>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" onClick={() => onNavigate('profile')} className="flex-1 sm:flex-none">
               <User className="h-4 w-4 mr-2" />
-              Profilo
+              <span className="hidden xs:inline">Profilo</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
+            <Button variant="outline" size="sm" onClick={handleSignOut} className="flex-1 sm:flex-none">
               <LogOut className="h-4 w-4 mr-2" />
-              Esci
+              <span className="hidden xs:inline">Esci</span>
             </Button>
           </div>
         </motion.div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
           >
             <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500/10 to-red-500/10">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
                   <div className="p-2 bg-orange-500/20 rounded-lg">
-                    <Flame className="h-5 w-5 text-orange-500" />
+                    <Flame className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Streak</p>
-                    <p className="text-2xl font-bold">{profile?.current_streak || 0}</p>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Streak</p>
+                    <p className="text-xl sm:text-2xl font-bold">{profile?.current_streak || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -221,14 +221,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             transition={{ delay: 0.2 }}
           >
             <Card className="border-0 shadow-lg bg-gradient-to-br from-yellow-500/10 to-orange-500/10">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
                   <div className="p-2 bg-yellow-500/20 rounded-lg">
-                    <Star className="h-5 w-5 text-yellow-500" />
+                    <Star className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">XP Totale</p>
-                    <p className="text-2xl font-bold">{profile?.total_xp || 0}</p>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs sm:text-sm text-muted-foreground">XP Totale</p>
+                    <p className="text-xl sm:text-2xl font-bold">{profile?.total_xp || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -241,14 +241,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             transition={{ delay: 0.3 }}
           >
             <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500/10 to-green-500/10">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
                   <div className="p-2 bg-emerald-500/20 rounded-lg">
-                    <BookOpen className="h-5 w-5 text-emerald-500" />
+                    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Livello</p>
-                    <p className="text-2xl font-bold">{profile?.current_level || 'A1'}</p>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Livello</p>
+                    <p className="text-xl sm:text-2xl font-bold">{profile?.current_level || 'A1'}</p>
                   </div>
                 </div>
               </CardContent>
@@ -261,14 +261,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             transition={{ delay: 0.4 }}
           >
             <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500/10 to-blue-500/10">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
                   <div className="p-2 bg-purple-500/20 rounded-lg">
-                    <Trophy className="h-5 w-5 text-purple-500" />
+                    <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Livello</p>
-                    <p className="text-2xl font-bold">{getCurrentLevel()}</p>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Livello</p>
+                    <p className="text-xl sm:text-2xl font-bold">{getCurrentLevel()}</p>
                   </div>
                 </div>
               </CardContent>
@@ -339,26 +339,26 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="mt-8"
+          className="mt-6 sm:mt-8"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-2xl mx-auto">
             <Button 
               size="lg" 
-              className="text-lg px-8 py-6"
+              className="text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6"
               variant="learning"
               onClick={() => onNavigate('podcasts')}
             >
-              <BookOpen className="h-5 w-5 mr-2" />
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
               Esplora Podcast
             </Button>
             
             <Button 
               size="lg" 
-              className="text-lg px-8 py-6"
+              className="text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6"
               variant="outline"
               onClick={() => onNavigate('youtube')}
             >
-              <Youtube className="h-5 w-5 mr-2 text-red-500" />
+              <Youtube className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-red-500" />
               Video YouTube
             </Button>
           </div>

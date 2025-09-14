@@ -207,20 +207,20 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={onBack}>
+      <div className="space-y-3 sm:space-y-4">
+        <Button variant="outline" size="sm" onClick={onBack} className="w-fit">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
         
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Youtube className="h-6 w-6 text-red-500" />
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Youtube className="h-5 w-5 sm:h-6 sm:w-6 text-red-500" />
             YouTube Videos
           </h2>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Learn with authentic YouTube content
           </p>
         </div>
@@ -235,7 +235,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Input
               placeholder="Paste YouTube video URL here (e.g., https://www.youtube.com/watch?v=...)"
               value={videoUrl}
@@ -243,9 +243,9 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
                 setVideoUrl(e.target.value);
                 setUrlError("");
               }}
-              className={urlError ? "border-destructive" : ""}
+              className={`${urlError ? "border-destructive" : ""} flex-1`}
             />
-            <Button onClick={handleSubmitVideo} disabled={!videoUrl.trim() || isLoadingVideo}>
+            <Button onClick={handleSubmitVideo} disabled={!videoUrl.trim() || isLoadingVideo} className="w-full sm:w-auto">
               {isLoadingVideo ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -329,7 +329,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 flex-wrap">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
             {/* Transcript Button */}
             <Dialog open={showTranscript} onOpenChange={setShowTranscript}>
               <DialogTrigger asChild>

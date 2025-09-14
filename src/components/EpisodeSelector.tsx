@@ -93,18 +93,18 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={onBack}>
+      <div className="space-y-4">
+        <Button variant="outline" size="sm" onClick={onBack} className="w-fit">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
         
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold">{podcast.title}</h2>
-          <p className="text-muted-foreground">{podcast.description}</p>
-          <div className="flex items-center gap-2 mt-2">
+        <div className="space-y-3">
+          <h2 className="text-xl sm:text-2xl font-bold">{podcast.title}</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">{podcast.description}</p>
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">Level {podcast.difficulty_level}</Badge>
             <Badge variant="secondary">{podcast.category}</Badge>
             <Badge className="bg-green-500 text-white">#{podcast.spotify_chart_rank}</Badge>
@@ -113,8 +113,8 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
       </div>
 
       {/* Episodes List */}
-      <div className="space-y-4">
-        <h3 className="text-xl font-semibold">Episodes</h3>
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-lg sm:text-xl font-semibold">Episodes</h3>
         
         {episodes.length === 0 ? (
           <Card>
@@ -125,7 +125,7 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-3 sm:gap-4">
             {episodes.map((episode, index) => {
               const progress = episodeProgress[episode.id];
               const isCompleted = progress?.is_completed || false;
@@ -142,42 +142,41 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
                     className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
                     onClick={() => handleEpisodeSelect(episode)}
                   >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2">
-                            {episode.episode_number && (
-                              <Badge variant="outline" className="text-xs">
-                                EP {episode.episode_number}
-                              </Badge>
-                            )}
-                            {isCompleted && (
-                              <Badge className="bg-green-500 text-white text-xs">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Completed
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                            {episode.title}
-                          </CardTitle>
-                          
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {episode.duration ? formatDuration(episode.duration) : 'Unknown'}
-                            </div>
-                            {episode.publish_date && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {formatDistanceToNow(new Date(episode.publish_date), { addSuffix: true })}
-                              </div>
-                            )}
-                          </div>
+                    <CardHeader className="pb-3">
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {episode.episode_number && (
+                            <Badge variant="outline" className="text-xs">
+                              EP {episode.episode_number}
+                            </Badge>
+                          )}
+                          {isCompleted && (
+                            <Badge className="bg-green-500 text-white text-xs">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Completed
+                            </Badge>
+                          )}
                         </div>
                         
-                        <Button size="sm" variant="outline" className="gap-2 ml-4">
+                        <CardTitle className="text-base sm:text-lg group-hover:text-primary transition-colors line-clamp-2">
+                          {episode.title}
+                        </CardTitle>
+                        
+                        <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {episode.duration ? formatDuration(episode.duration) : 'Unknown'}
+                          </div>
+                          {episode.publish_date && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              <span className="hidden sm:inline">{formatDistanceToNow(new Date(episode.publish_date), { addSuffix: true })}</span>
+                              <span className="sm:hidden">{new Date(episode.publish_date).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <Button size="sm" variant="outline" className="gap-2 w-full sm:w-auto">
                           <Play className="h-3 w-3" />
                           Start
                         </Button>

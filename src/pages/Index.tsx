@@ -131,7 +131,7 @@ const Index = () => {
       )}
       
       {appState === "podcasts" && (
-        <div className="container mx-auto">
+        <div className="container mx-auto px-4">
           <PodcastLibrary 
             selectedLanguage={selectedLanguage}
             onSelectPodcast={handlePodcastSelect}
@@ -141,7 +141,7 @@ const Index = () => {
       )}
 
       {appState === "episodes" && selectedPodcast && (
-        <div className="container mx-auto">
+        <div className="container mx-auto px-4">
           <EpisodeSelector 
             podcast={selectedPodcast}
             onSelectEpisode={handleEpisodeSelect}
@@ -164,7 +164,7 @@ const Index = () => {
       )}
 
       {appState === "youtube" && (
-        <div className="container mx-auto">
+        <div className="container mx-auto px-4">
           <YouTubeVideos 
             onBack={handleBackToDashboard}
             onStartExercises={handleYouTubeExercises}

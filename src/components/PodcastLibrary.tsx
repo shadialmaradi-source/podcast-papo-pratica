@@ -94,23 +94,23 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
   // Note: Direct episode display removed to focus on podcast library functionality
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="text-center space-y-4">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+      <div className="text-center space-y-3 sm:space-y-4">
         <motion.h2 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
+          className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
         >
           {languageNames[selectedLanguage]} Podcasts
         </motion.h2>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto px-4">
           Discover top-rated podcasts from Spotify charts. Choose episodes that match your learning level and start practicing!
         </p>
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search podcasts..."
@@ -120,14 +120,14 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
           />
         </div>
         
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
           {difficulties.map((difficulty) => (
             <Button
               key={difficulty}
               variant={selectedDifficulty === difficulty ? "default" : "outline"}
               size="sm"
               onClick={() => setSelectedDifficulty(difficulty)}
-              className="transition-all duration-200"
+              className="transition-all duration-200 text-xs sm:text-sm"
             >
               {difficulty === "all" ? "All Levels" : difficulty}
             </Button>
@@ -141,7 +141,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
           <p className="text-muted-foreground">Loading podcasts...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {filteredPodcasts.map((podcast, index) => (
           <motion.div
             key={podcast.id}
