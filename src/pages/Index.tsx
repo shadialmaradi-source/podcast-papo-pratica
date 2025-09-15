@@ -10,9 +10,11 @@ import { YouTubeVideos } from "@/components/YouTubeVideos";
 import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { ProfilePage } from "@/components/ProfilePage";
 import { Leaderboard } from "@/components/Leaderboard";
+import { VocabularyManager } from "@/components/VocabularyManager";
+import { VocabularyReview } from "@/components/VocabularyReview";
 import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "leaderboard";
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "leaderboard" | "vocabulary" | "vocabulary-review";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -78,7 +80,7 @@ const Index = () => {
     setAppState("dashboard");
   };
 
-  const handleNavigate = (page: 'podcasts' | 'profile' | 'youtube') => {
+  const handleNavigate = (page: 'podcasts' | 'profile' | 'youtube' | 'vocabulary' | 'leaderboard') => {
     if (page === 'podcasts') {
       handleNavigateToPodcasts();
     } else if (page === 'youtube') {
@@ -182,6 +184,17 @@ const Index = () => {
             onComplete={handleBackToYouTube}
           />
         </div>
+      )}
+
+      {appState === "vocabulary" && (
+        <VocabularyManager 
+          onBack={handleBackToDashboard}
+          onStartReview={() => setAppState("vocabulary-review")}
+        />
+      )}
+      
+      {appState === "vocabulary-review" && (
+        <VocabularyReview onBack={() => setAppState("vocabulary")} />
       )}
     </div>
   );

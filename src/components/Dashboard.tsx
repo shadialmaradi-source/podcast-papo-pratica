@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Flame, Star, Heart, Trophy, BookOpen, User, LogOut, Youtube } from "lucide-react";
+import { Flame, Star, Heart, Trophy, BookOpen, User, LogOut, Youtube, ArrowRight, Headphones, Play } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface UserProfile {
@@ -26,7 +26,7 @@ interface UserProfile {
 }
 
 interface DashboardProps {
-  onNavigate: (page: 'podcasts' | 'profile' | 'youtube') => void;
+  onNavigate: (page: 'podcasts' | 'profile' | 'youtube' | 'vocabulary' | 'leaderboard') => void;
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
@@ -334,33 +334,67 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           </motion.div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Learning Options */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
           className="mt-6 sm:mt-8"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-2xl mx-auto">
-            <Button 
-              size="lg" 
-              className="text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6"
-              variant="learning"
-              onClick={() => onNavigate('podcasts')}
-            >
-              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-              Esplora Podcast
-            </Button>
-            
-            <Button 
-              size="lg" 
-              className="text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6"
-              variant="outline"
-              onClick={() => onNavigate('youtube')}
-            >
-              <Youtube className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-red-500" />
-              Video YouTube
-            </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onNavigate('podcasts')}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-2">
+                  <Headphones className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg">Podcast Learning</CardTitle>
+                </div>
+                <CardDescription className="text-sm">
+                  Learn through Italian podcasts with interactive exercises
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Listen & Practice</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onNavigate('vocabulary')}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-2">
+                  <BookOpen className="h-5 w-5 text-green-500" />
+                  <CardTitle className="text-lg">Vocabulary</CardTitle>
+                </div>
+                <CardDescription className="text-sm">
+                  Master vocabulary with spaced repetition system
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Learn Words</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onNavigate('youtube')}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-2">
+                  <Play className="h-5 w-5 text-red-500" />
+                  <CardTitle className="text-lg">YouTube Videos</CardTitle>
+                </div>
+                <CardDescription className="text-sm">
+                  Practice with YouTube content and exercises
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Watch & Learn</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </motion.div>
       </div>

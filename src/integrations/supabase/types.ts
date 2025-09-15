@@ -88,6 +88,8 @@ export type Database = {
       }
       exercises: {
         Row: {
+          audio_url: string | null
+          context_sentence: string | null
           correct_answer: string
           created_at: string | null
           difficulty: string
@@ -95,14 +97,18 @@ export type Database = {
           exercise_type: string
           explanation: string | null
           id: string
+          image_url: string | null
           intensity: string | null
           mode: string | null
           options: Json | null
           order_index: number | null
           question: string
+          vocabulary_words: Json | null
           xp_reward: number | null
         }
         Insert: {
+          audio_url?: string | null
+          context_sentence?: string | null
           correct_answer: string
           created_at?: string | null
           difficulty: string
@@ -110,14 +116,18 @@ export type Database = {
           exercise_type: string
           explanation?: string | null
           id?: string
+          image_url?: string | null
           intensity?: string | null
           mode?: string | null
           options?: Json | null
           order_index?: number | null
           question: string
+          vocabulary_words?: Json | null
           xp_reward?: number | null
         }
         Update: {
+          audio_url?: string | null
+          context_sentence?: string | null
           correct_answer?: string
           created_at?: string | null
           difficulty?: string
@@ -125,11 +135,13 @@ export type Database = {
           exercise_type?: string
           explanation?: string | null
           id?: string
+          image_url?: string | null
           intensity?: string | null
           mode?: string | null
           options?: Json | null
           order_index?: number | null
           question?: string
+          vocabulary_words?: Json | null
           xp_reward?: number | null
         }
         Relationships: [
@@ -374,6 +386,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      spaced_repetition_reviews: {
+        Row: {
+          created_at: string
+          difficulty_rating: number
+          ease_factor: number
+          id: string
+          interval_days: number
+          is_correct: boolean
+          response_time: number | null
+          review_date: string
+          user_id: string
+          word_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty_rating: number
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          is_correct: boolean
+          response_time?: number | null
+          review_date?: string
+          user_id: string
+          word_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty_rating?: number
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          is_correct?: boolean
+          response_time?: number | null
+          review_date?: string
+          user_id?: string
+          word_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spaced_repetition_reviews_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "vocabulary_words"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_activity_history: {
         Row: {
@@ -640,6 +699,102 @@ export type Database = {
         }
         Relationships: []
       }
+      user_vocabulary_progress: {
+        Row: {
+          created_at: string
+          episode_id: string | null
+          id: string
+          is_learned: boolean
+          last_review_date: string | null
+          mastery_level: number
+          next_review_date: string | null
+          times_correct: number
+          times_seen: number
+          updated_at: string
+          user_id: string
+          word_id: string
+        }
+        Insert: {
+          created_at?: string
+          episode_id?: string | null
+          id?: string
+          is_learned?: boolean
+          last_review_date?: string | null
+          mastery_level?: number
+          next_review_date?: string | null
+          times_correct?: number
+          times_seen?: number
+          updated_at?: string
+          user_id: string
+          word_id: string
+        }
+        Update: {
+          created_at?: string
+          episode_id?: string | null
+          id?: string
+          is_learned?: boolean
+          last_review_date?: string | null
+          mastery_level?: number
+          next_review_date?: string | null
+          times_correct?: number
+          times_seen?: number
+          updated_at?: string
+          user_id?: string
+          word_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_vocabulary_progress_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "podcast_episodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_vocabulary_progress_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "vocabulary_words"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vocabulary_words: {
+        Row: {
+          created_at: string
+          definition: string
+          difficulty_level: string
+          frequency_rank: number | null
+          id: string
+          language: string
+          translation: string | null
+          updated_at: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          definition: string
+          difficulty_level?: string
+          frequency_rank?: number | null
+          id?: string
+          language: string
+          translation?: string | null
+          updated_at?: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          definition?: string
+          difficulty_level?: string
+          frequency_rank?: number | null
+          id?: string
+          language?: string
+          translation?: string | null
+          updated_at?: string
+          word?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -706,6 +861,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_vocabulary_due_for_review: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: {
+          definition: string
+          language: string
+          mastery_level: number
+          next_review_date: string
+          times_seen: number
+          translation: string
+          word: string
+          word_id: string
+        }[]
+      }
       get_weekly_recap_data: {
         Args: { user_id_param: string }
         Returns: {
@@ -715,6 +883,15 @@ export type Database = {
           streak_days: number
           total_xp: number
         }[]
+      }
+      update_vocabulary_progress: {
+        Args: {
+          p_difficulty_rating?: number
+          p_is_correct: boolean
+          p_user_id: string
+          p_word_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
