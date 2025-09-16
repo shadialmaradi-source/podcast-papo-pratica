@@ -22,6 +22,7 @@ import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { getVideoTranscript } from "@/services/youtubeService";
 import { generateTranscriptBasedExercises, Exercise } from "@/services/exerciseGeneratorService";
+import { DragDropExercises } from "./DragDropExercises";
 
 interface YouTubeExercisesProps {
   videoId: string;
@@ -69,6 +70,9 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
 
 export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete }: YouTubeExercisesProps) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [dragDropExercises, setDragDropExercises] = useState<Exercise[]>([]);
+  const [regularExercises, setRegularExercises] = useState<Exercise[]>([]);
+  const [showDragDrop, setShowDragDrop] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState(false);
@@ -94,7 +98,15 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
         
         const exerciseCount = intensity === "intense" ? 20 : 10;
         const generatedExercises = generateTranscriptBasedExercises(transcript, level, exerciseCount);
-        setExercises(generatedExercises);
+        
+        // Separate drag & drop exercises from regular exercises
+        const dragDropTypes = ["DragDropMatching", "DragDropSequencing", "DragDropCategorization", "DragDropWordOrder"];
+        const dragDropExs = generatedExercises.filter(ex => dragDropTypes.includes(ex.type));
+        const regularExs = generatedExercises.filter(ex => !dragDropTypes.includes(ex.type));
+        
+        setDragDropExercises(dragDropExs);
+        setRegularExercises(regularExs);
+        setExercises(regularExs); // Start with regular exercises
         
         toast({
           title: "Exercises Generated! 🎯",
@@ -131,8 +143,15 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentExerciseIndex(currentExerciseIndex + 1);
     } else {
+      if (!showDragDrop && dragDropExercises.length > 0) {
+        // Transition to drag & drop exercises
+        setShowDragDrop(true);
+        return;
+      }
+      
       // Calculate final score
-      const totalScore = exercises.reduce((total, exercise) => {
+      const allExercises = [...regularExercises, ...dragDropExercises];
+      const totalScore = allExercises.reduce((total, exercise) => {
         const userAnswer = answers[exercise.id];
         const isCorrect = checkAnswerCorrectness(exercise, userAnswer);
         return total + (isCorrect ? exercise.points : 0);
@@ -141,6 +160,29 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
       setScore(totalScore);
       setShowResults(true);
     }
+  };
+
+  const handleDragDropComplete = (results: any[]) => {
+    // Add drag & drop results to answers
+    const dragDropAnswers: Record<string, string> = {};
+    results.forEach(result => {
+      dragDropAnswers[result.exerciseId] = typeof result.userAnswer === 'string' 
+        ? result.userAnswer 
+        : JSON.stringify(result.userAnswer);
+    });
+    
+    setAnswers(prev => ({ ...prev, ...dragDropAnswers }));
+    
+    // Calculate final score
+    const allExercises = [...regularExercises, ...dragDropExercises];
+    const totalScore = allExercises.reduce((total, exercise) => {
+      const userAnswer = answers[exercise.id] || dragDropAnswers[exercise.id];
+      const isCorrect = checkAnswerCorrectness(exercise, userAnswer);
+      return total + (isCorrect ? exercise.points : 0);
+    }, 0);
+    
+    setScore(totalScore);
+    setShowResults(true);
   };
 
   const renderExercise = () => {
@@ -478,6 +520,27 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
           </CardContent>
         </Card>
       </div>
+    );
+  }
+
+  // Render drag & drop exercises if in drag & drop mode
+  if (showDragDrop && dragDropExercises.length > 0) {
+    const convertedExercises = dragDropExercises
+      .filter(ex => ["DragDropMatching", "DragDropSequencing", "DragDropCategorization", "DragDropWordOrder"].includes(ex.type))
+      .map(ex => ({
+        ...ex,
+        type: ex.type as "DragDropMatching" | "DragDropSequencing" | "DragDropCategorization" | "DragDropWordOrder",
+        items: ex.options || [],
+        targets: ex.targets,
+        categories: ex.categories
+      }));
+    
+    return (
+      <DragDropExercises
+        exercises={convertedExercises}
+        onComplete={handleDragDropComplete}
+        onBack={() => setShowDragDrop(false)}
+      />
     );
   }
 
