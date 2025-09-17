@@ -2,17 +2,23 @@ import { extractVocabulary, getContextualSentences } from './youtubeService';
 
 export interface Exercise {
   id: string;
-  type: "MCQ" | "TF" | "Matching" | "Sequencing" | "Cloze" | "SpotError" | "DragDropMatching" | "DragDropSequencing" | "DragDropCategorization" | "DragDropWordOrder";
+  type: "MCQ" | "TF" | "Matching" | "Sequencing" | "Cloze" | "SpotError" | "DragDropMatching" | "DragDropSequencing" | "DragDropCategorization" | "DragDropWordOrder" | "SentenceBuilding" | "TimelineOrdering" | "VisualErrorCorrection" | "MultiCategorization";
   question: string;
   options: string[];
   targets?: string[];
-  categories?: { name: string; items: string[] }[];
+  categories?: { name: string; color?: string; items: string[] }[];
+  fragments?: string[];
+  timeline?: { event: string; order: number }[];
+  errors?: { text: string; errorIndex: number; correction: string }[];
+  items?: string[];
   correctAnswer: string;
   explanation: string;
   points: number;
   difficulty: string;
   level: string;
   mode: "light" | "intense";
+  hints?: string[];
+  timeLimit?: number;
 }
 
 // Generate exercises based on actual transcript content

@@ -134,3 +134,62 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Enhanced drag and drop animations */
+@layer components {
+  .drag-item {
+    @apply transition-all duration-200 ease-out transform-gpu;
+  }
+  
+  .drag-item:hover {
+    @apply scale-105 shadow-md;
+  }
+  
+  .drag-item--dragging {
+    @apply scale-110 shadow-lg rotate-2 opacity-90;
+  }
+  
+  .drop-zone {
+    @apply transition-all duration-300 ease-out;
+  }
+  
+  .drop-zone--active {
+    @apply border-primary bg-primary/20 shadow-lg scale-105;
+  }
+  
+  .drop-zone--over {
+    @apply border-primary bg-primary/30 shadow-xl scale-105;
+  }
+  
+  .exercise-feedback {
+    @apply transition-all duration-500 ease-out;
+  }
+  
+  .exercise-feedback--correct {
+    @apply bg-success/20 border-success shadow-success;
+  }
+  
+  .exercise-feedback--incorrect {
+    @apply bg-destructive/20 border-destructive shadow-lg;
+  }
+  
+  .hint-system {
+    @apply transition-all duration-300 ease-out opacity-0 transform translate-y-2;
+  }
+  
+  .hint-system--visible {
+    @apply opacity-100 transform translate-y-0;
+  }
+  
+  .celebration {
+    @apply animate-bounce;
+    animation-duration: 0.6s;
+    animation-iteration-count: 2;
+  }
+  
+  .progress-celebration {
+    @apply animate-pulse;
+    animation-duration: 1s;
+    animation-iteration-count: 3;
+  }
+}
