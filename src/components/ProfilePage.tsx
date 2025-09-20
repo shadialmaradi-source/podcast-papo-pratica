@@ -20,12 +20,14 @@ import {
   Clock,
   Users,
   Flame,
-  Gift
+  Gift,
+  Bell
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { EngagementFeatures } from "./EngagementFeatures";
 import { PersonalizedRecommendations } from "./PersonalizedRecommendations";
+import { NotificationsCenter } from "./NotificationsCenter";
 
 interface UserProfile {
   id: string;
@@ -367,12 +369,16 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
 
         {/* Tabs for different sections */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="progress">Progress</TabsTrigger>
             <TabsTrigger value="achievements">Achievements</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              Notifications
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -649,6 +655,10 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <NotificationsCenter />
           </TabsContent>
         </Tabs>
       </div>
