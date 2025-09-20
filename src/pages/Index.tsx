@@ -12,9 +12,10 @@ import { ProfilePage } from "@/components/ProfilePage";
 import { Leaderboard } from "@/components/Leaderboard";
 import { VocabularyManager } from "@/components/VocabularyManager";
 import { VocabularyReview } from "@/components/VocabularyReview";
+import YouTubeLibrary from "@/components/YouTubeLibrary";
 import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "leaderboard" | "vocabulary" | "vocabulary-review";
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "leaderboard" | "vocabulary" | "vocabulary-review";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -84,10 +85,16 @@ const Index = () => {
     if (page === 'podcasts') {
       handleNavigateToPodcasts();
     } else if (page === 'youtube') {
-      setAppState('youtube');
+      setAppState('youtube-library');
     } else {
       setAppState(page);
     }
+  };
+
+  const handleVideoSelect = (videoId: string, difficulty: string) => {
+    setSelectedVideoId(videoId);
+    setSelectedLevel(difficulty);
+    setAppState('youtube');
   };
 
   const handleNavigateToLeaderboard = () => {
@@ -165,10 +172,17 @@ const Index = () => {
         </div>
       )}
 
+      {appState === "youtube-library" && (
+        <YouTubeLibrary 
+          onVideoSelect={handleVideoSelect}
+          onBack={handleBackToDashboard}
+        />
+      )}
+
       {appState === "youtube" && (
         <div className="container mx-auto px-4">
           <YouTubeVideos 
-            onBack={handleBackToDashboard}
+            onBack={() => setAppState('youtube-library')}
             onStartExercises={handleYouTubeExercises}
           />
         </div>
