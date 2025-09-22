@@ -594,57 +594,103 @@ console.log('Exercise Options:', currentExercise.options);
               </div>
             </RadioGroup>
           )}
-          {/* Sequencing */}
+          {/* Matching - AGGIUNGI QUESTO */}
+{currentExercise.exercise_type === "matching" && (
+  <div className="space-y-4">
+    <div className="text-sm text-gray-600 mb-4">
+      Abbina gli elementi di sinistra con quelli di destra:
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-3">
+        <h4 className="font-semibold text-center text-blue-700">Termini:</h4>
+        {Array.isArray(currentExercise.options) && currentExercise.options.map((pair, index) => {
+          const [term, definition] = pair.split(' → ');
+          return (
+            <div key={index} className="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+              <div className="font-medium text-blue-900">{term}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="space-y-3">
+        <h4 className="font-semibold text-center text-green-700">Definizioni:</h4>
+        {Array.isArray(currentExercise.options) && currentExercise.options
+          .map((pair) => pair.split(' → ')[1])
+          .sort(() => Math.random() - 0.5)
+          .map((definition, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              const completePair = currentExercise.options.find((pair: string) => pair.split(' → ')[1] === definition);
+              setSelectedAnswer(completePair || definition);
+            }}
+            className={`w-full p-4 text-left rounded-lg border transition-all duration-200 ${
+              typeof selectedAnswer === 'string' && selectedAnswer.includes(definition)
+                ? 'bg-green-100 border-green-500 text-green-800 shadow-md' 
+                : 'bg-white border-gray-300 hover:bg-green-50 hover:border-green-300 shadow-sm'
+            } ${showResult ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:shadow-md'}`}
+            disabled={showResult}
+          >
+            <div className="font-medium">{definition}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+    {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
+      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-yellow-800">Abbinamento selezionato:</span>
+        </div>
+        <div className="mt-2 text-yellow-900 font-medium">
+          {selectedAnswer.replace(' → ', ' ↔ ')}
+        </div>
+      </div>
+    )}
+  </div>
+)}
+{/* Sequencing */}
 {currentExercise.exercise_type === "sequencing" && (
   <div className="space-y-4">
     <div className="text-sm text-gray-600 mb-4">
-      Clicca sugli elementi nell'ordine corretto per creare la sequenza:
+      Trascina o clicca per riordinare gli elementi nella sequenza corretta:
     </div>
 
     <div className="space-y-3">
-      {Array.isArray(currentExercise.options) && currentExercise.options.map((item, index) => {
-        const currentOrder = typeof selectedAnswer === 'string' ? selectedAnswer.split('|||').filter(Boolean) : [];
-        const isSelected = currentOrder.includes(item);
-        const position = isSelected ? currentOrder.indexOf(item) + 1 : null;
-
-        return (
-          <div 
-            key={index}
-            className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
-              isSelected 
-                ? 'bg-blue-50 border-blue-300' 
-                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-            }`}
-            onClick={() => {
-              if (!isSelected) {
-                const newOrder = [...currentOrder, item];
-                setSelectedAnswer(newOrder.join('|||'));
-              }
-            }}
-          >
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full font-medium ${
-              isSelected 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-300 text-gray-600'
-            }`}>
-              {position || '•'}
-            </div>
-            <span className="flex-1">{item}</span>
-            {isSelected && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const newOrder = currentOrder.filter(orderItem => orderItem !== item);
-                  setSelectedAnswer(newOrder.join('|||'));
-                }}
-                className="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded"
-              >
-                Rimuovi
-              </button>
-            )}
+      {Array.isArray(currentExercise.options) && currentExercise.options.map((item, index) => (
+        <div 
+          key={index}
+          className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+          onClick={() => {
+            // Simple click to select order
+            const currentOrder = typeof selectedAnswer === 'string' ? selectedAnswer.split('|||') : [];
+            if (!currentOrder.includes(item)) {
+              const newOrder = [...currentOrder, item];
+              setSelectedAnswer(newOrder.join('|||'));
+            }
+          }}
+        >
+          <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full font-medium">
+            {typeof selectedAnswer === 'string' && selectedAnswer.includes(item) 
+              ? selectedAnswer.split('|||').indexOf(item) + 1 
+              : '•'
+            }
           </div>
-        );
-      })}
+          <span className="flex-1">{item}</span>
+          {typeof selectedAnswer === 'string' && selectedAnswer.includes(item) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const currentOrder = selectedAnswer.split('|||');
+                const newOrder = currentOrder.filter(orderItem => orderItem !== item);
+                setSelectedAnswer(newOrder.join('|||'));
+              }}
+              className="text-red-500 hover:text-red-700 text-sm"
+            >
+              Rimuovi
+            </button>
+          )}
+        </div>
+      ))}
     </div>
 
     {/* Selected Order Display */}
@@ -652,9 +698,9 @@ console.log('Exercise Options:', currentExercise.options);
       <div className="mt-6 p-4 bg-blue-50 border border-blue-300 rounded-lg">
         <h4 className="font-medium text-blue-800 mb-2">Ordine selezionato:</h4>
         <div className="space-y-2">
-          {selectedAnswer.split('|||').filter(Boolean).map((item, index) => (
+          {selectedAnswer.split('|||').map((item, index) => (
             <div key={index} className="flex items-center gap-2">
-              <span className="w-6 h-6 bg-blue-500 text-white rounded-full text-sm flex items-center justify-center">
+              <span className="w-6 h-6 bg-blue-200 text-blue-800 rounded-full text-sm flex items-center justify-center">
                 {index + 1}
               </span>
               <span>{item}</span>
