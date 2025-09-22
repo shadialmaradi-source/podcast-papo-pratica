@@ -594,6 +594,49 @@ console.log('Exercise Options:', currentExercise.options);
               </div>
             </RadioGroup>
           )}
+          {/* Matching */}
+{currentExercise.exercise_type === "matching" && (
+  <div className="space-y-4">
+    <div className="text-sm text-gray-600 mb-4">
+      Abbina gli elementi di sinistra con quelli di destra:
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Left side - Terms to match */}
+      <div className="space-y-3">
+        <h4 className="font-semibold text-center text-blue-700">Termini:</h4>
+        {Array.isArray(currentExercise.options) && currentExercise.options.map((pair, index) => {
+          const [term, definition] = pair.split(' → ');
+          return (
+            <div key={index} className="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+              <div className="font-medium text-blue-900">{term}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Right side - Definitions/Options */}
+      <div className="space-y-3">
+        <h4 className="font-semibold text-center text-green-700">Definizioni:</h4>
+        {Array.isArray(currentExercise.options) && currentExercise.options
+          .map((pair) => pair.split(' → ')[1])
+          .sort(() => Math.random() - 0.5) // Shuffle definitions
+          .map((definition, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              // Find the complete pair for this definition
+              const completePair = currentExercise.options.find((pair: string) => pair.split(' → ')[1] === definition);
+              setSelectedAnswer(completePair || definition);
+            }}
+            className={`w-full p-4 text-left rounded-lg border transition-all duration-200 ${
+              typeof selectedAnswer === 'string' && selectedAnswer.includes(definition)
+                ? 'bg-green-100 border-green-500 text-green-800 shadow-md' 
+                : 'bg-white border-gray-300 hover:bg-green-50 hover:border-green-300 shadow-sm'
+            } ${showResult ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:shadow-md'}`}
+            disabled={showResult}
+          >
+            <div className="font-mediu
         </CardContent>
       </Card>
 
