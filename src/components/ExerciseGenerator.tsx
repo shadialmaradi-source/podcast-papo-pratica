@@ -210,7 +210,7 @@ setExercises(processedExercises);
         setUsingMockData(false);
         
         // Initialize exercise state
-        initializeExerciseState(filteredExercises[0]);
+        initializeExerciseState(processedExercises[0]);
         
         console.log('Using database exercises:', filteredExercises.length);
         
