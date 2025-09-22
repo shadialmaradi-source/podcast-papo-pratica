@@ -577,31 +577,30 @@ console.log('Exercise Options:', currentExercise.options);
             />
           )}
 
-         {/* True/False */}
-{currentExercise.exercise_type === 'true_false' && (
-  <RadioGroup
-    value={selectedAnswer as string}
-    onValueChange={setSelectedAnswer}
-    disabled={showResult}
-  >
-    <div className="flex items-center space-x-2">
-      <RadioGroupItem value="true" id="true" />
-      <Label htmlFor="true">True</Label>
-    </div>
-    <div className="flex items-center space-x-2">
-      <RadioGroupItem value="false" id="false" />
-      <Label htmlFor="false">False</Label>
-    </div>
-  </RadioGroup>
-)}
+          {/* True/False */}
+          {currentExercise.exercise_type === 'true_false' && (
+            <RadioGroup
+              value={selectedAnswer as string}
+              onValueChange={setSelectedAnswer}
+              disabled={showResult}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="true" id="true" />
+                <Label htmlFor="true">True</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="false" id="false" />
+                <Label htmlFor="false">False</Label>
+              </div>
+            </RadioGroup>
+          )}
 
-{/* Matching - AGGIUNGI QUESTO BLOCCO */}
+          {/* Matching - AGGIUNGI QUESTO */}
 {currentExercise.exercise_type === "matching" && (
   <div className="space-y-4">
     <div className="text-sm text-gray-600 mb-4">
       Abbina gli elementi di sinistra con quelli di destra:
     </div>
-
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-3">
         <h4 className="font-semibold text-center text-blue-700">Termini:</h4>
@@ -614,7 +613,6 @@ console.log('Exercise Options:', currentExercise.options);
           );
         })}
       </div>
-
       <div className="space-y-3">
         <h4 className="font-semibold text-center text-green-700">Definizioni:</h4>
         {Array.isArray(currentExercise.options) && currentExercise.options
@@ -639,7 +637,6 @@ console.log('Exercise Options:', currentExercise.options);
         ))}
       </div>
     </div>
-
     {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
       <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
         <div className="flex items-center gap-2">
@@ -652,11 +649,72 @@ console.log('Exercise Options:', currentExercise.options);
     )}
   </div>
 )}
+          
+          {/* Sequencing */}
+{currentExercise.exercise_type === "sequencing" && (
+  <div className="space-y-4">
+    <div className="text-sm text-gray-600 mb-4">
+      Trascina o clicca per riordinare gli elementi nella sequenza corretta:
+    </div>
 
+    <div className="space-y-3">
+      {Array.isArray(currentExercise.options) && currentExercise.options.map((item, index) => (
+        <div 
+          key={index}
+          className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+          onClick={() => {
+            // Simple click to select order
+            const currentOrder = typeof selectedAnswer === 'string' ? selectedAnswer.split('|||') : [];
+            if (!currentOrder.includes(item)) {
+              const newOrder = [...currentOrder, item];
+              setSelectedAnswer(newOrder.join('|||'));
+            }
+          }}
+        >
+          <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full font-medium">
+            {typeof selectedAnswer === 'string' && selectedAnswer.includes(item) 
+              ? selectedAnswer.split('|||').indexOf(item) + 1 
+              : '•'
+            }
+          </div>
+          <span className="flex-1">{item}</span>
+          {typeof selectedAnswer === 'string' && selectedAnswer.includes(item) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const currentOrder = selectedAnswer.split('|||');
+                const newOrder = currentOrder.filter(orderItem => orderItem !== item);
+                setSelectedAnswer(newOrder.join('|||'));
+              }}
+              className="text-red-500 hover:text-red-700 text-sm"
+            >
+              Rimuovi
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+
+    {/* Selected Order Display */}
+    {selectedAnswer && typeof selectedAnswer === 'string' && selectedAnswer !== '' && (
+      <div className="mt-6 p-4 bg-blue-50 border border-blue-300 rounded-lg">
+        <h4 className="font-medium text-blue-800 mb-2">Ordine selezionato:</h4>
+        <div className="space-y-2">
+          {selectedAnswer.split('|||').map((item, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <span className="w-6 h-6 bg-blue-200 text-blue-800 rounded-full text-sm flex items-center justify-center">
+                {index + 1}
+              </span>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+)}
         </CardContent>
       </Card>
-
-      {/* Result Display */}
 
       {/* Result Display */}
       <AnimatePresence>
