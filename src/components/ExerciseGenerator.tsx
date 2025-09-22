@@ -192,7 +192,21 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
         const targetCount = intensity === 'intense' ? 20 : 10;
         const filteredExercises = dbExercises.slice(0, targetCount);
         
-        setExercises(filteredExercises);
+// Process exercises to handle JSON strings from database
+const processedExercises = filteredExercises.map(exercise => ({
+  ...exercise,
+  // Process options if it's a JSON string
+  options: typeof exercise.options === 'string' 
+    ? JSON.parse(exercise.options) 
+    : exercise.options,
+  // Clean correct_answer of any extra quotes
+  correct_answer: typeof exercise.correct_answer === 'string'
+    ? exercise.correct_answer.replace(/^["']|["']$/g, '') 
+    : exercise.correct_answer
+}));
+
+console.log('Sample processed exercise:', processedExercises[0]);
+setExercises(processedExercises);
         setUsingMockData(false);
         
         // Initialize exercise state
@@ -261,7 +275,12 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
 
   const handleAnswer = async (answer: string | any[]) => {
     if (showResult) return;
-
+// Debug logging
+console.log('=== ANSWER DEBUG ===');
+console.log('Selected Answer:', answer, typeof answer);
+console.log('Current Exercise:', currentExercise);
+console.log('Correct Answer:', currentExercise.correct_answer, typeof currentExercise.correct_answer);
+console.log('Exercise Options:', currentExercise.options);
     setSelectedAnswer(answer);
     setShowResult(true);
 
