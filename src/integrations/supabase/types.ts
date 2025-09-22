@@ -795,6 +795,201 @@ export type Database = {
         }
         Relationships: []
       }
+      youtube_exercises: {
+        Row: {
+          context_sentence: string | null
+          correct_answer: string
+          created_at: string
+          difficulty: string
+          exercise_type: string
+          explanation: string | null
+          id: string
+          intensity: string
+          options: Json | null
+          order_index: number | null
+          question: string
+          video_id: string
+          vocabulary_words: Json | null
+          xp_reward: number | null
+        }
+        Insert: {
+          context_sentence?: string | null
+          correct_answer: string
+          created_at?: string
+          difficulty: string
+          exercise_type: string
+          explanation?: string | null
+          id?: string
+          intensity?: string
+          options?: Json | null
+          order_index?: number | null
+          question: string
+          video_id: string
+          vocabulary_words?: Json | null
+          xp_reward?: number | null
+        }
+        Update: {
+          context_sentence?: string | null
+          correct_answer?: string
+          created_at?: string
+          difficulty?: string
+          exercise_type?: string
+          explanation?: string | null
+          id?: string
+          intensity?: string
+          options?: Json | null
+          order_index?: number | null
+          question?: string
+          video_id?: string
+          vocabulary_words?: Json | null
+          xp_reward?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_exercises_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_transcripts: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          id: string
+          language: string
+          transcript: string
+          updated_at: string
+          video_id: string
+          word_count: number | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          language: string
+          transcript: string
+          updated_at?: string
+          video_id: string
+          word_count?: number | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          language?: string
+          transcript?: string
+          updated_at?: string
+          video_id?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_transcripts_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_video_analytics: {
+        Row: {
+          created_at: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_video_analytics_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_videos: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          difficulty_level: string
+          duration: number | null
+          id: string
+          language: string
+          processed_at: string | null
+          processing_started_at: string | null
+          rating: number | null
+          status: string
+          thumbnail_url: string | null
+          title: string
+          total_ratings: number | null
+          updated_at: string
+          video_id: string
+          view_count: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          difficulty_level?: string
+          duration?: number | null
+          id?: string
+          language?: string
+          processed_at?: string | null
+          processing_started_at?: string | null
+          rating?: number | null
+          status?: string
+          thumbnail_url?: string | null
+          title: string
+          total_ratings?: number | null
+          updated_at?: string
+          video_id: string
+          view_count?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          difficulty_level?: string
+          duration?: number | null
+          id?: string
+          language?: string
+          processed_at?: string | null
+          processing_started_at?: string | null
+          rating?: number | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string
+          total_ratings?: number | null
+          updated_at?: string
+          video_id?: string
+          view_count?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

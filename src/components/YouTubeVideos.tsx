@@ -24,6 +24,7 @@ import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { getVideoInfo, getVideoTranscript } from "@/services/youtubeService";
 import { LevelIntensitySelector } from "./LevelIntensitySelector";
+import { supabase } from "@/integrations/supabase/client";
 
 interface YouTubeVideosProps {
   onBack: () => void;
@@ -96,7 +97,65 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
     }
 
     try {
-      // Fetch video information
+      // Check if video already exists in database
+      const { data: existingVideo } = await supabase
+        .from('youtube_videos')
+        .select('*')
+        .eq('video_id', videoId)
+        .single();
+
+      if (existingVideo && existingVideo.status === 'completed') {
+        // Video already processed, use existing data
+        const videoData: VideoData = {
+          id: videoId,
+          title: existingVideo.title,
+          description: existingVideo.description || 'YouTube Video',
+          duration: existingVideo.duration ? `${Math.floor(existingVideo.duration / 60)}:${existingVideo.duration % 60}` : 'N/A',
+          thumbnail: existingVideo.thumbnail_url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+          embedUrl: `https://www.youtube.com/embed/${videoId}`,
+          originalUrl: videoUrl.trim()
+        };
+
+        // Get transcript if available
+        const { data: transcriptData } = await supabase
+          .from('youtube_transcripts')
+          .select('transcript')
+          .eq('video_id', existingVideo.id)
+          .single();
+
+        if (transcriptData?.transcript) {
+          videoData.transcript = transcriptData.transcript;
+        }
+
+        setCurrentVideo(videoData);
+        setVideoUrl("");
+        
+        toast({
+          title: "Video Loaded! 🎥",
+          description: "Video already exists in our library with pre-generated content.",
+        });
+        return;
+      }
+
+      // If video doesn't exist or isn't processed, add it to the system
+      if (!existingVideo) {
+        const { data, error } = await supabase.functions.invoke('process-youtube-video', {
+          body: {
+            videoUrl: videoUrl.trim(),
+            language: 'english',
+            difficulty: 'beginner'
+          }
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Video Processing Started! ⚙️",
+          description: "Video has been added to our library and is being processed. This may take a few minutes.",
+        });
+      }
+
+      // Fetch video information for immediate use
       const videoInfo = await getVideoInfo(videoId);
       
       // Create video data
@@ -113,10 +172,6 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
       setCurrentVideo(videoData);
       setVideoUrl("");
       
-      toast({
-        title: "Video Loaded! 🎥",
-        description: "Video information has been fetched. You can now view the transcript and generate exercises.",
-      });
     } catch (error) {
       setUrlError("Failed to load video information. Please check the URL and try again.");
       console.error('Error loading video:', error);
