@@ -595,8 +595,7 @@ console.log('Exercise Options:', currentExercise.options);
   </RadioGroup>
 )}
 
-{/* 👇 INSERISCI QUI IL CODICE MATCHING */}
-{/* Matching */}
+{/* Matching - AGGIUNGI QUESTO BLOCCO */}
 {currentExercise.exercise_type === "matching" && (
   <div className="space-y-4">
     <div className="text-sm text-gray-600 mb-4">
@@ -604,7 +603,6 @@ console.log('Exercise Options:', currentExercise.options);
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Left side - Terms to match */}
       <div className="space-y-3">
         <h4 className="font-semibold text-center text-blue-700">Termini:</h4>
         {Array.isArray(currentExercise.options) && currentExercise.options.map((pair, index) => {
@@ -617,7 +615,6 @@ console.log('Exercise Options:', currentExercise.options);
         })}
       </div>
 
-      {/* Right side - Definitions/Options */}
       <div className="space-y-3">
         <h4 className="font-semibold text-center text-green-700">Definizioni:</h4>
         {Array.isArray(currentExercise.options) && currentExercise.options
@@ -643,7 +640,6 @@ console.log('Exercise Options:', currentExercise.options);
       </div>
     </div>
 
-    {/* Selected Answer Display */}
     {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
       <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
         <div className="flex items-center gap-2">
@@ -657,7 +653,10 @@ console.log('Exercise Options:', currentExercise.options);
   </div>
 )}
 
-        </CardContent> 
+        </CardContent>
+      </Card>
+
+      {/* Result Display */}
 
       {/* Result Display */}
       <AnimatePresence>
