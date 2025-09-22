@@ -577,24 +577,26 @@ console.log('Exercise Options:', currentExercise.options);
             />
           )}
 
-          {/* True/False */}
-          {currentExercise.exercise_type === 'true_false' && (
-            <RadioGroup
-              value={selectedAnswer as string}
-              onValueChange={setSelectedAnswer}
-              disabled={showResult}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="true" id="true" />
-                <Label htmlFor="true">True</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="false" id="false" />
-                <Label htmlFor="false">False</Label>
-              </div>
-            </RadioGroup>
-          )}
-          {/* Matching */}
+         {/* True/False */}
+{currentExercise.exercise_type === 'true_false' && (
+  <RadioGroup
+    value={selectedAnswer as string}
+    onValueChange={setSelectedAnswer}
+    disabled={showResult}
+  >
+    <div className="flex items-center space-x-2">
+      <RadioGroupItem value="true" id="true" />
+      <Label htmlFor="true">True</Label>
+    </div>
+    <div className="flex items-center space-x-2">
+      <RadioGroupItem value="false" id="false" />
+      <Label htmlFor="false">False</Label>
+    </div>
+  </RadioGroup>
+)}
+
+{/* 👇 INSERISCI QUI IL CODICE MATCHING */}
+{/* Matching */}
 {currentExercise.exercise_type === "matching" && (
   <div className="space-y-4">
     <div className="text-sm text-gray-600 mb-4">
@@ -620,12 +622,11 @@ console.log('Exercise Options:', currentExercise.options);
         <h4 className="font-semibold text-center text-green-700">Definizioni:</h4>
         {Array.isArray(currentExercise.options) && currentExercise.options
           .map((pair) => pair.split(' → ')[1])
-          .sort(() => Math.random() - 0.5) // Shuffle definitions
+          .sort(() => Math.random() - 0.5)
           .map((definition, index) => (
           <button
             key={index}
             onClick={() => {
-              // Find the complete pair for this definition
               const completePair = currentExercise.options.find((pair: string) => pair.split(' → ')[1] === definition);
               setSelectedAnswer(completePair || definition);
             }}
@@ -636,9 +637,27 @@ console.log('Exercise Options:', currentExercise.options);
             } ${showResult ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:shadow-md'}`}
             disabled={showResult}
           >
-            <div className="font-mediu
-        </CardContent>
-      </Card>
+            <div className="font-medium">{definition}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {/* Selected Answer Display */}
+    {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
+      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-yellow-800">Abbinamento selezionato:</span>
+        </div>
+        <div className="mt-2 text-yellow-900 font-medium">
+          {selectedAnswer.replace(' → ', ' ↔ ')}
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
+        </CardContent> 
 
       {/* Result Display */}
       <AnimatePresence>
