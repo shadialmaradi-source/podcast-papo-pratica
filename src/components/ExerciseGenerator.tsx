@@ -11,21 +11,6 @@ import { toast } from "@/hooks/use-toast";
 import { CheckCircle, XCircle, Star, RefreshCw, ArrowLeft, AlertCircle, GripVertical, PartyPopper, TrendingUp, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  DndContext, 
-  closestCenter, 
-  useSensor, 
-  useSensors, 
-  PointerSensor,
-  DragEndEvent
-} from "@dnd-kit/core";
-import { 
-  SortableContext, 
-  useSortable, 
-  arrayMove, 
-  verticalListSortingStrategy 
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { 
   Exercise, 
   ExerciseResult,
   NextActionRecommendation,
@@ -55,60 +40,6 @@ const getLevelDisplayName = (level: string): string => {
     advanced: "Advanced"
   };
   return names[level as keyof typeof names] || level;
-};
-
-// Sortable Definition Component for Matching Exercises
-const SortableDefinition = ({ 
-  id, 
-  definition, 
-  position,
-  disabled 
-}: { 
-  id: string; 
-  definition: string; 
-  position: number;
-  disabled: boolean; 
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: id,
-    disabled: disabled,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      className={`p-3 rounded-lg cursor-grab transition-all duration-200 ${
-        isDragging
-          ? 'bg-green-200 shadow-lg scale-105 cursor-grabbing'
-          : 'bg-green-50 border border-green-200 hover:bg-green-100 hover:shadow-md'
-      } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-    >
-      <div className="flex items-center gap-2">
-        <div className="flex items-center justify-center w-6 h-6 bg-green-600 text-white text-xs font-bold rounded-full">
-          {position}
-        </div>
-        <GripVertical className="w-4 h-4 text-green-600" />
-        <span className="text-sm text-green-800 flex-1">
-          {definition}
-        </span>
-      </div>
-    </div>
-  );
 };
 
 const createMockExercises = (episode: PodcastEpisode, level: string, intensity: string): Exercise[] => {
@@ -236,15 +167,6 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const [nextEpisodes, setNextEpisodes] = useState<any>(null);
   const [nextRecommendation, setNextRecommendation] = useState<NextActionRecommendation | null>(null);
 
-  // Drag and drop sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
-
   useEffect(() => {
     loadExercises();
   }, []);
@@ -340,14 +262,7 @@ setExercises(processedExercises);
   const initializeExerciseState = (exercise: Exercise) => {
     if (!exercise) return;
     
-    if (exercise.exercise_type === 'matching') {
-      // For matching exercises, initialize with shuffled definitions
-      const definitions = exercise.options.map((pair: string) => pair.split(' → ')[1]);
-      setSelectedAnswer([...definitions].sort(() => Math.random() - 0.5));
-    } else {
-      setSelectedAnswer("");
-    }
-    
+    setSelectedAnswer("");
     setMatchingAnswers({});
     setSequenceItems([]);
     
@@ -375,16 +290,8 @@ console.log('Exercise Options:', currentExercise.options);
       // Handle mock exercises differently
       if (usingMockData || currentExercise.id.startsWith('mock-')) {
         const mockCorrectAnswer = getMockCorrectAnswer();
-        let isCorrect = false;
-        
-        if (currentExercise.exercise_type === 'matching' && Array.isArray(answer)) {
-          // For matching exercises, check if the order is correct
-          const correctDefinitions = currentExercise.options.map((pair: string) => pair.split(' → ')[1]);
-          isCorrect = JSON.stringify(answer) === JSON.stringify(correctDefinitions);
-        } else {
-          const answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
-          isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
-        }
+        const answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
+        const isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
         
         result = {
           is_correct: isCorrect,
@@ -495,11 +402,6 @@ console.log('Exercise Options:', currentExercise.options);
   };
 
   const getMockCorrectAnswer = () => {
-    if (currentExercise.exercise_type === 'matching') {
-      // For matching exercises, return the correct order of definitions
-      const correctDefinitions = currentExercise.options.map((pair: string) => pair.split(' → ')[1]);
-      return JSON.stringify(correctDefinitions);
-    }
     return currentExercise.correct_answer || "";
   };
 
@@ -693,122 +595,144 @@ console.log('Exercise Options:', currentExercise.options);
             </RadioGroup>
           )}
 
-          {currentExercise.exercise_type === "matching" && (() => {
-            // Initialize ordered definitions array if not already set
-            const terms = currentExercise.options.map((pair: string) => pair.split(' → ')[0]);
-            const correctDefinitions = currentExercise.options.map((pair: string) => pair.split(' → ')[1]);
+          {currentExercise.exercise_type === "matching" && (
+  <DndContext 
+    sensors={sensors}
+    collisionDetection={closestCenter}
+    onDragEnd={(event: DragEndEvent) => {
+      const { active, over } = event;
+      
+      if (over && active.id !== over.id) {
+        const draggedDefinition = active.id as string;
+        const targetTerm = over.id as string;
+        
+        // Find the correct pair that matches the dragged definition with the target term
+        const correctPair = currentExercise.options.find((pair: string) => {
+          const [term, definition] = pair.split(' → ');
+          return term === targetTerm && definition === draggedDefinition;
+        });
+        
+        if (correctPair) {
+          // This is a correct match
+          setSelectedAnswer(correctPair);
+        } else {
+          // This is an incorrect match, but still allow it for user feedback
+          const incorrectPair = `${targetTerm} → ${draggedDefinition}`;
+          setSelectedAnswer(incorrectPair);
+        }
+      }
+    }}
+  >
+    <div className="space-y-4">
+      <div className="text-sm text-gray-600 mb-4">
+        {episode.podcast_source?.language === 'italian' ? 'Trascina le definizioni sui termini corrispondenti per creare l\'abbinamento:' :
+         episode.podcast_source?.language === 'portuguese' ? 'Arraste as definições para os termos correspondentes para criar a correspondência:' :
+         episode.podcast_source?.language === 'spanish' ? 'Arrastra las definiciones a los términos correspondientes para crear la correspondencia:' :
+         episode.podcast_source?.language === 'french' ? 'Faites glisser les définitions vers les termes correspondants pour créer la correspondance:' :
+         episode.podcast_source?.language === 'german' ? 'Ziehen Sie die Definitionen zu den entsprechenden Begriffen, um die Zuordnung zu erstellen:' :
+         'Drag the definitions to the corresponding terms to create the match:'}
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left side - Terms (Drop zones) */}
+        <div className="space-y-3">
+          <h4 className="font-semibold text-center text-blue-700">
+            {episode.podcast_source?.language === 'italian' ? 'Termini:' :
+             episode.podcast_source?.language === 'portuguese' ? 'Termos:' :
+             episode.podcast_source?.language === 'spanish' ? 'Términos:' :
+             episode.podcast_source?.language === 'french' ? 'Termes:' :
+             episode.podcast_source?.language === 'german' ? 'Begriffe:' :
+             'Terms:'}
+          </h4>
+          {Array.isArray(currentExercise.options) && currentExercise.options.map((pair, index) => {
+            const [term, definition] = pair.split(' → ');
+            const isMatched = typeof selectedAnswer === 'string' && selectedAnswer.includes(term);
+            const matchedDefinition = isMatched ? selectedAnswer.split(' → ')[1] : null;
             
-            // Get current ordered definitions or initialize with shuffled array
-            let orderedDefinitions: string[];
-            if (Array.isArray(selectedAnswer)) {
-              orderedDefinitions = selectedAnswer;
-            } else {
-              orderedDefinitions = [...correctDefinitions].sort(() => Math.random() - 0.5);
-              setSelectedAnswer(orderedDefinitions);
-            }
-
             return (
-              <DndContext 
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={(event: DragEndEvent) => {
-                  const { active, over } = event;
-                  
-                  if (over && active.id !== over.id) {
-                    const oldIndex = orderedDefinitions.indexOf(active.id as string);
-                    const newIndex = orderedDefinitions.indexOf(over.id as string);
-                    
-                    const newOrder = arrayMove(orderedDefinitions, oldIndex, newIndex);
-                    setSelectedAnswer(newOrder);
-                  }
-                }}
-              >
-                <div className="space-y-4">
-                  <div className="text-sm text-gray-600 mb-4">
-                    {episode.podcast_source?.language === 'italian' ? 'Riordina le definizioni per abbinarle ai termini nella posizione corretta:' :
-                     episode.podcast_source?.language === 'portuguese' ? 'Reorganize as definições para corresponder aos termos na posição correta:' :
-                     episode.podcast_source?.language === 'spanish' ? 'Reorganiza las definiciones para que coincidan con los términos en la posición correcta:' :
-                     episode.podcast_source?.language === 'french' ? 'Réorganisez les définitions pour qu\'elles correspondent aux termes dans la bonne position:' :
-                     episode.podcast_source?.language === 'german' ? 'Ordnen Sie die Definitionen neu an, damit sie den Begriffen an der richtigen Position entsprechen:' :
-                     'Reorder the definitions to match the terms in the correct position:'}
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Left side - Fixed Terms */}
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-center text-blue-700">
-                        {episode.podcast_source?.language === 'italian' ? 'Termini (fissi):' :
-                         episode.podcast_source?.language === 'portuguese' ? 'Termos (fixos):' :
-                         episode.podcast_source?.language === 'spanish' ? 'Términos (fijos):' :
-                         episode.podcast_source?.language === 'french' ? 'Termes (fixes):' :
-                         episode.podcast_source?.language === 'german' ? 'Begriffe (fest):' :
-                         'Terms (fixed):'}
-                      </h4>
-                      {terms.map((term, index) => (
-                        <div 
-                          key={`term-${index}`}
-                          className="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full">
-                              {index + 1}
-                            </div>
-                            <span className="font-medium text-blue-900">{term}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Right side - Sortable Definitions */}
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-center text-green-700">
-                        {episode.podcast_source?.language === 'italian' ? 'Definizioni (riordinabili):' :
-                         episode.podcast_source?.language === 'portuguese' ? 'Definições (reorganizáveis):' :
-                         episode.podcast_source?.language === 'spanish' ? 'Definiciones (reorganizables):' :
-                         episode.podcast_source?.language === 'french' ? 'Définitions (réorganisables):' :
-                         episode.podcast_source?.language === 'german' ? 'Definitionen (neu anordbar):' :
-                         'Definitions (reorderable):'}
-                      </h4>
-                      <SortableContext items={orderedDefinitions} strategy={verticalListSortingStrategy}>
-                        {orderedDefinitions.map((definition, index) => (
-                          <SortableDefinition
-                            key={definition}
-                            id={definition}
-                            definition={definition}
-                            position={index + 1}
-                            disabled={showResult}
-                          />
-                        ))}
-                      </SortableContext>
-                    </div>
-                  </div>
-
-                  {/* Current Order Display */}
-                  {!showResult && (
-                    <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-medium text-yellow-800">
-                          {episode.podcast_source?.language === 'italian' ? 'Ordine attuale:' :
-                           episode.podcast_source?.language === 'portuguese' ? 'Ordem atual:' :
-                           episode.podcast_source?.language === 'spanish' ? 'Orden actual:' :
-                           episode.podcast_source?.language === 'french' ? 'Ordre actuel:' :
-                           episode.podcast_source?.language === 'german' ? 'Aktuelle Reihenfolge:' :
-                           'Current order:'}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        {orderedDefinitions.map((definition, index) => (
-                          <div key={definition} className="text-sm text-yellow-900">
-                            <span className="font-medium">{index + 1}.</span> {terms[index]} → {definition}
-                          </div>
-                        ))}
-                      </div>
+              <DropZone key={`term-${index}`} id={term}>
+                <div className={`p-4 border-2 border-dashed rounded-lg shadow-sm min-h-[80px] flex flex-col justify-center transition-all duration-200 ${
+                  isMatched 
+                    ? 'bg-green-50 border-green-400 shadow-md' 
+                    : 'bg-blue-50 border-blue-200 hover:border-blue-400'
+                }`}>
+                  <div className="font-medium text-blue-900 text-center mb-2">{term}</div>
+                  {matchedDefinition && (
+                    <div className="text-sm text-green-700 text-center bg-green-100 p-2 rounded">
+                      ↔ {matchedDefinition}
                     </div>
                   )}
                 </div>
-              </DndContext>
+              </DropZone>
             );
-          })()}
+          })}
+        </div>
+
+        {/* Right side - Definitions (Draggable) */}
+        <div className="space-y-3">
+          <h4 className="font-semibold text-center text-green-700">
+            {episode.podcast_source?.language === 'italian' ? 'Definizioni:' :
+             episode.podcast_source?.language === 'portuguese' ? 'Definições:' :
+             episode.podcast_source?.language === 'spanish' ? 'Definiciones:' :
+             episode.podcast_source?.language === 'french' ? 'Définitions:' :
+             episode.podcast_source?.language === 'german' ? 'Definitionen:' :
+             'Definitions:'}
+          </h4>
+          {Array.isArray(currentExercise.options) && currentExercise.options
+            .map((pair) => pair.split(' → ')[1])
+            .sort(() => Math.random() - 0.5) // Shuffle definitions
+            .map((definition, index) => {
+              const isUsed = typeof selectedAnswer === 'string' && selectedAnswer.includes(definition);
+              
+              return (
+                <DraggableDefinition
+                  key={`def-${index}`}
+                  id={definition}
+                  definition={definition}
+                  isSelected={isUsed}
+                  disabled={showResult}
+                  onClick={() => {
+                    // Click functionality - find the correct pair for this definition
+                    const completePair = currentExercise.options.find((pair: string) => pair.split(' → ')[1] === definition);
+                    if (completePair) {
+                      setSelectedAnswer(completePair);
+                    }
+                  }}
+                />
+              );
+            })}
+        </div>
+      </div>
+
+      {/* Selected Answer Display */}
+      {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
+        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-yellow-800">
+              {episode.podcast_source?.language === 'italian' ? 'Abbinamento selezionato:' :
+               episode.podcast_source?.language === 'portuguese' ? 'Correspondência selecionada:' :
+               episode.podcast_source?.language === 'spanish' ? 'Correspondencia seleccionada:' :
+               episode.podcast_source?.language === 'french' ? 'Correspondance sélectionnée:' :
+               episode.podcast_source?.language === 'german' ? 'Ausgewählte Zuordnung:' :
+               'Selected match:'}
+            </span>
+          </div>
+          <div className="mt-2 text-yellow-900 font-medium">
+            {selectedAnswer.replace(' → ', ' ↔ ')}
+          </div>
+          <div className="mt-2 text-sm text-yellow-700">
+            {episode.podcast_source?.language === 'italian' ? 'Trascina un\'altra definizione per cambiare l\'abbinamento' :
+             episode.podcast_source?.language === 'portuguese' ? 'Arraste outra definição para alterar a correspondência' :
+             episode.podcast_source?.language === 'spanish' ? 'Arrastra otra definición para cambiar la correspondencia' :
+             episode.podcast_source?.language === 'french' ? 'Faites glisser une autre définition pour changer la correspondance' :
+             episode.podcast_source?.language === 'german' ? 'Ziehen Sie eine andere Definition, um die Zuordnung zu ändern' :
+             'Drag another definition to change the match'}
+          </div>
+        </div>
+      )}
+    </div>
+  </DndContext>
+)}
 
           {/* Sequencing */}
 {currentExercise.exercise_type === "sequencing" && (
