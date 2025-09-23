@@ -288,21 +288,21 @@ console.log('Exercise Options:', currentExercise.options);
       let result: ExerciseResult;
       
       // Handle mock exercises differently
-if (usingMockData || currentExercise.id.startsWith('mock-')) {
+if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {        
   const mockCorrectAnswer = getMockCorrectAnswer();
-  let answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
-  
-  // Special handling for sequencing exercises
-  let isCorrect = false;
-  if (currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
-    // Normalize both answers by splitting and joining
-    const userSequence = answerStr.split('|||').map(item => item.trim());
-    const correctSequence = mockCorrectAnswer.split('|||').map(item => item.trim());
-    isCorrect = JSON.stringify(userSequence) === JSON.stringify(correctSequence);
-    console.log('Sequencing comparison:', {userSequence, correctSequence, isCorrect});
-  } else {
-    isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
-  }
+let answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
+
+// Special handling for sequencing exercises
+let isCorrect = false;
+if (currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
+  // Normalize both answers by splitting and joining
+  const userSequence = answerStr.split('|||').map(item => item.trim());
+  const correctSequence = mockCorrectAnswer.split('|||').map(item => item.trim());
+  isCorrect = JSON.stringify(userSequence) === JSON.stringify(correctSequence);
+  console.log('Sequencing comparison:', {userSequence, correctSequence, isCorrect});
+} else {
+  isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
+}
         
         result = {
           is_correct: isCorrect,
