@@ -781,11 +781,13 @@ console.log('Exercise Options:', currentExercise.options);
                 </div>
                 
                 {!exerciseResult.is_correct && (
-                  <div className="mb-4">
-                    <p className="text-sm font-medium mb-1">Correct answer:</p>
-                    <p className="text-sm">{exerciseResult.correct_answer}</p>
-                  </div>
-                )}
+  <div className="mb-4">
+    <p className="text-sm font-medium mb-1">Correct answer:</p>
+    <p className="text-sm">
+      {exerciseResult.correct_answer.replace(/\|\|\|/g, ' → ')}
+    </p>
+  </div>
+)}
                 
                 {exerciseResult.explanation && (
                   <div className="mb-4">
