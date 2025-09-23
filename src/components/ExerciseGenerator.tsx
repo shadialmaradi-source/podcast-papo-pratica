@@ -10,6 +10,9 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { CheckCircle, XCircle, Star, RefreshCw, ArrowLeft, AlertCircle, GripVertical, PartyPopper, TrendingUp, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { 
   Exercise, 
   ExerciseResult,
@@ -23,6 +26,63 @@ import {
   getNextRecommendation
 } from "@/services/exerciseService";
 import { PodcastEpisode } from "@/services/podcastService";
+
+// Drag and Drop Components
+const DraggableDefinition = ({ id, definition, isSelected, disabled, onClick }: {
+  id: string;
+  definition: string;
+  isSelected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: id,
+    disabled: disabled,
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+  } : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`w-full p-4 text-left rounded-lg border transition-all duration-200 ${
+        isSelected
+          ? 'bg-green-100 border-green-500 text-green-800 shadow-md' 
+          : 'bg-white border-gray-300 hover:bg-green-50 hover:border-green-300 shadow-sm'
+      } ${disabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:shadow-md'} ${
+        isDragging ? 'opacity-50 scale-105 shadow-lg' : ''
+      }`}
+      onClick={!disabled ? onClick : undefined}
+    >
+      <div className="flex items-center gap-2">
+        <GripVertical className="h-4 w-4 text-gray-400" />
+        <div className="font-medium flex-1">{definition}</div>
+      </div>
+    </div>
+  );
+};
+
+const DropZone = ({ id, children }: { id: string; children: React.ReactNode }) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`transition-colors duration-200 ${
+        isOver ? 'bg-blue-100 border-blue-400' : ''
+      }`}
+    >
+      {children}
+    </div>
+  );
+};
 
 interface ExerciseGeneratorProps {
   episode: PodcastEpisode;
@@ -596,57 +656,79 @@ console.log('Exercise Options:', currentExercise.options);
           )}
 
           {currentExercise.exercise_type === "matching" && (
-  <div className="space-y-4">
-    <div className="text-sm text-gray-600 mb-4">
-      Abbina gli elementi di sinistra con quelli di destra:
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="space-y-3">
-        <h4 className="font-semibold text-center text-blue-700">Termini:</h4>
-        {Array.isArray(currentExercise.options) && currentExercise.options.map((pair, index) => {
-          const [term, definition] = pair.split(' → ');
-          return (
-            <div key={index} className="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
-              <div className="font-medium text-blue-900">{term}</div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="space-y-3">
-        <h4 className="font-semibold text-center text-green-700">Definizioni:</h4>
-        {Array.isArray(currentExercise.options) && currentExercise.options
-          .map((pair) => pair.split(' → ')[1])
-          .sort(() => Math.random() - 0.5)
-          .map((definition, index) => (
-          <button
-            key={index}
-            onClick={() => {
-              const completePair = currentExercise.options.find((pair: string) => pair.split(' → ')[1] === definition);
-              setSelectedAnswer(completePair || definition);
-            }}
-            className={`w-full p-4 text-left rounded-lg border transition-all duration-200 ${
-              typeof selectedAnswer === 'string' && selectedAnswer.includes(definition)
-                ? 'bg-green-100 border-green-500 text-green-800 shadow-md' 
-                : 'bg-white border-gray-300 hover:bg-green-50 hover:border-green-300 shadow-sm'
-            } ${showResult ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:shadow-md'}`}
-            disabled={showResult}
-          >
-            <div className="font-medium">{definition}</div>
-          </button>
-        ))}
-      </div>
-    </div>
-    {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
-      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-yellow-800">Abbinamento selezionato:</span>
-        </div>
-        <div className="mt-2 text-yellow-900 font-medium">
-          {selectedAnswer.replace(' → ', ' ↔ ')}
-        </div>
-      </div>
+  <DndContext 
+    sensors={useSensors(
+      useSensor(PointerSensor),
+      useSensor(KeyboardSensor, {
+        coordinateGetter: sortableKeyboardCoordinates,
+      })
     )}
-  </div>
+    collisionDetection={closestCenter}
+    onDragEnd={(event: DragEndEvent) => {
+      const { active, over } = event;
+      
+      if (over && active.id !== over.id) {
+        const definition = active.id as string;
+        const term = over.id as string;
+        const completePair = currentExercise.options.find((pair: string) => 
+          pair.split(' → ')[0] === term && pair.split(' → ')[1] === definition
+        );
+        if (completePair) {
+          setSelectedAnswer(completePair);
+        }
+      }
+    }}
+  >
+    <div className="space-y-4">
+      <div className="text-sm text-gray-600 mb-4">
+        Abbina gli elementi di sinistra con quelli di destra trascinando o cliccando:
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <h4 className="font-semibold text-center text-blue-700">Termini:</h4>
+          {Array.isArray(currentExercise.options) && currentExercise.options.map((pair, index) => {
+            const [term, definition] = pair.split(' → ');
+            return (
+              <DropZone key={index} id={term}>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm min-h-[60px] flex items-center">
+                  <div className="font-medium text-blue-900">{term}</div>
+                </div>
+              </DropZone>
+            );
+          })}
+        </div>
+        <div className="space-y-3">
+          <h4 className="font-semibold text-center text-green-700">Definizioni:</h4>
+          {Array.isArray(currentExercise.options) && currentExercise.options
+            .map((pair) => pair.split(' → ')[1])
+            .sort(() => Math.random() - 0.5)
+            .map((definition, index) => (
+            <DraggableDefinition
+              key={index}
+              id={definition}
+              definition={definition}
+              isSelected={typeof selectedAnswer === 'string' && selectedAnswer.includes(definition)}
+              disabled={showResult}
+              onClick={() => {
+                const completePair = currentExercise.options.find((pair: string) => pair.split(' → ')[1] === definition);
+                setSelectedAnswer(completePair || definition);
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
+        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-yellow-800">Abbinamento selezionato:</span>
+          </div>
+          <div className="mt-2 text-yellow-900 font-medium">
+            {selectedAnswer.replace(' → ', ' ↔ ')}
+          </div>
+        </div>
+      )}
+    </div>
+  </DndContext>
 )}
 
           {/* Sequencing */}
