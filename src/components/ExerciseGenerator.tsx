@@ -227,6 +227,14 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const [nextEpisodes, setNextEpisodes] = useState<any>(null);
   const [nextRecommendation, setNextRecommendation] = useState<NextActionRecommendation | null>(null);
 
+  // Drag and drop sensors - must be at top level to avoid hooks rule violation
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   useEffect(() => {
     loadExercises();
   }, []);
@@ -652,12 +660,7 @@ console.log('Exercise Options:', currentExercise.options);
 
           {currentExercise.exercise_type === "matching" && (
   <DndContext 
-    sensors={useSensors(
-      useSensor(PointerSensor),
-      useSensor(KeyboardSensor, {
-        coordinateGetter: sortableKeyboardCoordinates,
-      })
-    )}
+    sensors={sensors}
     collisionDetection={closestCenter}
     onDragEnd={(event: DragEndEvent) => {
       const { active, over } = event;
