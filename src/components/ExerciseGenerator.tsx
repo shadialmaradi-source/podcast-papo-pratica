@@ -286,26 +286,22 @@ console.log('Exercise Options:', currentExercise.options);
     try {
       let result: ExerciseResult;
       
-// Handle mock exercises differently
+      // Handle mock exercises differently
 if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
   const mockCorrectAnswer = getMockCorrectAnswer();
   let answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
   
-  // Special handling for sequencing exercises
+  // Force sequencing logic for all exercises that might be sequencing
   let isCorrect = false;
-  
-  // Check if this looks like a sequencing exercise (contains |||)
-  if (answerStr.includes('|||') || (mockCorrectAnswer && mockCorrectAnswer.includes('|||'))) {
-    // Normalize both sequences
-    const userItems = answerStr.split('|||').map(item => item.trim()).filter(Boolean);
-    const correctItems = (mockCorrectAnswer || '').split('|||').map(item => item.trim()).filter(Boolean);
-    
-    // Compare normalized sequences
-    isCorrect = userItems.length === correctItems.length && 
-                userItems.every((item, index) => item === correctItems[index]);
+  if (answerStr.includes('|||') || mockCorrectAnswer.includes('|||')) {
+    // This is definitely a sequencing exercise - use sequencing comparison
+    const userSequence = answerStr.split('|||').map(item => item.trim()).filter(Boolean);
+    const correctSequence = mockCorrectAnswer.split('|||').map(item => item.trim()).filter(Boolean);
+    isCorrect = userSequence.length === correctSequence.length && 
+                userSequence.every((item, index) => item === correctSequence[index]);
   } else {
-    // Regular text comparison for other exercise types
-    isCorrect = answerStr.toLowerCase().trim() === (mockCorrectAnswer || '').toLowerCase().trim();
+    // Regular text comparison
+    isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
   }
   
   result = {
@@ -415,9 +411,15 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
     onComplete();
   };
 
-  const getMockCorrectAnswer = () => {
-    return currentExercise.correct_answer || "";
-  };
+const getMockCorrectAnswer = () => {
+  // Se correct_answer è vuoto ma abbiamo le opzioni per sequencing, ricostruisci
+  if ((!currentExercise.correct_answer || currentExercise.correct_answer === "") 
+      && currentExercise.exercise_type === 'sequencing' 
+      && currentExercise.options) {
+    return currentExercise.options.join('|||');
+  }
+  return currentExercise.correct_answer || "";
+};
 
   const getMockExplanation = () => {
     return currentExercise.explanation || "Check your answer and try again.";
