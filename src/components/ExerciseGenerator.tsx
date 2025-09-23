@@ -411,11 +411,10 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
     onComplete();
   };
 
-const getMockCorrectAnswer = () => {
-  // Se correct_answer è vuoto ma abbiamo le opzioni per sequencing, ricostruisci
-  if ((!currentExercise.correct_answer || currentExercise.correct_answer === "") 
-      && currentExercise.exercise_type === 'sequencing' 
-      && currentExercise.options) {
+ const getMockCorrectAnswer = () => {
+  // Se correct_answer è vuoto e abbiamo opzioni, ricostruisci automaticamente per sequencing
+  if ((!currentExercise.correct_answer || currentExercise.correct_answer === "") && currentExercise.options && Array.isArray(currentExercise.options)) {
+    // Per qualsiasi esercizio con opzioni array, usa l'ordine delle opzioni come risposta corretta
     return currentExercise.options.join('|||');
   }
   return currentExercise.correct_answer || "";
