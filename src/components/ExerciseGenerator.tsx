@@ -288,39 +288,50 @@ console.log('Exercise Options:', currentExercise.options);
       let result: ExerciseResult;
       
       // Handle mock exercises differently
-      if (usingMockData || currentExercise.id.startsWith('mock-')) {
-        const mockCorrectAnswer = getMockCorrectAnswer();
-        const answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
-        const isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
-        
-        result = {
-          is_correct: isCorrect,
-          correct_answer: mockCorrectAnswer,
-          explanation: getMockExplanation(),
-          xp_reward: currentExercise.xp_reward
-        };
-        
-        setExerciseResult(result);
-        
-        // For mock exercises, simulate saving (but don't actually save to DB)
-        console.log('Mock exercise result:', result);
-        
-      } else {
-        // Real database exercise
-        result = await checkExerciseAnswer(currentExercise.id, answer);
-        setExerciseResult(result);
-
-        // Save the result to database
-        await saveExerciseResult(
-          currentExercise.id,
-          episode.id,
-          answer,
-          result.is_correct,
-          result.is_correct ? result.xp_reward : 0
-        );
-        
-        console.log('Database exercise result:', result);
-      }
+if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
+  const mockCorrectAnswer = getMockCorrectAnswer();
+  let answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
+  
+  // Force sequencing logic for all exercises that might be sequencing
+  let isCorrect = false;
+  if (answerStr.includes('|||') || mockCorrectAnswer.includes('|||')) {
+    // This is definitely a sequencing exercise - use sequencing comparison
+    const userSequence = answerStr.split('|||').map(item => item.trim()).filter(Boolean);
+    const correctSequence = mockCorrectAnswer.split('|||').map(item => item.trim()).filter(Boolean);
+    isCorrect = userSequence.length === correctSequence.length && 
+                userSequence.every((item, index) => item === correctSequence[index]);
+  } else {
+    // Regular text comparison
+    isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
+  }
+  
+  result = {
+    is_correct: isCorrect,
+    correct_answer: mockCorrectAnswer,
+    explanation: getMockExplanation(),
+    xp_reward: currentExercise.xp_reward
+  };
+  
+  setExerciseResult(result);
+  
+  // For mock exercises, simulate saving (but don't actually save to DB)
+  console.log('Mock exercise result:', result);
+  
+} else {
+  // Real database exercise
+  result = await checkExerciseAnswer(currentExercise.id, answer);
+  setExerciseResult(result);
+  // Save the result to database
+  await saveExerciseResult(
+    currentExercise.id,
+    episode.id,
+    answer,
+    result.is_correct,
+    result.is_correct ? result.xp_reward : 0
+  );
+  
+  console.log('Database exercise result:', result);
+}
 
       // Handle correct/incorrect logic
       if (result.is_correct) {
@@ -401,21 +412,13 @@ console.log('Exercise Options:', currentExercise.options);
     onComplete();
   };
 
- const getMockCorrectAnswer = () => {
-  // For sequencing exercises, ensure we get the correct answer from the current exercise
-  if (currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
+  const getMockCorrectAnswer = () => {
     return currentExercise.correct_answer || "";
-  }
-  return currentExercise.correct_answer || "";
-};
+  };
 
   const getMockExplanation = () => {
-  // For sequencing exercises, provide a more specific explanation
-  if (currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
-    return currentExercise.explanation || "Questa è la corretta sequenza cronologica degli eventi.";
-  }
-  return currentExercise.explanation || "Check your answer and try again.";
-};
+    return currentExercise.explanation || "Check your answer and try again.";
+  };
 
   const getLocalizedText = (key: string) => {
     const texts = {
