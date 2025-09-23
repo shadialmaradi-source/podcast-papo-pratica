@@ -595,143 +595,87 @@ console.log('Exercise Options:', currentExercise.options);
             </RadioGroup>
           )}
 
-          {currentExercise.exercise_type === "matching" && (
-  <DndContext 
-    sensors={sensors}
-    collisionDetection={closestCenter}
-    onDragEnd={(event: DragEndEvent) => {
-      const { active, over } = event;
-      
-      if (over && active.id !== over.id) {
-        const draggedDefinition = active.id as string;
-        const targetTerm = over.id as string;
-        
-        // Find the correct pair that matches the dragged definition with the target term
-        const correctPair = currentExercise.options.find((pair: string) => {
-          const [term, definition] = pair.split(' → ');
-          return term === targetTerm && definition === draggedDefinition;
-        });
-        
-        if (correctPair) {
-          // This is a correct match
-          setSelectedAnswer(correctPair);
-        } else {
-          // This is an incorrect match, but still allow it for user feedback
-          const incorrectPair = `${targetTerm} → ${draggedDefinition}`;
-          setSelectedAnswer(incorrectPair);
-        }
-      }
-    }}
-  >
-    <div className="space-y-4">
-      <div className="text-sm text-gray-600 mb-4">
-        {episode.podcast_source?.language === 'italian' ? 'Trascina le definizioni sui termini corrispondenti per creare l\'abbinamento:' :
-         episode.podcast_source?.language === 'portuguese' ? 'Arraste as definições para os termos correspondentes para criar a correspondência:' :
-         episode.podcast_source?.language === 'spanish' ? 'Arrastra las definiciones a los términos correspondientes para crear la correspondencia:' :
-         episode.podcast_source?.language === 'french' ? 'Faites glisser les définitions vers les termes correspondants pour créer la correspondance:' :
-         episode.podcast_source?.language === 'german' ? 'Ziehen Sie die Definitionen zu den entsprechenden Begriffen, um die Zuordnung zu erstellen:' :
-         'Drag the definitions to the corresponding terms to create the match:'}
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left side - Terms (Drop zones) */}
-        <div className="space-y-3">
-          <h4 className="font-semibold text-center text-blue-700">
-            {episode.podcast_source?.language === 'italian' ? 'Termini:' :
-             episode.podcast_source?.language === 'portuguese' ? 'Termos:' :
-             episode.podcast_source?.language === 'spanish' ? 'Términos:' :
-             episode.podcast_source?.language === 'french' ? 'Termes:' :
-             episode.podcast_source?.language === 'german' ? 'Begriffe:' :
-             'Terms:'}
-          </h4>
-          {Array.isArray(currentExercise.options) && currentExercise.options.map((pair, index) => {
-            const [term, definition] = pair.split(' → ');
-            const isMatched = typeof selectedAnswer === 'string' && selectedAnswer.includes(term);
-            const matchedDefinition = isMatched ? selectedAnswer.split(' → ')[1] : null;
-            
-            return (
-              <DropZone key={`term-${index}`} id={term}>
-                <div className={`p-4 border-2 border-dashed rounded-lg shadow-sm min-h-[80px] flex flex-col justify-center transition-all duration-200 ${
-                  isMatched 
-                    ? 'bg-green-50 border-green-400 shadow-md' 
-                    : 'bg-blue-50 border-blue-200 hover:border-blue-400'
-                }`}>
-                  <div className="font-medium text-blue-900 text-center mb-2">{term}</div>
-                  {matchedDefinition && (
-                    <div className="text-sm text-green-700 text-center bg-green-100 p-2 rounded">
-                      ↔ {matchedDefinition}
-                    </div>
-                  )}
-                </div>
-              </DropZone>
-            );
-          })}
-        </div>
-
-        {/* Right side - Definitions (Draggable) */}
-        <div className="space-y-3">
-          <h4 className="font-semibold text-center text-green-700">
-            {episode.podcast_source?.language === 'italian' ? 'Definizioni:' :
-             episode.podcast_source?.language === 'portuguese' ? 'Definições:' :
-             episode.podcast_source?.language === 'spanish' ? 'Definiciones:' :
-             episode.podcast_source?.language === 'french' ? 'Définitions:' :
-             episode.podcast_source?.language === 'german' ? 'Definitionen:' :
-             'Definitions:'}
-          </h4>
-          {Array.isArray(currentExercise.options) && currentExercise.options
-            .map((pair) => pair.split(' → ')[1])
-            .sort(() => Math.random() - 0.5) // Shuffle definitions
-            .map((definition, index) => {
-              const isUsed = typeof selectedAnswer === 'string' && selectedAnswer.includes(definition);
-              
-              return (
-                <DraggableDefinition
-                  key={`def-${index}`}
-                  id={definition}
-                  definition={definition}
-                  isSelected={isUsed}
-                  disabled={showResult}
-                  onClick={() => {
-                    // Click functionality - find the correct pair for this definition
-                    const completePair = currentExercise.options.find((pair: string) => pair.split(' → ')[1] === definition);
-                    if (completePair) {
-                      setSelectedAnswer(completePair);
-                    }
-                  }}
-                />
-              );
-            })}
-        </div>
-      </div>
-
-      {/* Selected Answer Display */}
-      {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
-        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-yellow-800">
-              {episode.podcast_source?.language === 'italian' ? 'Abbinamento selezionato:' :
-               episode.podcast_source?.language === 'portuguese' ? 'Correspondência selecionada:' :
-               episode.podcast_source?.language === 'spanish' ? 'Correspondencia seleccionada:' :
-               episode.podcast_source?.language === 'french' ? 'Correspondance sélectionnée:' :
-               episode.podcast_source?.language === 'german' ? 'Ausgewählte Zuordnung:' :
-               'Selected match:'}
-            </span>
-          </div>
-          <div className="mt-2 text-yellow-900 font-medium">
-            {selectedAnswer.replace(' → ', ' ↔ ')}
-          </div>
-          <div className="mt-2 text-sm text-yellow-700">
-            {episode.podcast_source?.language === 'italian' ? 'Trascina un\'altra definizione per cambiare l\'abbinamento' :
-             episode.podcast_source?.language === 'portuguese' ? 'Arraste outra definição para alterar a correspondência' :
-             episode.podcast_source?.language === 'spanish' ? 'Arrastra otra definición para cambiar la correspondencia' :
-             episode.podcast_source?.language === 'french' ? 'Faites glisser une autre définition pour changer la correspondance' :
-             episode.podcast_source?.language === 'german' ? 'Ziehen Sie eine andere Definition, um die Zuordnung zu ändern' :
-             'Drag another definition to change the match'}
-          </div>
-        </div>
-      )}
+        {currentExercise.exercise_type === "matching" && (
+  <div className="space-y-4">
+    <div className="text-sm text-gray-600 mb-4">
+      {episode.podcast_source?.language === 'italian' ? 'Clicca per abbinare gli elementi:' :
+       episode.podcast_source?.language === 'portuguese' ? 'Clique para combinar os elementos:' :
+       episode.podcast_source?.language === 'spanish' ? 'Haz clic para combinar los elementos:' :
+       episode.podcast_source?.language === 'french' ? 'Cliquez pour associer les éléments:' :
+       episode.podcast_source?.language === 'german' ? 'Klicken Sie, um die Elemente zuzuordnen:' :
+       'Click to match the elements:'}
     </div>
-  </DndContext>
+    
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-3">
+        <h4 className="font-semibold text-center text-blue-700">
+          {episode.podcast_source?.language === 'italian' ? 'Termini:' :
+           episode.podcast_source?.language === 'portuguese' ? 'Termos:' :
+           episode.podcast_source?.language === 'spanish' ? 'Términos:' :
+           episode.podcast_source?.language === 'french' ? 'Termes:' :
+           episode.podcast_source?.language === 'german' ? 'Begriffe:' :
+           'Terms:'}
+        </h4>
+        {Array.isArray(currentExercise.options) && currentExercise.options.map((pair, index) => {
+          const [term, definition] = pair.split(' → ');
+          return (
+            <div key={index} className="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+              <div className="font-medium text-blue-900">{term}</div>
+            </div>
+          );
+        })}
+      </div>
+      
+      <div className="space-y-3">
+        <h4 className="font-semibold text-center text-green-700">
+          {episode.podcast_source?.language === 'italian' ? 'Definizioni:' :
+           episode.podcast_source?.language === 'portuguese' ? 'Definições:' :
+           episode.podcast_source?.language === 'spanish' ? 'Definiciones:' :
+           episode.podcast_source?.language === 'french' ? 'Définitions:' :
+           episode.podcast_source?.language === 'german' ? 'Definitionen:' :
+           'Definitions:'}
+        </h4>
+        {Array.isArray(currentExercise.options) && currentExercise.options
+          .map((pair) => pair.split(' → ')[1])
+          .sort(() => Math.random() - 0.5)
+          .map((definition, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              const completePair = currentExercise.options.find((pair: string) => pair.split(' → ')[1] === definition);
+              setSelectedAnswer(completePair || definition);
+            }}
+            className={`w-full p-4 text-left rounded-lg border transition-all duration-200 ${
+              typeof selectedAnswer === 'string' && selectedAnswer.includes(definition)
+                ? 'bg-green-100 border-green-500 text-green-800 shadow-md' 
+                : 'bg-white border-gray-300 hover:bg-green-50 hover:border-green-300 shadow-sm'
+            } ${showResult ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:shadow-md'}`}
+            disabled={showResult}
+          >
+            <div className="font-medium">{definition}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+    
+    {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
+      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-yellow-800">
+            {episode.podcast_source?.language === 'italian' ? 'Abbinamento selezionato:' :
+             episode.podcast_source?.language === 'portuguese' ? 'Correspondência selecionada:' :
+             episode.podcast_source?.language === 'spanish' ? 'Correspondencia seleccionada:' :
+             episode.podcast_source?.language === 'french' ? 'Correspondance sélectionnée:' :
+             episode.podcast_source?.language === 'german' ? 'Ausgewählte Zuordnung:' :
+             'Selected match:'}
+          </span>
+        </div>
+        <div className="mt-2 text-yellow-900 font-medium">
+          {selectedAnswer.replace(' → ', ' ↔ ')}
+        </div>
+      </div>
+    )}
+  </div>
 )}
 
           {/* Sequencing */}
