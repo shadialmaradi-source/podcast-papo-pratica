@@ -192,17 +192,16 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
         const targetCount = intensity === 'intense' ? 20 : 10;
         const filteredExercises = dbExercises.slice(0, targetCount);
         
-// Process exercises to handle JSON strings from database
 const processedExercises = filteredExercises.map(exercise => ({
   ...exercise,
   // Process options if it's a JSON string
   options: typeof exercise.options === 'string' 
     ? JSON.parse(exercise.options) 
     : exercise.options,
-  // Clean correct_answer of any extra quotes
-  correct_answer: typeof exercise.correct_answer === 'string'
+  // Clean correct_answer of any extra quotes - with null check
+  correct_answer: (exercise.correct_answer && typeof exercise.correct_answer === 'string')
     ? exercise.correct_answer.replace(/^["']|["']$/g, '') 
-    : exercise.correct_answer
+    : exercise.correct_answer || ""
 }));
 
 console.log('Sample processed exercise:', processedExercises[0]);
