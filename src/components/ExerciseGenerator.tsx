@@ -288,21 +288,10 @@ console.log('Exercise Options:', currentExercise.options);
       let result: ExerciseResult;
       
       // Handle mock exercises differently
-if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {        
-  const mockCorrectAnswer = getMockCorrectAnswer();
-let answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
-
-// Special handling for sequencing exercises
-let isCorrect = false;
-if (currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
-  // Normalize both answers by splitting and joining
-  const userSequence = answerStr.split('|||').map(item => item.trim());
-  const correctSequence = mockCorrectAnswer.split('|||').map(item => item.trim());
-  isCorrect = JSON.stringify(userSequence) === JSON.stringify(correctSequence);
-  console.log('Sequencing comparison:', {userSequence, correctSequence, isCorrect});
-} else {
-  isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
-}
+      if (usingMockData || currentExercise.id.startsWith('mock-')) {
+        const mockCorrectAnswer = getMockCorrectAnswer();
+        const answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
+        const isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
         
         result = {
           is_correct: isCorrect,
@@ -412,13 +401,21 @@ if (currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_t
     onComplete();
   };
 
-  const getMockCorrectAnswer = () => {
+ const getMockCorrectAnswer = () => {
+  // For sequencing exercises, ensure we get the correct answer from the current exercise
+  if (currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
     return currentExercise.correct_answer || "";
-  };
+  }
+  return currentExercise.correct_answer || "";
+};
 
   const getMockExplanation = () => {
-    return currentExercise.explanation || "Check your answer and try again.";
-  };
+  // For sequencing exercises, provide a more specific explanation
+  if (currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
+    return currentExercise.explanation || "Questa è la corretta sequenza cronologica degli eventi.";
+  }
+  return currentExercise.explanation || "Check your answer and try again.";
+};
 
   const getLocalizedText = (key: string) => {
     const texts = {
