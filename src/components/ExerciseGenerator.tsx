@@ -198,10 +198,24 @@ const processedExercises = filteredExercises.map(exercise => ({
   options: typeof exercise.options === 'string' 
     ? JSON.parse(exercise.options) 
     : exercise.options,
-  // Clean correct_answer of any extra quotes - with null check
-  correct_answer: (exercise.correct_answer && typeof exercise.correct_answer === 'string')
-    ? exercise.correct_answer.replace(/^["']|["']$/g, '') 
-    : exercise.correct_answer || ""
+  // Debug correct_answer processing
+  correct_answer: (() => {
+    console.log('=== PROCESSING CORRECT_ANSWER ===');
+    console.log('Raw correct_answer:', exercise.correct_answer);
+    console.log('Type:', typeof exercise.correct_answer);
+    console.log('Exercise ID:', exercise.id);
+    console.log('Exercise Type:', exercise.exercise_type);
+    
+    if (exercise.correct_answer && typeof exercise.correct_answer === 'string') {
+      const cleaned = exercise.correct_answer.replace(/^["']|["']$/g, '');
+      console.log('Cleaned correct_answer:', cleaned);
+      return cleaned;
+    }
+    
+    const fallback = exercise.correct_answer || "";
+    console.log('Fallback correct_answer:', fallback);
+    return fallback;
+  })()
 }));
 
 console.log('Sample processed exercise:', processedExercises[0]);
