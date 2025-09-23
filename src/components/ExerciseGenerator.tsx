@@ -198,24 +198,10 @@ const processedExercises = filteredExercises.map(exercise => ({
   options: typeof exercise.options === 'string' 
     ? JSON.parse(exercise.options) 
     : exercise.options,
-  // Debug correct_answer processing
-  correct_answer: (() => {
-    console.log('=== PROCESSING CORRECT_ANSWER ===');
-    console.log('Raw correct_answer:', exercise.correct_answer);
-    console.log('Type:', typeof exercise.correct_answer);
-    console.log('Exercise ID:', exercise.id);
-    console.log('Exercise Type:', exercise.exercise_type);
-    
-    if (exercise.correct_answer && typeof exercise.correct_answer === 'string') {
-      const cleaned = exercise.correct_answer.replace(/^["']|["']$/g, '');
-      console.log('Cleaned correct_answer:', cleaned);
-      return cleaned;
-    }
-    
-    const fallback = exercise.correct_answer || "";
-    console.log('Fallback correct_answer:', fallback);
-    return fallback;
-  })()
+  // Clean correct_answer of any extra quotes - with null check
+  correct_answer: (exercise.correct_answer && typeof exercise.correct_answer === 'string')
+    ? exercise.correct_answer.replace(/^["']|["']$/g, '') 
+    : exercise.correct_answer || ""
 }));
 
 console.log('Sample processed exercise:', processedExercises[0]);
@@ -300,22 +286,26 @@ console.log('Exercise Options:', currentExercise.options);
     try {
       let result: ExerciseResult;
       
-      // Handle mock exercises differently
+// Handle mock exercises differently
 if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
   const mockCorrectAnswer = getMockCorrectAnswer();
   let answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
   
-  // Force sequencing logic for all exercises that might be sequencing
+  // Special handling for sequencing exercises
   let isCorrect = false;
-  if (answerStr.includes('|||') || mockCorrectAnswer.includes('|||')) {
-    // This is definitely a sequencing exercise - use sequencing comparison
-    const userSequence = answerStr.split('|||').map(item => item.trim()).filter(Boolean);
-    const correctSequence = mockCorrectAnswer.split('|||').map(item => item.trim()).filter(Boolean);
-    isCorrect = userSequence.length === correctSequence.length && 
-                userSequence.every((item, index) => item === correctSequence[index]);
+  
+  // Check if this looks like a sequencing exercise (contains |||)
+  if (answerStr.includes('|||') || (mockCorrectAnswer && mockCorrectAnswer.includes('|||'))) {
+    // Normalize both sequences
+    const userItems = answerStr.split('|||').map(item => item.trim()).filter(Boolean);
+    const correctItems = (mockCorrectAnswer || '').split('|||').map(item => item.trim()).filter(Boolean);
+    
+    // Compare normalized sequences
+    isCorrect = userItems.length === correctItems.length && 
+                userItems.every((item, index) => item === correctItems[index]);
   } else {
-    // Regular text comparison
-    isCorrect = answerStr.toLowerCase().trim() === mockCorrectAnswer.toLowerCase().trim();
+    // Regular text comparison for other exercise types
+    isCorrect = answerStr.toLowerCase().trim() === (mockCorrectAnswer || '').toLowerCase().trim();
   }
   
   result = {
