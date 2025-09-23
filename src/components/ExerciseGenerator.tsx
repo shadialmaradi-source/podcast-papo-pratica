@@ -11,6 +11,15 @@ import { toast } from "@/hooks/use-toast";
 import { CheckCircle, XCircle, Star, RefreshCw, ArrowLeft, AlertCircle, GripVertical, PartyPopper, TrendingUp, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
+  DndContext, 
+  closestCenter, 
+  useSensor, 
+  useSensors, 
+  PointerSensor,
+  DragEndEvent
+} from "@dnd-kit/core";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { 
   Exercise, 
   ExerciseResult,
   NextActionRecommendation,
@@ -40,6 +49,72 @@ const getLevelDisplayName = (level: string): string => {
     advanced: "Advanced"
   };
   return names[level as keyof typeof names] || level;
+};
+
+// Drag and Drop Components
+const DropZone = ({ children, id }: { children: React.ReactNode; id: string }) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: id,
+  });
+
+  return (
+    <div ref={setNodeRef} className={isOver ? 'opacity-80' : ''}>
+      {children}
+    </div>
+  );
+};
+
+const DraggableDefinition = ({ 
+  id, 
+  definition, 
+  isSelected, 
+  disabled, 
+  onClick 
+}: { 
+  id: string; 
+  definition: string; 
+  isSelected: boolean; 
+  disabled: boolean; 
+  onClick: () => void; 
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: id,
+    disabled: disabled || isSelected,
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+  } : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      onClick={onClick}
+      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+        isSelected 
+          ? 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50' 
+          : isDragging
+          ? 'bg-green-200 shadow-lg scale-105'
+          : 'bg-green-50 border border-green-200 hover:bg-green-100 hover:shadow-md'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {!isSelected && !disabled && <GripVertical className="w-4 h-4 text-green-600" />}
+        <span className={`text-sm ${isSelected ? 'text-gray-500' : 'text-green-800'}`}>
+          {definition}
+        </span>
+      </div>
+    </div>
+  );
 };
 
 const createMockExercises = (episode: PodcastEpisode, level: string, intensity: string): Exercise[] => {
@@ -166,6 +241,15 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const [showCompletion, setShowCompletion] = useState(false);
   const [nextEpisodes, setNextEpisodes] = useState<any>(null);
   const [nextRecommendation, setNextRecommendation] = useState<NextActionRecommendation | null>(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   useEffect(() => {
     loadExercises();
