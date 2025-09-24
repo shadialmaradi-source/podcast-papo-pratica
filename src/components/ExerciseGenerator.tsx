@@ -559,11 +559,6 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
           <CardTitle className="text-lg">
             {currentExercise.question}
           </CardTitle>
-          {currentExercise.exercise_type && (
-            <Badge variant="outline">
-              {currentExercise.exercise_type.replace('_', ' ')}
-            </Badge>
-          )}
         </CardHeader>
         <CardContent>
           {/* Multiple Choice */}
