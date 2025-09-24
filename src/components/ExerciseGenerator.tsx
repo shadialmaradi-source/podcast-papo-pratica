@@ -288,7 +288,7 @@ console.log('Exercise Options:', currentExercise.options);
       let result: ExerciseResult;
       
       // Handle mock exercises differently
-if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
+if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing') {
   const mockCorrectAnswer = getMockCorrectAnswer();
   let answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
   
@@ -606,35 +606,57 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
             </RadioGroup>
           )}
 
-        {/* Sostituisci tutto il blocco matching attuale con: */}
-{currentExercise.exercise_type === "matching" && (
-  <div className="space-y-4">
-    <DragDropExercises 
-      exercises={[{
-        id: currentExercise.id,
-        type: "DragDropMatching",
-        question: currentExercise.question,
-        items: currentExercise.options?.map((pair: string) => pair.split(' → ')[0]) || [], // tutti i termini
-        targets: currentExercise.options?.map((pair: string) => pair.split(' → ')[1]) || [], // tutte le definizioni
-        correctAnswer: JSON.stringify(
-          currentExercise.options?.reduce((acc: any, pair: string) => {
-            const [term, def] = pair.split(' → ');
-            acc[term] = def;
-            return acc;
-          }, {}) || {}
-        ),
-        explanation: currentExercise.explanation || "",
-        points: currentExercise.xp_reward || 5,
-        difficulty: currentExercise.difficulty || level,
-        level: level
-      }]}
-      onComplete={(results) => {
-        handleAnswer(results[0].userAnswer);
-      }}
-      onBack={onBack}
-    />
-  </div>
-)}
+          {/* Matching with Drag & Drop */}
+          {currentExercise.exercise_type === "matching" && (
+            <DragDropExercises 
+              exercises={[{
+                id: currentExercise.id,
+                type: "DragDropMatching",
+                question: "",
+                items: currentExercise.options?.map((pair: string) => pair.split(' → ')[0]) || [],
+                targets: currentExercise.options?.map((pair: string) => pair.split(' → ')[1]) || [],
+                correctAnswer: JSON.stringify(
+                  currentExercise.options?.reduce((acc: any, pair: string) => {
+                    const [term, def] = pair.split(' → ');
+                    acc[term] = def;
+                    return acc;
+                  }, {}) || {}
+                ),
+                explanation: currentExercise.explanation || "",
+                points: currentExercise.xp_reward || 5,
+                difficulty: currentExercise.difficulty || level,
+                level: level
+              }]}
+              onComplete={(results) => {
+                const result = results[0];
+                if (result.isCorrect) {
+                  setTotalXP(prev => prev + result.points);
+                  toast({
+                    title: "Correct!",
+                    description: `+${result.points} XP`,
+                  });
+                } else {
+                  toast({
+                    title: "Incorrect",
+                    description: "Try again",
+                    variant: "destructive",
+                  });
+                }
+                setShowResult(true);
+                setExerciseResult({
+                  is_correct: result.isCorrect,
+                  correct_answer: currentExercise.options?.join(', ') || "",
+                  explanation: currentExercise.explanation || "",
+                  xp_reward: result.isCorrect ? result.points : 0
+                });
+                setTotalAnswers(prev => prev + 1);
+                if (result.isCorrect) {
+                  setCorrectAnswers(prev => prev + 1);
+                }
+              }}
+              onBack={onBack}
+            />
+          )}
 
           {/* Sequencing */}
 {currentExercise.exercise_type === "sequencing" && (
