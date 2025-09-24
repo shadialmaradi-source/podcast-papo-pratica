@@ -288,7 +288,7 @@ console.log('Exercise Options:', currentExercise.options);
       let result: ExerciseResult;
       
       // Handle mock exercises differently
-if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing') {
+if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
   const mockCorrectAnswer = getMockCorrectAnswer();
   let answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
   
@@ -554,6 +554,39 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
         <Progress value={progress} className="h-2" />
       </div>
 
+      {/* Exercise Card - Conditional rendering based on exercise type */}
+{currentExercise.exercise_type === "matching" ? (
+  // Matching usa il suo componente senza Card wrapper
+  <div className="space-y-6">
+    <h2 className="text-lg font-semibold">{currentExercise.question}</h2>
+    <DragDropExercises 
+      exercises={[{
+        id: currentExercise.id,
+        type: "DragDropMatching",
+        question: "",
+        items: currentExercise.options?.map((pair: string) => pair.split(' → ')[0]) || [],
+        targets: currentExercise.options?.map((pair: string) => pair.split(' → ')[1]) || [],
+        correctAnswer: JSON.stringify(
+          currentExercise.options?.reduce((acc: any, pair: string) => {
+            const [term, def] = pair.split(' → ');
+            acc[term] = def;
+            return acc;
+          }, {}) || {}
+        ),
+        explanation: currentExercise.explanation || "",
+        points: currentExercise.xp_reward || 5,
+        difficulty: currentExercise.difficulty || level,
+        level: level
+      }]}
+      onComplete={(results) => {
+        const result = results[0];
+        handleAnswer(result.userAnswer);
+      }}
+      onBack={onBack}
+    />
+  </div>
+) : (
+  
       {/* Exercise Card */}
       <Card>
         <CardHeader>
@@ -604,58 +637,6 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
                 <Label htmlFor="false">False</Label>
               </div>
             </RadioGroup>
-          )}
-
-          {/* Matching with Drag & Drop */}
-          {currentExercise.exercise_type === "matching" && (
-            <DragDropExercises 
-              exercises={[{
-                id: currentExercise.id,
-                type: "DragDropMatching",
-                question: "",
-                items: currentExercise.options?.map((pair: string) => pair.split(' → ')[0]) || [],
-                targets: currentExercise.options?.map((pair: string) => pair.split(' → ')[1]) || [],
-                correctAnswer: JSON.stringify(
-                  currentExercise.options?.reduce((acc: any, pair: string) => {
-                    const [term, def] = pair.split(' → ');
-                    acc[term] = def;
-                    return acc;
-                  }, {}) || {}
-                ),
-                explanation: currentExercise.explanation || "",
-                points: currentExercise.xp_reward || 5,
-                difficulty: currentExercise.difficulty || level,
-                level: level
-              }]}
-              onComplete={(results) => {
-                const result = results[0];
-                if (result.isCorrect) {
-                  setTotalXP(prev => prev + result.points);
-                  toast({
-                    title: "Correct!",
-                    description: `+${result.points} XP`,
-                  });
-                } else {
-                  toast({
-                    title: "Incorrect",
-                    description: "Try again",
-                    variant: "destructive",
-                  });
-                }
-                setShowResult(true);
-                setExerciseResult({
-                  is_correct: result.isCorrect,
-                  correct_answer: currentExercise.options?.join(', ') || "",
-                  explanation: currentExercise.explanation || "",
-                  xp_reward: result.isCorrect ? result.points : 0
-                });
-                setTotalAnswers(prev => prev + 1);
-                if (result.isCorrect) {
-                  setCorrectAnswers(prev => prev + 1);
-                }
-              }}
-              onBack={onBack}
-            />
           )}
 
           {/* Sequencing */}
