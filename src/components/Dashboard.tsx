@@ -83,7 +83,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const today = new Date().toISOString().split('T')[0];
   
   try {
-    // Check if user has streak data record
     let { data: streakData } = await supabase
       .from('user_streak_data')
       .select('*')
@@ -91,7 +90,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       .maybeSingle();
 
     if (!streakData) {
-      // Create initial streak data
       const { data: newStreakData } = await supabase
         .from('user_streak_data')
         .insert({
@@ -113,6 +111,44 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       }
       return;
     }
+
+    if (streakData.last_activity_date === today) {
+      return;
+    }
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    let newStreak;
+    
+    if (streakData.last_activity_date === yesterdayStr) {
+      newStreak = streakData.current_streak + 1;
+    } else {
+      newStreak = 1;
+    }
+
+    const { error } = await supabase
+      .from('user_streak_data')
+      .update({
+        current_streak: newStreak,
+        longest_streak: Math.max(newStreak, streakData.longest_streak),
+        last_activity_date: today
+      })
+      .eq('user_id', user.id);
+
+    if (!error && newStreak > streakData.current_streak) {
+      toast({
+        title: `Streak ${newStreak} giorni! 🔥`,
+        description: `Continua così!`,
+      });
+    }
+
+    fetchProfile();
+  } catch (error) {
+    console.error('Error updating daily activity:', error);
+  }
+};
 
     // Check if user was active today already
     if (streakData.last_activity_date === today) {
