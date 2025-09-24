@@ -554,226 +554,173 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
         <Progress value={progress} className="h-2" />
       </div>
 
-      {/* Exercise Card - Conditional rendering based on exercise type */}
-{currentExercise.exercise_type === "matching" ? (
-  // Matching usa il suo componente senza Card wrapper
-  <div className="space-y-6">
-    <h2 className="text-lg font-semibold">{currentExercise.question}</h2>
-    <DragDropExercises 
-      exercises={[{
-        id: currentExercise.id,
-        type: "DragDropMatching",
-        question: "",
-        items: currentExercise.options?.map((pair: string) => pair.split(' → ')[0]) || [],
-        targets: currentExercise.options?.map((pair: string) => pair.split(' → ')[1]) || [],
-        correctAnswer: JSON.stringify(
-          currentExercise.options?.reduce((acc: any, pair: string) => {
-            const [term, def] = pair.split(' → ');
-            acc[term] = def;
-            return acc;
-          }, {}) || {}
-        ),
-        explanation: currentExercise.explanation || "",
-        points: currentExercise.xp_reward || 5,
-        difficulty: currentExercise.difficulty || level,
-        level: level
-      }]}
-      onComplete={(results) => {
-        const result = results[0];
-        handleAnswer(result.userAnswer);
-      }}
-      onBack={onBack}
-    />
-  </div>
-) : (
-  
-      {/* Exercise Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">
-            {currentExercise.question}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Multiple Choice */}
-          {currentExercise.exercise_type === 'multiple_choice' && currentExercise.options && (
-            <RadioGroup
-              value={selectedAnswer as string}
-              onValueChange={setSelectedAnswer}
-              disabled={showResult}
-            >
-              {currentExercise.options.map((option, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option} id={`option-${index}`} />
-                  <Label htmlFor={`option-${index}`}>{option}</Label>
-                </div>
-              ))}
-            </RadioGroup>
-          )}
-
-          {/* Fill in the blank */}
-          {(currentExercise.exercise_type === 'fill_blank' || !currentExercise.exercise_type) && (
-            <Input
-              value={selectedAnswer as string}
-              onChange={(e) => setSelectedAnswer(e.target.value)}
-              placeholder="Type your answer..."
-              disabled={showResult}
-            />
-          )}
-
-          {/* True/False */}
-          {currentExercise.exercise_type === 'true_false' && (
-            <RadioGroup
-              value={selectedAnswer as string}
-              onValueChange={setSelectedAnswer}
-              disabled={showResult}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="true" id="true" />
-                <Label htmlFor="true">True</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="false" id="false" />
-                <Label htmlFor="false">False</Label>
-              </div>
-            </RadioGroup>
-          )}
-
-          {/* Sequencing */}
-{currentExercise.exercise_type === "sequencing" && (
-  <div className="space-y-4">
-    <div className="text-sm text-gray-600 mb-4">
-      Clicca sugli elementi nell'ordine corretto per creare la sequenza:
-    </div>
-
-    <div className="space-y-3">
-      {Array.isArray(currentExercise.options) && currentExercise.options.map((item, index) => {
-        const currentOrder = typeof selectedAnswer === 'string' ? selectedAnswer.split('|||').filter(Boolean) : [];
-        const isSelected = currentOrder.includes(item);
-        const position = isSelected ? currentOrder.indexOf(item) + 1 : null;
-
-        return (
-          <div 
-            key={index}
-            className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
-              isSelected 
-                ? 'bg-blue-50 border-blue-300' 
-                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-            }`}
-            onClick={() => {
-              if (!isSelected) {
-                const newOrder = [...currentOrder, item];
-                setSelectedAnswer(newOrder.join('|||'));
-              }
+     {/* Exercise Content - Conditional rendering */}
+      {currentExercise.exercise_type === "matching" ? (
+        // Matching exercise uses its own layout
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">{currentExercise.question}</h2>
+          <DragDropExercises 
+            exercises={[{
+              id: currentExercise.id,
+              type: "DragDropMatching",
+              question: "",
+              items: currentExercise.options?.map((pair: string) => pair.split(' → ')[0]) || [],
+              targets: currentExercise.options?.map((pair: string) => pair.split(' → ')[1]) || [],
+              correctAnswer: JSON.stringify(
+                currentExercise.options?.reduce((acc: any, pair: string) => {
+                  const [term, def] = pair.split(' → ');
+                  acc[term] = def;
+                  return acc;
+                }, {}) || {}
+              ),
+              explanation: currentExercise.explanation || "",
+              points: currentExercise.xp_reward || 5,
+              difficulty: currentExercise.difficulty || level,
+              level: level
+            }]}
+            onComplete={(results) => {
+              handleAnswer(results[0].userAnswer);
             }}
-          >
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full font-medium ${
-              isSelected 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-300 text-gray-600'
-            }`}>
-              {position || '•'}
-            </div>
-            <span className="flex-1">{item}</span>
-            {isSelected && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const newOrder = currentOrder.filter(orderItem => orderItem !== item);
-                  setSelectedAnswer(newOrder.join('|||'));
-                }}
-                className="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded"
-              >
-                Rimuovi
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </div>
-
-    {/* Selected Order Display */}
-    {selectedAnswer && typeof selectedAnswer === 'string' && selectedAnswer !== '' && (
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-300 rounded-lg">
-        <h4 className="font-medium text-blue-800 mb-2">Ordine selezionato:</h4>
-        <div className="space-y-2">
-          {selectedAnswer.split('|||').filter(Boolean).map((item, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <span className="w-6 h-6 bg-blue-500 text-white rounded-full text-sm flex items-center justify-center">
-                {index + 1}
-              </span>
-              <span>{item}</span>
-            </div>
-          ))}
+            onBack={onBack}
+          />
         </div>
-      </div>
-    )}
-  </div>
-)}
-        </CardContent>
-      </Card>
+      ) : (
+        // All other exercise types use the Card layout
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {currentExercise.question}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Multiple Choice */}
+              {currentExercise.exercise_type === 'multiple_choice' && currentExercise.options && (
+                <RadioGroup
+                  value={selectedAnswer as string}
+                  onValueChange={setSelectedAnswer}
+                  disabled={showResult}
+                >
+                  {currentExercise.options.map((option, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <RadioGroupItem value={option} id={`option-${index}`} />
+                      <Label htmlFor={`option-${index}`}>{option}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              )}
 
-      {/* Result Display */}
-      <AnimatePresence>
-        {showResult && exerciseResult && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <Card className={exerciseResult.is_correct ? "border-green-500" : "border-red-500"}>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  {exerciseResult.is_correct ? (
-                    <CheckCircle className="h-8 w-8 text-green-500" />
-                  ) : (
-                    <XCircle className="h-8 w-8 text-red-500" />
+              {/* Fill in the blank */}
+              {(currentExercise.exercise_type === 'fill_blank' || !currentExercise.exercise_type) && (
+                <Input
+                  value={selectedAnswer as string}
+                  onChange={(e) => setSelectedAnswer(e.target.value)}
+                  placeholder="Type your answer..."
+                  disabled={showResult}
+                />
+              )}
+
+              {/* True/False */}
+              {currentExercise.exercise_type === 'true_false' && (
+                <RadioGroup
+                  value={selectedAnswer as string}
+                  onValueChange={setSelectedAnswer}
+                  disabled={showResult}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="true" id="true" />
+                    <Label htmlFor="true">True</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="false" id="false" />
+                    <Label htmlFor="false">False</Label>
+                  </div>
+                </RadioGroup>
+              )}
+
+              {/* Sequencing */}
+              {currentExercise.exercise_type === "sequencing" && (
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600 mb-4">
+                    Clicca sugli elementi nell'ordine corretto per creare la sequenza:
+                  </div>
+
+                  <div className="space-y-3">
+                    {Array.isArray(currentExercise.options) && currentExercise.options.map((item, index) => {
+                      const currentOrder = typeof selectedAnswer === 'string' ? selectedAnswer.split('|||').filter(Boolean) : [];
+                      const isSelected = currentOrder.includes(item);
+                      const position = isSelected ? currentOrder.indexOf(item) + 1 : null;
+
+                      return (
+                        <div 
+                          key={index}
+                          className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+                            isSelected 
+                              ? 'bg-blue-50 border-blue-300' 
+                              : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                          }`}
+                          onClick={() => {
+                            if (!isSelected) {
+                              const newOrder = [...currentOrder, item];
+                              setSelectedAnswer(newOrder.join('|||'));
+                            }
+                          }}
+                        >
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full font-medium ${
+                            isSelected 
+                              ? 'bg-blue-500 text-white' 
+                              : 'bg-gray-300 text-gray-600'
+                          }`}>
+                            {position || '•'}
+                          </div>
+                          <span className="flex-1">{item}</span>
+                          {isSelected && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newOrder = currentOrder.filter(orderItem => orderItem !== item);
+                                setSelectedAnswer(newOrder.join('|||'));
+                              }}
+                              className="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded"
+                            >
+                              Rimuovi
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Selected Order Display */}
+                  {selectedAnswer && typeof selectedAnswer === 'string' && selectedAnswer !== '' && (
+                    <div className="mt-6 p-4 bg-blue-50 border border-blue-300 rounded-lg">
+                      <h4 className="font-medium text-blue-800 mb-2">Ordine selezionato:</h4>
+                      <div className="space-y-2">
+                        {selectedAnswer.split('|||').filter(Boolean).map((item, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-500 text-white rounded-full text-sm flex items-center justify-center">
+                              {index + 1}
+                            </span>
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      {exerciseResult.is_correct ? "Correct!" : "Incorrect"}
-                    </h3>
-                    {exerciseResult.is_correct && (
-                      <p className="text-sm text-muted-foreground">
-                        +{exerciseResult.xp_reward} XP
-                      </p>
-                    )}
-                  </div>
                 </div>
-                
-                {!exerciseResult.is_correct && (
-                  <div className="mb-4">
-                    <p className="text-sm font-medium mb-1">Correct answer:</p>
-                    <p className="text-sm">{exerciseResult.correct_answer}</p>
-                  </div>
-                )}
-                
-                {exerciseResult.explanation && (
-                  <div className="mb-4">
-                    <p className="text-sm font-medium mb-1">Explanation:</p>
-                    <p className="text-sm text-muted-foreground">{exerciseResult.explanation}</p>
-                  </div>
-                )}
-                
-                <Button onClick={handleNextExercise} className="w-full">
-                  {currentExerciseIndex < exercises.length - 1 ? "Next Question" : "Complete Exercise"}
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Answer Button */}
-      {!showResult && (
-        <Button
-          onClick={() => handleAnswer(selectedAnswer)}
-          disabled={!selectedAnswer || selectedAnswer === ""}
-          className="w-full"
-        >
-          Submit Answer
-        </Button>
+          {/* Answer Button for non-matching exercises */}
+          {!showResult && (
+            <Button
+              onClick={() => handleAnswer(selectedAnswer)}
+              disabled={!selectedAnswer || selectedAnswer === ""}
+              className="w-full"
+            >
+              Submit Answer
+            </Button>
+          )}
+        </>
       )}
-    </div>
-  );
-};
