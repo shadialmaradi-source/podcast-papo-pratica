@@ -42,50 +42,127 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   }, [user]);
 
   const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .maybeSingle();
+  try {
+    // Get basic profile
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user?.id)
+      .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-        return;
-      }
-
-      setProfile(data);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return;
     }
-  };
 
+    // Get streak data from unified streak system
+    const { data: streakData } = await supabase
+      .from('user_streak_data')
+      .select('current_streak, longest_streak, last_activity_date')
+      .eq('user_id', user?.id)
+      .maybeSingle();
+
+    // Merge profile with streak data
+    const enrichedProfile = {
+      ...profile,
+      current_streak: streakData?.current_streak || 0,
+      longest_streak: streakData?.longest_streak || 0,
+      last_activity_date: streakData?.last_activity_date
+    };
+
+    setProfile(enrichedProfile);
+  } catch (error) {
+    console.error('Error:', error);
+  } finally {
+    setLoading(false);
+  }
+};
   const updateDailyActivity = async () => {
-    if (!user) return;
+  if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
+  
+  try {
+    // Check if user has streak data record
+    let { data: streakData } = await supabase
+      .from('user_streak_data')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!streakData) {
+      // Create initial streak data
+      const { data: newStreakData } = await supabase
+        .from('user_streak_data')
+        .insert({
+          user_id: user.id,
+          current_streak: 1,
+          longest_streak: 1,
+          last_activity_date: today,
+          streak_freezes_available: 1
+        })
+        .select()
+        .single();
+
+      if (newStreakData) {
+        toast({
+          title: "Streak iniziato! 🔥",
+          description: "Il tuo primo giorno di apprendimento!",
+        });
+        fetchProfile();
+      }
+      return;
+    }
+
+    // Check if user was active today already
+    if (streakData.last_activity_date === today) {
+      return; // Already updated today
+    }
+
+    // Check if user was active yesterday
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    let newStreak;
     
-    try {
-      // Check if today's activity exists
-      const { data: existingActivity } = await supabase
-        .from('daily_activities')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('activity_date', today)
-        .maybeSingle();
+    if (streakData.last_activity_date === yesterdayStr) {
+      // User was active yesterday, continue streak
+      newStreak = streakData.current_streak + 1;
+    } else {
+      // Gap in activity, reset streak
+      newStreak = 1;
+    }
 
-      if (!existingActivity) {
-        // Create today's activity and update streak
-        await supabase
-          .from('daily_activities')
-          .insert({
-            user_id: user.id,
-            activity_date: today,
-            activities_completed: 1,
-            xp_earned_today: 0
-          });
+    // Update streak data
+    const { error } = await supabase
+      .from('user_streak_data')
+      .update({
+        current_streak: newStreak,
+        longest_streak: Math.max(newStreak, streakData.longest_streak),
+        last_activity_date: today
+      })
+      .eq('user_id', user.id);
+
+    if (!error && newStreak > streakData.current_streak) {
+      if (newStreak === 1 && streakData.current_streak > 1) {
+        toast({
+          title: "Streak ricominciato 🔄",
+          description: "Non ti preoccupare, ricominciamo da capo!",
+        });
+      } else {
+        toast({
+          title: `Streak ${newStreak} giorni! 🔥`,
+          description: `Continua così, sei in forma!`,
+        });
+      }
+    }
+
+    fetchProfile();
+  } catch (error) {
+    console.error('Error updating daily activity:', error);
+  }
+};
 
         // Update profile with new streak
         const yesterday = new Date();
