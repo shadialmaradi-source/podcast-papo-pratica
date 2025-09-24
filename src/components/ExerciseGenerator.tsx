@@ -609,8 +609,8 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
        {/* Matching */}
 {currentExercise.exercise_type === "matching" && (
   <div className="space-y-4">
-     {/* DEBUG: Log delle options */}
-    {console.log('MATCHING DEBUG - Options:', currentExercise.options)}
+      {/* DEBUG: Log delle options */}
+     {(() => { console.log('MATCHING DEBUG - Options:', currentExercise.options); return null; })()}
     <p className="text-center text-sm text-gray-600">Clicca su un termine a sinistra, poi sulla definizione che pensi corrisponda</p>
     <div className="grid grid-cols-2 gap-6">
       <div>
