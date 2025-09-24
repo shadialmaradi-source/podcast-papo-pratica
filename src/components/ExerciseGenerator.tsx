@@ -554,7 +554,7 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
         <Progress value={progress} className="h-2" />
       </div>
 
-     {/* Exercise Content - Conditional rendering */}
+      {/* Exercise Content - Conditional rendering */}
       {currentExercise.exercise_type === "matching" ? (
         // Matching exercise uses its own layout
         <div className="space-y-4">
