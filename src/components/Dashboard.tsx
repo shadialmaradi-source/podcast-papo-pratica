@@ -77,7 +77,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     setLoading(false);
   }
 };
- const updateDailyActivity = async () => {
+const updateDailyActivity = async () => {
   if (!user) return;
 
   const today = new Date().toISOString().split('T')[0];
@@ -149,81 +149,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     console.error('Error updating daily activity:', error);
   }
 };
-
-    // Check if user was active today already
-    if (streakData.last_activity_date === today) {
-      return; // Already updated today
-    }
-
-    // Check if user was active yesterday
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-    let newStreak;
-    
-    if (streakData.last_activity_date === yesterdayStr) {
-      // User was active yesterday, continue streak
-      newStreak = streakData.current_streak + 1;
-    } else {
-      // Gap in activity, reset streak
-      newStreak = 1;
-    }
-
-    // Update streak data
-    const { error } = await supabase
-      .from('user_streak_data')
-      .update({
-        current_streak: newStreak,
-        longest_streak: Math.max(newStreak, streakData.longest_streak),
-        last_activity_date: today
-      })
-      .eq('user_id', user.id);
-
-    if (!error && newStreak >= streakData.current_streak) {
-      if (newStreak === 1 && streakData.current_streak > 1) {
-        toast({
-          title: "Streak ricominciato 🔄",
-          description: "Non ti preoccupare, ricominciamo da capo!",
-        });
-      } else if
-
-        // Update profile with new streak
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-        const { data: yesterdayActivity } = await supabase
-          .from('daily_activities')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('activity_date', yesterdayStr)
-          .maybeSingle();
-
-        const newStreak = yesterdayActivity ? (profile?.current_streak || 0) + 1 : 1;
-
-        await supabase
-          .from('profiles')
-          .update({
-            current_streak: newStreak,
-            longest_streak: Math.max(newStreak, profile?.longest_streak || 0),
-            last_login_date: today
-          })
-          .eq('user_id', user.id);
-
-        if (newStreak > (profile?.current_streak || 0)) {
-          toast({
-            title: "Streak aggiornato! 🔥",
-            description: `Sei a ${newStreak} giorni consecutivi!`,
-          });
-        }
-
-        fetchProfile();
-      }
-    } catch (error) {
-      console.error('Error updating daily activity:', error);
-    }
-  };
 
   const getXPProgress = () => {
     if (!profile) return 0;
