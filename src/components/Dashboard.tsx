@@ -154,14 +154,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       <div className="container mx-auto p-4 sm:p-6 max-w-4xl">
-        {/* Header */}
+        {/* Header con Stats integrate */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4"
+          className="flex justify-between items-center mb-6"
         >
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-12 w-12">
               <AvatarImage src={profile?.avatar_url || ""} alt={profile?.display_name || ""} />
               <AvatarFallback>
                 {(profile?.display_name || profile?.full_name || user?.email || "U")
@@ -173,229 +173,115 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
                 ItalianPod
               </h1>
-              <p className="text-sm sm:text-base text-muted-foreground">
+              <p className="text-muted-foreground">
                 Ciao, {profile?.display_name || profile?.full_name || user?.email}!
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <Button variant="outline" size="sm" onClick={() => onNavigate('profile')} className="flex-1 sm:flex-none">
-              <User className="h-4 w-4 mr-2" />
-              <span className="hidden xs:inline">Profilo</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleSignOut} className="flex-1 sm:flex-none">
-              <LogOut className="h-4 w-4 mr-2" />
-              <span className="hidden xs:inline">Esci</span>
-            </Button>
+          
+          {/* Stats compatte nella header */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Flame className="h-5 w-5 text-orange-500" />
+              <div>
+                <p className="text-xs text-muted-foreground">Streak</p>
+                <p className="font-bold">{profile?.current_streak || 0}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-yellow-500" />
+              <div>
+                <p className="text-xs text-muted-foreground">XP</p>
+                <p className="font-bold">{profile?.total_xp || 0}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => onNavigate('profile')}>
+                <User className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </motion.div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-          >
-            <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500/10 to-red-500/10">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-                  <div className="p-2 bg-orange-500/20 rounded-lg">
-                    <Flame className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500" />
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <p className="text-xs sm:text-sm text-muted-foreground">Streak</p>
-                    <p className="text-xl sm:text-2xl font-bold">{profile?.current_streak || 0}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="border-0 shadow-lg bg-gradient-to-br from-yellow-500/10 to-orange-500/10">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-                  <div className="p-2 bg-yellow-500/20 rounded-lg">
-                    <Star className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <p className="text-xs sm:text-sm text-muted-foreground">XP Totale</p>
-                    <p className="text-xl sm:text-2xl font-bold">{profile?.total_xp || 0}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500/10 to-green-500/10">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-                  <div className="p-2 bg-emerald-500/20 rounded-lg">
-                    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500" />
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <p className="text-xs sm:text-sm text-muted-foreground">Livello</p>
-                    <p className="text-xl sm:text-2xl font-bold">{profile?.current_level || 'A1'}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500/10 to-blue-500/10">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-                  <div className="p-2 bg-purple-500/20 rounded-lg">
-                    <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <p className="text-xs sm:text-sm text-muted-foreground">Livello</p>
-                    <p className="text-xl sm:text-2xl font-bold">{getCurrentLevel()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Progress Card */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-yellow-500" />
-                  Progresso Livello {getCurrentLevel()}
-                </CardTitle>
-                <CardDescription>
-                  {profile?.total_xp % 1000} / 1000 XP
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Progress value={getXPProgress()} className="h-3" />
-                <p className="text-sm text-muted-foreground mt-2">
-                  {1000 - (profile?.total_xp || 0) % 1000} XP al prossimo livello
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Language & Level Card */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 }}
-          >
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle>Impostazioni Apprendimento</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Lingua</p>
-                  <Badge variant="secondary" className="text-base px-3 py-1">
-                    {profile?.selected_language === 'portuguese' ? '🇧🇷 Portoghese' : 
-                     profile?.selected_language === 'english' ? '🇺🇸 Inglese' :
-                     profile?.selected_language === 'spanish' ? '🇪🇸 Spagnolo' :
-                     profile?.selected_language === 'french' ? '🇫🇷 Francese' : profile?.selected_language}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Livello</p>
-                  <Badge variant="outline" className="text-base px-3 py-1">
-                    {profile?.current_level}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-
-        {/* Learning Options */}
+        {/* Learning Options - Sezione principale */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="mt-6 sm:mt-8"
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onNavigate('podcasts')}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center space-x-2">
-                  <Headphones className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">Podcast Learning</CardTitle>
+          <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 border-2 hover:border-primary/50" onClick={() => onNavigate('podcasts')}>
+            <CardHeader className="pb-4">
+              <div className="flex items-center space-x-4">
+                <div className="p-4 bg-primary/10 rounded-xl">
+                  <Headphones className="h-8 w-8 text-primary" />
                 </div>
-                <CardDescription className="text-sm">
-                  Learn through Italian podcasts with interactive exercises
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Listen & Practice</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <CardTitle className="text-2xl">Podcast Learning</CardTitle>
+                  <CardDescription className="text-base mt-1">
+                    Learn through Italian podcasts with interactive exercises
+                  </CardDescription>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button className="w-full" size="lg">
+                <Play className="h-5 w-5 mr-2" />
+                Listen & Practice
+              </Button>
+            </CardContent>
+          </Card>
 
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onNavigate('vocabulary')}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center space-x-2">
-                  <BookOpen className="h-5 w-5 text-green-500" />
-                  <CardTitle className="text-lg">Vocabulary</CardTitle>
+          <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 border-2 hover:border-red-500/50" onClick={() => onNavigate('youtube')}>
+            <CardHeader className="pb-4">
+              <div className="flex items-center space-x-4">
+                <div className="p-4 bg-red-500/10 rounded-xl">
+                  <Play className="h-8 w-8 text-red-500" />
                 </div>
-                <CardDescription className="text-sm">
-                  Master vocabulary with spaced repetition system
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Learn Words</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <CardTitle className="text-2xl">YouTube Videos</CardTitle>
+                  <CardDescription className="text-base mt-1">
+                    Practice with YouTube content and exercises
+                  </CardDescription>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button className="w-full" size="lg" variant="outline">
+                <Youtube className="h-5 w-5 mr-2" />
+                Watch & Learn
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => onNavigate('youtube')}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center space-x-2">
-                  <Play className="h-5 w-5 text-red-500" />
-                  <CardTitle className="text-lg">YouTube Videos</CardTitle>
+        {/* Progress minimalista */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-purple-500" />
+                  <span className="font-semibold">Livello {getCurrentLevel()}</span>
                 </div>
-                <CardDescription className="text-sm">
-                  Practice with YouTube content and exercises
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Watch & Learn</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                <Badge variant="outline">{profile?.current_level || 'A1'}</Badge>
+              </div>
+              <Progress value={getXPProgress()} className="h-2" />
+              <p className="text-sm text-muted-foreground mt-2">
+                {profile?.total_xp % 1000} / 1000 XP - {1000 - (profile?.total_xp || 0) % 1000} XP al prossimo livello
+              </p>
+            </CardContent>
+          </Card>
         </motion.div>
       </div>
     </div>
