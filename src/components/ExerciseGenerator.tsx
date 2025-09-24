@@ -154,7 +154,7 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | any[]>("");
-  const [matchingAnswers, setMatchingAnswers] = useState<{[key: string]: string}>({});
+  const [matchingAnswers, setMatchingAnswers] = useState<{selectedTerm: string | null, matches: {[key: string]: string}}>({selectedTerm: null, matches: {}});
   const [sequenceItems, setSequenceItems] = useState<string[]>([]);
   const [showResult, setShowResult] = useState(false);
   const [exerciseResult, setExerciseResult] = useState<ExerciseResult | null>(null);
@@ -263,7 +263,7 @@ setExercises(processedExercises);
     if (!exercise) return;
     
     setSelectedAnswer("");
-    setMatchingAnswers({});
+    setMatchingAnswers({selectedTerm: null, matches: {}});
     setSequenceItems([]);
     
     if (exercise.exercise_type === 'sequencing' && exercise.options) {
@@ -288,7 +288,7 @@ console.log('Exercise Options:', currentExercise.options);
       let result: ExerciseResult;
       
       // Handle mock exercises differently
-if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing' || currentExercise.exercise_type === 'drag_drop_sequencing') {
+if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.exercise_type === 'sequencing') {
   const mockCorrectAnswer = getMockCorrectAnswer();
   let answerStr = typeof answer === 'string' ? answer : JSON.stringify(answer);
   
