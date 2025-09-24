@@ -606,24 +606,41 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
             </RadioGroup>
           )}
 
-       {/* Matching */}
+        {/* Matching */}
 {currentExercise.exercise_type === "matching" && (
-  <div className="text-center p-4">
-    <p>Matching exercise - drag & drop version</p>
-    <div className="grid grid-cols-2 gap-6 mt-4">
+  <div className="space-y-4">
+    <p className="text-center text-sm text-gray-600">Clicca prima su un termine, poi sulla sua definizione</p>
+    <div className="grid grid-cols-2 gap-6">
       <div>
-        <h4 className="font-semibold mb-2">Terms:</h4>
+        <h4 className="font-semibold mb-2 text-blue-700">Terms:</h4>
         {currentExercise.options?.map((pair: string, index: number) => {
           const [term] = pair.split(' → ');
+          const isSelected = typeof selectedAnswer === 'string' && selectedAnswer.includes(term);
           return (
-            <div key={index} className="p-3 bg-blue-50 border rounded mb-2">
+            <div 
+              key={index} 
+              className={`p-3 border rounded mb-2 cursor-pointer transition-colors ${
+                isSelected 
+                  ? 'bg-blue-100 border-blue-500 text-blue-800' 
+                  : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+              }`}
+              onClick={() => {
+                // Se questo termine è già selezionato, deselezionalo
+                if (isSelected) {
+                  setSelectedAnswer("");
+                } else {
+                  // Altrimenti selezionalo
+                  setSelectedAnswer(pair);
+                }
+              }}
+            >
               {term}
             </div>
           );
         })}
       </div>
       <div>
-        <h4 className="font-semibold mb-2">Definitions:</h4>
+        <h4 className="font-semibold mb-2 text-green-700">Definitions:</h4>
         {currentExercise.options?.map((pair: string, index: number) => {
           const [, definition] = pair.split(' → ');
           return (
@@ -634,6 +651,14 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
         })}
       </div>
     </div>
+    
+    {/* Mostra la selezione corrente */}
+    {selectedAnswer && typeof selectedAnswer === 'string' && (
+      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded">
+        <p className="text-yellow-800 font-medium">Selezione corrente:</p>
+        <p className="text-yellow-900">{selectedAnswer.replace(' → ', ' ↔ ')}</p>
+      </div>
+    )}
   </div>
 )}
 
