@@ -77,7 +77,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     setLoading(false);
   }
 };
-  const updateDailyActivity = async () => {
+ const updateDailyActivity = async () => {
   if (!user) return;
 
   const today = new Date().toISOString().split('T')[0];
@@ -144,25 +144,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       })
       .eq('user_id', user.id);
 
-    if (!error && newStreak > streakData.current_streak) {
+    if (!error && newStreak >= streakData.current_streak) {
       if (newStreak === 1 && streakData.current_streak > 1) {
         toast({
           title: "Streak ricominciato 🔄",
           description: "Non ti preoccupare, ricominciamo da capo!",
         });
-      } else {
-        toast({
-          title: `Streak ${newStreak} giorni! 🔥`,
-          description: `Continua così, sei in forma!`,
-        });
-      }
-    }
-
-    fetchProfile();
-  } catch (error) {
-    console.error('Error updating daily activity:', error);
-  }
-};
+      } else if
 
         // Update profile with new streak
         const yesterday = new Date();
