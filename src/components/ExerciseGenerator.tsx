@@ -606,6 +606,37 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
             </RadioGroup>
           )}
 
+       {/* Matching */}
+{currentExercise.exercise_type === "matching" && (
+  <div className="text-center p-4">
+    <p>Matching exercise - drag & drop version</p>
+    <div className="grid grid-cols-2 gap-6 mt-4">
+      <div>
+        <h4 className="font-semibold mb-2">Terms:</h4>
+        {currentExercise.options?.map((pair: string, index: number) => {
+          const [term] = pair.split(' → ');
+          return (
+            <div key={index} className="p-3 bg-blue-50 border rounded mb-2">
+              {term}
+            </div>
+          );
+        })}
+      </div>
+      <div>
+        <h4 className="font-semibold mb-2">Definitions:</h4>
+        {currentExercise.options?.map((pair: string, index: number) => {
+          const [, definition] = pair.split(' → ');
+          return (
+            <div key={index} className="p-3 bg-gray-50 border-dashed border-2 rounded mb-2 min-h-[60px]">
+              {definition}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+)}
+
           {/* Sequencing */}
 {currentExercise.exercise_type === "sequencing" && (
   <div className="space-y-4">
