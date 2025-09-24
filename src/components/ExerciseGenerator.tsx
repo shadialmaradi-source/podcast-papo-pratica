@@ -606,14 +606,6 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
             </RadioGroup>
           )}
 
-        {/* Matching - Placeholder */}
-{currentExercise.exercise_type === "matching" && (
-  <div className="text-center p-4">
-    <p>Matching exercise placeholder</p>
-  </div>
-)}
-)}
-
           {/* Sequencing */}
 {currentExercise.exercise_type === "sequencing" && (
   <div className="space-y-4">
