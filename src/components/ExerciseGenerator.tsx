@@ -610,87 +610,33 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
             </RadioGroup>
           )}
 
-        {currentExercise.exercise_type === "matching" && (
-  <div className="space-y-4">
-    <div className="text-sm text-gray-600 mb-4">
-      {episode.podcast_source?.language === 'italian' ? 'Clicca per abbinare gli elementi:' :
-       episode.podcast_source?.language === 'portuguese' ? 'Clique para combinar os elementos:' :
-       episode.podcast_source?.language === 'spanish' ? 'Haz clic para combinar los elementos:' :
-       episode.podcast_source?.language === 'french' ? 'Cliquez pour associer les éléments:' :
-       episode.podcast_source?.language === 'german' ? 'Klicken Sie, um die Elemente zuzuordnen:' :
-       'Click to match the elements:'}
-    </div>
-    
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="space-y-3">
-        <h4 className="font-semibold text-center text-blue-700">
-          {episode.podcast_source?.language === 'italian' ? 'Termini:' :
-           episode.podcast_source?.language === 'portuguese' ? 'Termos:' :
-           episode.podcast_source?.language === 'spanish' ? 'Términos:' :
-           episode.podcast_source?.language === 'french' ? 'Termes:' :
-           episode.podcast_source?.language === 'german' ? 'Begriffe:' :
-           'Terms:'}
-        </h4>
-        {Array.isArray(currentExercise.options) && currentExercise.options.map((pair, index) => {
-          const [term, definition] = pair.split(' → ');
-          return (
-            <div key={index} className="p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
-              <div className="font-medium text-blue-900">{term}</div>
-            </div>
-          );
-        })}
-      </div>
-      
-      <div className="space-y-3">
-        <h4 className="font-semibold text-center text-green-700">
-          {episode.podcast_source?.language === 'italian' ? 'Definizioni:' :
-           episode.podcast_source?.language === 'portuguese' ? 'Definições:' :
-           episode.podcast_source?.language === 'spanish' ? 'Definiciones:' :
-           episode.podcast_source?.language === 'french' ? 'Définitions:' :
-           episode.podcast_source?.language === 'german' ? 'Definitionen:' :
-           'Definitions:'}
-        </h4>
-        {Array.isArray(currentExercise.options) && currentExercise.options
-          .map((pair) => pair.split(' → ')[1])
-          .sort(() => Math.random() - 0.5)
-          .map((definition, index) => (
-          <button
-            key={index}
-            onClick={() => {
-              const completePair = currentExercise.options.find((pair: string) => pair.split(' → ')[1] === definition);
-              setSelectedAnswer(completePair || definition);
-            }}
-            className={`w-full p-4 text-left rounded-lg border transition-all duration-200 ${
-              typeof selectedAnswer === 'string' && selectedAnswer.includes(definition)
-                ? 'bg-green-100 border-green-500 text-green-800 shadow-md' 
-                : 'bg-white border-gray-300 hover:bg-green-50 hover:border-green-300 shadow-sm'
-            } ${showResult ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:shadow-md'}`}
-            disabled={showResult}
-          >
-            <div className="font-medium">{definition}</div>
-          </button>
-        ))}
-      </div>
-    </div>
-    
-    {selectedAnswer && !showResult && typeof selectedAnswer === 'string' && (
-      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-yellow-800">
-            {episode.podcast_source?.language === 'italian' ? 'Abbinamento selezionato:' :
-             episode.podcast_source?.language === 'portuguese' ? 'Correspondência selecionada:' :
-             episode.podcast_source?.language === 'spanish' ? 'Correspondencia seleccionada:' :
-             episode.podcast_source?.language === 'french' ? 'Correspondance sélectionnée:' :
-             episode.podcast_source?.language === 'german' ? 'Ausgewählte Zuordnung:' :
-             'Selected match:'}
-          </span>
-        </div>
-        <div className="mt-2 text-yellow-900 font-medium">
-          {selectedAnswer.replace(' → ', ' ↔ ')}
-        </div>
-      </div>
-    )}
-  </div>
+        {/* Sostituisci tutto il blocco matching attuale con: */}
+{currentExercise.exercise_type === "matching" && (
+  <DragDropExercises 
+    exercises={[{
+      id: currentExercise.id,
+      type: "DragDropMatching",
+      question: currentExercise.question,
+      items: currentExercise.options.map(pair => pair.split(' → ')[0]), // termini
+      targets: currentExercise.options.map(pair => pair.split(' → ')[1]), // definizioni
+      correctAnswer: JSON.stringify(
+        currentExercise.options.reduce((acc, pair) => {
+          const [term, def] = pair.split(' → ');
+          acc[term] = def;
+          return acc;
+        }, {})
+      ),
+      explanation: currentExercise.explanation,
+      points: currentExercise.xp_reward,
+      difficulty: currentExercise.difficulty,
+      level: level
+    }]}
+    onComplete={(results) => {
+      // Gestisci il risultato del drag & drop
+      handleAnswer(results[0].userAnswer);
+    }}
+    onBack={onBack}
+  />
 )}
 
           {/* Sequencing */}
