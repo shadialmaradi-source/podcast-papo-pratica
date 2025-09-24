@@ -78,9 +78,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   }
 };
 const updateDailyActivity = async () => {
-  if (!user) return;
+  console.log('updateDailyActivity chiamata');
+  if (!user) {
+    console.log('No user, return');
+    return;
+  }
 
   const today = new Date().toISOString().split('T')[0];
+  console.log('Today:', today);
   
   try {
     let { data: streakData } = await supabase
@@ -89,7 +94,10 @@ const updateDailyActivity = async () => {
       .eq('user_id', user.id)
       .maybeSingle();
 
+    console.log('Streak data from DB:', streakData);
+
     if (!streakData) {
+      console.log('Creating new streak data');
       const { data: newStreakData } = await supabase
         .from('user_streak_data')
         .insert({
@@ -104,7 +112,7 @@ const updateDailyActivity = async () => {
 
       if (newStreakData) {
         toast({
-          title: "Streak iniziato! 🔥",
+          title: "Streak iniziato!",
           description: "Il tuo primo giorno di apprendimento!",
         });
         fetchProfile();
@@ -112,20 +120,29 @@ const updateDailyActivity = async () => {
       return;
     }
 
+    console.log('Last activity date:', streakData.last_activity_date);
+    console.log('Already updated today?', streakData.last_activity_date === today);
+
     if (streakData.last_activity_date === today) {
+      console.log('Already updated today, skipping');
       return;
     }
 
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    console.log('Yesterday string:', yesterdayStr);
+    console.log('Should increment streak:', streakData.last_activity_date === yesterdayStr);
 
     let newStreak;
     
     if (streakData.last_activity_date === yesterdayStr) {
       newStreak = streakData.current_streak + 1;
+      console.log('Incrementing streak to:', newStreak);
     } else {
       newStreak = 1;
+      console.log('Resetting streak to:', newStreak);
     }
 
     const { error } = await supabase
@@ -137,10 +154,13 @@ const updateDailyActivity = async () => {
       })
       .eq('user_id', user.id);
 
-    if (!error && newStreak > streakData.current_streak) {
+    console.log('Update error:', error);
+    console.log('New streak:', newStreak);
+
+    if (!error) {
       toast({
-        title: `Streak ${newStreak} giorni! 🔥`,
-        description: `Continua così!`,
+        title: `Streak ${newStreak} giorni!`,
+        description: `Continua cosi!`,
       });
     }
 
