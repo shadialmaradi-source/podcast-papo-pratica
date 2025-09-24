@@ -606,35 +606,36 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
             </RadioGroup>
           )}
 
-        {/* Matching */}
+       {/* Matching */}
 {currentExercise.exercise_type === "matching" && (
   <div className="space-y-4">
-    <p className="text-center text-sm text-gray-600">Clicca prima su un termine, poi sulla sua definizione</p>
+    <p className="text-center text-sm text-gray-600">Clicca su un termine a sinistra, poi sulla definizione che pensi corrisponda</p>
     <div className="grid grid-cols-2 gap-6">
       <div>
         <h4 className="font-semibold mb-2 text-blue-700">Terms:</h4>
         {currentExercise.options?.map((pair: string, index: number) => {
           const [term] = pair.split(' → ');
-          const isSelected = typeof selectedAnswer === 'string' && selectedAnswer.includes(term);
+          const isSelected = matchingAnswers.selectedTerm === term;
+          const hasMatch = Object.keys(matchingAnswers.matches || {}).includes(term);
           return (
             <div 
               key={index} 
               className={`p-3 border rounded mb-2 cursor-pointer transition-colors ${
                 isSelected 
-                  ? 'bg-blue-100 border-blue-500 text-blue-800' 
+                  ? 'bg-blue-500 text-white' 
+                  : hasMatch
+                  ? 'bg-green-100 border-green-500'
                   : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
               }`}
               onClick={() => {
-                // Se questo termine è già selezionato, deselezionalo
-                if (isSelected) {
-                  setSelectedAnswer("");
-                } else {
-                  // Altrimenti selezionalo
-                  setSelectedAnswer(pair);
-                }
+                setMatchingAnswers(prev => ({
+                  ...prev,
+                  selectedTerm: isSelected ? null : term
+                }));
               }}
             >
               {term}
+              {hasMatch && <span className="ml-2 text-green-600">✓</span>}
             </div>
           );
         })}
@@ -643,20 +644,58 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
         <h4 className="font-semibold mb-2 text-green-700">Definitions:</h4>
         {currentExercise.options?.map((pair: string, index: number) => {
           const [, definition] = pair.split(' → ');
+          const isMatched = Object.values(matchingAnswers.matches || {}).includes(definition);
           return (
-            <div key={index} className="p-3 bg-gray-50 border-dashed border-2 rounded mb-2 min-h-[60px]">
+            <div 
+              key={index} 
+              className={`p-3 border-dashed border-2 rounded mb-2 min-h-[60px] cursor-pointer transition-colors ${
+                isMatched
+                  ? 'bg-green-100 border-green-500'
+                  : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
+              }`}
+              onClick={() => {
+                if (matchingAnswers.selectedTerm) {
+                  const newMatches = { ...(matchingAnswers.matches || {}) };
+                  newMatches[matchingAnswers.selectedTerm] = definition;
+                  
+                  setMatchingAnswers({
+                    selectedTerm: null,
+                    matches: newMatches
+                  });
+                  
+                  // Aggiorna selectedAnswer per il submit
+                  setSelectedAnswer(JSON.stringify(newMatches));
+                }
+              }}
+            >
               {definition}
+              {isMatched && <span className="ml-2 text-green-600">✓</span>}
             </div>
           );
         })}
       </div>
     </div>
     
-    {/* Mostra la selezione corrente */}
-    {selectedAnswer && typeof selectedAnswer === 'string' && (
-      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded">
-        <p className="text-yellow-800 font-medium">Selezione corrente:</p>
-        <p className="text-yellow-900">{selectedAnswer.replace(' → ', ' ↔ ')}</p>
+    {/* Mostra i match correnti */}
+    {matchingAnswers.matches && Object.keys(matchingAnswers.matches).length > 0 && (
+      <div className="mt-4 p-3 bg-blue-50 border border-blue-300 rounded">
+        <h5 className="font-medium text-blue-800 mb-2">Le tue corrispondenze:</h5>
+        {Object.entries(matchingAnswers.matches).map(([term, def], index) => (
+          <div key={index} className="flex justify-between items-center py-1">
+            <span>{term} ↔ {def}</span>
+            <button
+              onClick={() => {
+                const newMatches = { ...matchingAnswers.matches };
+                delete newMatches[term];
+                setMatchingAnswers(prev => ({ ...prev, matches: newMatches }));
+                setSelectedAnswer(JSON.stringify(newMatches));
+              }}
+              className="text-red-500 hover:text-red-700 text-sm"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
       </div>
     )}
   </div>
