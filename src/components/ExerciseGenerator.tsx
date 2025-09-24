@@ -608,31 +608,32 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
 
         {/* Sostituisci tutto il blocco matching attuale con: */}
 {currentExercise.exercise_type === "matching" && (
-  <DragDropExercises 
-    exercises={[{
-      id: currentExercise.id,
-      type: "DragDropMatching",
-      question: currentExercise.question,
-      items: currentExercise.options.map(pair => pair.split(' → ')[0]), // termini
-      targets: currentExercise.options.map(pair => pair.split(' → ')[1]), // definizioni
-      correctAnswer: JSON.stringify(
-        currentExercise.options.reduce((acc, pair) => {
-          const [term, def] = pair.split(' → ');
-          acc[term] = def;
-          return acc;
-        }, {})
-      ),
-      explanation: currentExercise.explanation,
-      points: currentExercise.xp_reward,
-      difficulty: currentExercise.difficulty,
-      level: level
-    }]}
-    onComplete={(results) => {
-      // Gestisci il risultato del drag & drop
-      handleAnswer(results[0].userAnswer);
-    }}
-    onBack={onBack}
-  />
+  <div className="space-y-4">
+    <DragDropExercises 
+      exercises={[{
+        id: currentExercise.id,
+        type: "DragDropMatching",
+        question: currentExercise.question,
+        items: currentExercise.options?.map((pair: string) => pair.split(' → ')[0]) || [], // tutti i termini
+        targets: currentExercise.options?.map((pair: string) => pair.split(' → ')[1]) || [], // tutte le definizioni
+        correctAnswer: JSON.stringify(
+          currentExercise.options?.reduce((acc: any, pair: string) => {
+            const [term, def] = pair.split(' → ');
+            acc[term] = def;
+            return acc;
+          }, {}) || {}
+        ),
+        explanation: currentExercise.explanation || "",
+        points: currentExercise.xp_reward || 5,
+        difficulty: currentExercise.difficulty || level,
+        level: level
+      }]}
+      onComplete={(results) => {
+        handleAnswer(results[0].userAnswer);
+      }}
+      onBack={onBack}
+    />
+  </div>
 )}
 
           {/* Sequencing */}
