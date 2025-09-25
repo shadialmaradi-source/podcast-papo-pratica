@@ -293,7 +293,10 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
                  <Button
                    variant="outline"
                    className="w-full h-auto p-6 flex flex-col gap-3 hover:shadow-md transition-all"
-                   onClick={() => setShowLevelSelector(true)}
+                   onClick={() => {
+                     setSelectedLevel(level.code);
+                     setShowLevelSelector(true);
+                   }}
                  >
                   <Badge className={`${level.color} text-white text-lg px-3 py-1`}>
                     {level.code}
@@ -367,7 +370,7 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
           isOpen={showLevelSelector}
           onClose={() => setShowLevelSelector(false)}
           onSelect={handleLevelSelect}
-          level="beginner"
+          level={selectedLevel || "beginner"}
           title="Choose Exercise Settings"
         />
      </div>
