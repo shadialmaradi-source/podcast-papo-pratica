@@ -65,8 +65,16 @@ const Index = () => {
     setAppState("exercises");
   };
 
-  const handleExerciseComplete = () => {
-    setAppState("episodes");
+  const handleExerciseComplete = (nextLevel?: string, nextIntensity?: string) => {
+    if (nextLevel && nextIntensity) {
+      // Start exercises with new level/intensity
+      setSelectedLevel(nextLevel);
+      setSelectedIntensity(nextIntensity);
+      setAppState("exercises");
+    } else {
+      // Return to episodes selection
+      setAppState("episodes");
+    }
   };
 
   const handleBackToEpisodes = () => {

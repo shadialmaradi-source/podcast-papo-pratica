@@ -24,12 +24,13 @@ import {
   getNextRecommendation
 } from "@/services/exerciseService";
 import { PodcastEpisode } from "@/services/podcastService";
+import { getTranslation, mapLanguageToCode, LanguageCode } from "@/utils/translations";
 
 interface ExerciseGeneratorProps {
   episode: PodcastEpisode;
   level: string;
   intensity: string;
-  onComplete: () => void;
+  onComplete: (nextLevel?: string, nextIntensity?: string) => void;
   onBack: () => void;
 }
 
@@ -407,6 +408,10 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
     }
   };
 
+  const handleNextAction = (nextLevel?: string, nextIntensity?: string) => {
+    onComplete(nextLevel, nextIntensity);
+  };
+
   const handleEpisodeSelect = (episodeId: string) => {
     // Handle episode selection
     onComplete();
@@ -425,13 +430,66 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
     return currentExercise.explanation || "Check your answer and try again.";
   };
 
+  // Get target language from episode data
+  const getTargetLanguage = (): LanguageCode => {
+    const episodeLanguage = episode.podcast_source?.language;
+    return mapLanguageToCode(episodeLanguage || 'english');
+  };
+
+  const targetLanguage = getTargetLanguage();
+
   const getLocalizedText = (key: string) => {
-    const texts = {
-      correct: "Correct!",
-      incorrect: "Incorrect",
-      tryAgain: "Try again",
+    const keyMap: Record<string, keyof typeof import("@/utils/translations").translations.en> = {
+      correct: "correctAnswer",
+      incorrect: "incorrectAnswer", 
+      tryAgain: "tryAgain",
     };
-    return texts[key as keyof typeof texts] || key;
+    const translationKey = keyMap[key];
+    return translationKey ? getTranslation(translationKey, targetLanguage) : key;
+  };
+
+  // Generate intelligent next action buttons
+  const getNextActionButtons = () => {
+    const buttons = [];
+    
+    if (intensity === 'light') {
+      // Show "Try Intense Mode" for light exercises
+      buttons.push({
+        text: getTranslation('tryIntenseMode', targetLanguage),
+        action: () => onComplete(level, 'intense'),
+        variant: 'default' as const
+      });
+    } else if (intensity === 'intense') {
+      // Show level progression for intense exercises
+      if (level === 'beginner') {
+        buttons.push({
+          text: getTranslation('continueToIntermediate', targetLanguage),
+          action: () => onComplete('intermediate', 'light'),
+          variant: 'default' as const
+        });
+      } else if (level === 'intermediate') {
+        buttons.push({
+          text: getTranslation('continueToAdvanced', targetLanguage),
+          action: () => onComplete('advanced', 'light'),
+          variant: 'default' as const
+        });
+      } else {
+        buttons.push({
+          text: getTranslation('continueLearning', targetLanguage),
+          action: () => onComplete(),
+          variant: 'default' as const
+        });
+      }
+    }
+
+    // Always add "Choose another podcast" option
+    buttons.push({
+      text: getTranslation('chooseAnotherPodcast', targetLanguage),
+      action: () => onComplete(),
+      variant: 'outline' as const
+    });
+
+    return buttons;
   };
 
   const currentExercise = exercises[currentExerciseIndex];
@@ -473,14 +531,14 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
           className="text-center"
         >
           <PartyPopper className="h-16 w-16 mx-auto mb-6 text-primary" />
-          <h2 className="text-3xl font-bold mb-4">Exercise Complete!</h2>
+          <h2 className="text-3xl font-bold mb-4">{getTranslation('exerciseComplete', targetLanguage)}</h2>
           
           <div className="grid grid-cols-3 gap-4 mb-8">
             <Card>
               <CardContent className="p-4 text-center">
                 <Star className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
                 <p className="text-2xl font-bold">{totalXP}</p>
-                <p className="text-sm text-muted-foreground">XP Earned</p>
+                <p className="text-sm text-muted-foreground">{getTranslation('xpEarned', targetLanguage)}</p>
               </CardContent>
             </Card>
             
@@ -488,7 +546,7 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
               <CardContent className="p-4 text-center">
                 <TrendingUp className="h-8 w-8 mx-auto mb-2 text-green-500" />
                 <p className="text-2xl font-bold">{accuracy.toFixed(0)}%</p>
-                <p className="text-sm text-muted-foreground">Accuracy</p>
+                <p className="text-sm text-muted-foreground">{getTranslation('accuracy', targetLanguage)}</p>
               </CardContent>
             </Card>
             
@@ -496,31 +554,33 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
               <CardContent className="p-4 text-center">
                 <BookOpen className="h-8 w-8 mx-auto mb-2 text-blue-500" />
                 <p className="text-2xl font-bold">{correctAnswers}/{totalAnswers}</p>
-                <p className="text-sm text-muted-foreground">Correct</p>
+                <p className="text-sm text-muted-foreground">{getTranslation('correct', targetLanguage)}</p>
               </CardContent>
             </Card>
           </div>
 
-          {nextRecommendation && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>What's Next?</CardTitle>
-                <CardDescription>{nextRecommendation.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={handleNextRecommendation} className="w-full mb-4">
-                  {nextRecommendation.buttonText}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>{getTranslation('whatsNext', targetLanguage)}</CardTitle>
+              <CardDescription>{getTranslation('continueJourney', targetLanguage)}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {getNextActionButtons().map((button, index) => (
+                <Button 
+                  key={index}
+                  variant={button.variant}
+                  onClick={button.action}
+                  className="w-full"
+                >
+                  {button.text}
                 </Button>
-                <Button variant="outline" onClick={onComplete} className="w-full">
-                  Choose another exercise
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+              ))}
+            </CardContent>
+          </Card>
 
           <Button variant="outline" onClick={onBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Episode
+            {getTranslation('backToEpisode', targetLanguage)}
           </Button>
         </motion.div>
       </div>
