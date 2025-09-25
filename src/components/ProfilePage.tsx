@@ -434,7 +434,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                 
+                  <div>
                     <p className="text-sm text-muted-foreground">
                       Current Level
                     </p>
