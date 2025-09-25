@@ -1,20 +1,34 @@
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/components/ui/use-toast";
 import { 
   Play, 
   FileText, 
   Clock, 
   ExternalLink,
-  Zap 
+  Zap,
+  CheckCircle,
+  Circle
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 // Use the types from the service
 import type { PodcastSource, PodcastEpisode } from "@/services/podcastService";
+
+// Map CEFR levels to readable names
+const mapDifficultyLevel = (level: string): string => {
+  const lowerLevel = level.toLowerCase();
+  if (lowerLevel === 'a1' || lowerLevel === 'a2') return 'beginner';
+  if (lowerLevel === 'b1' || lowerLevel === 'b2') return 'intermediate';
+  if (lowerLevel === 'c1' || lowerLevel === 'c2') return 'advanced';
+  return lowerLevel; // fallback to original if it's already beginner/intermediate/advanced
+};
 
 // Difficulty level configurations
 const DIFFICULTY_LEVELS = [
@@ -30,12 +44,84 @@ interface PodcastEpisodeCardProps {
 }
 
 export function PodcastEpisodeCard({ podcast, episode, onStartExercises }: PodcastEpisodeCardProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [showTranscript, setShowTranscript] = useState(false);
   const [showExerciseDialog, setShowExerciseDialog] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Convert CEFR levels to readable format
+  const displayLevel = mapDifficultyLevel(podcast.difficulty_level);
 
   const getDifficultyColor = (level: string) => {
-    const difficulty = DIFFICULTY_LEVELS.find(d => d.code === level);
+    const mappedLevel = mapDifficultyLevel(level);
+    const difficulty = DIFFICULTY_LEVELS.find(d => d.code === mappedLevel);
     return difficulty?.color || "bg-gray-500";
+  };
+
+  const getDurationCategory = (duration: number | undefined): string => {
+    if (!duration) return 'unknown';
+    const minutes = Math.floor(duration / 60);
+    if (minutes < 10) return 'short';
+    if (minutes <= 30) return 'medium';
+    return 'long';
+  };
+
+  const getDurationCategoryBadge = (duration: number | undefined) => {
+    const category = getDurationCategory(duration);
+    const categoryConfig = {
+      short: { label: 'Short', color: 'bg-green-100 text-green-700 border-green-200' },
+      medium: { label: 'Medium', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+      long: { label: 'Long', color: 'bg-red-100 text-red-700 border-red-200' },
+      unknown: { label: 'Unknown', color: 'bg-gray-100 text-gray-700 border-gray-200' }
+    };
+    
+    return categoryConfig[category as keyof typeof categoryConfig] || categoryConfig.unknown;
+  };
+
+  const markEpisodeComplete = async () => {
+    if (!user || !episode.id) {
+      toast({
+        title: "Error",
+        description: "Please log in to track your progress",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Insert or update episode progress
+      const { error } = await supabase
+        .from('user_episode_progress')
+        .upsert({
+          user_id: user.id,
+          episode_id: episode.id,
+          progress_percentage: 100,
+          is_completed: true,
+          completed_at: new Date().toISOString()
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      setIsCompleted(true);
+      toast({
+        title: "Episode Completed!",
+        description: `You've marked "${episode.title}" as completed`,
+      });
+    } catch (error) {
+      console.error('Error marking episode as complete:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark episode as completed",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const renderEmbedPlayer = () => {
@@ -100,7 +186,7 @@ Carosello, trasmesso ogni sera alle 20:50, diventa un appuntamento fisso per int
 
     return `This is a sample transcript excerpt for the episode "${episode.title}". The full transcript would contain the complete conversation and content from this language learning podcast episode.
 
-This excerpt demonstrates the type of content and language level appropriate for ${podcast.difficulty_level} learners.`;
+This excerpt demonstrates the type of content and language level appropriate for ${displayLevel} learners.`;
   };
 
   return (
@@ -113,9 +199,23 @@ This excerpt demonstrates the type of content and language level appropriate for
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Badge className={getDifficultyColor(podcast.difficulty_level)} variant="outline">
-            🎧 {podcast.difficulty_level}
+            🎧 {displayLevel}
           </Badge>
           <Badge variant="secondary">{podcast.category || 'General'}</Badge>
+          {episode.duration && (
+            <Badge 
+              variant="outline" 
+              className={getDurationCategoryBadge(episode.duration).color}
+            >
+              {getDurationCategoryBadge(episode.duration).label}
+            </Badge>
+          )}
+          {isCompleted && (
+            <Badge variant="default" className="bg-green-500">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Completed
+            </Badge>
+          )}
         </div>
         
         <div>
@@ -128,7 +228,7 @@ This excerpt demonstrates the type of content and language level appropriate for
               📝 Summary
             </h3>
             <p className="text-sm text-muted-foreground">
-              This episode of {podcast.title} covers important topics for {podcast.difficulty_level} level learners, featuring authentic conversations and cultural insights.
+              This episode of {podcast.title} covers important topics for {displayLevel} level learners, featuring authentic conversations and cultural insights.
             </p>
           </Card>
         </div>
@@ -137,6 +237,38 @@ This excerpt demonstrates the type of content and language level appropriate for
       {/* Podcast Embed */}
       <div className="space-y-4">
         {renderEmbedPlayer()}
+        
+        {/* Progress Tracking Card */}
+        <Card className="p-4 border-dashed">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Track Your Progress</h4>
+              <p className="text-sm text-muted-foreground">
+                Mark as completed when you finish listening
+              </p>
+            </div>
+            <Button
+              onClick={markEpisodeComplete}
+              disabled={isCompleted || isLoading}
+              variant={isCompleted ? "outline" : "default"}
+              className={isCompleted ? "bg-green-50 border-green-200" : ""}
+            >
+              {isLoading ? (
+                "Saving..."
+              ) : isCompleted ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Completed
+                </>
+              ) : (
+                <>
+                  <Circle className="h-4 w-4 mr-2" />
+                  Mark Complete
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
         
         {/* Metadata */}
         <Card className="p-4">
@@ -150,15 +282,8 @@ This excerpt demonstrates the type of content and language level appropriate for
               <span className="capitalize">{podcast.language}</span>
             </div>
             <div className="flex items-center gap-2">
-              <ExternalLink className="h-4 w-4 text-muted-foreground" />
-              <a 
-                href={episode.episode_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Episode Page
-              </a>
+              <span className="font-medium">Level:</span>
+              <span className="capitalize">{displayLevel}</span>
             </div>
           </div>
         </Card>
@@ -226,11 +351,11 @@ This excerpt demonstrates the type of content and language level appropriate for
                   }}
                 >
                   <div className={`w-8 h-8 rounded-full ${level.color} flex items-center justify-center text-white text-sm font-bold`}>
-                    {level.code}
+                    {level.code.charAt(0).toUpperCase()}
                   </div>
                   <div className="text-center">
-                    <div className="font-semibold">{level.code}</div>
-                    <div className="text-xs text-muted-foreground">{level.name.split(' ')[0]}</div>
+                    <div className="font-semibold">{level.name}</div>
+                    <div className="text-xs text-muted-foreground capitalize">{level.code}</div>
                   </div>
                 </Button>
               ))}
@@ -250,6 +375,7 @@ This excerpt demonstrates the type of content and language level appropriate for
             <Button asChild variant="link" size="sm">
               <a href={episode.episode_url} target="_blank" rel="noopener noreferrer">
                 {episode.title} - Listen Now
+                <ExternalLink className="h-3 w-3 ml-1" />
               </a>
             </Button>
           </div>
@@ -258,6 +384,7 @@ This excerpt demonstrates the type of content and language level appropriate for
             <Button asChild variant="link" size="sm">
               <a href={podcast.rss_url} target="_blank" rel="noopener noreferrer">
                 Podcast RSS
+                <ExternalLink className="h-3 w-3 ml-1" />
               </a>
             </Button>
           </div>
