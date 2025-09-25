@@ -434,7 +434,8 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-              
+                 
+                    <p className="text-sm text-muted-foreground">
                       Current Level
                     </p>
                     <Badge variant="outline" className="text-xs">
