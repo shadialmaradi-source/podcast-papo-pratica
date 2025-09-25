@@ -704,41 +704,9 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
             )}
           </TabsContent>
 
-          <TabsContent value="leaderboard">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Leaderboard
-                </CardTitle>
-                <CardDescription>
-                  Compare your progress with other learners
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center py-12">
-                <Trophy className="h-12 w-12 text-primary mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">View Leaderboards</h3>
-                <p className="text-muted-foreground mb-6">
-                  See how you rank against other learners globally and in your language!
-                </p>
-                <Button onClick={() => {
-                  // Navigate to leaderboard - this needs to be handled by parent
-                  onBack(); // Go back to dashboard first
-                  setTimeout(() => {
-                    // Then navigate to leaderboard
-                    window.dispatchEvent(new CustomEvent('navigate-to-leaderboard'));
-                  }, 100);
-                }}>
-                  <Trophy className="h-4 w-4 mr-2" />
-                  View Leaderboards
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
+         
 
-          <TabsContent value="notifications">
-            <NotificationsCenter />
-          </TabsContent>
+  
         </Tabs>
       </div>
     </div>
