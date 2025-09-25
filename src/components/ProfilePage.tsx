@@ -22,13 +22,10 @@ import {
   Flame,
   Gift,
   Headphones,
-  Type,
-  BookText,
   Crown,
   Medal
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { EngagementFeatures } from "./EngagementFeatures";
 import { PersonalizedRecommendations } from "./PersonalizedRecommendations";
 
@@ -78,6 +75,16 @@ interface EpisodeProgress {
   is_completed: boolean;
 }
 
+interface LeaderboardUser {
+  id: string;
+  display_name: string;
+  avatar_url: string;
+  total_xp: number;
+  current_streak: number;
+  selected_language: string;
+  rank: number;
+}
+
 interface ProfilePageProps {
   onBack: () => void;
 }
@@ -91,16 +98,6 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
   const [loading, setLoading] = useState(true);
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardUser[]>([]);
   const [userGlobalRank, setUserGlobalRank] = useState<number>(0);
-
-  interface LeaderboardUser {
-    id: string;
-    display_name: string;
-    avatar_url: string;
-    total_xp: number;
-    current_streak: number;
-    selected_language: string;
-    rank: number;
-  }
 
   useEffect(() => {
     if (user) {
@@ -186,7 +183,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
       generateAchievements(profileData, exerciseResults);
 
       // Load leaderboard data
-      await loadLeaderboardData();
+      await loadLeaderboardData(profileData);
       
     } catch (error) {
       console.error('Error loading profile data:', error);
@@ -195,9 +192,9 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
     }
   };
 
-  const loadLeaderboardData = async () => {
+  const loadLeaderboardData = async (profileData: UserProfile) => {
     try {
-      // Get top 3 global users for the leaderboard preview
+      // Get top 10 global users for the leaderboard preview
       const { data: globalData } = await supabase
         .from('profiles')
         .select('id, display_name, avatar_url, total_xp, current_streak, selected_language')
@@ -212,7 +209,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
         setLeaderboardData(globalWithRanks);
 
         // Find user's global rank
-        const userRank = globalWithRanks.findIndex(u => u.user_id === user?.id) + 1;
+        const userRank = globalWithRanks.findIndex(u => u.id === profileData?.id) + 1;
         setUserGlobalRank(userRank || 0);
       }
     } catch (error) {
@@ -319,27 +316,6 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
     if (!profile) return 0;
     const currentLevelXP = profile.total_xp % 1000;
     return (currentLevelXP / 1000) * 100;
-  };
-
-  const getDifficultyData = () => {
-    if (!exerciseStats) return [];
-    return [
-      { name: 'Beginner', value: exerciseStats.beginner_completed, color: '#22c55e' },
-      { name: 'Intermediate', value: exerciseStats.intermediate_completed, color: '#f59e0b' },
-      { name: 'Advanced', value: exerciseStats.advanced_completed, color: '#ef4444' },
-    ];
-  };
-
-  const getLanguageFlag = (language: string) => {
-    const flags: { [key: string]: string } = {
-      'portuguese': '🇧🇷',
-      'english': '🇺🇸',
-      'spanish': '🇪🇸',
-      'french': '🇫🇷',
-      'italian': '🇮🇹',
-      'german': '🇩🇪'
-    };
-    return flags[language] || '🌍';
   };
 
   const getRankIcon = (rank: number) => {
@@ -556,7 +532,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
           <TabsContent value="challenges" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Streak System */}
-              <Card className="">
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Flame className="h-5 w-5 text-orange-500" />
@@ -591,7 +567,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
               </Card>
 
               {/* Personalized Recommendations */}
-              <div className="">
+              <div>
                 <PersonalizedRecommendations 
                   userId={user?.id || ''} 
                   onRecommendationClick={(rec) => {
@@ -708,42 +684,6 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
-
-          <TabsContent value="leaderboard">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Leaderboard
-                </CardTitle>
-                <CardDescription>
-                  Compare your progress with other learners
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center py-12">
-                <Trophy className="h-12 w-12 text-primary mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">View Leaderboards</h3>
-                <p className="text-muted-foreground mb-6">
-                  See how you rank against other learners globally and in your language!
-                </p>
-                <Button onClick={() => {
-                  // Navigate to leaderboard - this needs to be handled by parent
-                  onBack(); // Go back to dashboard first
-                  setTimeout(() => {
-                    // Then navigate to leaderboard
-                    window.dispatchEvent(new CustomEvent('navigate-to-leaderboard'));
-                  }, 100);
-                }}>
-                  <Trophy className="h-4 w-4 mr-2" />
-                  View Leaderboards
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="notifications">
-            <NotificationsCenter />
           </TabsContent>
         </Tabs>
       </div>
