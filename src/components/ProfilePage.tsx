@@ -21,13 +21,14 @@ import {
   Users,
   Flame,
   Gift,
-  Bell
+  Headphones,
+  Type,
+  BookText
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { EngagementFeatures } from "./EngagementFeatures";
 import { PersonalizedRecommendations } from "./PersonalizedRecommendations";
-import { NotificationsCenter } from "./NotificationsCenter";
 
 interface UserProfile {
   id: string;
@@ -51,6 +52,10 @@ interface ExerciseStats {
   beginner_completed: number;
   intermediate_completed: number;
   advanced_completed: number;
+  listening_exercises: number;
+  vocabulary_exercises: number;
+  grammar_exercises: number;
+  comprehension_exercises: number;
 }
 
 interface Achievement {
@@ -109,7 +114,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
         .from('user_exercise_results')
         .select(`
           *,
-          exercises!inner(difficulty)
+          exercises!inner(difficulty, exercise_type)
         `)
         .eq('user_id', user?.id);
 
@@ -125,6 +130,18 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
           ).length,
           advanced_completed: exerciseResults.filter(r => 
             r.exercises?.difficulty === 'advanced' && r.is_correct
+          ).length,
+          listening_exercises: exerciseResults.filter(r => 
+            r.exercises?.exercise_type === 'listening' && r.is_correct
+          ).length,
+          vocabulary_exercises: exerciseResults.filter(r => 
+            r.exercises?.exercise_type === 'vocabulary' && r.is_correct
+          ).length,
+          grammar_exercises: exerciseResults.filter(r => 
+            r.exercises?.exercise_type === 'grammar' && r.is_correct
+          ).length,
+          comprehension_exercises: exerciseResults.filter(r => 
+            r.exercises?.exercise_type === 'comprehension' && r.is_correct
           ).length,
         };
         setExerciseStats(stats);
@@ -271,16 +288,13 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
     ];
   };
 
-  const getWeeklyProgress = () => {
-    // Mock data for weekly progress - in real app, fetch from database
+  const getExerciseTypeData = () => {
+    if (!exerciseStats) return [];
     return [
-      { day: 'Mon', xp: 45 },
-      { day: 'Tue', xp: 32 },
-      { day: 'Wed', xp: 58 },
-      { day: 'Thu', xp: 41 },
-      { day: 'Fri', xp: 67 },
-      { day: 'Sat', xp: 23 },
-      { day: 'Sun', xp: 39 },
+      { name: 'Listening', value: exerciseStats.listening_exercises, color: '#3b82f6', icon: '🎧' },
+      { name: 'Vocabulary', value: exerciseStats.vocabulary_exercises, color: '#8b5cf6', icon: '📝' },
+      { name: 'Grammar', value: exerciseStats.grammar_exercises, color: '#06b6d4', icon: '📖' },
+      { name: 'Comprehension', value: exerciseStats.comprehension_exercises, color: '#10b981', icon: '🧠' },
     ];
   };
 
@@ -369,20 +383,15 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
 
         {/* Tabs for different sections */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="progress">Progress</TabsTrigger>
             <TabsTrigger value="achievements">Achievements</TabsTrigger>
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              Notifications
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Level Progress */}
               <Card>
                 <CardHeader>
@@ -407,78 +416,38 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                 </CardContent>
               </Card>
 
-              {/* Weekly Activity */}
+              {/* Exercise Type Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Type className="h-5 w-5 text-blue-500" />
+                    Exercise Types
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {getExerciseTypeData().map((item) => (
+                      <div key={item.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{item.icon}</span>
+                          <span className="text-sm font-medium">{item.name}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Difficulty Level */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-green-500" />
-                    Weekly Activity
+                    Difficulty Level
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={120}>
-                    <BarChart data={getWeeklyProgress()}>
-                      <Bar dataKey="xp" fill="hsl(var(--primary))" radius={2} />
-                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* Language Level */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-blue-500" />
-                    Language Level
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Current Level
-                    </p>
-                    <Badge variant="outline" className="text-xs">
-                      {profile?.selected_language === 'portuguese' ? '🇧🇷 Portuguese' : 
-                       profile?.selected_language === 'english' ? '🇺🇸 English' :
-                       profile?.selected_language === 'spanish' ? '🇪🇸 Spanish' :
-                       profile?.selected_language === 'french' ? '🇫🇷 French' : 
-                       profile?.selected_language}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Level Distribution Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Exercise Difficulty Distribution</CardTitle>
-                <CardDescription>
-                  Breakdown of exercises completed by difficulty level
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={getDifficultyData()}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={40}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {getDifficultyData().map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  
                   <div className="space-y-3">
                     {getDifficultyData().map((item) => (
                       <div key={item.name} className="flex items-center justify-between">
@@ -493,17 +462,130 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                       </div>
                     ))}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Exercise Type Distribution Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Exercise Type Distribution</CardTitle>
+                  <CardDescription>
+                    Breakdown of exercises completed by type
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-6">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={getExerciseTypeData()}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {getExerciseTypeData().map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    
+                    <div className="space-y-3">
+                      {getExerciseTypeData().map((item) => (
+                        <div key={item.name} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: item.color }}
+                            />
+                            <span className="text-sm font-medium">{item.name}</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Leaderboard */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Leaderboard
+                  </CardTitle>
+                  <CardDescription>
+                    Compare your progress with other learners
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center py-8">
+                  <Trophy className="h-12 w-12 text-primary mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">View Leaderboards</h3>
+                  <p className="text-muted-foreground mb-6 text-sm">
+                    See how you rank against other learners globally and in your language!
+                  </p>
+                  <Button onClick={() => {
+                    // Navigate to leaderboard - this needs to be handled by parent
+                    onBack(); // Go back to dashboard first
+                    setTimeout(() => {
+                      // Then navigate to leaderboard
+                      window.dispatchEvent(new CustomEvent('navigate-to-leaderboard'));
+                    }, 100);
+                  }}>
+                    <Trophy className="h-4 w-4 mr-2" />
+                    View Leaderboards
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="challenges" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <EngagementFeatures userId={user?.id || ''} />
-              </div>
-              <div>
+              {/* Streak System */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Flame className="h-5 w-5 text-orange-500" />
+                    Streak System
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-orange-500 flex items-center justify-center gap-1">
+                        <Flame className="h-6 w-6" />
+                        {profile?.current_streak || 0}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Current Streak</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-yellow-500 flex items-center justify-center gap-1">
+                        <Trophy className="h-6 w-6" />
+                        {profile?.longest_streak || 0}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Best Streak</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-500">1</div>
+                      <div className="text-xs text-muted-foreground">Freezes Available</div>
+                      <Button size="sm" variant="outline" className="mt-2 text-xs">
+                        Use Freeze
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Personalized Recommendations */}
+              <div className="lg:col-span-1">
                 <PersonalizedRecommendations 
                   userId={user?.id || ''} 
                   onRecommendationClick={(rec) => {
