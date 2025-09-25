@@ -23,7 +23,9 @@ import {
   Gift,
   Headphones,
   Type,
-  BookText
+  BookText,
+  Crown,
+  Medal
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -87,6 +89,18 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [episodeProgress, setEpisodeProgress] = useState<EpisodeProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardUser[]>([]);
+  const [userGlobalRank, setUserGlobalRank] = useState<number>(0);
+
+  interface LeaderboardUser {
+    id: string;
+    display_name: string;
+    avatar_url: string;
+    total_xp: number;
+    current_streak: number;
+    selected_language: string;
+    rank: number;
+  }
 
   useEffect(() => {
     if (user) {
@@ -170,11 +184,39 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
 
       // Generate achievements based on current stats
       generateAchievements(profileData, exerciseResults);
+
+      // Load leaderboard data
+      await loadLeaderboardData();
       
     } catch (error) {
       console.error('Error loading profile data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadLeaderboardData = async () => {
+    try {
+      // Get top 3 global users for the leaderboard preview
+      const { data: globalData } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url, total_xp, current_streak, selected_language')
+        .order('total_xp', { ascending: false })
+        .limit(10);
+
+      if (globalData) {
+        const globalWithRanks = globalData.map((user, index) => ({
+          ...user,
+          rank: index + 1
+        }));
+        setLeaderboardData(globalWithRanks);
+
+        // Find user's global rank
+        const userRank = globalWithRanks.findIndex(u => u.user_id === user?.id) + 1;
+        setUserGlobalRank(userRank || 0);
+      }
+    } catch (error) {
+      console.error('Error loading leaderboard data:', error);
     }
   };
 
@@ -288,14 +330,25 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
     ];
   };
 
-  const getExerciseTypeData = () => {
-    if (!exerciseStats) return [];
-    return [
-      { name: 'Listening', value: exerciseStats.listening_exercises, color: '#3b82f6', icon: '🎧' },
-      { name: 'Vocabulary', value: exerciseStats.vocabulary_exercises, color: '#8b5cf6', icon: '📝' },
-      { name: 'Grammar', value: exerciseStats.grammar_exercises, color: '#06b6d4', icon: '📖' },
-      { name: 'Comprehension', value: exerciseStats.comprehension_exercises, color: '#10b981', icon: '🧠' },
-    ];
+  const getLanguageFlag = (language: string) => {
+    const flags: { [key: string]: string } = {
+      'portuguese': '🇧🇷',
+      'english': '🇺🇸',
+      'spanish': '🇪🇸',
+      'french': '🇫🇷',
+      'italian': '🇮🇹',
+      'german': '🇩🇪'
+    };
+    return flags[language] || '🌍';
+  };
+
+  const getRankIcon = (rank: number) => {
+    switch (rank) {
+      case 1: return <Crown className="h-4 w-4 text-yellow-500" />;
+      case 2: return <Medal className="h-4 w-4 text-gray-400" />;
+      case 3: return <Medal className="h-4 w-4 text-amber-600" />;
+      default: return <span className="text-xs font-bold text-muted-foreground">#{rank}</span>;
+    }
   };
 
   if (loading) {
@@ -416,99 +469,37 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                 </CardContent>
               </Card>
 
-              {/* Exercise Type Distribution */}
+              {/* Episodes Listened */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Type className="h-5 w-5 text-blue-500" />
-                    Exercise Types
+                    <Headphones className="h-5 w-5 text-blue-500" />
+                    Episodes Listened
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {getExerciseTypeData().map((item) => (
-                      <div key={item.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{item.icon}</span>
-                          <span className="text-sm font-medium">{item.name}</span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Difficulty Level */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-green-500" />
-                    Difficulty Level
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {getDifficultyData().map((item) => (
-                      <div key={item.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <span className="text-sm font-medium">{item.name}</span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Exercise Type Distribution Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Exercise Type Distribution</CardTitle>
-                  <CardDescription>
-                    Breakdown of exercises completed by type
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 gap-6">
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={getExerciseTypeData()}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {getExerciseTypeData().map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    
-                    <div className="space-y-3">
-                      {getExerciseTypeData().map((item) => (
-                        <div key={item.name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: item.color }}
-                            />
-                            <span className="text-sm font-medium">{item.name}</span>
-                          </div>
-                          <span className="text-sm text-muted-foreground">{item.value}</span>
-                        </div>
-                      ))}
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-blue-500 mb-2">
+                      {episodeProgress.filter(ep => ep.is_completed).length}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Episodes Completed
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-sm">
+                        {profile?.selected_language === 'portuguese' ? '🇧🇷' : 
+                         profile?.selected_language === 'english' ? '🇺🇸' :
+                         profile?.selected_language === 'spanish' ? '🇪🇸' :
+                         profile?.selected_language === 'french' ? '🇫🇷' : 
+                         '🌍'}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {profile?.selected_language === 'portuguese' ? 'Portuguese' : 
+                         profile?.selected_language === 'english' ? 'English' :
+                         profile?.selected_language === 'spanish' ? 'Spanish' :
+                         profile?.selected_language === 'french' ? 'French' : 
+                         profile?.selected_language}
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -521,36 +512,51 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                     <Users className="h-5 w-5 text-primary" />
                     Leaderboard
                   </CardTitle>
-                  <CardDescription>
-                    Compare your progress with other learners
-                  </CardDescription>
                 </CardHeader>
-                <CardContent className="text-center py-8">
-                  <Trophy className="h-12 w-12 text-primary mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">View Leaderboards</h3>
-                  <p className="text-muted-foreground mb-6 text-sm">
-                    See how you rank against other learners globally and in your language!
-                  </p>
-                  <Button onClick={() => {
-                    // Navigate to leaderboard - this needs to be handled by parent
-                    onBack(); // Go back to dashboard first
-                    setTimeout(() => {
-                      // Then navigate to leaderboard
-                      window.dispatchEvent(new CustomEvent('navigate-to-leaderboard'));
-                    }, 100);
-                  }}>
-                    <Trophy className="h-4 w-4 mr-2" />
-                    View Leaderboards
-                  </Button>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="text-center mb-4">
+                      <div className="text-sm text-muted-foreground mb-1">Your Rank</div>
+                      <div className="text-2xl font-bold text-primary">
+                        #{userGlobalRank || 'Unranked'}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-muted-foreground mb-2">Top 3</div>
+                      {leaderboardData.slice(0, 3).map((user) => (
+                        <div key={user.id} className="flex items-center gap-2 text-sm">
+                          <div className="w-6 flex justify-center">
+                            {getRankIcon(user.rank)}
+                          </div>
+                          <div className="flex-1 truncate">
+                            <span className="font-medium">{user.display_name}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {user.total_xp} XP
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <Button size="sm" variant="outline" className="w-full mt-3" onClick={() => {
+                      onBack();
+                      setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent('navigate-to-leaderboard'));
+                      }, 100);
+                    }}>
+                      View Full Leaderboard
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
           <TabsContent value="challenges" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Streak System */}
-              <Card className="lg:col-span-1">
+              <Card className="">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Flame className="h-5 w-5 text-orange-500" />
@@ -585,7 +591,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
               </Card>
 
               {/* Personalized Recommendations */}
-              <div className="lg:col-span-1">
+              <div className="">
                 <PersonalizedRecommendations 
                   userId={user?.id || ''} 
                   onRecommendationClick={(rec) => {
@@ -704,9 +710,41 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
             )}
           </TabsContent>
 
-         
+          <TabsContent value="leaderboard">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  Leaderboard
+                </CardTitle>
+                <CardDescription>
+                  Compare your progress with other learners
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center py-12">
+                <Trophy className="h-12 w-12 text-primary mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">View Leaderboards</h3>
+                <p className="text-muted-foreground mb-6">
+                  See how you rank against other learners globally and in your language!
+                </p>
+                <Button onClick={() => {
+                  // Navigate to leaderboard - this needs to be handled by parent
+                  onBack(); // Go back to dashboard first
+                  setTimeout(() => {
+                    // Then navigate to leaderboard
+                    window.dispatchEvent(new CustomEvent('navigate-to-leaderboard'));
+                  }, 100);
+                }}>
+                  <Trophy className="h-4 w-4 mr-2" />
+                  View Leaderboards
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-  
+          <TabsContent value="notifications">
+            <NotificationsCenter />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
