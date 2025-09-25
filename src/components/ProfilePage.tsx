@@ -434,11 +434,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center space-y-2">
-                    <div className="text-3xl font-bold text-blue-500">
-                      {profile?.current_level || 'A1'}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
+              
                       Current Level
                     </p>
                     <Badge variant="outline" className="text-xs">

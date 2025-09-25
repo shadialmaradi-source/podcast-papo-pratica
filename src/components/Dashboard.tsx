@@ -320,7 +320,7 @@ const updateDailyActivity = async () => {
                   <Trophy className="h-5 w-5 text-purple-500" />
                   <span className="font-semibold">Livello {getCurrentLevel()}</span>
                 </div>
-                <Badge variant="outline">{profile?.current_level || 'A1'}</Badge>
+               
               </div>
               <Progress value={getXPProgress()} className="h-2" />
               <p className="text-sm text-muted-foreground mt-2">
