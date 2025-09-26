@@ -15,6 +15,7 @@ export default function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   useEffect(() => {
     // Check if user is already logged in and redirect
@@ -110,6 +111,47 @@ export default function AuthPage() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast({
+        title: "Email richiesta",
+        description: "Inserisci la tua email per recuperare la password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+
+      if (error) {
+        toast({
+          title: "Errore",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Email inviata!",
+          description: "Controlla la tua email per le istruzioni di recupero password",
+        });
+        setShowForgotPassword(false);
+      }
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Qualcosa è andato storto. Riprova.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 p-4">
       <motion.div
@@ -173,6 +215,17 @@ export default function AuthPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {isLogin && (
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      Hai dimenticato la password?
+                    </button>
+                  </div>
+                )}
               </div>
               
               {!isLogin && (
@@ -214,6 +267,68 @@ export default function AuthPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Forgot Password Modal */}
+        {showForgotPassword && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={(e) => e.target === e.currentTarget && setShowForgotPassword(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-full max-w-md"
+            >
+              <Card className="border-0 shadow-xl bg-card/95 backdrop-blur-sm">
+                <CardHeader className="text-center">
+                  <CardTitle className="text-xl">Recupera Password</CardTitle>
+                  <CardDescription>
+                    Inserisci la tua email per ricevere le istruzioni di recupero
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="forgot-email">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="forgot-email"
+                          type="email"
+                          placeholder="tua@email.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        type="submit" 
+                        className="flex-1" 
+                        disabled={loading}
+                      >
+                        {loading ? "Invio..." : "Invia Email"}
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => setShowForgotPassword(false)}
+                        disabled={loading}
+                      >
+                        Annulla
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );
