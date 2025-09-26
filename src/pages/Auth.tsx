@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -20,6 +21,9 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -102,6 +106,41 @@ export default function Auth() {
       setError('Si è verificato un errore. Riprova più tardi.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotPasswordLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: `${window.location.origin}/auth`
+      });
+
+      if (error) {
+        toast({
+          title: "Errore",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Email inviata",
+          description: "Controlla la tua email per le istruzioni di recupero password",
+        });
+        setShowForgotPassword(false);
+        setForgotPasswordEmail("");
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore. Riprova più tardi.",
+        variant: "destructive"
+      });
+    } finally {
+      setForgotPasswordLoading(false);
     }
   };
 
@@ -205,6 +244,61 @@ export default function Auth() {
                   />
                 </div>
               </div>
+
+              {/* Forgot Password Button - Only show during login */}
+              {!isSignUp && (
+                <div className="text-right">
+                  <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-sm text-muted-foreground hover:text-primary p-0 h-auto">
+                        Hai dimenticato la password?
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Recupera Password</DialogTitle>
+                        <DialogDescription>
+                          Inserisci il tuo indirizzo email e ti invieremo le istruzioni per reimpostare la password.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={handleForgotPassword} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="forgot-email">Email</Label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="forgot-email"
+                              type="email"
+                              placeholder="tua@email.com"
+                              value={forgotPasswordEmail}
+                              onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                              className="pl-10"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowForgotPassword(false)}
+                            className="flex-1"
+                          >
+                            Annulla
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={forgotPasswordLoading}
+                            className="flex-1"
+                          >
+                            {forgotPasswordLoading ? 'Invio...' : 'Invia Email'}
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              )}
 
               {error && (
                 <Alert variant="destructive">
