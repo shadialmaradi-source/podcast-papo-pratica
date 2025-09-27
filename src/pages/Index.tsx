@@ -235,6 +235,7 @@ const Index = () => {
             selectedLanguage={selectedLanguage}
             onSelectPodcast={handlePodcastSelect}
             onStartExercises={handleStartExercises}
+                  onBack={handleBackToDashboard}
           />
         </div>
       )}
