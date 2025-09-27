@@ -7,11 +7,13 @@ import { Play, BookOpen, Clock, Star, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { PodcastSource, getPodcastsByLanguage } from "@/services/podcastService";
 import { ItalianPodcastCard } from "./ItalianPodcastCard";
+import { Play, BookOpen, Clock, Star, Search, ArrowLeft } from "lucide-react";
 
 interface PodcastLibraryProps {
   selectedLanguage: string;
   onSelectPodcast: (podcast: PodcastSource) => void;
   onStartExercises: (episode: any, level: string, intensity: string) => void;
+onBack?: () => void;
 }
 
 const languageNames: Record<string, string> = {
@@ -28,8 +30,7 @@ const getDifficultyColor = (difficulty: string) => {
   }
 };
 
-export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExercises }: PodcastLibraryProps) {
-  const [podcasts, setPodcasts] = useState<PodcastSource[]>([]);
+export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExercises, onBack }: PodcastLibraryProps) {  const [podcasts, setPodcasts] = useState<PodcastSource[]>([]);
   const [filteredPodcasts, setFilteredPodcasts] = useState<PodcastSource[]>([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -95,18 +96,32 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
-      <div className="text-center space-y-3 sm:space-y-4">
-        <motion.h2 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
-        >
-          {languageNames[selectedLanguage]} Podcasts
-        </motion.h2>
-        <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto px-4">
-          Discover top-rated podcasts from Spotify charts. Choose episodes that match your learning level and start practicing!
-        </p>
-      </div>
+      
+     <div className="flex items-center gap-4">
+  {onBack && (
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      onClick={onBack}
+      className="gap-2"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Back
+    </Button>
+  )}
+  <div className="flex-1 text-center space-y-3 sm:space-y-4">
+    <motion.h2 
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
+    >
+      {languageNames[selectedLanguage]} Podcasts
+    </motion.h2>
+    <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto px-4">
+      Discover top-rated podcasts from Spotify charts. Choose episodes that match your learning level and start practicing!
+    </p>
+  </div>
+</div>
 
       {/* Search and Filters */}
       <div className="flex flex-col gap-3 sm:gap-4">
