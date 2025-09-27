@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import Dashboard from "@/components/Dashboard";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { PodcastLibrary } from "@/components/PodcastLibrary";
@@ -18,7 +19,7 @@ import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "leaderboard" | "vocabulary" | "vocabulary-review";
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [appState, setAppState] = useState<AppState>("language-select");
   const [selectedLanguage, setSelectedLanguage] = useState<string>("");
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastSource | null>(null);
@@ -26,8 +27,46 @@ const Index = () => {
   const [selectedLevel, setSelectedLevel] = useState<string>("beginner");
   const [selectedIntensity, setSelectedIntensity] = useState<string>("light");
   const [selectedVideoId, setSelectedVideoId] = useState<string>("");
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
-  if (loading) {
+  // Fetch user profile on mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching profile:', error);
+          setProfileLoading(false);
+          return;
+        }
+        
+        setUserProfile(profile);
+        
+        // If user has a selected language, skip language selection
+        if (profile?.selected_language) {
+          setSelectedLanguage(profile.selected_language);
+          setAppState("dashboard");
+        }
+        
+        setProfileLoading(false);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        setProfileLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
+
+  if (loading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -39,8 +78,19 @@ const Index = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const handleLanguageSelect = (language: string) => {
+  const handleLanguageSelect = async (language: string) => {
     setSelectedLanguage(language);
+    
+    // Save language to user profile
+    try {
+      await supabase
+        .from('profiles')
+        .update({ selected_language: language })
+        .eq('user_id', user.id);
+    } catch (error) {
+      console.error('Error updating language preference:', error);
+    }
+    
     setAppState("dashboard");
   };
 
@@ -132,7 +182,12 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {appState === "language-select" && (
-        <LanguageSelector onLanguageSelect={handleLanguageSelect} />
+        <LanguageSelector 
+          onLanguageSelect={handleLanguageSelect}
+          user={userProfile}
+          onProfileClick={() => setAppState("profile")}
+          onLogout={signOut}
+        />
       )}
 
       {appState === "dashboard" && (

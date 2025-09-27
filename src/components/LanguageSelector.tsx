@@ -1,5 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { User, LogOut } from "lucide-react";
 
 interface Language {
   code: string;
@@ -10,6 +13,9 @@ interface Language {
 
 interface LanguageSelectorProps {
   onLanguageSelect: (language: string) => void;
+  user?: any;
+  onProfileClick: () => void;
+  onLogout: () => void;
 }
 
 const languages: Language[] = [
@@ -32,18 +38,48 @@ const languages: Language[] = [
     description: "Impara l'italiano attraverso i podcast"
   }
 ];
-export const LanguageSelector = ({ onLanguageSelect }: LanguageSelectorProps) => {
+export const LanguageSelector = ({ onLanguageSelect, user, onProfileClick, onLogout }: LanguageSelectorProps) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl">
-        <div className="text-center mb-8 sm:mb-12">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-4">
-            Choose Your Learning Language
-          </h1>
-          <p className="text-base sm:text-lg lg:text-xl text-muted-foreground px-4">
-            Select the language you want to learn through podcasts
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 relative">
+      {/* Header with User Menu */}
+      <div className="absolute top-0 right-0 p-4 sm:p-6">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-2 bg-card/50 backdrop-blur-sm border border-border/50">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.avatar_url} />
+                <AvatarFallback>
+                  {user?.display_name?.charAt(0) || user?.email?.charAt(0) || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden sm:inline text-sm text-foreground">
+                {user?.display_name || user?.email?.split('@')[0] || "User"}
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={onProfileClick} className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onLogout} className="flex items-center gap-2 text-destructive">
+              <LogOut className="h-4 w-4" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-4xl">
+          <div className="text-center mb-8 sm:mb-12">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-4">
+              Choose Your Learning Language
+            </h1>
+            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground px-4">
+              Select the language you want to learn through podcasts
+            </p>
+          </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {languages.map((language) => (
@@ -75,6 +111,7 @@ export const LanguageSelector = ({ onLanguageSelect }: LanguageSelectorProps) =>
               </CardContent>
             </Card>
           ))}
+          </div>
         </div>
       </div>
     </div>
