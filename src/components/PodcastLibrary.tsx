@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Play, BookOpen, Clock, Star, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { PodcastSource, getPodcastsByLanguage } from "@/services/podcastService";
 import { ItalianPodcastCard } from "./ItalianPodcastCard";
@@ -20,7 +19,11 @@ const languageNames: Record<string, string> = {
   'portuguese': 'Português',
   'italian': 'Italiano'
 };
-
+const backButtonLabels: Record<string, string> = {
+  'portuguese': 'Voltar',
+  'italian': 'Indietro',
+  'english': 'Back'
+};
 const getDifficultyColor = (difficulty: string) => {
   switch (difficulty) {
     case "A1": case "A2": return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400";
@@ -106,7 +109,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
       className="gap-2"
     >
       <ArrowLeft className="h-4 w-4" />
-      Back
+      {backButtonLabels[selectedLanguage] || 'Back'}
     </Button>
   )}
   <div className="flex-1 text-center space-y-3 sm:space-y-4">
