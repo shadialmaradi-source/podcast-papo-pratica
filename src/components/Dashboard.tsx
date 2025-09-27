@@ -9,6 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Flame, Star, Heart, Trophy, BookOpen, User, LogOut, Youtube, ArrowRight, Headphones, Play } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { LanguageSelectionModal } from "@/components/LanguageSelectionModal";
+import { LearningDestinationModal } from "@/components/LearningDestinationModal";
+import { getLanguageFlag, getLanguageDescription } from "@/utils/languageUtils";
 
 interface UserProfile {
   id: string;
@@ -27,12 +30,16 @@ interface UserProfile {
 
 interface DashboardProps {
   onNavigate: (page: 'podcasts' | 'profile' | 'youtube' | 'vocabulary' | 'leaderboard') => void;
+  selectedLanguage?: string;
+  onLanguageChange?: (language: string) => void;
 }
 
-export default function Dashboard({ onNavigate }: DashboardProps) {
+export default function Dashboard({ onNavigate, selectedLanguage, onLanguageChange }: DashboardProps) {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showDestinationModal, setShowDestinationModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -181,6 +188,47 @@ const updateDailyActivity = async () => {
     return Math.floor(profile.total_xp / 1000) + 1;
   };
 
+  const handleLanguageChange = async (newLanguage: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ selected_language: newLanguage })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setProfile(prev => prev ? { ...prev, selected_language: newLanguage } : null);
+      
+      // Notify parent component
+      onLanguageChange?.(newLanguage);
+      
+      setShowLanguageModal(false);
+      
+      toast({
+        title: "Language Updated!",
+        description: `Switched to ${newLanguage}. Where would you like to go?`,
+      });
+      
+      // Show destination selection
+      setShowDestinationModal(true);
+    } catch (error) {
+      console.error('Error updating language:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update language. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDestinationSelect = (destination: 'podcasts' | 'youtube') => {
+    setShowDestinationModal(false);
+    onNavigate(destination);
+  };
+
   const handleSignOut = async () => {
     await signOut();
     toast({
@@ -244,6 +292,15 @@ const updateDailyActivity = async () => {
                 <p className="font-bold">{profile?.total_xp || 0}</p>
               </div>
             </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowLanguageModal(true)}
+              className="text-2xl p-2 hover:scale-110 transition-transform"
+              title="Change Language"
+            >
+              {getLanguageFlag(selectedLanguage || profile?.selected_language || 'italian')}
+            </Button>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onNavigate('profile')}>
                 <User className="h-4 w-4" />
@@ -271,7 +328,7 @@ const updateDailyActivity = async () => {
                 <div>
                   <CardTitle className="text-2xl">Podcast Learning</CardTitle>
                   <CardDescription className="text-base mt-1">
-                    Learn through Italian podcasts with interactive exercises
+                    {getLanguageDescription(selectedLanguage || profile?.selected_language || 'italian')}
                   </CardDescription>
                 </div>
               </div>
@@ -329,6 +386,22 @@ const updateDailyActivity = async () => {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Language Selection Modal */}
+        <LanguageSelectionModal
+          isOpen={showLanguageModal}
+          onClose={() => setShowLanguageModal(false)}
+          onLanguageSelect={handleLanguageChange}
+          currentLanguage={selectedLanguage || profile?.selected_language}
+        />
+
+        {/* Learning Destination Modal */}
+        <LearningDestinationModal
+          isOpen={showDestinationModal}
+          onClose={() => setShowDestinationModal(false)}
+          onDestinationSelect={handleDestinationSelect}
+          selectedLanguage={selectedLanguage || profile?.selected_language || 'italian'}
+        />
       </div>
     </div>
   );

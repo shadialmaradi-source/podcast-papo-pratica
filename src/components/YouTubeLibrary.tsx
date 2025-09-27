@@ -28,6 +28,7 @@ interface YouTubeVideo {
 interface YouTubeLibraryProps {
   onVideoSelect: (videoId: string, difficulty: string) => void;
   onBack: () => void;
+  selectedLanguage?: string;
 }
 
 // Extract YouTube video ID from URL
@@ -63,7 +64,7 @@ const difficultyColors: { [key: string]: string } = {
   C2: "bg-red-600/10 text-red-700 dark:text-red-300"
 };
 
-const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack }) => {
+const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, selectedLanguage }) => {
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,14 +80,20 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack }
   const fetchVideos = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('youtube_videos')
         .select(`
           *,
           youtube_exercises(count)
         `)
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false });
+        .eq('status', 'completed');
+
+      // Filter by language if provided
+      if (selectedLanguage) {
+        query = query.eq('language', selectedLanguage);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -134,7 +141,7 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack }
       const { data, error } = await supabase.functions.invoke('process-youtube-video', {
         body: {
           videoUrl: newVideoUrl.trim(),
-          language: 'english',
+          language: selectedLanguage || 'english',
           difficulty: 'beginner'
         }
       });

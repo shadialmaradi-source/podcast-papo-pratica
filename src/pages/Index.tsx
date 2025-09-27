@@ -107,8 +107,27 @@ const Index = () => {
     setAppState("dashboard");
   };
 
-  const handleNavigateToPodcasts = () => {
-    setAppState("podcasts");
+  const handleLanguageChange = (language: string) => {
+    setSelectedLanguage(language);
+    // Update user profile language immediately
+    if (userProfile) {
+      setUserProfile(prev => ({
+        ...prev,
+        selected_language: language
+      }));
+    }
+  };
+
+  const handleNavigateToPodcasts = (page?: 'podcasts' | 'profile' | 'youtube' | 'vocabulary' | 'leaderboard') => {
+    if (page === 'youtube') {
+      setAppState('youtube-library');
+    } else if (page === 'podcasts') {
+      setAppState('podcasts');
+    } else if (page) {
+      setAppState(page);
+    } else {
+      setAppState("podcasts");
+    }
   };
 
   const handlePodcastSelect = (podcast: PodcastSource) => {
@@ -195,7 +214,11 @@ const Index = () => {
       )}
 
       {appState === "dashboard" && (
-        <Dashboard onNavigate={handleNavigate} />
+        <Dashboard 
+          onNavigate={handleNavigateToPodcasts}
+          selectedLanguage={selectedLanguage || userProfile?.selected_language}
+          onLanguageChange={handleLanguageChange}
+        />
       )}
 
       {appState === "profile" && (
@@ -243,6 +266,7 @@ const Index = () => {
         <YouTubeLibrary 
           onVideoSelect={handleVideoSelect}
           onBack={handleBackToDashboard}
+          selectedLanguage={selectedLanguage || userProfile?.selected_language}
         />
       )}
 
