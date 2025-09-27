@@ -30,10 +30,13 @@ const Index = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
-  // Fetch user profile on mount
+  // Fetch user profile on mount - MUST be before any early returns
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (!user) return;
+      if (!user) {
+        setProfileLoading(false);
+        return;
+      }
       
       try {
         const { data: profile, error } = await supabase
@@ -66,6 +69,16 @@ const Index = () => {
     fetchUserProfile();
   }, [user]);
 
+  useEffect(() => {
+    const handleCustomNavigation = () => {
+      setAppState('leaderboard');
+    };
+
+    window.addEventListener('navigate-to-leaderboard', handleCustomNavigation);
+    return () => window.removeEventListener('navigate-to-leaderboard', handleCustomNavigation);
+  }, []);
+
+  // Early returns AFTER all hooks
   if (loading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -158,15 +171,6 @@ const Index = () => {
   const handleNavigateToLeaderboard = () => {
     setAppState('leaderboard');
   };
-
-  useEffect(() => {
-    const handleCustomNavigation = () => {
-      setAppState('leaderboard');
-    };
-
-    window.addEventListener('navigate-to-leaderboard', handleCustomNavigation);
-    return () => window.removeEventListener('navigate-to-leaderboard', handleCustomNavigation);
-  }, []);
 
   const handleYouTubeExercises = (videoId: string, level: string, intensity: string) => {
     setSelectedVideoId(videoId);
