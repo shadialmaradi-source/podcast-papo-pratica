@@ -24,17 +24,17 @@ import type { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 // Map CEFR levels to readable names
 const mapDifficultyLevel = (level: string): string => {
   const lowerLevel = level.toLowerCase();
-  if (lowerLevel === 'a1' || lowerLevel === 'a2') return 'beginner';
-  if (lowerLevel === 'b1' || lowerLevel === 'b2') return 'intermediate';
-  if (lowerLevel === 'c1' || lowerLevel === 'c2') return 'advanced';
-  return lowerLevel; // fallback to original if it's already beginner/intermediate/advanced
+  if (lowerLevel === 'a1' || lowerLevel === 'a2') return 'Beginner';
+  if (lowerLevel === 'b1' || lowerLevel === 'b2') return 'Intermediate';
+  if (lowerLevel === 'c1' || lowerLevel === 'c2') return 'Advanced';
+  return level; // fallback
 };
 
 // Difficulty level configurations
 const DIFFICULTY_LEVELS = [
-  { code: "beginner", name: "Beginner", color: "bg-green-500" },
-  { code: "intermediate", name: "Intermediate", color: "bg-warning" },
-  { code: "advanced", name: "Advanced", color: "bg-destructive" },
+  { code: "Beginner", name: "Beginner", color: "bg-green-500" },
+  { code: "Intermediate", name: "Intermediate", color: "bg-warning" },
+  { code: "Advanced", name: "Advanced", color: "bg-destructive" },
 ];
 
 interface PodcastEpisodeCardProps {
@@ -61,23 +61,23 @@ export function PodcastEpisodeCard({ podcast, episode, onStartExercises }: Podca
   };
 
   const getDurationCategory = (duration: number | undefined): string => {
-    if (!duration) return 'unknown';
+    if (!duration) return 'Unknown';
     const minutes = Math.floor(duration / 60);
-    if (minutes < 10) return 'short';
-    if (minutes <= 30) return 'medium';
-    return 'long';
+    if (minutes < 10) return 'Short';
+    if (minutes <= 30) return 'Medium';
+    return 'Long';
   };
 
   const getDurationCategoryBadge = (duration: number | undefined) => {
     const category = getDurationCategory(duration);
     const categoryConfig = {
-      short: { label: 'Short', color: 'bg-green-100 text-green-700 border-green-200' },
-      medium: { label: 'Medium', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-      long: { label: 'Long', color: 'bg-red-100 text-red-700 border-red-200' },
-      unknown: { label: 'Unknown', color: 'bg-gray-100 text-gray-700 border-gray-200' }
+      Short: { label: 'Short', color: 'bg-green-100 text-green-700 border-green-200' },
+      Medium: { label: 'Medium', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+      Long: { label: 'Long', color: 'bg-red-100 text-red-700 border-red-200' },
+      Unknown: { label: 'Unknown', color: 'bg-gray-100 text-gray-700 border-gray-200' }
     };
     
-    return categoryConfig[category as keyof typeof categoryConfig] || categoryConfig.unknown;
+    return categoryConfig[category as keyof typeof categoryConfig] || categoryConfig.Unknown;
   };
 
   const markEpisodeComplete = async () => {

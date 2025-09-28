@@ -52,10 +52,19 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
     }
   };
 
-  const formatDuration = (seconds: number) => {
+  const formatDurationCategory = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    if (minutes < 10) return 'Short';
+    if (minutes <= 30) return 'Medium';
+    return 'Long';
+  };
+
+  const mapDifficultyLevel = (level: string): string => {
+    const lowerLevel = level.toLowerCase();
+    if (lowerLevel === 'a1' || lowerLevel === 'a2') return 'Beginner';
+    if (lowerLevel === 'b1' || lowerLevel === 'b2') return 'Intermediate';
+    if (lowerLevel === 'c1' || lowerLevel === 'c2') return 'Advanced';
+    return level; // fallback
   };
 
   const handleEpisodeSelect = (episode: PodcastEpisode) => {
@@ -105,9 +114,8 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
           <h2 className="text-xl sm:text-2xl font-bold">{podcast.title}</h2>
           <p className="text-sm sm:text-base text-muted-foreground">{podcast.description}</p>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Level {podcast.difficulty_level}</Badge>
+            <Badge variant="outline">{mapDifficultyLevel(podcast.difficulty_level)}</Badge>
             <Badge variant="secondary">{podcast.category}</Badge>
-            <Badge className="bg-green-500 text-white">#{podcast.spotify_chart_rank}</Badge>
           </div>
         </div>
       </div>
@@ -145,11 +153,6 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
                     <CardHeader className="pb-3">
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          {episode.episode_number && (
-                            <Badge variant="outline" className="text-xs">
-                              EP {episode.episode_number}
-                            </Badge>
-                          )}
                           {isCompleted && (
                             <Badge className="bg-green-500 text-white text-xs">
                               <CheckCircle className="h-3 w-3 mr-1" />
@@ -165,7 +168,7 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
                         <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {episode.duration ? formatDuration(episode.duration) : 'Unknown'}
+                            {episode.duration ? formatDurationCategory(episode.duration) : 'Unknown'}
                           </div>
                           {episode.publish_date && (
                             <div className="flex items-center gap-1">
@@ -198,17 +201,13 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
                         </div>
                       )}
                       
-                      <div className="flex items-center justify-between pt-2">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <BookOpen className="h-3 w-3" />
-                          <span>Exercises available</span>
-                        </div>
-                        {episode.transcript && (
+                      {episode.transcript && (
+                        <div className="flex justify-end pt-2">
                           <Badge variant="secondary" className="text-xs">
                             Transcript
                           </Badge>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
