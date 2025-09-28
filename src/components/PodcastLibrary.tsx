@@ -24,6 +24,22 @@ const backButtonLabels: Record<string, string> = {
   'italian': 'Indietro',
   'english': 'Back'
 };
+const mapDifficultyLevel = (level: string): string => {
+  switch (level?.toUpperCase()) {
+    case 'A1':
+    case 'A2':
+      return 'Beginner';
+    case 'B1':
+    case 'B2':
+      return 'Intermediate';
+    case 'C1':
+    case 'C2':
+      return 'Advanced';
+    default:
+      return level || 'Unknown';
+  }
+};
+
 const getDifficultyColor = (difficulty: string) => {
   switch (difficulty) {
     case "A1": case "A2": return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400";
@@ -206,7 +222,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
                       className={`text-xs ${getDifficultyColor(podcast.difficulty_level)}`}
                       variant="outline"
                     >
-                      Level {podcast.difficulty_level}
+                      {mapDifficultyLevel(podcast.difficulty_level)}
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
                       {podcast.category}
@@ -220,11 +236,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
                   {podcast.description}
                 </p>
                 
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                    <span>Top Chart</span>
-                  </div>
+                <div className="flex justify-end pt-2">
                   <Button size="sm" variant="outline" className="gap-2">
                     <BookOpen className="h-3 w-3" />
                     View Episodes
