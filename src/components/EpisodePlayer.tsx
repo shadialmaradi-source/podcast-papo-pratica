@@ -26,6 +26,22 @@ import { updateEpisodeProgress } from "@/services/podcastService";
 import { toast } from "@/hooks/use-toast";
 import { LevelIntensitySelector } from "./LevelIntensitySelector";
 
+const mapDifficultyLevel = (level: string): string => {
+  switch (level?.toUpperCase()) {
+    case 'A1':
+    case 'A2':
+      return 'Beginner';
+    case 'B1':
+    case 'B2':
+      return 'Intermediate';
+    case 'C1':
+    case 'C2':
+      return 'Advanced';
+    default:
+      return level || 'Unknown';
+  }
+};
+
 interface EpisodePlayerProps {
   episode: PodcastEpisode;
   onStartExercises: (level: string, intensity: string) => void;
@@ -215,27 +231,23 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
   const audioUrl = episode.audio_url || 'https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3';
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={onBack}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+        <Button variant="outline" size="sm" onClick={onBack} className="w-full sm:w-auto">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
         
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold">{episode.title}</h2>
-          <div className="flex items-center gap-2 mt-2">
+        <div className="flex-1 w-full">
+          <h2 className="text-xl sm:text-2xl font-bold break-words">{episode.title}</h2>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             <Badge variant="outline">
-              {episode.podcast_source?.difficulty_level}
+              {mapDifficultyLevel(episode.podcast_source?.difficulty_level || '')}
             </Badge>
             <Badge variant="secondary">
               {episode.podcast_source?.category}
             </Badge>
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>Listened: {formatTimeListened(timeListened)}</span>
-            </div>
           </div>
         </div>
       </div>
@@ -283,7 +295,7 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
           </p>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             {levels.map((level) => (
               <motion.div
                 key={level.code}
@@ -292,20 +304,20 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
               >
                  <Button
                    variant="outline"
-                   className="w-full h-auto p-6 flex flex-col gap-3 hover:shadow-md transition-all"
+                   className="w-full h-auto p-4 sm:p-6 flex flex-col gap-2 sm:gap-3 hover:shadow-md transition-all"
                    onClick={() => {
                      setSelectedLevel(level.code);
                      setShowLevelSelector(true);
                    }}
                  >
-                  <Badge className={`${level.color} text-white text-lg px-3 py-1`}>
+                  <Badge className={`${level.color} text-white text-base sm:text-lg px-2 sm:px-3 py-1`}>
                     {level.code}
                   </Badge>
                   <div className="text-center">
-                    <div className="font-medium text-sm">
+                    <div className="font-medium text-xs sm:text-sm">
                       {level.name.split(' ')[0]}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground hidden sm:block">
                       {level.name.split(' ').slice(1).join(' ')}
                     </div>
                   </div>
@@ -327,11 +339,11 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
                   {showTranscript ? "Hide" : "Show"} Transcript
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[80vh]">
+              <DialogContent className="max-w-4xl max-h-[80vh] w-[95vw] sm:w-full">
                 <DialogHeader>
-                  <DialogTitle>Episode Transcript</DialogTitle>
+                  <DialogTitle className="text-base sm:text-lg">Episode Transcript</DialogTitle>
                 </DialogHeader>
-                <ScrollArea className="h-[60vh] pr-4">
+                <ScrollArea className="h-[60vh] pr-2 sm:pr-4">
                   <div className="space-y-4 text-sm leading-relaxed">
                     {episode.transcript ? 
                       episode.transcript.split('\n').map((paragraph, index) => (
