@@ -14,9 +14,10 @@ import { Leaderboard } from "@/components/Leaderboard";
 import { VocabularyManager } from "@/components/VocabularyManager";
 import { VocabularyReview } from "@/components/VocabularyReview";
 import YouTubeLibrary from "@/components/YouTubeLibrary";
+import { YouTubeVideoPlayer } from "@/components/YouTubeVideoPlayer";
 import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "leaderboard" | "vocabulary" | "vocabulary-review";
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "youtube-player" | "leaderboard" | "vocabulary" | "vocabulary-review";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -184,7 +185,7 @@ const Index = () => {
   const handleVideoSelect = (videoId: string, difficulty: string) => {
     setSelectedVideoId(videoId);
     setSelectedLevel(difficulty);
-    setAppState('youtube');
+    setAppState('youtube-player');
   };
 
   const handleNavigateToLeaderboard = () => {
@@ -199,7 +200,11 @@ const Index = () => {
   };
 
   const handleBackToYouTube = () => {
-    setAppState("youtube");
+    setAppState("youtube-player");
+  };
+
+  const handleBackToYouTubeLibrary = () => {
+    setAppState("youtube-library");
   };
 
   return (
@@ -269,6 +274,20 @@ const Index = () => {
           onBack={handleBackToDashboard}
           selectedLanguage={selectedLanguage || userProfile?.selected_language}
         />
+      )}
+
+      {appState === "youtube-player" && selectedVideoId && (
+        <div className="container mx-auto px-4">
+          <YouTubeVideoPlayer 
+            videoId={selectedVideoId}
+            onBack={handleBackToYouTubeLibrary}
+            onStartExercises={(level: string, intensity: string) => {
+              setSelectedLevel(level);
+              setSelectedIntensity(intensity);
+              setAppState("youtube-exercises");
+            }}
+          />
+        </div>
       )}
 
       {appState === "youtube" && (
