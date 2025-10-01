@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { languages } from "@/utils/languageUtils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface LanguageSelectionModalProps {
   isOpen: boolean;
@@ -16,12 +17,14 @@ export const LanguageSelectionModal = ({
   onLanguageSelect, 
   currentLanguage 
 }: LanguageSelectionModalProps) => {
+  const { t } = useTranslation();
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl sm:text-3xl font-bold">
-            Switch Learning Language
+            {t('switchLanguage')}
           </DialogTitle>
         </DialogHeader>
         
@@ -54,7 +57,7 @@ export const LanguageSelectionModal = ({
                     onLanguageSelect(language.code);
                   }}
                 >
-                  {currentLanguage === language.code ? "Current Language" : `Switch to ${language.name}`}
+                  {currentLanguage === language.code ? t('currentLanguage') : `${t('switchTo')} ${language.name}`}
                 </Button>
               </CardContent>
             </Card>

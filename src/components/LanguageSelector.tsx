@@ -3,13 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User, LogOut } from "lucide-react";
-
-interface Language {
-  code: string;
-  name: string;
-  flag: string;
-  description: string;
-}
+import { languages } from "@/utils/languageUtils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface LanguageSelectorProps {
   onLanguageSelect: (language: string) => void;
@@ -18,27 +13,8 @@ interface LanguageSelectorProps {
   onLogout: () => void;
 }
 
-const languages: Language[] = [
-  {
-    code: "portuguese",
-    name: "Português",
-    flag: "🇧🇷",
-    description: "Learn Brazilian Portuguese through podcasts"
-  },
-  {
-    code: "english",
-    name: "English",
-    flag: "🇬🇧",
-    description: "Learn English through podcasts"
-  },
-  {
-    code: "italian",
-    name: "Italiano",
-    flag: "🇮🇹",
-    description: "Impara l'italiano attraverso i podcast"
-  }
-];
 export const LanguageSelector = ({ onLanguageSelect, user, onProfileClick, onLogout }: LanguageSelectorProps) => {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 relative">
       {/* Header with User Menu */}
@@ -60,11 +36,11 @@ export const LanguageSelector = ({ onLanguageSelect, user, onProfileClick, onLog
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={onProfileClick} className="flex items-center gap-2">
               <User className="h-4 w-4" />
-              Profile
+              {t('myProfile')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onLogout} className="flex items-center gap-2 text-destructive">
               <LogOut className="h-4 w-4" />
-              Logout
+              {t('logout')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -74,10 +50,10 @@ export const LanguageSelector = ({ onLanguageSelect, user, onProfileClick, onLog
         <div className="w-full max-w-4xl">
           <div className="text-center mb-8 sm:mb-12">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-4">
-              Choose Your Learning Language
+              {t('chooseLanguage')}
             </h1>
             <p className="text-base sm:text-lg lg:text-xl text-muted-foreground px-4">
-              Select the language you want to learn through podcasts
+              {t('selectLanguagePrompt')}
             </p>
           </div>
 
@@ -106,7 +82,7 @@ export const LanguageSelector = ({ onLanguageSelect, user, onProfileClick, onLog
                     onLanguageSelect(language.code);
                   }}
                 >
-                  Start Learning {language.name}
+                  {t('startLearning')}
                 </Button>
               </CardContent>
             </Card>

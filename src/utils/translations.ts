@@ -1,8 +1,9 @@
-// Translation system for exercise completion screen
-export type LanguageCode = 'en' | 'it' | 'pt';
+// Translation system for the entire application
+export type LanguageCode = 'en' | 'it' | 'pt' | 'es';
 
 export const translations = {
   en: {
+    // Exercise completion
     exerciseComplete: 'Exercise Complete!',
     xpEarned: 'XP Earned',
     accuracy: 'Accuracy',
@@ -18,9 +19,57 @@ export const translations = {
     congratulations: 'Congratulations!',
     correctAnswer: 'Correct!',
     incorrectAnswer: 'Incorrect',
-    tryAgain: 'Try again'
+    tryAgain: 'Try again',
+    // Dashboard & Navigation
+    welcome: 'Welcome',
+    myProfile: 'My Profile',
+    logout: 'Logout',
+    currentStreak: 'Current Streak',
+    level: 'Level',
+    progress: 'Progress',
+    chooseLanguage: 'Choose Your Language',
+    selectLanguagePrompt: 'Select the language you want to learn through podcasts and videos',
+    startLearning: 'Start Learning',
+    switchLanguage: 'Switch Learning Language',
+    currentLanguage: 'Current Language',
+    switchTo: 'Switch to',
+    // Learning destinations
+    chooseLearningPath: 'Choose Your Learning Path',
+    selectDestination: 'Select how you want to learn today',
+    podcastLearning: 'Podcast Learning',
+    podcastDescription: 'Learn through curated podcasts',
+    youtubeVideos: 'YouTube Videos',
+    youtubeDescription: 'Learn through engaging videos',
+    // Profile
+    profile: 'Profile',
+    editProfile: 'Edit Profile',
+    username: 'Username',
+    displayName: 'Display Name',
+    email: 'Email',
+    totalXP: 'Total XP',
+    longestStreak: 'Longest Streak',
+    days: 'days',
+    learningStats: 'Learning Stats',
+    changeLanguage: 'Change Language',
+    save: 'Save',
+    cancel: 'Cancel',
+    // Leaderboard
+    leaderboard: 'Leaderboard',
+    rank: 'Rank',
+    player: 'Player',
+    xp: 'XP',
+    streak: 'Streak',
+    // Common
+    loading: 'Loading...',
+    close: 'Close',
+    back: 'Back',
+    next: 'Next',
+    continue: 'Continue',
+    start: 'Start',
+    complete: 'Complete'
   },
   it: {
+    // Exercise completion
     exerciseComplete: 'Esercizio Completato!',
     xpEarned: 'XP Guadagnati',
     accuracy: 'Precisione',
@@ -36,9 +85,57 @@ export const translations = {
     congratulations: 'Congratulazioni!',
     correctAnswer: 'Corretto!',
     incorrectAnswer: 'Sbagliato',
-    tryAgain: 'Riprova'
+    tryAgain: 'Riprova',
+    // Dashboard & Navigation
+    welcome: 'Benvenuto',
+    myProfile: 'Il Mio Profilo',
+    logout: 'Esci',
+    currentStreak: 'Giorni Consecutivi',
+    level: 'Livello',
+    progress: 'Progresso',
+    chooseLanguage: 'Scegli la Tua Lingua',
+    selectLanguagePrompt: 'Seleziona la lingua che vuoi imparare attraverso podcast e video',
+    startLearning: 'Inizia ad Imparare',
+    switchLanguage: 'Cambia Lingua di Apprendimento',
+    currentLanguage: 'Lingua Corrente',
+    switchTo: 'Passa a',
+    // Learning destinations
+    chooseLearningPath: 'Scegli il Tuo Percorso di Apprendimento',
+    selectDestination: 'Seleziona come vuoi imparare oggi',
+    podcastLearning: 'Apprendimento con Podcast',
+    podcastDescription: 'Impara attraverso podcast selezionati',
+    youtubeVideos: 'Video YouTube',
+    youtubeDescription: 'Impara attraverso video coinvolgenti',
+    // Profile
+    profile: 'Profilo',
+    editProfile: 'Modifica Profilo',
+    username: 'Nome Utente',
+    displayName: 'Nome Visualizzato',
+    email: 'Email',
+    totalXP: 'XP Totali',
+    longestStreak: 'Record di Giorni Consecutivi',
+    days: 'giorni',
+    learningStats: 'Statistiche di Apprendimento',
+    changeLanguage: 'Cambia Lingua',
+    save: 'Salva',
+    cancel: 'Annulla',
+    // Leaderboard
+    leaderboard: 'Classifica',
+    rank: 'Posizione',
+    player: 'Giocatore',
+    xp: 'XP',
+    streak: 'Serie',
+    // Common
+    loading: 'Caricamento...',
+    close: 'Chiudi',
+    back: 'Indietro',
+    next: 'Avanti',
+    continue: 'Continua',
+    start: 'Inizia',
+    complete: 'Completa'
   },
   pt: {
+    // Exercise completion
     exerciseComplete: 'Exercício Completo!',
     xpEarned: 'XP Ganhos',
     accuracy: 'Precisão',
@@ -54,7 +151,120 @@ export const translations = {
     congratulations: 'Parabéns!',
     correctAnswer: 'Correto!',
     incorrectAnswer: 'Incorreto',
-    tryAgain: 'Tente novamente'
+    tryAgain: 'Tente novamente',
+    // Dashboard & Navigation
+    welcome: 'Bem-vindo',
+    myProfile: 'Meu Perfil',
+    logout: 'Sair',
+    currentStreak: 'Sequência Atual',
+    level: 'Nível',
+    progress: 'Progresso',
+    chooseLanguage: 'Escolha Seu Idioma',
+    selectLanguagePrompt: 'Selecione o idioma que você quer aprender através de podcasts e vídeos',
+    startLearning: 'Começar a Aprender',
+    switchLanguage: 'Mudar Idioma de Aprendizado',
+    currentLanguage: 'Idioma Atual',
+    switchTo: 'Mudar para',
+    // Learning destinations
+    chooseLearningPath: 'Escolha Seu Caminho de Aprendizado',
+    selectDestination: 'Selecione como você quer aprender hoje',
+    podcastLearning: 'Aprendizado com Podcast',
+    podcastDescription: 'Aprenda através de podcasts selecionados',
+    youtubeVideos: 'Vídeos do YouTube',
+    youtubeDescription: 'Aprenda através de vídeos envolventes',
+    // Profile
+    profile: 'Perfil',
+    editProfile: 'Editar Perfil',
+    username: 'Nome de Usuário',
+    displayName: 'Nome de Exibição',
+    email: 'Email',
+    totalXP: 'XP Total',
+    longestStreak: 'Maior Sequência',
+    days: 'dias',
+    learningStats: 'Estatísticas de Aprendizado',
+    changeLanguage: 'Mudar Idioma',
+    save: 'Salvar',
+    cancel: 'Cancelar',
+    // Leaderboard
+    leaderboard: 'Classificação',
+    rank: 'Posição',
+    player: 'Jogador',
+    xp: 'XP',
+    streak: 'Sequência',
+    // Common
+    loading: 'Carregando...',
+    close: 'Fechar',
+    back: 'Voltar',
+    next: 'Próximo',
+    continue: 'Continuar',
+    start: 'Começar',
+    complete: 'Completar'
+  },
+  es: {
+    // Exercise completion
+    exerciseComplete: '¡Ejercicio Completado!',
+    xpEarned: 'XP Ganados',
+    accuracy: 'Precisión',
+    correct: 'Correctas',
+    whatsNext: '¿Qué Sigue?',
+    continueJourney: '¡Continúa tu viaje de aprendizaje!',
+    tryIntenseMode: 'Prueba el Modo Intenso',
+    continueToIntermediate: 'Continuar a Intermedio',
+    continueToAdvanced: 'Continuar a Avanzado',
+    continueLearning: 'Continuar Aprendiendo',
+    chooseAnotherPodcast: 'Elige otro podcast',
+    backToEpisode: 'Volver al Episodio',
+    congratulations: '¡Felicitaciones!',
+    correctAnswer: '¡Correcto!',
+    incorrectAnswer: 'Incorrecto',
+    tryAgain: 'Inténtalo de nuevo',
+    // Dashboard & Navigation
+    welcome: 'Bienvenido',
+    myProfile: 'Mi Perfil',
+    logout: 'Cerrar Sesión',
+    currentStreak: 'Racha Actual',
+    level: 'Nivel',
+    progress: 'Progreso',
+    chooseLanguage: 'Elige Tu Idioma',
+    selectLanguagePrompt: 'Selecciona el idioma que quieres aprender a través de podcasts y videos',
+    startLearning: 'Comenzar a Aprender',
+    switchLanguage: 'Cambiar Idioma de Aprendizaje',
+    currentLanguage: 'Idioma Actual',
+    switchTo: 'Cambiar a',
+    // Learning destinations
+    chooseLearningPath: 'Elige Tu Camino de Aprendizaje',
+    selectDestination: 'Selecciona cómo quieres aprender hoy',
+    podcastLearning: 'Aprendizaje con Podcast',
+    podcastDescription: 'Aprende a través de podcasts seleccionados',
+    youtubeVideos: 'Videos de YouTube',
+    youtubeDescription: 'Aprende a través de videos atractivos',
+    // Profile
+    profile: 'Perfil',
+    editProfile: 'Editar Perfil',
+    username: 'Nombre de Usuario',
+    displayName: 'Nombre de Pantalla',
+    email: 'Correo Electrónico',
+    totalXP: 'XP Total',
+    longestStreak: 'Racha Más Larga',
+    days: 'días',
+    learningStats: 'Estadísticas de Aprendizaje',
+    changeLanguage: 'Cambiar Idioma',
+    save: 'Guardar',
+    cancel: 'Cancelar',
+    // Leaderboard
+    leaderboard: 'Tabla de Clasificación',
+    rank: 'Rango',
+    player: 'Jugador',
+    xp: 'XP',
+    streak: 'Racha',
+    // Common
+    loading: 'Cargando...',
+    close: 'Cerrar',
+    back: 'Atrás',
+    next: 'Siguiente',
+    continue: 'Continuar',
+    start: 'Comenzar',
+    complete: 'Completar'
   }
 };
 
@@ -67,9 +277,11 @@ export function mapLanguageToCode(language: string): LanguageCode {
     'italian': 'it',
     'portuguese': 'pt',
     'english': 'en',
+    'spanish': 'es',
     'it': 'it',
     'pt': 'pt',
-    'en': 'en'
+    'en': 'en',
+    'es': 'es'
   };
   return mapping[language.toLowerCase()] || 'en';
 }

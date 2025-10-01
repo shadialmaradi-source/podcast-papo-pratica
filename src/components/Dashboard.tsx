@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { LanguageSelectionModal } from "@/components/LanguageSelectionModal";
 import { LearningDestinationModal } from "@/components/LearningDestinationModal";
 import { getLanguageFlag, getLanguageDescription } from "@/utils/languageUtils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface UserProfile {
   id: string;
@@ -36,6 +37,7 @@ interface DashboardProps {
 
 export default function Dashboard({ onNavigate, selectedLanguage, onLanguageChange }: DashboardProps) {
   const { user, signOut } = useAuth();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
@@ -241,6 +243,7 @@ const updateDailyActivity = async () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-3">{t('loading')}</span>
       </div>
     );
   }
@@ -271,7 +274,7 @@ const updateDailyActivity = async () => {
                 ItalianPod
               </h1>
               <p className="text-muted-foreground">
-                Ciao, {profile?.display_name || profile?.full_name || user?.email}!
+                {t('welcome')}, {profile?.display_name || profile?.full_name || user?.email}!
               </p>
             </div>
           </div>
@@ -281,14 +284,14 @@ const updateDailyActivity = async () => {
             <div className="flex items-center gap-2">
               <Flame className="h-5 w-5 text-orange-500" />
               <div>
-                <p className="text-xs text-muted-foreground">Streak</p>
+                <p className="text-xs text-muted-foreground">{t('streak')}</p>
                 <p className="font-bold">{profile?.current_streak || 0}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Star className="h-5 w-5 text-yellow-500" />
               <div>
-                <p className="text-xs text-muted-foreground">XP</p>
+                <p className="text-xs text-muted-foreground">{t('xp')}</p>
                 <p className="font-bold">{profile?.total_xp || 0}</p>
               </div>
             </div>
@@ -297,7 +300,7 @@ const updateDailyActivity = async () => {
               size="sm" 
               onClick={() => setShowLanguageModal(true)}
               className="text-2xl p-2 hover:scale-110 transition-transform"
-              title="Change Language"
+              title={t('changeLanguage')}
             >
               {getLanguageFlag(selectedLanguage || profile?.selected_language || 'italian')}
             </Button>
@@ -326,7 +329,7 @@ const updateDailyActivity = async () => {
                   <Headphones className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-2xl">Podcast Learning</CardTitle>
+                  <CardTitle className="text-2xl">{t('podcastLearning')}</CardTitle>
                   <CardDescription className="text-base mt-1">
                     {getLanguageDescription(selectedLanguage || profile?.selected_language || 'italian')}
                   </CardDescription>
@@ -336,7 +339,7 @@ const updateDailyActivity = async () => {
             <CardContent className="pt-0">
               <Button className="w-full" size="lg">
                 <Play className="h-5 w-5 mr-2" />
-                Listen & Practice
+                {t('start')}
               </Button>
             </CardContent>
           </Card>
@@ -348,9 +351,9 @@ const updateDailyActivity = async () => {
                   <Play className="h-8 w-8 text-red-500" />
                 </div>
                 <div>
-                  <CardTitle className="text-2xl">YouTube Videos</CardTitle>
+                  <CardTitle className="text-2xl">{t('youtubeVideos')}</CardTitle>
                   <CardDescription className="text-base mt-1">
-                    Practice with YouTube content and exercises
+                    {t('youtubeDescription')}
                   </CardDescription>
                 </div>
               </div>
@@ -358,7 +361,7 @@ const updateDailyActivity = async () => {
             <CardContent className="pt-0">
               <Button className="w-full" size="lg" variant="outline">
                 <Youtube className="h-5 w-5 mr-2" />
-                Watch & Learn
+                {t('start')}
               </Button>
             </CardContent>
           </Card>
@@ -375,13 +378,13 @@ const updateDailyActivity = async () => {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-purple-500" />
-                  <span className="font-semibold">Livello {getCurrentLevel()}</span>
+                  <span className="font-semibold">{t('level')} {getCurrentLevel()}</span>
                 </div>
                
               </div>
               <Progress value={getXPProgress()} className="h-2" />
               <p className="text-sm text-muted-foreground mt-2">
-                {profile?.total_xp % 1000} / 1000 XP - {1000 - (profile?.total_xp || 0) % 1000} XP al prossimo livello
+                {profile?.total_xp % 1000} / 1000 {t('xp')}
               </p>
             </CardContent>
           </Card>

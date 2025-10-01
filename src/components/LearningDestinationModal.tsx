@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Headphones, Play, Youtube } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface LearningDestinationModalProps {
   isOpen: boolean;
@@ -16,12 +17,14 @@ export const LearningDestinationModal = ({
   onDestinationSelect,
   selectedLanguage 
 }: LearningDestinationModalProps) => {
+  const { t } = useTranslation();
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold">
-            Where do you want to go?
+            {t('chooseLearningPath')}
           </DialogTitle>
         </DialogHeader>
         
@@ -34,15 +37,15 @@ export const LearningDestinationModal = ({
               <div className="p-4 bg-primary/10 rounded-xl mx-auto w-fit">
                 <Headphones className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-xl">Podcast Learning</CardTitle>
+              <CardTitle className="text-xl">{t('podcastLearning')}</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
               <CardDescription className="mb-4">
-                Learn through podcasts with interactive exercises
+                {t('podcastDescription')}
               </CardDescription>
               <Button className="w-full">
                 <Play className="h-4 w-4 mr-2" />
-                Listen & Practice
+                {t('start')}
               </Button>
             </CardContent>
           </Card>
@@ -55,15 +58,15 @@ export const LearningDestinationModal = ({
               <div className="p-4 bg-red-500/10 rounded-xl mx-auto w-fit">
                 <Play className="h-8 w-8 text-red-500" />
               </div>
-              <CardTitle className="text-xl">YouTube Videos</CardTitle>
+              <CardTitle className="text-xl">{t('youtubeVideos')}</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
               <CardDescription className="mb-4">
-                Practice with YouTube content and exercises
+                {t('youtubeDescription')}
               </CardDescription>
               <Button variant="outline" className="w-full">
                 <Youtube className="h-4 w-4 mr-2" />
-                Watch & Learn
+                {t('start')}
               </Button>
             </CardContent>
           </Card>

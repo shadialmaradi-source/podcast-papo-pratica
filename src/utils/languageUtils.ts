@@ -10,7 +10,7 @@ export const languages: Language[] = [
     code: "portuguese",
     name: "Português",
     flag: "🇧🇷",
-    description: "Learn Brazilian Portuguese through podcasts"
+    description: "Aprenda português brasileiro através de podcasts"
   },
   {
     code: "english", 
@@ -23,6 +23,12 @@ export const languages: Language[] = [
     name: "Italiano", 
     flag: "🇮🇹",
     description: "Impara l'italiano attraverso i podcast"
+  },
+  {
+    code: "spanish",
+    name: "Español",
+    flag: "🇪🇸",
+    description: "Aprende español a través de podcasts"
   }
 ];
 
