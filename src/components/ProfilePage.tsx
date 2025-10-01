@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import { 
   Trophy, 
   Star, 
@@ -23,7 +25,10 @@ import {
   Gift,
   Headphones,
   Crown,
-  Medal
+  Medal,
+  Edit,
+  Check,
+  X
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { EngagementFeatures } from "./EngagementFeatures";
@@ -33,6 +38,7 @@ interface UserProfile {
   id: string;
   user_id: string;
   email: string;
+  username: string | null;
   display_name: string;
   full_name: string;
   avatar_url: string;
@@ -98,6 +104,10 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
   const [loading, setLoading] = useState(true);
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardUser[]>([]);
   const [userGlobalRank, setUserGlobalRank] = useState<number>(0);
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [usernameValidation, setUsernameValidation] = useState<{ valid: boolean; reason?: string } | null>(null);
+  const [validatingUsername, setValidatingUsername] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -112,12 +122,13 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
       // Load profile
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, username')
         .eq('user_id', user?.id)
         .single();
 
       if (profileData) {
         setProfile(profileData);
+        setNewUsername(profileData.username || "");
       }
 
       // Load exercise statistics
@@ -318,6 +329,58 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
     return (currentLevelXP / 1000) * 100;
   };
 
+  const handleSaveUsername = async () => {
+    if (!newUsername || !user) return;
+
+    try {
+      setValidatingUsername(true);
+
+      // Call validation edge function
+      const { data: validationResult, error: validationError } = await supabase.functions.invoke(
+        'validate-username',
+        {
+          body: { username: newUsername, currentUserId: user.id }
+        }
+      );
+
+      if (validationError) {
+        console.error('Validation error:', validationError);
+        toast.error('Failed to validate username. Please try again.');
+        return;
+      }
+
+      setUsernameValidation(validationResult);
+
+      if (!validationResult.valid) {
+        toast.error(validationResult.reason || 'Invalid username');
+        return;
+      }
+
+      // Update username in database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ username: newUsername })
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        toast.error('Failed to update username. Please try again.');
+        return;
+      }
+
+      // Update local state
+      setProfile(prev => prev ? { ...prev, username: newUsername } : null);
+      setIsEditingUsername(false);
+      toast.success('Username updated successfully!');
+
+    } catch (error) {
+      console.error('Error saving username:', error);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setValidatingUsername(false);
+    }
+  };
+
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1: return <Crown className="h-4 w-4 text-yellow-500" />;
@@ -356,9 +419,9 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
             <CardContent className="p-8">
               <div className="flex flex-col md:flex-row items-center gap-6">
                 <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
-                  <AvatarImage src={profile?.avatar_url || ""} alt={profile?.display_name || ""} />
+                  <AvatarImage src={profile?.avatar_url || ""} alt={profile?.username || profile?.display_name || ""} />
                   <AvatarFallback className="text-2xl">
-                    {(profile?.display_name || profile?.full_name || user?.email || "U")
+                    {(profile?.username || profile?.display_name || profile?.full_name || "U")
                       .split(" ")
                       .map(n => n[0])
                       .join("")
@@ -367,9 +430,64 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                 </Avatar>
                 
                 <div className="flex-1 text-center md:text-left">
-                  <h1 className="text-3xl font-bold mb-2">
-                    {profile?.display_name || profile?.full_name || user?.email}
-                  </h1>
+                  <div className="flex items-center gap-2 justify-center md:justify-start mb-2">
+                    {!isEditingUsername ? (
+                      <>
+                        <h1 className="text-3xl font-bold">
+                          {profile?.username || profile?.display_name || profile?.full_name || "Set your username"}
+                        </h1>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            setIsEditingUsername(true);
+                            setUsernameValidation(null);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={newUsername}
+                          onChange={(e) => {
+                            setNewUsername(e.target.value);
+                            setUsernameValidation(null);
+                          }}
+                          placeholder="Enter username"
+                          className="max-w-xs"
+                          maxLength={30}
+                        />
+                        <Button 
+                          size="sm"
+                          onClick={handleSaveUsername}
+                          disabled={validatingUsername || !newUsername}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setIsEditingUsername(false);
+                            setNewUsername(profile?.username || "");
+                            setUsernameValidation(null);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {usernameValidation && !usernameValidation.valid && (
+                    <p className="text-sm text-destructive mb-2">{usernameValidation.reason}</p>
+                  )}
+                  {isEditingUsername && (
+                    <p className="text-xs text-muted-foreground mb-2">
+                      3-30 characters, letters, numbers, underscore, hyphen only
+                    </p>
+                  )}
                   <p className="text-muted-foreground mb-4">
                     Learning {profile?.selected_language === 'portuguese' ? 'Portuguese' : 
                              profile?.selected_language === 'english' ? 'English' :

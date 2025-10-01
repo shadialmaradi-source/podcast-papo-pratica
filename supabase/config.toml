@@ -51,3 +51,6 @@ verify_jwt = false
 
 [functions.process-youtube-video]
 verify_jwt = false
+
+[functions.validate-username]
+verify_jwt = true

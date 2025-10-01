@@ -352,6 +352,7 @@ export type Database = {
           total_xp: number | null
           updated_at: string | null
           user_id: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -368,6 +369,7 @@ export type Database = {
           total_xp?: number | null
           updated_at?: string | null
           user_id: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -384,6 +386,34 @@ export type Database = {
           total_xp?: number | null
           updated_at?: string | null
           user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      prohibited_words: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          language: string
+          severity: string | null
+          word: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          language: string
+          severity?: string | null
+          word: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          language?: string
+          severity?: string | null
+          word?: string
         }
         Relationships: []
       }
