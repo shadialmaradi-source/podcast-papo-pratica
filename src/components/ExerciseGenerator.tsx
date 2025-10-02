@@ -170,8 +170,20 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const [nextRecommendation, setNextRecommendation] = useState<NextActionRecommendation | null>(null);
 
   useEffect(() => {
+    // Reset state whenever the episode, level, or intensity changes
+    setShowCompletion(false);
+    setCurrentExerciseIndex(0);
+    setSelectedAnswer("");
+    setMatchingAnswers({ selectedTerm: null, matches: {} });
+    setSequenceItems([]);
+    setShowResult(false);
+    setExerciseResult(null);
+    setTotalXP(0);
+    setCorrectAnswers(0);
+    setTotalAnswers(0);
+
     loadExercises();
-  }, []);
+  }, [episode.id, level, intensity]);
 
   const loadExercises = async () => {
     setLoading(true);
@@ -385,7 +397,12 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
   const handleExerciseCompletion = async () => {
     try {
       // Get next recommendation
-      const recommendation = await getNextRecommendation('user-id', episode.id, level, intensity);
+      const recommendation = await getNextRecommendation(
+        episode.id,
+        level,
+        intensity,
+        episode.podcast_source?.language || 'english'
+      );
       setNextRecommendation(recommendation);
       
       // Get next episodes if needed
@@ -450,44 +467,44 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
 
   // Generate intelligent next action buttons
   const getNextActionButtons = () => {
-    const buttons = [];
-    
-    if (intensity === 'light') {
-      // From light mode, always go to intense mode of the SAME level
+    const buttons = [] as Array<{ text: string; action: () => void; variant: 'default' | 'outline' }>;
+
+    // Primary progression: always advance level (skip forcing intense first)
+    if (level === 'beginner') {
       buttons.push({
-        text: getTranslation('tryIntenseMode', targetLanguage),
-        action: () => onComplete(level, 'intense'), // Same level, intense mode
-        variant: 'default' as const
+        text: getTranslation('continueToIntermediate', targetLanguage),
+        action: () => onComplete('intermediate', 'light'),
+        variant: 'default'
       });
-    } else if (intensity === 'intense') {
-      // From intense mode, progress to the NEXT level's light mode
-      if (level === 'beginner') {
-        buttons.push({
-          text: getTranslation('continueToIntermediate', targetLanguage),
-          action: () => onComplete('intermediate', 'light'), // Next level, light mode
-          variant: 'default' as const
-        });
-      } else if (level === 'intermediate') {
-        buttons.push({
-          text: getTranslation('continueToAdvanced', targetLanguage),
-          action: () => onComplete('advanced', 'light'), // Next level, light mode
-          variant: 'default' as const
-        });
-      } else if (level === 'advanced') {
-        // Already at advanced intense - offer to continue learning or go back
-        buttons.push({
-          text: getTranslation('continueLearning', targetLanguage),
-          action: () => onBack(), // Go back to episode selection
-          variant: 'default' as const
-        });
-      }
+    } else if (level === 'intermediate') {
+      buttons.push({
+        text: getTranslation('continueToAdvanced', targetLanguage),
+        action: () => onComplete('advanced', 'light'),
+        variant: 'default'
+      });
+    } else {
+      // advanced
+      buttons.push({
+        text: getTranslation('continueLearning', targetLanguage),
+        action: () => onBack(),
+        variant: 'default'
+      });
     }
 
-    // Always add "Choose another podcast" option
+    // Optional: let users try intense mode at the same level when they finished light
+    if (intensity === 'light') {
+      buttons.push({
+        text: getTranslation('tryIntenseMode', targetLanguage),
+        action: () => onComplete(level, 'intense'),
+        variant: 'outline'
+      });
+    }
+
+    // Always allow choosing another podcast/episode
     buttons.push({
       text: getTranslation('chooseAnotherPodcast', targetLanguage),
-      action: () => onBack(), // Should go back to podcast selection
-      variant: 'outline' as const
+      action: () => onBack(),
+      variant: 'outline'
     });
 
     return buttons;

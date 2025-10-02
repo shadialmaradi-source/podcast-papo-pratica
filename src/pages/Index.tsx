@@ -259,6 +259,7 @@ const Index = () => {
       {appState === "exercises" && selectedEpisode && (
         <div className="container mx-auto px-4 py-8">
           <ExerciseGenerator
+            key={`${selectedEpisode.id}-${selectedLevel}-${selectedIntensity}`}
             episode={selectedEpisode}
             level={selectedLevel}
             intensity={selectedIntensity}
