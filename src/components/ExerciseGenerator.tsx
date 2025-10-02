@@ -453,30 +453,31 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
     const buttons = [];
     
     if (intensity === 'light') {
-      // Show "Try Intense Mode" for light exercises
+      // From light mode, always go to intense mode of the SAME level
       buttons.push({
         text: getTranslation('tryIntenseMode', targetLanguage),
-        action: () => onComplete(level, 'intense'),
+        action: () => onComplete(level, 'intense'), // Same level, intense mode
         variant: 'default' as const
       });
     } else if (intensity === 'intense') {
-      // Show level progression for intense exercises
+      // From intense mode, progress to the NEXT level's light mode
       if (level === 'beginner') {
         buttons.push({
           text: getTranslation('continueToIntermediate', targetLanguage),
-          action: () => onComplete('intermediate', 'light'),
+          action: () => onComplete('intermediate', 'light'), // Next level, light mode
           variant: 'default' as const
         });
       } else if (level === 'intermediate') {
         buttons.push({
           text: getTranslation('continueToAdvanced', targetLanguage),
-          action: () => onComplete('advanced', 'light'),
+          action: () => onComplete('advanced', 'light'), // Next level, light mode
           variant: 'default' as const
         });
-      } else {
+      } else if (level === 'advanced') {
+        // Already at advanced intense - offer to continue learning or go back
         buttons.push({
           text: getTranslation('continueLearning', targetLanguage),
-          action: () => onComplete(),
+          action: () => onBack(), // Go back to episode selection
           variant: 'default' as const
         });
       }
@@ -485,7 +486,7 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
     // Always add "Choose another podcast" option
     buttons.push({
       text: getTranslation('chooseAnotherPodcast', targetLanguage),
-      action: () => onComplete(),
+      action: () => onBack(), // Should go back to podcast selection
       variant: 'outline' as const
     });
 
