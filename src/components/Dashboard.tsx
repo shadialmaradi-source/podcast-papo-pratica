@@ -255,9 +255,9 @@ const updateDailyActivity = async () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex justify-between items-center mb-6"
+          className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6"
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 mx-auto sm:mx-0">
             <Avatar className="h-12 w-12">
               <AvatarImage src={profile?.avatar_url || ""} alt={profile?.display_name || ""} />
               <AvatarFallback>
@@ -279,31 +279,41 @@ const updateDailyActivity = async () => {
             </div>
           </div>
           
-          {/* Stats compatte nella header */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Flame className="h-5 w-5 text-orange-500" />
-              <div>
-                <p className="text-xs text-muted-foreground">{t('streak')}</p>
-                <p className="font-bold">{profile?.current_streak || 0}</p>
+          {/* Stats and actions - responsive layout */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto">
+            {/* Stats row */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* Streak */}
+              <div className="flex items-center gap-2">
+                <Flame className="h-5 w-5 text-orange-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('streak')}</p>
+                  <p className="font-bold">{profile?.current_streak || 0}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-yellow-500" />
-              <div>
-                <p className="text-xs text-muted-foreground">{t('xp')}</p>
-                <p className="font-bold">{profile?.total_xp || 0}</p>
+              
+              {/* XP */}
+              <div className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('xp')}</p>
+                  <p className="font-bold">{profile?.total_xp || 0}</p>
+                </div>
               </div>
+              
+              {/* Language flag */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowLanguageModal(true)}
+                className="text-2xl p-2 hover:scale-110 transition-transform"
+                title={t('changeLanguage')}
+              >
+                {getLanguageFlag(selectedLanguage || profile?.selected_language || 'italian')}
+              </Button>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setShowLanguageModal(true)}
-              className="text-2xl p-2 hover:scale-110 transition-transform"
-              title={t('changeLanguage')}
-            >
-              {getLanguageFlag(selectedLanguage || profile?.selected_language || 'italian')}
-            </Button>
+            
+            {/* Action buttons */}
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => onNavigate('profile')}>
                 <User className="h-4 w-4" />
