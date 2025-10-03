@@ -170,6 +170,8 @@ export const ExerciseGenerator = ({ episode, level, intensity, onComplete, onBac
   const [nextRecommendation, setNextRecommendation] = useState<NextActionRecommendation | null>(null);
 
   useEffect(() => {
+    console.log('[ExerciseGenerator] useEffect triggered', { episodeId: episode.id, level, intensity });
+    
     // Reset state whenever the episode, level, or intensity changes
     setShowCompletion(false);
     setCurrentExerciseIndex(0);
@@ -473,20 +475,32 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
     if (level === 'beginner') {
       buttons.push({
         text: getTranslation('continueToIntermediate', targetLanguage),
-        action: () => onComplete('intermediate', 'light'),
+        action: () => {
+          console.log('[ExerciseGenerator] Continue to Intermediate clicked');
+          setShowCompletion(false); // Defensive reset
+          onComplete('intermediate', 'light');
+        },
         variant: 'default'
       });
     } else if (level === 'intermediate') {
       buttons.push({
         text: getTranslation('continueToAdvanced', targetLanguage),
-        action: () => onComplete('advanced', 'light'),
+        action: () => {
+          console.log('[ExerciseGenerator] Continue to Advanced clicked');
+          setShowCompletion(false); // Defensive reset
+          onComplete('advanced', 'light');
+        },
         variant: 'default'
       });
     } else {
       // advanced
       buttons.push({
         text: getTranslation('continueLearning', targetLanguage),
-        action: () => onBack(),
+        action: () => {
+          console.log('[ExerciseGenerator] Continue Learning clicked');
+          setShowCompletion(false); // Defensive reset
+          onBack();
+        },
         variant: 'default'
       });
     }
@@ -495,7 +509,11 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
     if (intensity === 'light') {
       buttons.push({
         text: getTranslation('tryIntenseMode', targetLanguage),
-        action: () => onComplete(level, 'intense'),
+        action: () => {
+          console.log('[ExerciseGenerator] Try Intense Mode clicked');
+          setShowCompletion(false); // Defensive reset
+          onComplete(level, 'intense');
+        },
         variant: 'outline'
       });
     }
@@ -503,7 +521,11 @@ if (usingMockData || currentExercise.id.startsWith('mock-') || currentExercise.e
     // Always allow choosing another podcast/episode
     buttons.push({
       text: getTranslation('chooseAnotherPodcast', targetLanguage),
-      action: () => onBack(),
+      action: () => {
+        console.log('[ExerciseGenerator] Choose Another Podcast clicked');
+        setShowCompletion(false); // Defensive reset
+        onBack();
+      },
       variant: 'outline'
     });
 

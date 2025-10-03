@@ -30,6 +30,7 @@ const Index = () => {
   const [selectedVideoId, setSelectedVideoId] = useState<string>("");
   const [userProfile, setUserProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [generatorKey, setGeneratorKey] = useState(0);
 
   // Fetch user profile on mount - MUST be before any early returns
   useEffect(() => {
@@ -149,13 +150,24 @@ const Index = () => {
   };
 
   const handleExerciseComplete = (nextLevel?: string, nextIntensity?: string) => {
+    console.log('[Index] handleExerciseComplete called', { nextLevel, nextIntensity, currentKey: generatorKey });
+    
     if (nextLevel && nextIntensity) {
-      // Start exercises with new level/intensity
+      // User is progressing to next level/intensity - force unmount/remount
+      console.log('[Index] Progressing to next level:', nextLevel, nextIntensity);
       setSelectedLevel(nextLevel);
       setSelectedIntensity(nextIntensity);
-      setAppState("exercises");
+      setGeneratorKey(k => k + 1);
+      
+      // Force unmount by switching to episodes briefly, then remount with new props
+      setAppState("episodes");
+      setTimeout(() => {
+        console.log('[Index] Remounting ExerciseGenerator with new key:', generatorKey + 1);
+        setAppState("exercises");
+      }, 0);
     } else {
       // Return to episodes selection
+      console.log('[Index] Returning to episodes');
       setAppState("episodes");
     }
   };
@@ -259,7 +271,7 @@ const Index = () => {
       {appState === "exercises" && selectedEpisode && (
         <div className="container mx-auto px-4 py-8">
           <ExerciseGenerator
-            key={`${selectedEpisode.id}-${selectedLevel}-${selectedIntensity}`}
+            key={`${selectedEpisode.id}-${selectedLevel}-${selectedIntensity}-${generatorKey}`}
             episode={selectedEpisode}
             level={selectedLevel}
             intensity={selectedIntensity}
