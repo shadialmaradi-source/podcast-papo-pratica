@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import { PodcastSource, getPodcastsByLanguage } from "@/services/podcastService";
 import { ItalianPodcastCard } from "./ItalianPodcastCard";
 import { Play, BookOpen, Clock, Star, Search, ArrowLeft } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
+import { mapLanguageToCode } from "@/utils/translations";
 
 interface PodcastLibraryProps {
   selectedLanguage: string;
@@ -17,27 +19,9 @@ onBack?: () => void;
 
 const languageNames: Record<string, string> = {
   'portuguese': 'Português',
-  'italian': 'Italiano'
-};
-const backButtonLabels: Record<string, string> = {
-  'portuguese': 'Voltar',
-  'italian': 'Indietro',
-  'english': 'Back'
-};
-const mapDifficultyLevel = (level: string): string => {
-  switch (level?.toUpperCase()) {
-    case 'A1':
-    case 'A2':
-      return 'Beginner';
-    case 'B1':
-    case 'B2':
-      return 'Intermediate';
-    case 'C1':
-    case 'C2':
-      return 'Advanced';
-    default:
-      return level || 'Unknown';
-  }
+  'italian': 'Italiano',
+  'spanish': 'Español',
+  'english': 'English'
 };
 
 const getDifficultyColor = (difficulty: string) => {
@@ -49,7 +33,9 @@ const getDifficultyColor = (difficulty: string) => {
   }
 };
 
-export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExercises, onBack }: PodcastLibraryProps) {  const [podcasts, setPodcasts] = useState<PodcastSource[]>([]);
+export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExercises, onBack }: PodcastLibraryProps) {
+  const { t } = useTranslation();
+  const [podcasts, setPodcasts] = useState<PodcastSource[]>([]);
   const [filteredPodcasts, setFilteredPodcasts] = useState<PodcastSource[]>([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +44,22 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   
   const difficulties = ["all", "beginner", "intermediate", "advanced"];
+  
+  const mapDifficultyLevel = (level: string): string => {
+    switch (level?.toUpperCase()) {
+      case 'A1':
+      case 'A2':
+        return t('beginner');
+      case 'B1':
+      case 'B2':
+        return t('intermediate');
+      case 'C1':
+      case 'C2':
+        return t('advanced');
+      default:
+        return level || 'Unknown';
+    }
+  };
 
   useEffect(() => {
     loadPodcasts();
@@ -118,14 +120,14 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
       
      <div className="flex items-center gap-4">
   {onBack && (
-    <Button 
+     <Button 
       variant="ghost" 
       size="sm" 
       onClick={onBack}
       className="gap-2"
     >
       <ArrowLeft className="h-4 w-4" />
-      {backButtonLabels[selectedLanguage] || 'Back'}
+      {t('back')}
     </Button>
   )}
   <div className="flex-1 text-center space-y-3 sm:space-y-4">
@@ -134,10 +136,10 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
       animate={{ opacity: 1, y: 0 }}
       className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
     >
-      {languageNames[selectedLanguage]} Podcasts
+      {languageNames[selectedLanguage]} {t('podcasts')}
     </motion.h2>
     <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto px-4">
-      Discover top-rated podcasts from Spotify charts. Choose episodes that match your learning level and start practicing!
+      {t('discoverPodcasts')}
     </p>
   </div>
 </div>
@@ -147,7 +149,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search podcasts..."
+            placeholder={t('searchPodcasts')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -163,7 +165,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
               onClick={() => setSelectedDifficulty(difficulty)}
               className="transition-all duration-200 text-xs sm:text-sm"
             >
-              {difficulty === "all" ? "All Levels" : difficulty}
+              {difficulty === "all" ? t('allLevels') : t(difficulty as any)}
             </Button>
           ))}
         </div>
@@ -172,7 +174,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
       {/* Podcasts Grid */}
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Loading podcasts...</p>
+          <p className="text-muted-foreground">{t('loadingPodcasts')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -239,7 +241,7 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
                 <div className="flex justify-end pt-2">
                   <Button size="sm" variant="outline" className="gap-2">
                     <BookOpen className="h-3 w-3" />
-                    View Episodes
+                    {t('viewEpisodes')}
                   </Button>
                 </div>
               </CardContent>
@@ -249,12 +251,12 @@ export function PodcastLibrary({ selectedLanguage, onSelectPodcast, onStartExerc
         </div>
       )}
 
-      {filteredPodcasts.length === 0 && (
+      {filteredPodcasts.length === 0 && !loading && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
             {searchQuery 
-              ? `No podcasts found matching "${searchQuery}"`
-              : `No podcasts available for ${selectedDifficulty === "all" ? "this language" : `level ${selectedDifficulty}`}`
+              ? `${t('noPodcastsFound')} "${searchQuery}"`
+              : `${t('noPodcastsAvailable')} ${selectedDifficulty === "all" ? t('thisLanguage') : `${t('level')} ${t(selectedDifficulty as any)}`}`
             }
           </p>
         </div>

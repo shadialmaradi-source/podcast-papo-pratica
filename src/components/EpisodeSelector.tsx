@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { getPodcastEpisodes, getUserEpisodeProgress, PodcastEpisode, PodcastSource } from "@/services/podcastService";
 import { formatDistanceToNow } from "date-fns";
 import { EpisodePlayer } from "./EpisodePlayer";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface EpisodeSelectorProps {
   podcast: PodcastSource;
@@ -17,6 +18,7 @@ interface EpisodeSelectorProps {
 }
 
 export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, onBack }: EpisodeSelectorProps) {
+  const { t } = useTranslation();
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
   const [episodeProgress, setEpisodeProgress] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -54,16 +56,16 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
 
   const formatDurationCategory = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 10) return 'Short';
-    if (minutes <= 30) return 'Medium';
-    return 'Long';
+    if (minutes < 10) return t('short');
+    if (minutes <= 30) return t('medium');
+    return t('long');
   };
 
   const mapDifficultyLevel = (level: string): string => {
     const lowerLevel = level.toLowerCase();
-    if (lowerLevel === 'a1' || lowerLevel === 'a2') return 'Beginner';
-    if (lowerLevel === 'b1' || lowerLevel === 'b2') return 'Intermediate';
-    if (lowerLevel === 'c1' || lowerLevel === 'c2') return 'Advanced';
+    if (lowerLevel === 'a1' || lowerLevel === 'a2') return t('beginner');
+    if (lowerLevel === 'b1' || lowerLevel === 'b2') return t('intermediate');
+    if (lowerLevel === 'c1' || lowerLevel === 'c2') return t('advanced');
     return level; // fallback
   };
 
@@ -107,7 +109,7 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
       <div className="space-y-4">
         <Button variant="outline" size="sm" onClick={onBack} className="w-fit">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          {t('back')}
         </Button>
         
         <div className="space-y-3">
@@ -122,13 +124,13 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
 
       {/* Episodes List */}
       <div className="space-y-3 sm:space-y-4">
-        <h3 className="text-lg sm:text-xl font-semibold">Episodes</h3>
+        <h3 className="text-lg sm:text-xl font-semibold">{t('episodes')}</h3>
         
         {episodes.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
               <p className="text-muted-foreground">
-                No episodes available yet. Episodes will be added soon!
+                {t('noEpisodesAvailable')}
               </p>
             </CardContent>
           </Card>
@@ -156,7 +158,7 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
                           {isCompleted && (
                             <Badge className="bg-green-500 text-white text-xs">
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Completed
+                              {t('completed')}
                             </Badge>
                           )}
                         </div>
@@ -181,7 +183,7 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
                         
                         <Button size="sm" variant="outline" className="gap-2 w-full sm:w-auto">
                           <Play className="h-3 w-3" />
-                          Start
+                          {t('start')}
                         </Button>
                       </div>
                     </CardHeader>
@@ -194,7 +196,7 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
                       {progress && progressPercentage > 0 && (
                         <div className="space-y-2">
                           <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Progress</span>
+                            <span>{t('progress')}</span>
                             <span>{progressPercentage}%</span>
                           </div>
                           <Progress value={progressPercentage} className="h-2" />
@@ -204,7 +206,7 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
                       {episode.transcript && (
                         <div className="flex justify-end pt-2">
                           <Badge variant="secondary" className="text-xs">
-                            Transcript
+                            {t('transcript')}
                           </Badge>
                         </div>
                       )}
