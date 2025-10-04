@@ -56,7 +56,7 @@ export default function Dashboard({ onNavigate, selectedLanguage, onLanguageChan
     // Get basic profile
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, username')
       .eq('user_id', user?.id)
       .maybeSingle();
 
@@ -270,7 +270,7 @@ const updateDailyActivity = async () => {
                 ItalianPod
               </h1>
               <p className="text-muted-foreground">
-                {t('welcome')}, {profile?.username || profile?.display_name}!
+                {t('welcome')}, {profile?.username}!
               </p>
             </div>
           </div>

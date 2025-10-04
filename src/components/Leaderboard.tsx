@@ -50,7 +50,7 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
       // Get user's profile first
       const { data: profile } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, username')
         .eq('user_id', user?.id)
         .single();
 
@@ -186,13 +186,13 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16 border-4 border-background shadow-lg">
-                    <AvatarImage src={userProfile.avatar_url || ""} alt={userProfile.display_name || ""} />
+                    <AvatarImage src={userProfile.avatar_url || ""} alt={userProfile.username || ""} />
                     <AvatarFallback className="text-lg">
-                      {(userProfile.display_name || "U").split(" ").map((n: string) => n[0]).join("").toUpperCase()}
+                      {(userProfile.username || userProfile.display_name || "U").substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold">{userProfile.display_name}</h2>
+                    <h2 className="text-2xl font-bold">{userProfile.username}</h2>
                     <p className="text-muted-foreground">Your Current Global Ranking</p>
                   </div>
                   <div className="text-center">
