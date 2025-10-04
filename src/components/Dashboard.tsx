@@ -18,6 +18,7 @@ interface UserProfile {
   id: string;
   user_id: string;
   email: string | null;
+  username: string | null;
   display_name: string | null;
   full_name: string | null;
   avatar_url: string | null;
@@ -259,14 +260,9 @@ const updateDailyActivity = async () => {
         >
           <div className="flex items-center gap-4 mx-auto sm:mx-0">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={profile?.avatar_url || ""} alt={profile?.display_name || ""} />
+              <AvatarImage src={profile?.avatar_url || ""} alt={profile?.username || ""} />
               <AvatarFallback>
-                {(profile?.display_name || profile?.full_name || user?.email || "U")
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2)}
+                {(profile?.username || profile?.display_name || "U").substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div>
@@ -274,7 +270,7 @@ const updateDailyActivity = async () => {
                 ItalianPod
               </h1>
               <p className="text-muted-foreground">
-                {t('welcome')}, {profile?.display_name || profile?.full_name || user?.email}!
+                {t('welcome')}, {profile?.username || profile?.display_name}!
               </p>
             </div>
           </div>

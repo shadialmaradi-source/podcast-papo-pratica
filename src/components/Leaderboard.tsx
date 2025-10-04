@@ -17,6 +17,7 @@ import { motion } from "framer-motion";
 
 interface LeaderboardUser {
   id: string;
+  username: string;
   display_name: string;
   avatar_url: string;
   total_xp: number;
@@ -60,7 +61,7 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
       // Global leaderboard - top 50 users by XP
       const { data: globalData } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, total_xp, current_streak, selected_language')
+        .select('id, username, display_name, avatar_url, total_xp, current_streak, selected_language')
         .order('total_xp', { ascending: false })
         .limit(50);
 
@@ -121,15 +122,15 @@ export function Leaderboard({ onBack }: LeaderboardProps) {
       </div>
 
       <Avatar className="h-12 w-12">
-        <AvatarImage src={user.avatar_url || ""} alt={user.display_name || ""} />
+        <AvatarImage src={user.avatar_url || ""} alt={user.username || ""} />
         <AvatarFallback>
-          {(user.display_name || "U").split(" ").map(n => n[0]).join("").toUpperCase()}
+          {(user.username || user.display_name || "U").substring(0, 2).toUpperCase()}
         </AvatarFallback>
       </Avatar>
 
       <div className="flex-1">
         <div className="flex items-center gap-2">
-          <h4 className="font-semibold">{user.display_name}</h4>
+          <h4 className="font-semibold">{user.username}</h4>
           {isCurrentUser && (
             <Badge variant="outline" className="text-xs">You</Badge>
           )}

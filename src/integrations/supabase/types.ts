@@ -1064,6 +1064,10 @@ export type Database = {
           xp_reward: number
         }[]
       }
+      generate_random_username: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_episode_exercises: {
         Args:
           | {
