@@ -83,6 +83,7 @@ interface EpisodeProgress {
 
 interface LeaderboardUser {
   id: string;
+  username: string | null;
   display_name: string;
   avatar_url: string;
   total_xp: number;
@@ -127,6 +128,19 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
         .single();
 
       if (profileData) {
+        // Load streak data from user_streak_data table
+        const { data: streakData } = await supabase
+          .from('user_streak_data')
+          .select('current_streak, longest_streak')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        
+        if (streakData) {
+          // Merge streak data into profile
+          profileData.current_streak = streakData.current_streak;
+          profileData.longest_streak = streakData.longest_streak;
+        }
+        
         setProfile(profileData);
         setNewUsername(profileData.username || "");
       }
@@ -208,7 +222,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
       // Get top 10 global users for the leaderboard preview
       const { data: globalData } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, total_xp, current_streak, selected_language')
+        .select('id, username, display_name, avatar_url, total_xp, current_streak, selected_language')
         .order('total_xp', { ascending: false })
         .limit(10);
 
@@ -624,7 +638,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                             {getRankIcon(user.rank)}
                           </div>
                           <div className="flex-1 truncate">
-                            <span className="font-medium">{user.display_name}</span>
+                            <span className="font-medium">{user.username || user.display_name}</span>
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {user.total_xp} XP
