@@ -15,9 +15,10 @@ import { VocabularyManager } from "@/components/VocabularyManager";
 import { VocabularyReview } from "@/components/VocabularyReview";
 import YouTubeLibrary from "@/components/YouTubeLibrary";
 import { YouTubeVideoPlayer } from "@/components/YouTubeVideoPlayer";
+import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
 import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "youtube-player" | "leaderboard" | "vocabulary" | "vocabulary-review";
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "youtube-player" | "youtube-exercises-view" | "leaderboard" | "vocabulary" | "vocabulary-review";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -197,7 +198,7 @@ const Index = () => {
   const handleVideoSelect = (videoId: string, difficulty: string) => {
     setSelectedVideoId(videoId);
     setSelectedLevel(difficulty);
-    setAppState('youtube-player');
+    setAppState('youtube-exercises-view');
   };
 
   const handleNavigateToLeaderboard = () => {
@@ -310,6 +311,13 @@ const Index = () => {
             onStartExercises={handleYouTubeExercises}
           />
         </div>
+      )}
+
+      {appState === "youtube-exercises-view" && selectedVideoId && (
+        <YouTubeVideoExercises
+          videoId={selectedVideoId}
+          onBack={handleBackToYouTubeLibrary}
+        />
       )}
 
       {appState === "youtube-exercises" && selectedVideoId && (

@@ -992,12 +992,14 @@ export type Database = {
       }
       youtube_videos: {
         Row: {
+          added_by_user_id: string | null
           category: string | null
           created_at: string
           description: string | null
           difficulty_level: string
           duration: number | null
           id: string
+          is_curated: boolean | null
           language: string
           processed_at: string | null
           processing_started_at: string | null
@@ -1011,12 +1013,14 @@ export type Database = {
           view_count: number | null
         }
         Insert: {
+          added_by_user_id?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
           difficulty_level?: string
           duration?: number | null
           id?: string
+          is_curated?: boolean | null
           language?: string
           processed_at?: string | null
           processing_started_at?: string | null
@@ -1030,12 +1034,14 @@ export type Database = {
           view_count?: number | null
         }
         Update: {
+          added_by_user_id?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
           difficulty_level?: string
           duration?: number | null
           id?: string
+          is_curated?: boolean | null
           language?: string
           processed_at?: string | null
           processing_started_at?: string | null

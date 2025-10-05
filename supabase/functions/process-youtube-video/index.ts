@@ -37,7 +37,7 @@ serve(async (req) => {
   }
 
   try {
-    const { videoUrl, language = 'english', difficulty = 'beginner' } = await req.json();
+    const { videoUrl, language = 'italian', difficulty = 'beginner', userId } = await req.json();
     
     if (!videoUrl) {
       throw new Error('Video URL is required');
@@ -87,7 +87,9 @@ serve(async (req) => {
         language,
         difficulty_level: difficulty,
         status: 'processing',
-        processing_started_at: new Date().toISOString()
+        processing_started_at: new Date().toISOString(),
+        added_by_user_id: userId || null,
+        is_curated: false
       })
       .select()
       .single();
@@ -226,58 +228,58 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
 }
 
 async function generateTranscript(videoId: string): Promise<string> {
+  console.log('Starting transcript generation for video:', videoId);
+  
   try {
-    // Use yt-dlp to extract audio URL
-    const audioUrl = await extractAudioUrl(videoId);
-    if (!audioUrl) {
-      throw new Error('Could not extract audio URL');
-    }
-
-    // Download audio
-    const audioResponse = await fetch(audioUrl);
-    if (!audioResponse.ok) {
-      throw new Error('Failed to download audio');
-    }
-
-    const audioBuffer = await audioResponse.arrayBuffer();
-    
-    // Create form data for OpenAI Whisper
-    const formData = new FormData();
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/mp4' });
-    formData.append('file', audioBlob, 'audio.mp4');
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'en'); // Auto-detect or specify language
-
-    // Send to OpenAI Whisper API
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+    // Try multiple transcript APIs in order (same as client-side)
+    const APIs = [
+      {
+        url: `https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`,
+        parser: (data: any) => Array.isArray(data) ? data.map((item: any) => item.text).join(' ') : null
       },
-      body: formData,
-    });
+      {
+        url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
+        parser: (data: any) => data.events?.map((event: any) => 
+          event.segs?.map((seg: any) => seg.utf8).join('') || ''
+        ).join(' ') || null
+      }
+    ];
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`OpenAI API error: ${error.error?.message || 'Unknown error'}`);
+    for (const api of APIs) {
+      try {
+        console.log(`Trying transcript API: ${api.url}`);
+        
+        const response = await fetch(api.url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('API Response received:', typeof data);
+          
+          const transcript = api.parser(data);
+          
+          if (transcript && transcript.trim().length > 0) {
+            console.log(`Transcript loaded successfully, length: ${transcript.length}`);
+            return transcript.trim();
+          }
+        }
+      } catch (error) {
+        console.log(`API ${api.url} failed:`, error);
+        continue; // Try next API
+      }
     }
-
-    const result = await response.json();
-    return result.text;
-
+    
+    throw new Error('All transcript APIs failed - no captions available');
   } catch (error) {
     console.error('Error generating transcript:', error);
-    throw error;
+    throw new Error('This video does not have captions available or the transcript service is temporarily unavailable.');
   }
 }
-
-async function extractAudioUrl(videoId: string): Promise<string | null> {
-  try {
-    // This is a simplified approach - in production you'd want to use yt-dlp
-    // For now, we'll return null and handle the fallback
-    console.log('Audio extraction not implemented yet for video:', videoId);
-    return null;
-  } catch (error) {
     console.error('Error extracting audio URL:', error);
     return null;
   }

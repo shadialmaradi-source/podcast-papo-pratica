@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 // Map CEFR levels to readable difficulty names
 const mapDifficultyLevel = (level: string): string => {
@@ -140,6 +141,8 @@ interface YouTubeVideo {
   total_ratings: number;
   status: string;
   created_at: string;
+  added_by_user_id?: string | null;
+  is_curated?: boolean;
 }
 
 interface YouTubeLibraryProps {
@@ -182,6 +185,7 @@ const difficultyColors: { [key: string]: string } = {
 };
 
 const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, selectedLanguage }) => {
+  const { user } = useAuth();
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -202,8 +206,7 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
         .select(`
           *,
           youtube_exercises(count)
-        `)
-        .eq('status', 'completed');
+        `);
 
       // Filter by language if provided
       if (selectedLanguage) {
@@ -219,15 +222,13 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
         exerciseCount: video.youtube_exercises?.[0]?.count || 0
       })) || [];
 
-      // Use mock data if no videos are available
-      setVideos(videosWithExerciseCount.length > 0 ? videosWithExerciseCount : mockYouTubeVideos);
+      setVideos(videosWithExerciseCount);
     } catch (error) {
       console.error('Error fetching videos:', error);
-      // Use mock data on error
-      setVideos(mockYouTubeVideos);
       toast({
-        title: "Using Demo Data",
-        description: "Showing demo videos. Add your own to get started!",
+        title: "Error loading videos",
+        description: "Failed to load videos. Please try again.",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -260,8 +261,9 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
       const { data, error } = await supabase.functions.invoke('process-youtube-video', {
         body: {
           videoUrl: newVideoUrl.trim(),
-          language: selectedLanguage || 'english',
-          difficulty: 'beginner'
+          language: selectedLanguage || 'italian',
+          difficulty: 'beginner',
+          userId: user?.id
         }
       });
 
@@ -296,6 +298,14 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
     const normalizedVideoDifficulty = mapDifficultyLevel(video.difficulty_level).toLowerCase();
     const normalizedSelectedDifficulty = selectedDifficulty.toLowerCase();
     
+    // Filter by "My Videos" tab
+    if (selectedDifficulty === 'my-videos') {
+      const matchesUser = (video as any).added_by_user_id === user?.id;
+      const matchesSearch = video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           video.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesUser && matchesSearch;
+    }
+    
     const matchesDifficulty = selectedDifficulty === 'all' || 
                              normalizedVideoDifficulty === normalizedSelectedDifficulty ||
                              video.difficulty_level.toLowerCase() === normalizedSelectedDifficulty;
@@ -305,6 +315,9 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
   });
 
   const getDifficultyCount = (difficulty: string) => {
+    if (difficulty === 'my-videos') {
+      return videos.filter(video => (video as any).added_by_user_id === user?.id).length;
+    }
     return videos.filter(video => {
       const normalizedVideoDifficulty = mapDifficultyLevel(video.difficulty_level).toLowerCase();
       return normalizedVideoDifficulty === difficulty.toLowerCase() || 
@@ -379,8 +392,9 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
         </div>
 
         <Tabs value={selectedDifficulty} onValueChange={setSelectedDifficulty} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4 sm:mb-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 mb-4 sm:mb-6">
             <TabsTrigger value="all" className="text-xs sm:text-sm">All ({videos.length})</TabsTrigger>
+            <TabsTrigger value="my-videos" className="text-xs sm:text-sm">My Videos ({getDifficultyCount('my-videos')})</TabsTrigger>
             <TabsTrigger value="beginner" className="text-xs sm:text-sm">Beginner ({getDifficultyCount('beginner')})</TabsTrigger>
             <TabsTrigger value="intermediate" className="text-xs sm:text-sm">Intermediate ({getDifficultyCount('intermediate')})</TabsTrigger>
             <TabsTrigger value="advanced" className="text-xs sm:text-sm">Advanced ({getDifficultyCount('advanced')})</TabsTrigger>
@@ -411,39 +425,69 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
                           alt={video.title}
                           className="w-full h-48 object-cover rounded-t-lg"
                         />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-t-lg flex items-center justify-center">
-                          <Play className="h-12 w-12 text-white" />
-                        </div>
+                        {video.status === 'completed' ? (
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-t-lg flex items-center justify-center">
+                            <Play className="h-12 w-12 text-white" />
+                          </div>
+                        ) : (
+                          <div className="absolute inset-0 bg-black/60 rounded-t-lg flex items-center justify-center">
+                            <div className="text-center text-white p-4">
+                              {video.status === 'processing' ? (
+                                <>
+                                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                                  <p className="text-sm">Processing...</p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-sm font-medium">Failed</p>
+                                  <p className="text-xs mt-1">Try another video</p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <Badge className={`absolute top-2 right-2 ${difficultyColors[video.difficulty_level] || difficultyColors.beginner}`}>
                           {mapDifficultyLevel(video.difficulty_level)}
                         </Badge>
-                        <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatDuration(video.duration)}
-                        </div>
+                        {video.status === 'completed' && (
+                          <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formatDuration(video.duration)}
+                          </div>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="p-3 sm:p-4 space-y-3">
                       <CardTitle className="text-base sm:text-lg leading-tight line-clamp-2">{video.title}</CardTitle>
                       <CardDescription className="text-xs sm:text-sm line-clamp-2">{video.description}</CardDescription>
                       
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          {video.view_count || 0} views
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <BookOpen className="h-4 w-4" />
-                          {video.exerciseCount} exercises
-                        </div>
-                      </div>
+                      {video.status === 'completed' && (
+                        <>
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Users className="h-4 w-4" />
+                              {video.view_count || 0} views
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <BookOpen className="h-4 w-4" />
+                              {video.exerciseCount} exercises
+                            </div>
+                          </div>
 
-                      <Button 
-                        className="w-full" 
-                        onClick={() => onVideoSelect(video.video_id, video.difficulty_level)}
-                      >
-                        Start Learning
-                      </Button>
+                          <Button 
+                            className="w-full" 
+                            onClick={() => onVideoSelect(video.video_id, video.difficulty_level)}
+                          >
+                            Start Learning
+                          </Button>
+                        </>
+                      )}
+                      
+                      {video.status !== 'completed' && (
+                        <p className="text-xs text-center text-muted-foreground">
+                          {video.status === 'processing' ? 'Video is being processed. Check back soon!' : 'Processing failed. Please try another video.'}
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
