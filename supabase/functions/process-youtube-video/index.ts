@@ -280,10 +280,6 @@ async function generateTranscript(videoId: string): Promise<string> {
     throw new Error('This video does not have captions available or the transcript service is temporarily unavailable.');
   }
 }
-    console.error('Error extracting audio URL:', error);
-    return null;
-  }
-}
 
 async function generateAllExercises(transcript: string, videoId: string): Promise<any[]> {
   const exercises = [];
