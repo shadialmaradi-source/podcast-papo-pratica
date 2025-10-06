@@ -88,7 +88,7 @@ serve(async (req) => {
         difficulty_level: difficulty,
         status: 'processing',
         processing_started_at: new Date().toISOString(),
-        added_by_user_id: userId || null,
+        added_by_user_id: userId,
         is_curated: false
       })
       .select()
