@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Play, BookOpen, Clock, Users, Plus, Search, Loader2 } from "lucide-react";
+import { Play, BookOpen, Clock, Users, Plus, Search, Loader2, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -294,6 +294,36 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
     }
   };
 
+  const handleDeleteVideo = async (videoId: string, videoTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${videoTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('youtube_videos')
+        .delete()
+        .eq('id', videoId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Video Deleted",
+        description: "The video has been successfully removed.",
+      });
+
+      // Refresh the videos list
+      fetchVideos();
+    } catch (error) {
+      console.error('Error deleting video:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete video. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const filteredVideos = videos.filter(video => {
     const normalizedVideoDifficulty = mapDifficultyLevel(video.difficulty_level).toLowerCase();
     const normalizedSelectedDifficulty = selectedDifficulty.toLowerCase();
@@ -449,6 +479,19 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
                         <Badge className={`absolute top-2 right-2 ${difficultyColors[video.difficulty_level] || difficultyColors.beginner}`}>
                           {mapDifficultyLevel(video.difficulty_level)}
                         </Badge>
+                        {video.added_by_user_id === user?.id && (
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-2 left-2 h-8 w-8 opacity-80 hover:opacity-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteVideo(video.id, video.title);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         {video.status === 'completed' && (
                           <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
                             <Clock className="h-3 w-3" />
