@@ -54,3 +54,6 @@ verify_jwt = false
 
 [functions.validate-username]
 verify_jwt = true
+
+[functions.generate-exercises-from-transcript]
+verify_jwt = true

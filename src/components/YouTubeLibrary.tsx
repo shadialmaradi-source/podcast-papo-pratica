@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Play, BookOpen, Clock, Users, Plus, Search, Loader2, Trash2 } from "lucide-react";
+import { Play, BookOpen, Clock, Users, Plus, Search, Loader2, Trash2, AlertCircle, ExternalLink } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,7 +51,8 @@ const mockYouTubeVideos: YouTubeVideo[] = [
     rating: 4.5,
     total_ratings: 45,
     status: 'completed',
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    language: 'english'
   },
   {
     id: 'mock-2',
@@ -63,7 +67,8 @@ const mockYouTubeVideos: YouTubeVideo[] = [
     rating: 4.7,
     total_ratings: 78,
     status: 'completed',
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    language: 'english'
   },
   {
     id: 'mock-3',
@@ -78,7 +83,8 @@ const mockYouTubeVideos: YouTubeVideo[] = [
     rating: 4.9,
     total_ratings: 102,
     status: 'completed',
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    language: 'english'
   },
   {
     id: 'mock-4',
@@ -93,7 +99,8 @@ const mockYouTubeVideos: YouTubeVideo[] = [
     rating: 4.3,
     total_ratings: 32,
     status: 'completed',
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    language: 'english'
   },
   {
     id: 'mock-5',
@@ -108,7 +115,8 @@ const mockYouTubeVideos: YouTubeVideo[] = [
     rating: 4.6,
     total_ratings: 67,
     status: 'completed',
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    language: 'english'
   },
   {
     id: 'mock-6',
@@ -123,7 +131,8 @@ const mockYouTubeVideos: YouTubeVideo[] = [
     rating: 4.8,
     total_ratings: 89,
     status: 'completed',
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    language: 'english'
   }
 ];
 
@@ -143,6 +152,7 @@ interface YouTubeVideo {
   created_at: string;
   added_by_user_id?: string | null;
   is_curated?: boolean;
+  language: string;
 }
 
 interface YouTubeLibraryProps {
@@ -193,6 +203,11 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [isAddingVideo, setIsAddingVideo] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showTranscriptDialog, setShowTranscriptDialog] = useState(false);
+  const [selectedFailedVideo, setSelectedFailedVideo] = useState<YouTubeVideo | null>(null);
+  const [manualTranscript, setManualTranscript] = useState('');
+  const [transcriptLanguage, setTranscriptLanguage] = useState('');
+  const [isGeneratingExercises, setIsGeneratingExercises] = useState(false);
 
   useEffect(() => {
     fetchVideos();
@@ -321,6 +336,59 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
         description: "Failed to delete video. Please try again.",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleOpenTranscriptDialog = (video: YouTubeVideo) => {
+    setSelectedFailedVideo(video);
+    setTranscriptLanguage(video.language);
+    setManualTranscript('');
+    setShowTranscriptDialog(true);
+  };
+
+  const handleGenerateExercises = async () => {
+    if (!selectedFailedVideo || !manualTranscript || manualTranscript.length < 100) {
+      toast({
+        title: "Invalid Transcript",
+        description: "Please enter at least 100 characters of transcript text.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGeneratingExercises(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-exercises-from-transcript', {
+        body: {
+          videoId: selectedFailedVideo.id,
+          transcript: manualTranscript,
+          language: transcriptLanguage
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success!",
+        description: `Generated ${data.exerciseCount} exercises. Video is now ready to use.`,
+      });
+
+      setShowTranscriptDialog(false);
+      setManualTranscript('');
+      setSelectedFailedVideo(null);
+      
+      // Refresh the videos list
+      fetchVideos();
+    } catch (error) {
+      console.error('Error generating exercises:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate exercises. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingExercises(false);
     }
   };
 
@@ -498,6 +566,25 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
                             {formatDuration(video.duration)}
                           </div>
                         )}
+                        {video.status === 'failed' && (
+                          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 p-4">
+                            <AlertCircle className="h-8 w-8 text-destructive animate-pulse" />
+                            <Badge variant="destructive" className="text-xs">Failed - Add Transcript</Badge>
+                            <Button 
+                              size="sm" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenTranscriptDialog(video);
+                              }}
+                              className="mt-2"
+                            >
+                              Add Transcript Manually
+                            </Button>
+                            <p className="text-xs text-center text-muted-foreground mt-1">
+                              Transcript unavailable
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="p-3 sm:p-4 space-y-3">
@@ -548,6 +635,109 @@ const YouTubeLibrary: React.FC<YouTubeLibraryProps> = ({ onVideoSelect, onBack, 
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Manual Transcript Dialog */}
+      <Dialog open={showTranscriptDialog} onOpenChange={setShowTranscriptDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Transcript Manually</DialogTitle>
+            <DialogDescription>
+              The automatic transcript generation failed for this video. You can manually add a transcript to generate exercises.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+              <h4 className="font-medium text-sm flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                How to get the transcript:
+              </h4>
+              <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+                <li>Visit the transcript website using the link below</li>
+                <li>Paste your YouTube video URL there</li>
+                <li>Copy the generated transcript</li>
+                <li>Paste it in the text box below</li>
+              </ol>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-2"
+                onClick={() => window.open('https://youtubetranscript.com', '_blank')}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Get Transcript from youtubetranscript.com
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="transcript">Transcript Text</Label>
+              <Textarea
+                id="transcript"
+                placeholder="Paste the transcript here... (minimum 100 characters)"
+                value={manualTranscript}
+                onChange={(e) => setManualTranscript(e.target.value)}
+                className="min-h-[200px] font-mono text-sm"
+              />
+              <div className="flex items-center justify-between text-xs">
+                <span className={`${
+                  manualTranscript.length < 100 
+                    ? 'text-destructive' 
+                    : manualTranscript.length < 500 
+                      ? 'text-yellow-600' 
+                      : 'text-green-600'
+                }`}>
+                  {manualTranscript.length} characters
+                </span>
+                <span className="text-muted-foreground">
+                  {manualTranscript.length < 100 
+                    ? `${100 - manualTranscript.length} more needed` 
+                    : '✓ Ready'}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="language">Video Language</Label>
+              <Select value={transcriptLanguage} onValueChange={setTranscriptLanguage}>
+                <SelectTrigger id="language">
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="english">English</SelectItem>
+                  <SelectItem value="italian">Italian</SelectItem>
+                  <SelectItem value="spanish">Spanish</SelectItem>
+                  <SelectItem value="french">French</SelectItem>
+                  <SelectItem value="german">German</SelectItem>
+                  <SelectItem value="portuguese">Portuguese</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowTranscriptDialog(false)}
+              disabled={isGeneratingExercises}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleGenerateExercises}
+              disabled={manualTranscript.length < 100 || !transcriptLanguage || isGeneratingExercises}
+            >
+              {isGeneratingExercises ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating exercises...
+                </>
+              ) : (
+                'Generate Exercises'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
