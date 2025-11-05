@@ -423,7 +423,7 @@ export type Database = {
           event_details: Json | null
           event_type: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
           user_id: string | null
         }
@@ -432,7 +432,7 @@ export type Database = {
           event_details?: Json | null
           event_type: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -441,7 +441,7 @@ export type Database = {
           event_details?: Json | null
           event_type?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -1070,19 +1070,52 @@ export type Database = {
           xp_reward: number
         }[]
       }
-      generate_random_username: {
-        Args: Record<PropertyKey, never>
-        Returns: string
+      check_youtube_exercise_answer: {
+        Args: { exercise_id_param: string; user_answer_param: string }
+        Returns: {
+          correct_answer: string
+          explanation: string
+          is_correct: boolean
+          xp_reward: number
+        }[]
       }
-      get_episode_exercises: {
-        Args:
-          | {
+      generate_random_username: { Args: never; Returns: string }
+      get_episode_exercises:
+        | {
+            Args: { episode_id_param: string }
+            Returns: {
+              difficulty: string
+              episode_id: string
+              exercise_type: string
+              id: string
+              options: Json
+              order_index: number
+              question: string
+              xp_reward: number
+            }[]
+          }
+        | {
+            Args: {
               difficulty_param?: string
               episode_id_param: string
               intensity_param?: string
             }
-          | { episode_id_param: string }
+            Returns: {
+              difficulty: string
+              episode_id: string
+              exercise_type: string
+              id: string
+              intensity: string
+              options: Json
+              order_index: number
+              question: string
+              xp_reward: number
+            }[]
+          }
+      get_exercise_questions: {
+        Args: { exercise_ids: string[] }
         Returns: {
+          context_sentence: string
           difficulty: string
           episode_id: string
           exercise_type: string
@@ -1091,11 +1124,12 @@ export type Database = {
           options: Json
           order_index: number
           question: string
+          vocabulary_words: Json
           xp_reward: number
         }[]
       }
       get_leaderboard_position_alerts: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           current_rank: number
           current_xp: number
@@ -1117,7 +1151,7 @@ export type Database = {
         }[]
       }
       get_users_needing_daily_reminders: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           current_streak: number
           email: string
@@ -1147,6 +1181,22 @@ export type Database = {
           new_badges: number
           streak_days: number
           total_xp: number
+        }[]
+      }
+      get_youtube_exercise_questions: {
+        Args: { video_id_param: string }
+        Returns: {
+          context_sentence: string
+          difficulty: string
+          exercise_type: string
+          id: string
+          intensity: string
+          options: Json
+          order_index: number
+          question: string
+          video_id: string
+          vocabulary_words: Json
+          xp_reward: number
         }[]
       }
       update_vocabulary_progress: {

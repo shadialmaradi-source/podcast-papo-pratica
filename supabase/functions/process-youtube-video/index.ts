@@ -38,7 +38,26 @@ serve(async (req) => {
   }
 
   try {
-    const { videoUrl, language = 'italian', difficulty = 'beginner', userId } = await req.json();
+    // Initialize Supabase client with service role for admin operations
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Extract and verify authenticated user from JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing authorization header');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      throw new Error('Unauthorized');
+    }
+
+    const { videoUrl, language = 'italian', difficulty = 'beginner' } = await req.json();
     
     if (!videoUrl) {
       throw new Error('Video URL is required');
@@ -50,11 +69,8 @@ serve(async (req) => {
       throw new Error('Invalid YouTube URL');
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Use authenticated user's ID instead of accepting it from client
+    const userId = user.id;
 
     // Check if video already exists
     const { data: existingVideo } = await supabase
