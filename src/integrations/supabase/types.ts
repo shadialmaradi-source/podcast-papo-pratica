@@ -343,7 +343,6 @@ export type Database = {
           current_level: string | null
           current_streak: number | null
           display_name: string | null
-          email: string | null
           full_name: string | null
           id: string
           last_login_date: string | null
@@ -360,7 +359,6 @@ export type Database = {
           current_level?: string | null
           current_streak?: number | null
           display_name?: string | null
-          email?: string | null
           full_name?: string | null
           id?: string
           last_login_date?: string | null
@@ -377,7 +375,6 @@ export type Database = {
           current_level?: string | null
           current_streak?: number | null
           display_name?: string | null
-          email?: string | null
           full_name?: string | null
           id?: string
           last_login_date?: string | null
