@@ -17,7 +17,6 @@ import { useTranslation } from "@/hooks/useTranslation";
 interface UserProfile {
   id: string;
   user_id: string;
-  email: string | null;
   username: string | null;
   display_name: string | null;
   full_name: string | null;

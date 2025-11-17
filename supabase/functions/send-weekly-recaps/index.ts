@@ -23,16 +23,39 @@ serve(async (req: Request) => {
     console.log('Starting weekly recaps generation...');
 
     // Get all active users with email preferences
-    const { data: users, error: usersError } = await supabase
+    const { data: profiles, error: usersError } = await supabase
       .from('profiles')
       .select(`
         user_id, 
-        email,
         display_name,
         user_notification_preferences!inner(email_weekly_recaps)
       `)
-      .eq('user_notification_preferences.email_weekly_recaps', true)
-      .not('email', 'is', null);
+      .eq('user_notification_preferences.email_weekly_recaps', true);
+
+    if (usersError) {
+      console.error('Error fetching users:', usersError);
+      throw usersError;
+    }
+
+    // Get emails from auth.users for these profiles
+    const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (authError) {
+      console.error('Error fetching auth users:', authError);
+      throw authError;
+    }
+
+    // Map user_id to email
+    const emailMap = new Map(authUsersData.users.map(u => [u.id, u.email]));
+    
+    // Combine profile and email data
+    const users = profiles
+      ?.map(p => ({
+        user_id: p.user_id,
+        email: emailMap.get(p.user_id),
+        display_name: p.display_name
+      }))
+      .filter(u => u.email); // Only include users with email
 
     if (usersError) {
       console.error('Error fetching users:', usersError);

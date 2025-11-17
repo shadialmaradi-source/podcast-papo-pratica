@@ -37,7 +37,6 @@ import { PersonalizedRecommendations } from "./PersonalizedRecommendations";
 interface UserProfile {
   id: string;
   user_id: string;
-  email: string;
   username: string | null;
   display_name: string;
   full_name: string;
