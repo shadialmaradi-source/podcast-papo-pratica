@@ -8,6 +8,39 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function validateTranscriptContent(text: string): { valid: boolean; error?: string } {
+  // Check for excessive special characters
+  const specialCharRatio = (text.match(/[^a-zA-Z0-9\s,.!?'\-]/g) || []).length / text.length;
+  if (specialCharRatio > 0.15) {
+    return { valid: false, error: 'Transcript contains too many special characters' };
+  }
+  
+  // Check for repeated patterns (spam detection)
+  if (/(.{20,})\1{3,}/.test(text)) {
+    return { valid: false, error: 'Transcript contains excessive repetition' };
+  }
+  
+  // Check for prompt injection attempts
+  const dangerousPatterns = [
+    'ignore previous', 'ignore all previous', 'system:', 'assistant:', 
+    '<script>', 'DROP TABLE', 'DELETE FROM', 'UPDATE users'
+  ];
+  const lowerText = text.toLowerCase();
+  for (const pattern of dangerousPatterns) {
+    if (lowerText.includes(pattern)) {
+      return { valid: false, error: 'Transcript contains potentially malicious content' };
+    }
+  }
+  
+  // Check for minimum word count (not just character count)
+  const wordCount = text.trim().split(/\s+/).length;
+  if (wordCount < 50) {
+    return { valid: false, error: 'Transcript must contain at least 50 words' };
+  }
+  
+  return { valid: true };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -27,6 +60,15 @@ serve(async (req) => {
 
     if (transcript.length > 50000) {
       throw new Error('Transcript is too long (maximum 50,000 characters)');
+    }
+
+    // Validate content
+    const validation = validateTranscriptContent(transcript);
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Initialize Supabase client
@@ -56,6 +98,30 @@ serve(async (req) => {
       throw new Error('Only failed videos can have transcripts added manually');
     }
 
+    // Check rate limiting - max 3 submissions per hour per video
+    const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+    const { data: recentSubmissions, error: rateLimitError } = await supabase
+      .from('youtube_transcripts')
+      .select('created_at')
+      .eq('video_id', videoId)
+      .gte('created_at', oneHourAgo);
+    
+    if (rateLimitError) {
+      console.error('Rate limit check error:', rateLimitError);
+    }
+    
+    if (recentSubmissions && recentSubmissions.length >= 3) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Rate limit exceeded. Maximum 3 transcript submissions per hour per video.' 
+        }),
+        { 
+          status: 429, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
     console.log('Processing manual transcript for video:', videoId);
 
     // Update video status to processing
@@ -68,13 +134,14 @@ serve(async (req) => {
       .eq('id', videoId);
 
     // Save transcript
+    const wordCount = transcript.trim().split(/\s+/).length;
     const { error: transcriptError } = await supabase
       .from('youtube_transcripts')
       .insert({
         video_id: videoId,
         transcript: transcript.trim(),
         language,
-        word_count: transcript.split(' ').length,
+        word_count: wordCount,
         confidence_score: null // Manual transcripts don't have confidence scores
       });
 
