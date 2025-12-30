@@ -121,8 +121,8 @@ const updateDailyActivity = async () => {
 
       if (newStreakData) {
         toast({
-          title: "Streak iniziato!",
-          description: "Il tuo primo giorno di apprendimento!",
+          title: "Streak started!",
+          description: "Your first day of learning!",
         });
         fetchProfile();
       }
@@ -168,8 +168,8 @@ const updateDailyActivity = async () => {
 
     if (!error) {
       toast({
-        title: `Streak ${newStreak} giorni!`,
-        description: `Continua cosi!`,
+        title: `${newStreak} day streak!`,
+        description: "Keep it up!",
       });
     }
 
@@ -234,8 +234,8 @@ const updateDailyActivity = async () => {
   const handleSignOut = async () => {
     await signOut();
     toast({
-      title: "Disconnesso",
-      description: "A presto!",
+      title: "Signed out",
+      description: "See you soon!",
     });
   };
 
@@ -251,7 +251,7 @@ const updateDailyActivity = async () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       <div className="container mx-auto p-4 sm:p-6 max-w-4xl">
-        {/* Header con Stats integrate */}
+        {/* Header with integrated Stats */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -320,7 +320,7 @@ const updateDailyActivity = async () => {
           </div>
         </motion.div>
 
-        {/* Learning Options - Sezione principale */}
+        {/* Learning Options - Main Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -372,7 +372,7 @@ const updateDailyActivity = async () => {
           </Card>
         </motion.div>
 
-        {/* Progress minimalista */}
+        {/* Progress section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
