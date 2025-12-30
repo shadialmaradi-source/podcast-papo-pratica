@@ -47,14 +47,14 @@ export default function Auth() {
       if (error) {
         setError(error.message);
         toast({
-          title: "Errore di accesso",
+          title: "Login Error",
           description: error.message,
           variant: "destructive"
         });
       }
     } catch (error) {
       console.error('Google sign-in error:', error);
-      setError("Errore durante l'accesso con Google");
+      setError("Error during Google sign-in");
     } finally {
       setLoading(false);
     }
@@ -77,14 +77,14 @@ export default function Auth() {
         
         if (error) {
           if (error.message.includes('already registered')) {
-            setError('Questo email è già registrato. Prova ad accedere invece.');
+            setError('This email is already registered. Try signing in instead.');
           } else {
             setError(error.message);
           }
         } else {
           toast({
-            title: "Registrazione completata",
-            description: "Controlla la tua email per confermare l'account",
+            title: "Registration Complete",
+            description: "Check your email to confirm your account",
           });
         }
       } else {
@@ -95,7 +95,7 @@ export default function Auth() {
         
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
-            setError('Email o password non validi');
+            setError('Invalid email or password');
           } else {
             setError(error.message);
           }
@@ -103,7 +103,7 @@ export default function Auth() {
       }
     } catch (error) {
       console.error('Auth error:', error);
-      setError('Si è verificato un errore. Riprova più tardi.');
+      setError('An error occurred. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -120,14 +120,14 @@ export default function Auth() {
 
       if (error) {
         toast({
-          title: "Errore",
+          title: "Error",
           description: error.message,
           variant: "destructive"
         });
       } else {
         toast({
-          title: "Email inviata",
-          description: "Controlla la tua email per le istruzioni di recupero password",
+          title: "Email Sent",
+          description: "Check your email for password reset instructions",
         });
         setShowForgotPassword(false);
         setForgotPasswordEmail("");
@@ -135,8 +135,8 @@ export default function Auth() {
     } catch (error) {
       console.error('Forgot password error:', error);
       toast({
-        title: "Errore",
-        description: "Si è verificato un errore. Riprova più tardi.",
+        title: "Error",
+        description: "An error occurred. Please try again later.",
         variant: "destructive"
       });
     } finally {
@@ -163,12 +163,12 @@ export default function Auth() {
               <h1 className="text-2xl font-bold">ItalianPod</h1>
             </motion.div>
             <CardTitle className="text-xl">
-              {isSignUp ? 'Crea Account' : 'Accedi'}
+              {isSignUp ? 'Create Account' : 'Sign In'}
             </CardTitle>
             <CardDescription>
               {isSignUp 
-                ? 'Registrati per iniziare il tuo viaggio di apprendimento' 
-                : 'Bentornato! Accedi al tuo account'
+                ? 'Sign up to start your learning journey' 
+                : 'Welcome back! Sign in to your account'
               }
             </CardDescription>
           </CardHeader>
@@ -199,7 +199,7 @@ export default function Auth() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              {loading ? 'Accesso in corso...' : 'Accedi con Google'}
+              {loading ? 'Signing in...' : 'Sign in with Google'}
             </Button>
 
             <div className="relative">
@@ -207,7 +207,7 @@ export default function Auth() {
                 <Separator className="w-full" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">oppure</span>
+                <span className="bg-background px-2 text-muted-foreground">or</span>
               </div>
             </div>
 
@@ -220,7 +220,7 @@ export default function Auth() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="tua@email.com"
+                    placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
@@ -251,14 +251,14 @@ export default function Auth() {
                   <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
                     <DialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="text-sm text-muted-foreground hover:text-primary p-0 h-auto">
-                        Hai dimenticato la password?
+                        Forgot password?
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                       <DialogHeader>
-                        <DialogTitle>Recupera Password</DialogTitle>
+                        <DialogTitle>Reset Password</DialogTitle>
                         <DialogDescription>
-                          Inserisci il tuo indirizzo email e ti invieremo le istruzioni per reimpostare la password.
+                          Enter your email address and we'll send you instructions to reset your password.
                         </DialogDescription>
                       </DialogHeader>
                       <form onSubmit={handleForgotPassword} className="space-y-4">
@@ -269,7 +269,7 @@ export default function Auth() {
                             <Input
                               id="forgot-email"
                               type="email"
-                              placeholder="tua@email.com"
+                              placeholder="your@email.com"
                               value={forgotPasswordEmail}
                               onChange={(e) => setForgotPasswordEmail(e.target.value)}
                               className="pl-10"
@@ -284,14 +284,14 @@ export default function Auth() {
                             onClick={() => setShowForgotPassword(false)}
                             className="flex-1"
                           >
-                            Annulla
+                            Cancel
                           </Button>
                           <Button
                             type="submit"
                             disabled={forgotPasswordLoading}
                             className="flex-1"
                           >
-                            {forgotPasswordLoading ? 'Invio...' : 'Invia Email'}
+                            {forgotPasswordLoading ? 'Sending...' : 'Send Email'}
                           </Button>
                         </div>
                       </form>
@@ -313,7 +313,7 @@ export default function Auth() {
                 disabled={loading}
               >
                 <LogIn className="mr-2 h-4 w-4" />
-                {loading ? 'Caricamento...' : (isSignUp ? 'Registrati' : 'Accedi')}
+                {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
               </Button>
             </form>
 
@@ -325,8 +325,8 @@ export default function Auth() {
                 className="text-sm"
               >
                 {isSignUp 
-                  ? 'Hai già un account? Accedi' 
-                  : 'Non hai un account? Registrati'
+                  ? 'Already have an account? Sign In' 
+                  : "Don't have an account? Sign Up"
                 }
               </Button>
             </div>
