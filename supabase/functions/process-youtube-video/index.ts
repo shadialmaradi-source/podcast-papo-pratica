@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { generateAllExercises } from '../_shared/exerciseGenerator.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,35 +15,17 @@ interface VideoInfo {
   thumbnail: string;
 }
 
-interface Exercise {
-  id: string;
-  type: string;
-  question: string;
-  options?: any;
-  correctAnswer: string;
-  explanation: string;
-  points: number;
-  difficulty: string;
-  level: string;
-  mode: string;
-  orderIndex?: number;
-  vocabularyWords?: string[];
-  contextSentence?: string;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Initialize Supabase client with service role for admin operations
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Extract and verify authenticated user from JWT
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('Missing authorization header');
@@ -57,19 +38,17 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { videoUrl, language = 'italian', difficulty = 'beginner' } = await req.json();
+    const { videoUrl, language = 'english', difficulty = 'beginner' } = await req.json();
     
     if (!videoUrl) {
       throw new Error('Video URL is required');
     }
 
-    // Extract video ID from URL
     const videoId = extractVideoId(videoUrl);
     if (!videoId) {
       throw new Error('Invalid YouTube URL');
     }
 
-    // Use authenticated user's ID instead of accepting it from client
     const userId = user.id;
 
     // Check if video already exists
@@ -117,13 +96,13 @@ serve(async (req) => {
 
     console.log('Created video record:', video.id);
 
-    // Start background processing
-    await processVideoInBackground(supabase, video, videoId);
+    // Start background processing (don't await - let it run async)
+    processVideoInBackground(supabase, video, videoId);
 
     return new Response(JSON.stringify({ 
       success: true, 
       video,
-      message: 'Video processing started' 
+      message: 'Video processing started. This may take 1-2 minutes.' 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -178,16 +157,16 @@ async function getVideoInfo(videoId: string): Promise<VideoInfo> {
 
 async function processVideoInBackground(supabase: any, video: any, videoId: string) {
   try {
-    console.log('Starting transcript generation for video:', videoId);
+    console.log('Starting transcript extraction for video:', videoId);
     
-    // Generate transcript using OpenAI Whisper
-    const transcript = await generateTranscript(videoId);
+    // Extract transcript from YouTube captions
+    const transcript = await extractTranscriptFromCaptions(videoId);
     
-    if (!transcript) {
-      throw new Error('Failed to generate transcript');
+    if (!transcript || transcript.trim().length < 100) {
+      throw new Error('Could not extract transcript. Video may not have captions enabled.');
     }
 
-    console.log('Generated transcript, length:', transcript.length);
+    console.log('Extracted transcript, length:', transcript.length);
 
     // Save transcript
     const { error: transcriptError } = await supabase
@@ -205,8 +184,8 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
 
     console.log('Saved transcript for video:', video.id);
 
-    // Generate exercises for all difficulty levels and intensities
-    const exercises = await generateAllExercises(transcript, video.id);
+    // Generate exercises using AI
+    const exercises = await generateAIExercises(transcript, video.id, video.language);
     
     if (exercises.length > 0) {
       const { error: exercisesError } = await supabase
@@ -234,7 +213,7 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
   } catch (error) {
     console.error('Error in background processing:', error);
     
-    // Update video status to failed
+    // Update video status to failed with error message
     await supabase
       .from('youtube_videos')
       .update({
@@ -244,58 +223,316 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
   }
 }
 
-async function generateTranscript(videoId: string): Promise<string> {
-  console.log('Starting transcript generation for video:', videoId);
+async function extractTranscriptFromCaptions(videoId: string): Promise<string> {
+  console.log('Extracting captions for video:', videoId);
   
   try {
-    // Try multiple transcript APIs in order (same as client-side)
-    const APIs = [
-      {
-        url: `https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`,
-        parser: (data: any) => Array.isArray(data) ? data.map((item: any) => item.text).join(' ') : null
-      },
-      {
-        url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
-        parser: (data: any) => data.events?.map((event: any) => 
-          event.segs?.map((seg: any) => seg.utf8).join('') || ''
-        ).join(' ') || null
+    // Method 1: Fetch YouTube page and extract caption track URL
+    const pageResponse = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9'
       }
+    });
+    
+    if (!pageResponse.ok) {
+      throw new Error('Failed to fetch YouTube page');
+    }
+    
+    const html = await pageResponse.text();
+    
+    // Try to find caption track URL in the page
+    const captionPatterns = [
+      /"captionTracks":\[{"baseUrl":"([^"]+)"/,
+      /"captions":\{"playerCaptionsTracklistRenderer":\{"captionTracks":\[{"baseUrl":"([^"]+)"/
     ];
-
-    for (const api of APIs) {
-      try {
-        console.log(`Trying transcript API: ${api.url}`);
-        
-        const response = await fetch(api.url, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('API Response received:', typeof data);
-          
-          const transcript = api.parser(data);
-          
-          if (transcript && transcript.trim().length > 0) {
-            console.log(`Transcript loaded successfully, length: ${transcript.length}`);
-            return transcript.trim();
-          }
-        }
-      } catch (error) {
-        console.log(`API ${api.url} failed:`, error);
-        continue; // Try next API
+    
+    let captionUrl = null;
+    for (const pattern of captionPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        captionUrl = match[1].replace(/\\u0026/g, '&');
+        break;
       }
     }
     
-    throw new Error('All transcript APIs failed - no captions available');
+    if (captionUrl) {
+      console.log('Found caption URL, fetching captions...');
+      
+      const captionsResponse = await fetch(captionUrl);
+      if (captionsResponse.ok) {
+        const captionsXml = await captionsResponse.text();
+        
+        // Parse XML and extract text
+        const textRegex = /<text[^>]*>([^<]*)<\/text>/g;
+        const texts: string[] = [];
+        let textMatch;
+        
+        while ((textMatch = textRegex.exec(captionsXml)) !== null) {
+          // Decode HTML entities
+          const text = textMatch[1]
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/\n/g, ' ')
+            .trim();
+          
+          if (text) {
+            texts.push(text);
+          }
+        }
+        
+        if (texts.length > 0) {
+          console.log('Successfully extracted', texts.length, 'caption segments');
+          return texts.join(' ');
+        }
+      }
+    }
+    
+    // Method 2: Try timedtext API directly with different language codes
+    const languages = ['en', 'en-US', 'en-GB', 'a.en'];
+    
+    for (const lang of languages) {
+      try {
+        const timedTextUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`;
+        console.log('Trying timedtext API:', timedTextUrl);
+        
+        const response = await fetch(timedTextUrl);
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.events && Array.isArray(data.events)) {
+            const transcript = data.events
+              .map((event: any) => event.segs?.map((seg: any) => seg.utf8).join('') || '')
+              .join(' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            
+            if (transcript.length > 100) {
+              console.log('Successfully extracted transcript from timedtext API');
+              return transcript;
+            }
+          }
+        }
+      } catch (e) {
+        console.log(`timedtext API failed for lang ${lang}:`, e);
+      }
+    }
+    
+    // Method 3: Try third-party transcript API
+    try {
+      const apiUrl = `https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`;
+      console.log('Trying third-party API:', apiUrl);
+      
+      const response = await fetch(apiUrl);
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+          const transcript = data.map((item: any) => item.text).join(' ');
+          if (transcript.length > 100) {
+            console.log('Successfully extracted transcript from third-party API');
+            return transcript;
+          }
+        }
+      }
+    } catch (e) {
+      console.log('Third-party API failed:', e);
+    }
+    
+    throw new Error('No captions available for this video');
+    
   } catch (error) {
-    console.error('Error generating transcript:', error);
-    throw new Error('This video does not have captions available or the transcript service is temporarily unavailable.');
+    console.error('Caption extraction failed:', error);
+    throw error;
   }
 }
 
-// Exercise generation logic moved to _shared/exerciseGenerator.ts
+async function generateAIExercises(transcript: string, videoId: string, language: string): Promise<any[]> {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  
+  if (!LOVABLE_API_KEY) {
+    console.log('LOVABLE_API_KEY not found, using basic exercise generator');
+    return generateBasicExercises(transcript, videoId);
+  }
+  
+  console.log('Generating exercises using AI...');
+  
+  const difficulties = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const intensities = ['light', 'intense'];
+  const allExercises: any[] = [];
+  
+  // Use a subset of transcript to avoid token limits
+  const truncatedTranscript = transcript.substring(0, 3000);
+  
+  for (const difficulty of difficulties) {
+    for (const intensity of intensities) {
+      const exerciseCount = intensity === 'light' ? 5 : 10;
+      
+      try {
+        const prompt = `You are a language learning expert. Based on this video transcript, create ${exerciseCount} exercises for ${difficulty} level learners (intensity: ${intensity}).
+
+TRANSCRIPT:
+${truncatedTranscript}
+
+Generate exercises in JSON format. Return ONLY a valid JSON array, no markdown or explanations.
+
+Each exercise should have:
+{
+  "type": "multiple_choice" | "true_false" | "gap_fill",
+  "question": "the question text",
+  "options": ["option1", "option2", "option3", "option4"],
+  "correctAnswer": "the correct answer exactly as it appears in options",
+  "explanation": "brief explanation"
+}
+
+For ${difficulty} level:
+- A1/A2: Simple vocabulary, short sentences, common words
+- B1/B2: Moderate complexity, idiomatic expressions
+- C1/C2: Complex ideas, nuanced vocabulary, abstract concepts
+
+Return a JSON array with exactly ${exerciseCount} exercises.`;
+
+        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'user', content: prompt }
+            ],
+            max_tokens: 2000
+          })
+        });
+        
+        if (!response.ok) {
+          console.error('AI API error:', response.status);
+          continue;
+        }
+        
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        
+        // Parse the JSON from the response
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const exercises = JSON.parse(jsonMatch[0]);
+          
+          for (let i = 0; i < exercises.length; i++) {
+            const exercise = exercises[i];
+            allExercises.push({
+              video_id: videoId,
+              question: exercise.question,
+              exercise_type: exercise.type || 'multiple_choice',
+              options: exercise.options ? JSON.stringify(exercise.options) : null,
+              correct_answer: exercise.correctAnswer,
+              explanation: exercise.explanation || '',
+              difficulty,
+              intensity,
+              xp_reward: getPointsByLevel(difficulty),
+              order_index: i
+            });
+          }
+        }
+        
+      } catch (error) {
+        console.error(`Error generating exercises for ${difficulty}/${intensity}:`, error);
+      }
+    }
+  }
+  
+  // If AI generation failed, fall back to basic exercises
+  if (allExercises.length === 0) {
+    console.log('AI exercise generation failed, using basic generator');
+    return generateBasicExercises(transcript, videoId);
+  }
+  
+  return allExercises;
+}
+
+function generateBasicExercises(transcript: string, videoId: string): any[] {
+  const exercises: any[] = [];
+  const sentences = transcript.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
+  const difficulties = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const intensities = ['light', 'intense'];
+  
+  for (const difficulty of difficulties) {
+    for (const intensity of intensities) {
+      const exerciseCount = intensity === 'light' ? 5 : 10;
+      const types = ['multiple_choice', 'true_false', 'gap_fill'];
+      
+      for (let i = 0; i < exerciseCount && i < sentences.length; i++) {
+        const sentence = sentences[i % sentences.length];
+        const type = types[i % types.length];
+        
+        const words = sentence.split(' ').filter(w => w.length > 3);
+        const targetWord = words[Math.floor(Math.random() * words.length)] || 'word';
+        
+        let exercise: any;
+        
+        if (type === 'multiple_choice') {
+          exercise = {
+            video_id: videoId,
+            question: `What word fits best in this context: "${sentence}"?`,
+            exercise_type: 'multiple_choice',
+            options: JSON.stringify([targetWord, targetWord + 's', 'the ' + targetWord, 'a ' + targetWord]),
+            correct_answer: targetWord,
+            explanation: `The correct answer is "${targetWord}" based on the context.`,
+            difficulty,
+            intensity,
+            xp_reward: getPointsByLevel(difficulty),
+            order_index: i
+          };
+        } else if (type === 'true_false') {
+          exercise = {
+            video_id: videoId,
+            question: `True or False: "${sentence}"`,
+            exercise_type: 'true_false',
+            options: JSON.stringify(['True', 'False']),
+            correct_answer: 'True',
+            explanation: 'This statement is from the video transcript.',
+            difficulty,
+            intensity,
+            xp_reward: getPointsByLevel(difficulty),
+            order_index: i
+          };
+        } else {
+          const gappedSentence = sentence.replace(targetWord, '___');
+          exercise = {
+            video_id: videoId,
+            question: `Fill in the blank: ${gappedSentence}`,
+            exercise_type: 'gap_fill',
+            options: JSON.stringify([targetWord, targetWord + 's', 'un' + targetWord]),
+            correct_answer: targetWord,
+            explanation: `The correct word is "${targetWord}".`,
+            difficulty,
+            intensity,
+            xp_reward: getPointsByLevel(difficulty),
+            order_index: i
+          };
+        }
+        
+        exercises.push(exercise);
+      }
+    }
+  }
+  
+  return exercises;
+}
+
+function getPointsByLevel(level: string): number {
+  const points: Record<string, number> = {
+    'A1': 5,
+    'A2': 7,
+    'B1': 10,
+    'B2': 12,
+    'C1': 15,
+    'C2': 20
+  };
+  return points[level] || 10;
+}
