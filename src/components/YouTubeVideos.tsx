@@ -68,6 +68,8 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
   const [manualTranscript, setManualTranscript] = useState("");
   const [showManualInput, setShowManualInput] = useState(false);
   const [showLevelSelector, setShowLevelSelector] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<'idle' | 'processing' | 'completed' | 'failed'>('idle');
+  const [processingMessage, setProcessingMessage] = useState("");
 
   const levels = [
     { code: "A1", name: "Beginner (A1)", color: "bg-green-500", description: "Basic vocabulary and simple sentences" },
@@ -78,9 +80,69 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
     { code: "C2", name: "Proficiency (C2)", color: "bg-destructive", description: "Nuanced understanding and critical evaluation" },
   ];
 
+  // Poll for video processing status
+  const pollVideoStatus = async (videoId: string, dbVideoId: string) => {
+    setProcessingStatus('processing');
+    setProcessingMessage('Extracting transcript and generating exercises...');
+    
+    const maxAttempts = 30; // 2.5 minutes max
+    let attempts = 0;
+    
+    const poll = async () => {
+      attempts++;
+      
+      const { data: video } = await supabase
+        .from('youtube_videos')
+        .select('status')
+        .eq('id', dbVideoId)
+        .single();
+      
+      if (video?.status === 'completed') {
+        setProcessingStatus('completed');
+        setProcessingMessage('');
+        
+        // Get transcript
+        const { data: transcriptData } = await supabase
+          .from('youtube_transcripts')
+          .select('transcript')
+          .eq('video_id', dbVideoId)
+          .single();
+        
+        if (transcriptData?.transcript) {
+          setCurrentVideo(prev => prev ? { ...prev, transcript: transcriptData.transcript } : null);
+        }
+        
+        toast({
+          title: "Video Ready!",
+          description: "Transcript extracted and exercises generated. Start learning!",
+        });
+        return;
+      }
+      
+      if (video?.status === 'failed') {
+        setProcessingStatus('failed');
+        setProcessingMessage('Transcript extraction failed. This video may not have captions. Try manual input.');
+        return;
+      }
+      
+      if (attempts >= maxAttempts) {
+        setProcessingStatus('failed');
+        setProcessingMessage('Processing timed out. Please try again or use manual transcript input.');
+        return;
+      }
+      
+      // Continue polling
+      setTimeout(poll, 5000);
+    };
+    
+    poll();
+  };
+
   const handleSubmitVideo = async () => {
     setUrlError("");
     setIsLoadingVideo(true);
+    setProcessingStatus('idle');
+    setProcessingMessage("");
     
     if (!videoUrl.trim()) {
       setUrlError("Please enter a YouTube video URL");
@@ -129,36 +191,64 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
 
         setCurrentVideo(videoData);
         setVideoUrl("");
+        setProcessingStatus('completed');
         
         toast({
-          title: "Video Loaded! 🎥",
-          description: "Video already exists in our library with pre-generated content.",
+          title: "Video Loaded!",
+          description: "Video already exists in our library with pre-generated exercises.",
         });
         return;
       }
 
-      // If video doesn't exist or isn't processed, add it to the system
-      if (!existingVideo) {
-        const { data, error } = await supabase.functions.invoke('process-youtube-video', {
-          body: {
-            videoUrl: videoUrl.trim(),
-            language: 'english',
-            difficulty: 'beginner'
-          }
+      // If video is currently processing, show status
+      if (existingVideo && existingVideo.status === 'processing') {
+        const videoInfo = await getVideoInfo(videoId);
+        setCurrentVideo({
+          id: videoId,
+          title: videoInfo.title,
+          description: videoInfo.description,
+          duration: videoInfo.duration,
+          thumbnail: videoInfo.thumbnail,
+          embedUrl: `https://www.youtube.com/embed/${videoId}`,
+          originalUrl: videoUrl.trim()
         });
-
-        if (error) throw error;
-
-        toast({
-          title: "Video Processing Started! ⚙️",
-          description: "Video has been added to our library and is being processed. This may take a few minutes.",
-        });
+        setVideoUrl("");
+        pollVideoStatus(videoId, existingVideo.id);
+        return;
       }
 
-      // Fetch video information for immediate use
+      // If video failed before, allow retry
+      if (existingVideo && existingVideo.status === 'failed') {
+        const videoInfo = await getVideoInfo(videoId);
+        setCurrentVideo({
+          id: videoId,
+          title: videoInfo.title,
+          description: videoInfo.description,
+          duration: videoInfo.duration,
+          thumbnail: videoInfo.thumbnail,
+          embedUrl: `https://www.youtube.com/embed/${videoId}`,
+          originalUrl: videoUrl.trim()
+        });
+        setVideoUrl("");
+        setProcessingStatus('failed');
+        setProcessingMessage('Previous processing failed. Use manual transcript input or try another video.');
+        return;
+      }
+
+      // Add new video to the system
+      const { data, error } = await supabase.functions.invoke('process-youtube-video', {
+        body: {
+          videoUrl: videoUrl.trim(),
+          language: 'english',
+          difficulty: 'beginner'
+        }
+      });
+
+      if (error) throw error;
+
+      // Fetch video information for immediate display
       const videoInfo = await getVideoInfo(videoId);
       
-      // Create video data
       const videoData: VideoData = {
         id: videoId,
         title: videoInfo.title,
@@ -172,8 +262,24 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
       setCurrentVideo(videoData);
       setVideoUrl("");
       
-    } catch (error) {
-      setUrlError("Failed to load video information. Please check the URL and try again.");
+      // Start polling for processing status
+      if (data?.video?.id) {
+        pollVideoStatus(videoId, data.video.id);
+      }
+      
+      toast({
+        title: "Video Added!",
+        description: "Processing transcript and generating exercises. This may take 1-2 minutes.",
+      });
+      
+    } catch (error: any) {
+      const errorMessage = error.message || "Failed to load video information.";
+      
+      if (errorMessage.includes('captions') || errorMessage.includes('transcript')) {
+        setUrlError("This video doesn't have captions. Please try a video with subtitles enabled, or use manual transcript input.");
+      } else {
+        setUrlError(errorMessage);
+      }
       console.error('Error loading video:', error);
     } finally {
       setIsLoadingVideo(false);
@@ -378,7 +484,44 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
                       Transcript Available
                     </Badge>
                   )}
+                  {processingStatus === 'processing' && (
+                    <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700">
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Processing...
+                    </Badge>
+                  )}
+                  {processingStatus === 'failed' && (
+                    <Badge variant="outline" className="text-xs bg-red-50 text-red-700">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      Processing Failed
+                    </Badge>
+                  )}
                 </div>
+                
+                {/* Processing Status Message */}
+                {processingMessage && (
+                  <div className={`p-3 rounded-lg text-sm ${
+                    processingStatus === 'processing' 
+                      ? 'bg-yellow-50 text-yellow-800 border border-yellow-200' 
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {processingStatus === 'processing' && (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>{processingMessage}</span>
+                      </div>
+                    )}
+                    {processingStatus === 'failed' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>{processingMessage}</span>
+                        </div>
+                        <p className="text-xs">Tip: Use the "Manual Transcript" button below to paste the transcript yourself.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
