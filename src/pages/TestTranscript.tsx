@@ -11,11 +11,13 @@ const TestTranscript = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [extractedId, setExtractedId] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>("");
 
   const handleGetTranscript = async () => {
     setError(null);
     setTranscript(null);
     setExtractedId(null);
+    setStatus("");
 
     if (!url.trim()) {
       setError("Please enter a YouTube URL");
@@ -30,20 +32,26 @@ const TestTranscript = () => {
 
     setExtractedId(videoId);
     setLoading(true);
+    setStatus("Calling edge function...");
     console.log("[TestTranscript] Extracted video ID:", videoId);
+    console.log("[TestTranscript] Calling getVideoTranscript with URL:", url);
 
     try {
-      const result = await getVideoTranscript(videoId);
+      // Pass the full URL - getVideoTranscript will extract the ID
+      const result = await getVideoTranscript(url);
       console.log("[TestTranscript] Result:", result ? `${result.length} chars` : "null");
       
       if (result) {
         setTranscript(result);
+        setStatus("Success!");
       } else {
         setError("No transcript returned. The video may not have captions available.");
+        setStatus("Failed");
       }
     } catch (err) {
       console.error("[TestTranscript] Error:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
+      setStatus("Failed");
     } finally {
       setLoading(false);
     }
@@ -54,6 +62,9 @@ const TestTranscript = () => {
       <Card className="max-w-3xl mx-auto">
         <CardHeader>
           <CardTitle>YouTube Transcript Test</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Tests the edge function: extract-youtube-transcript
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
@@ -62,6 +73,7 @@ const TestTranscript = () => {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               className="flex-1"
+              onKeyDown={(e) => e.key === 'Enter' && handleGetTranscript()}
             />
             <Button onClick={handleGetTranscript} disabled={loading}>
               {loading ? (
@@ -81,6 +93,12 @@ const TestTranscript = () => {
             </p>
           )}
 
+          {status && loading && (
+            <p className="text-sm text-muted-foreground animate-pulse">
+              Status: {status}
+            </p>
+          )}
+
           {error && (
             <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md">
               <p className="text-destructive font-medium">Error</p>
@@ -90,9 +108,14 @@ const TestTranscript = () => {
 
           {transcript && (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Transcript ({transcript.length} characters):
-              </p>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Success
+                </span>
+                <p className="text-sm text-muted-foreground">
+                  {transcript.length.toLocaleString()} characters
+                </p>
+              </div>
               <div className="max-h-96 overflow-y-auto p-4 bg-muted rounded-md">
                 <pre className="whitespace-pre-wrap text-sm font-mono">{transcript}</pre>
               </div>

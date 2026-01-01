@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 interface VideoInfo {
   id: string;
   title: string;
@@ -6,10 +8,11 @@ interface VideoInfo {
   thumbnail: string;
 }
 
-interface TranscriptSegment {
-  text: string;
-  start: number;
-  duration: number;
+interface TranscriptResponse {
+  success: boolean;
+  transcript: string | null;
+  method: string | null;
+  error: string | null;
 }
 
 // Helper to extract video ID from full YouTube URL or return as-is if already an ID
@@ -62,57 +65,49 @@ export const getVideoInfo = async (videoId: string): Promise<VideoInfo> => {
   }
 };
 
-// Extract transcript from YouTube video
-export const getVideoTranscript = async (videoId: string): Promise<string> => {
+// Extract transcript using the Supabase edge function
+export const getVideoTranscript = async (videoIdOrUrl: string): Promise<string> => {
+  console.log('[getVideoTranscript] Input:', videoIdOrUrl);
+  
+  // Extract video ID if a full URL was provided
+  const videoId = extractVideoId(videoIdOrUrl);
+  
+  if (!videoId) {
+    throw new Error('Could not extract video ID from the provided URL');
+  }
+  
+  console.log('[getVideoTranscript] Extracted video ID:', videoId);
+  console.log('[getVideoTranscript] Calling edge function...');
+  
   try {
-    // Try multiple transcript APIs in order
-    const APIs = [
+    const { data, error } = await supabase.functions.invoke<TranscriptResponse>(
+      'extract-youtube-transcript',
       {
-        url: `https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`,
-        parser: (data: any) => Array.isArray(data) ? data.map((item: any) => item.text).join(' ') : null
-      },
-      {
-        url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
-        parser: (data: any) => data.events?.map((event: any) => 
-          event.segs?.map((seg: any) => seg.utf8).join('') || ''
-        ).join(' ') || null
+        body: { videoId }
       }
-    ];
-
-    for (const api of APIs) {
-      try {
-        console.log(`Trying transcript API: ${api.url}`);
-        
-        const response = await fetch(api.url, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          mode: 'cors'
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('API Response received:', typeof data);
-          
-          const transcript = api.parser(data);
-          
-          if (transcript && transcript.trim().length > 0) {
-            console.log(`Transcript loaded successfully, length: ${transcript.length}`);
-            return transcript.trim();
-          }
-        }
-      } catch (error) {
-        console.log(`API ${api.url} failed:`, error);
-        continue; // Try next API
-      }
+    );
+    
+    console.log('[getVideoTranscript] Edge function response:', { data, error });
+    
+    if (error) {
+      console.error('[getVideoTranscript] Edge function error:', error);
+      throw new Error(error.message || 'Failed to call transcript extraction service');
     }
     
-    throw new Error('All transcript APIs failed - no captions available');
+    if (!data) {
+      throw new Error('No response from transcript extraction service');
+    }
+    
+    if (!data.success || !data.transcript) {
+      throw new Error(data.error || 'No transcript available for this video');
+    }
+    
+    console.log(`[getVideoTranscript] Success via ${data.method}, ${data.transcript.length} chars`);
+    return data.transcript;
+    
   } catch (error) {
-    console.error('Error fetching transcript:', error);
-    throw new Error('This video does not have captions available or the transcript service is temporarily unavailable. Please try another video with captions or use manual transcript input.');
+    console.error('[getVideoTranscript] Error:', error);
+    throw error instanceof Error ? error : new Error('Failed to extract transcript');
   }
 };
 
