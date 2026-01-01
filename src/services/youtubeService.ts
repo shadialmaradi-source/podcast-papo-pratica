@@ -12,6 +12,32 @@ interface TranscriptSegment {
   duration: number;
 }
 
+// Helper to extract video ID from full YouTube URL or return as-is if already an ID
+export const extractVideoId = (urlOrId: string): string | null => {
+  if (!urlOrId) return null;
+  
+  const trimmed = urlOrId.trim();
+  
+  // If it doesn't look like a URL, assume it's already a video ID
+  if (!trimmed.includes('http') && !trimmed.includes('/') && !trimmed.includes('.')) {
+    return trimmed;
+  }
+  
+  // Handle youtube.com/watch?v=ID
+  const watchMatch = trimmed.match(/[?&]v=([^&]+)/);
+  if (watchMatch) return watchMatch[1];
+  
+  // Handle youtu.be/ID
+  const shortMatch = trimmed.match(/youtu\.be\/([^?&]+)/);
+  if (shortMatch) return shortMatch[1];
+  
+  // Handle youtube.com/embed/ID
+  const embedMatch = trimmed.match(/youtube\.com\/embed\/([^?&]+)/);
+  if (embedMatch) return embedMatch[1];
+  
+  return null;
+};
+
 export const getVideoInfo = async (videoId: string): Promise<VideoInfo> => {
   try {
     // Use YouTube oEmbed API (no API key required)
