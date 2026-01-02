@@ -413,97 +413,156 @@ async function tryThirdPartyApi(videoId: string): Promise<string | null> {
   return null;
 }
 
-// Method 4: Try additional transcript APIs
-async function tryAdditionalApis(videoId: string): Promise<string | null> {
-  const apis = [
-    {
-      name: 'tactiq-transcript',
-      url: `https://tactiq-apps-prod.tactiq.io/transcript?videoId=${videoId}&langCode=en`,
-    },
-    {
-      name: 'youtubetranscript.com',
-      url: `https://youtubetranscript.com/?server_vid2=${videoId}`,
-    },
-  ];
+// Method 4: Use YouTube's Innertube API (impersonating Android client)
+async function tryInnertubeApi(videoId: string): Promise<string | null> {
+  console.log(`[Method 4: Innertube] Trying YouTube Innertube API for ${videoId}`);
   
-  for (const api of apis) {
-    console.log(`[Method 4] Trying ${api.name}: ${api.url}`);
+  try {
+    // Step 1: Fetch video page to get INNERTUBE_API_KEY
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}&hl=en&gl=US`;
+    console.log(`[Method 4: Innertube] Fetching video page for API key`);
     
-    try {
-      const response = await fetch(api.url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json, text/plain, */*',
-        }
-      });
-      
-      console.log(`[Method 4] ${api.name}: HTTP ${response.status}`);
-      
-      if (!response.ok) continue;
-      
-      const text = await response.text();
-      console.log(`[Method 4] ${api.name}: Response length: ${text.length}`);
-      
-      // Try JSON parse
-      try {
-        const data = JSON.parse(text);
-        
-        // Handle array of transcript segments
-        if (Array.isArray(data) && data.length > 0) {
-          const transcript = data
-            .map((item: any) => item.text || item.content || item.transcript || '')
-            .filter(Boolean)
-            .join(' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          
-          if (transcript.length > 50) {
-            console.log(`[Method 4] SUCCESS via ${api.name}! ${transcript.length} chars`);
-            return transcript;
-          }
-        }
-        
-        // Handle object with captions/transcript field
-        if (data?.captions || data?.transcript) {
-          const arr = data.captions || data.transcript;
-          if (Array.isArray(arr)) {
-            const transcript = arr
-              .map((item: any) => item.text || item.content || '')
-              .join(' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            
-            if (transcript.length > 50) {
-              console.log(`[Method 4] SUCCESS via ${api.name}! ${transcript.length} chars`);
-              return transcript;
-            }
-          }
-        }
-      } catch {
-        // Try HTML parsing for youtubetranscript.com
-        if (api.name === 'youtubetranscript.com') {
-          const textMatches = text.matchAll(/<text[^>]*>(.*?)<\/text>/gs);
-          const segments: string[] = [];
-          for (const match of textMatches) {
-            const cleaned = match[1].replace(/&amp;/g, '&').replace(/&#39;/g, "'").trim();
-            if (cleaned) segments.push(cleaned);
-          }
-          if (segments.length > 0) {
-            const transcript = segments.join(' ').replace(/\s+/g, ' ').trim();
-            console.log(`[Method 4] SUCCESS via ${api.name} (XML)! ${transcript.length} chars`);
-            return transcript;
-          }
-        }
+    const pageResponse = await fetch(videoUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cookie': 'CONSENT=YES+1',
       }
-      
-      console.log(`[Method 4] ${api.name}: No valid data`);
-    } catch (error) {
-      console.log(`[Method 4] ${api.name} error: ${error}`);
+    });
+    
+    if (!pageResponse.ok) {
+      console.log(`[Method 4: Innertube] Failed to fetch page: HTTP ${pageResponse.status}`);
+      return null;
     }
+    
+    const html = await pageResponse.text();
+    const apiKeyMatch = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/);
+    
+    if (!apiKeyMatch) {
+      console.log('[Method 4: Innertube] INNERTUBE_API_KEY not found in page');
+      return null;
+    }
+    
+    const apiKey = apiKeyMatch[1];
+    console.log(`[Method 4: Innertube] Got API key: ${apiKey.substring(0, 10)}...`);
+    
+    // Step 2: Call Innertube player API as Android client
+    const playerEndpoint = `https://www.youtube.com/youtubei/v1/player?key=${apiKey}`;
+    console.log(`[Method 4: Innertube] Calling player API as Android client`);
+    
+    const playerResponse = await fetch(playerEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'ANDROID',
+            clientVersion: '20.10.38'
+          }
+        },
+        videoId: videoId
+      })
+    });
+    
+    if (!playerResponse.ok) {
+      console.log(`[Method 4: Innertube] Player API failed: HTTP ${playerResponse.status}`);
+      return null;
+    }
+    
+    const playerData = await playerResponse.json();
+    console.log(`[Method 4: Innertube] Playability: ${playerData?.playabilityStatus?.status}`);
+    
+    // Step 3: Extract caption track URL
+    const tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
+      console.log('[Method 4: Innertube] No caption tracks found');
+      return null;
+    }
+    
+    console.log(`[Method 4: Innertube] Found ${tracks.length} caption tracks`);
+    const availableLangs = tracks.map((t: any) => `${t.languageCode}${t.kind === 'asr' ? ' (auto)' : ''}`);
+    console.log(`[Method 4: Innertube] Available: ${availableLangs.join(', ')}`);
+    
+    // Find English track (prefer manual over auto)
+    const englishManual = tracks.find((t: any) => t.languageCode === 'en' && t.kind !== 'asr');
+    const englishAuto = tracks.find((t: any) => t.languageCode === 'en' && t.kind === 'asr');
+    const anyEnglish = tracks.find((t: any) => t.languageCode?.startsWith('en'));
+    const selectedTrack = englishManual || englishAuto || anyEnglish || tracks[0];
+    
+    if (!selectedTrack?.baseUrl) {
+      console.log('[Method 4: Innertube] Selected track has no baseUrl');
+      return null;
+    }
+    
+    console.log(`[Method 4: Innertube] Using track: ${selectedTrack.languageCode}`);
+    
+    // Step 4: Fetch and parse caption XML
+    const captionResponse = await fetch(selectedTrack.baseUrl);
+    if (!captionResponse.ok) {
+      console.log(`[Method 4: Innertube] Caption fetch failed: HTTP ${captionResponse.status}`);
+      return null;
+    }
+    
+    const xml = await captionResponse.text();
+    console.log(`[Method 4: Innertube] Got caption XML, length: ${xml.length}`);
+    console.log(`[Method 4: Innertube] XML preview: ${xml.substring(0, 500)}`);
+    
+    // Parse XML to extract text - YouTube uses <text start="X" dur="X">content</text>
+    // The content might be in different formats, so try multiple patterns
+    let segments: string[] = [];
+    
+    // Pattern 1: YouTube uses <p t="X" d="X">content</p> format
+    const textMatches = [...xml.matchAll(/<p[^>]*>([^<]*)<\/p>/g)];
+    console.log(`[Method 4: Innertube] Pattern 1 (<p>) matches: ${textMatches.length}`);
+    
+    if (textMatches.length > 0) {
+      for (const match of textMatches) {
+        let text = match[1]
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\n/g, ' ')
+          .trim();
+        if (text) segments.push(text);
+      }
+    }
+    
+    // Pattern 2: Try with dotall flag for multiline content
+    if (segments.length === 0) {
+      const textMatches2 = [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)];
+      console.log(`[Method 4: Innertube] Pattern 2 matches: ${textMatches2.length}`);
+      
+      for (const match of textMatches2) {
+        let text = match[1]
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&nbsp;/g, ' ')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\n/g, ' ')
+          .trim();
+        if (text) segments.push(text);
+      }
+    }
+    
+    if (segments.length > 0) {
+      const transcript = segments.join(' ').replace(/\s+/g, ' ').trim();
+      console.log(`[Method 4: Innertube] SUCCESS! ${transcript.length} chars from ${segments.length} segments`);
+      return transcript;
+    }
+    
+    console.log('[Method 4: Innertube] No text segments found in XML');
+    return null;
+    
+  } catch (error) {
+    console.log(`[Method 4: Innertube] Error: ${error}`);
+    return null;
   }
-  
-  console.log('[Method 4] All additional APIs failed');
-  return null;
 }
 
 serve(async (req: Request) => {
@@ -587,15 +646,15 @@ serve(async (req: Request) => {
       );
     }
 
-    // Try Method 4: Guaranteed fallback (you-tldr)
-    transcript = await tryYouTldrApi(videoId);
+    // Try Method 4: Innertube API (Android client)
+    transcript = await tryInnertubeApi(videoId);
     if (transcript) {
-      console.log('=== FINAL RESULT: SUCCESS via guaranteed-fallback ===');
+      console.log('=== FINAL RESULT: SUCCESS via innertube ===');
       return new Response(
         JSON.stringify({
           success: true,
           transcript,
-          method: 'guaranteed-fallback',
+          method: 'innertube',
           error: null
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
