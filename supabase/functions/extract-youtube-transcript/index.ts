@@ -31,7 +31,8 @@ function extractVideoId(urlOrId: string): string | null {
   return null;
 }
 
-// Method 1: Try to extract caption URL from YouTube page HTML
+// Method 1: Extract captions from YouTube page HTML using split-based parsing
+// This mirrors the approach used by the youtube-transcript npm package
 async function tryPageCaptions(videoId: string): Promise<string | null> {
   console.log(`[Method 1: page-captions] Fetching YouTube page for video: ${videoId}`);
   
@@ -39,57 +40,141 @@ async function tryPageCaptions(videoId: string): Promise<string | null> {
     const pageUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const response = await fetch(pageUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
       }
     });
     
     if (!response.ok) {
-      console.log(`[Method 1] Failed to fetch page: ${response.status}`);
+      console.log(`[Method 1] Failed to fetch page: HTTP ${response.status}`);
       return null;
     }
     
     const html = await response.text();
+    console.log(`[Method 1] Fetched HTML, length: ${html.length} chars`);
     
-    // Look for caption track URL in the page
-    const captionMatch = html.match(/"captionTracks":\s*\[(.*?)\]/);
-    if (!captionMatch) {
-      console.log('[Method 1] No captionTracks found in page HTML');
+    // Check if video is available
+    if (html.includes('class="g-recaptcha"')) {
+      console.log('[Method 1] YouTube is showing CAPTCHA - likely rate limited');
       return null;
     }
     
-    // Parse the caption tracks JSON
+    if (html.includes('"playabilityStatus":{"status":"ERROR"')) {
+      console.log('[Method 1] Video is not available');
+      return null;
+    }
+
+    // Split-based parsing (like youtube-transcript library)
+    // Look for "captions": in the page and extract the JSON object
+    const captionsSplit = html.split('"captions":');
+    
+    if (captionsSplit.length < 2) {
+      console.log('[Method 1] No "captions": found in page HTML');
+      
+      // Debug: check what player data exists
+      if (html.includes('ytInitialPlayerResponse')) {
+        console.log('[Method 1] ytInitialPlayerResponse exists but no captions section');
+      }
+      if (html.includes('"captionTracks"')) {
+        console.log('[Method 1] captionTracks string exists somewhere in HTML');
+      }
+      return null;
+    }
+    
+    console.log('[Method 1] Found "captions": section, parsing...');
+    
+    // Get the JSON after "captions": until ,"videoDetails" or similar boundary
+    let captionsJson = captionsSplit[1];
+    
+    // Find the end of the captions object - it ends before ,"videoDetails" or similar
+    const endMarkers = [',"videoDetails"', ',"microformat"', ',"cards"', ',"attestation"'];
+    let endIndex = captionsJson.length;
+    
+    for (const marker of endMarkers) {
+      const idx = captionsJson.indexOf(marker);
+      if (idx > 0 && idx < endIndex) {
+        endIndex = idx;
+      }
+    }
+    
+    captionsJson = captionsJson.substring(0, endIndex);
+    console.log(`[Method 1] Extracted captions JSON, length: ${captionsJson.length}`);
+    
     try {
-      const captionTracksStr = `[${captionMatch[1]}]`;
-      const captionTracks = JSON.parse(captionTracksStr);
+      const captions = JSON.parse(captionsJson);
+      console.log('[Method 1] Successfully parsed captions JSON');
       
-      // Find English captions (prefer manual over auto-generated)
-      const englishTrack = captionTracks.find((track: any) => 
-        track.languageCode === 'en' && !track.kind
-      ) || captionTracks.find((track: any) => 
-        track.languageCode === 'en'
-      ) || captionTracks.find((track: any) => 
+      // Navigate to caption tracks
+      const captionTracks = captions?.playerCaptionsTracklistRenderer?.captionTracks;
+      
+      if (!captionTracks || !Array.isArray(captionTracks) || captionTracks.length === 0) {
+        console.log('[Method 1] No captionTracks array found in parsed JSON');
+        console.log('[Method 1] Available keys:', Object.keys(captions || {}));
+        return null;
+      }
+      
+      console.log(`[Method 1] Found ${captionTracks.length} caption track(s)`);
+      
+      // Log available languages
+      const availableLangs = captionTracks.map((t: any) => `${t.languageCode}${t.kind === 'asr' ? ' (auto)' : ''}`);
+      console.log(`[Method 1] Available languages: ${availableLangs.join(', ')}`);
+      
+      // Find English captions - prefer manual over auto-generated (asr)
+      const englishManual = captionTracks.find((track: any) => 
+        track.languageCode === 'en' && track.kind !== 'asr'
+      );
+      const englishAuto = captionTracks.find((track: any) => 
+        track.languageCode === 'en' && track.kind === 'asr'
+      );
+      const anyEnglish = captionTracks.find((track: any) => 
         track.languageCode?.startsWith('en')
-      ) || captionTracks[0];
+      );
       
-      if (!englishTrack?.baseUrl) {
-        console.log('[Method 1] No suitable caption track found');
+      const selectedTrack = englishManual || englishAuto || anyEnglish || captionTracks[0];
+      
+      if (!selectedTrack?.baseUrl) {
+        console.log('[Method 1] Selected track has no baseUrl');
         return null;
       }
       
-      console.log(`[Method 1] Found caption track, fetching: ${englishTrack.baseUrl.substring(0, 100)}...`);
+      console.log(`[Method 1] Using track: ${selectedTrack.languageCode}${selectedTrack.kind === 'asr' ? ' (auto-generated)' : ' (manual)'}`);
+      console.log(`[Method 1] Fetching caption URL: ${selectedTrack.baseUrl.substring(0, 80)}...`);
       
-      // Fetch the caption XML
-      const captionResponse = await fetch(englishTrack.baseUrl);
+      // Fetch the caption XML/JSON
+      const captionResponse = await fetch(selectedTrack.baseUrl);
       if (!captionResponse.ok) {
-        console.log(`[Method 1] Failed to fetch captions: ${captionResponse.status}`);
+        console.log(`[Method 1] Failed to fetch captions: HTTP ${captionResponse.status}`);
         return null;
       }
       
-      const captionXml = await captionResponse.text();
+      const captionContent = await captionResponse.text();
+      console.log(`[Method 1] Fetched caption content, length: ${captionContent.length}`);
       
-      // Parse XML to extract text
-      const textMatches = captionXml.matchAll(/<text[^>]*>(.*?)<\/text>/gs);
+      // Try to parse as JSON first (json3 format)
+      if (captionContent.trim().startsWith('{')) {
+        try {
+          const jsonCaptions = JSON.parse(captionContent);
+          if (jsonCaptions.events) {
+            const transcript = jsonCaptions.events
+              .filter((e: any) => e.segs)
+              .map((e: any) => e.segs.map((s: any) => s.utf8 || '').join(''))
+              .join(' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            
+            if (transcript.length > 0) {
+              console.log(`[Method 1] SUCCESS! Extracted ${transcript.length} chars from JSON format`);
+              return transcript;
+            }
+          }
+        } catch {
+          // Not JSON, continue to XML parsing
+        }
+      }
+      
+      // Parse as XML
+      const textMatches = captionContent.matchAll(/<text[^>]*>(.*?)<\/text>/gs);
       const segments: string[] = [];
       
       for (const match of textMatches) {
@@ -99,6 +184,8 @@ async function tryPageCaptions(videoId: string): Promise<string | null> {
           .replace(/&gt;/g, '>')
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
+          .replace(/&nbsp;/g, ' ')
+          .replace(/<[^>]+>/g, '') // Remove any nested tags
           .replace(/\n/g, ' ')
           .trim();
         
@@ -109,16 +196,20 @@ async function tryPageCaptions(videoId: string): Promise<string | null> {
       
       if (segments.length > 0) {
         const transcript = segments.join(' ').replace(/\s+/g, ' ').trim();
-        console.log(`[Method 1] SUCCESS! Extracted ${transcript.length} chars from ${segments.length} segments`);
+        console.log(`[Method 1] SUCCESS! Extracted ${transcript.length} chars from ${segments.length} XML segments`);
         return transcript;
       }
       
-      console.log('[Method 1] No text segments found in caption XML');
+      console.log('[Method 1] No text segments found in caption content');
       return null;
+      
     } catch (parseError) {
-      console.log(`[Method 1] Failed to parse caption tracks: ${parseError}`);
+      console.log(`[Method 1] JSON parse error: ${parseError}`);
+      // Log first 500 chars to debug
+      console.log(`[Method 1] JSON preview: ${captionsJson.substring(0, 500)}`);
       return null;
     }
+    
   } catch (error) {
     console.log(`[Method 1] Error: ${error}`);
     return null;
@@ -127,16 +218,18 @@ async function tryPageCaptions(videoId: string): Promise<string | null> {
 
 // Method 2: Try YouTube timedtext API with language fallbacks
 async function tryTimedtextApi(videoId: string): Promise<string | null> {
-  const languages = ['en', 'en-US', 'en-GB', 'a.en'];
+  const languages = ['en', 'en-US', 'en-GB', 'a.en', 'asr'];
   
   for (const lang of languages) {
     console.log(`[Method 2: timedtext] Trying language: ${lang}`);
     
     try {
       const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`;
+      console.log(`[Method 2] URL: ${url}`);
+      
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
       });
       
@@ -151,16 +244,14 @@ async function tryTimedtextApi(videoId: string): Promise<string | null> {
         continue;
       }
       
+      console.log(`[Method 2] ${lang}: Got response, length: ${text.length}`);
+      
       const data = JSON.parse(text);
       
       if (data.events && Array.isArray(data.events)) {
         const transcript = data.events
-          .map((event: any) => {
-            if (event.segs && Array.isArray(event.segs)) {
-              return event.segs.map((seg: any) => seg.utf8 || '').join('');
-            }
-            return '';
-          })
+          .filter((event: any) => event.segs)
+          .map((event: any) => event.segs.map((seg: any) => seg.utf8 || '').join(''))
           .join(' ')
           .replace(/\s+/g, ' ')
           .trim();
@@ -181,40 +272,80 @@ async function tryTimedtextApi(videoId: string): Promise<string | null> {
   return null;
 }
 
-// Method 3: Try third-party API as fallback
+// Method 3: Try multiple third-party APIs as fallback
 async function tryThirdPartyApi(videoId: string): Promise<string | null> {
-  console.log(`[Method 3: third-party] Trying youtube-transcript-api.vercel.app`);
+  // List of third-party transcript APIs to try
+  const apis = [
+    {
+      name: 'youtube-transcript-api.vercel.app',
+      url: `https://youtube-transcript-api.vercel.app/api/transcript?videoId=${videoId}`,
+    },
+    {
+      name: 'yt-transcript-api (alt param)',
+      url: `https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`,
+    },
+  ];
   
-  try {
-    const url = `https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`;
-    const response = await fetch(url);
+  for (const api of apis) {
+    console.log(`[Method 3: third-party] Trying ${api.name}`);
+    console.log(`[Method 3] URL: ${api.url}`);
     
-    if (!response.ok) {
-      console.log(`[Method 3] HTTP ${response.status}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    
-    if (Array.isArray(data) && data.length > 0) {
-      const transcript = data
-        .map((item: any) => item.text || '')
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    try {
+      const response = await fetch(api.url, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
       
-      if (transcript.length > 0) {
-        console.log(`[Method 3] SUCCESS! Extracted ${transcript.length} chars from ${data.length} segments`);
-        return transcript;
+      console.log(`[Method 3] ${api.name}: HTTP ${response.status}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log(`[Method 3] Error response: ${errorText.substring(0, 200)}`);
+        continue;
       }
+      
+      const data = await response.json();
+      console.log(`[Method 3] Response type: ${typeof data}, isArray: ${Array.isArray(data)}`);
+      
+      if (Array.isArray(data) && data.length > 0) {
+        const transcript = data
+          .map((item: any) => item.text || item.content || '')
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        if (transcript.length > 0) {
+          console.log(`[Method 3] SUCCESS via ${api.name}! Extracted ${transcript.length} chars from ${data.length} segments`);
+          return transcript;
+        }
+      }
+      
+      // Handle object response with transcript field
+      if (data && typeof data === 'object' && data.transcript) {
+        if (Array.isArray(data.transcript)) {
+          const transcript = data.transcript
+            .map((item: any) => item.text || item.content || '')
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          if (transcript.length > 0) {
+            console.log(`[Method 3] SUCCESS via ${api.name}! Extracted ${transcript.length} chars`);
+            return transcript;
+          }
+        }
+      }
+      
+      console.log(`[Method 3] ${api.name}: No valid transcript data in response`);
+      
+    } catch (error) {
+      console.log(`[Method 3] ${api.name} error: ${error}`);
     }
-    
-    console.log('[Method 3] No valid transcript data in response');
-    return null;
-  } catch (error) {
-    console.log(`[Method 3] Error: ${error}`);
-    return null;
   }
+  
+  console.log('[Method 3] All third-party APIs failed');
+  return null;
 }
 
 serve(async (req: Request) => {
@@ -253,7 +384,7 @@ serve(async (req: Request) => {
     console.log(`Extracted video ID: ${videoId}`);
     console.log('Starting transcript extraction with multiple methods...');
 
-    // Try Method 1: Page captions
+    // Try Method 1: Page captions (most reliable)
     let transcript = await tryPageCaptions(videoId);
     if (transcript) {
       console.log('=== FINAL RESULT: SUCCESS via page-captions ===');
@@ -283,7 +414,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // Try Method 3: Third-party API
+    // Try Method 3: Third-party APIs
     transcript = await tryThirdPartyApi(videoId);
     if (transcript) {
       console.log('=== FINAL RESULT: SUCCESS via third-party ===');
@@ -305,7 +436,7 @@ serve(async (req: Request) => {
         success: false,
         transcript: null,
         method: null,
-        error: 'No captions available for this video. Please try a video with captions enabled.'
+        error: 'No captions available for this video. The video may not have captions, or they may be disabled.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
