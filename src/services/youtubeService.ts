@@ -1,5 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
-
 interface VideoInfo {
   id: string;
   title: string;
@@ -14,6 +12,11 @@ interface TranscriptResponse {
   method: string | null;
   error: string | null;
 }
+
+// TODO: Replace with your Deno Deploy URL after deployment
+// Deploy deno-deploy/transcript-api.ts to https://dash.deno.com
+// Then update this URL
+const DENO_TRANSCRIPT_URL = 'https://YOUR-PROJECT.deno.dev';
 
 // Helper to extract video ID from full YouTube URL or return as-is if already an ID
 export const extractVideoId = (urlOrId: string): string | null => {
@@ -65,11 +68,10 @@ export const getVideoInfo = async (videoId: string): Promise<VideoInfo> => {
   }
 };
 
-// Extract transcript using the Supabase edge function
+// Extract transcript using Deno Deploy (USA servers - no GDPR blocks)
 export const getVideoTranscript = async (videoIdOrUrl: string): Promise<string> => {
   console.log('[getVideoTranscript] Input:', videoIdOrUrl);
   
-  // Extract video ID if a full URL was provided
   const videoId = extractVideoId(videoIdOrUrl);
   
   if (!videoId) {
@@ -77,26 +79,18 @@ export const getVideoTranscript = async (videoIdOrUrl: string): Promise<string> 
   }
   
   console.log('[getVideoTranscript] Extracted video ID:', videoId);
-  console.log('[getVideoTranscript] Calling edge function...');
+  console.log('[getVideoTranscript] Calling Deno Deploy API...');
   
   try {
-    const { data, error } = await supabase.functions.invoke<TranscriptResponse>(
-      'extract-youtube-transcript',
-      {
-        body: { videoId }
-      }
-    );
+    const response = await fetch(DENO_TRANSCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId })
+    });
     
-    console.log('[getVideoTranscript] Edge function response:', { data, error });
+    const data: TranscriptResponse = await response.json();
     
-    if (error) {
-      console.error('[getVideoTranscript] Edge function error:', error);
-      throw new Error(error.message || 'Failed to call transcript extraction service');
-    }
-    
-    if (!data) {
-      throw new Error('No response from transcript extraction service');
-    }
+    console.log('[getVideoTranscript] Response:', { success: data.success, method: data.method });
     
     if (!data.success || !data.transcript) {
       throw new Error(data.error || 'No transcript available for this video');
