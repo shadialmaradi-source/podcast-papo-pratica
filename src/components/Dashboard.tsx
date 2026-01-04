@@ -111,12 +111,13 @@ export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage,
   const fetchCommunityVideos = async () => {
     setLoadingVideos(true);
     try {
-      const lang = selectedLanguage || 'italian';
+      const lang = selectedLanguage || profile?.selected_language || 'italian';
       
       let query = supabase
         .from('youtube_videos')
         .select('id, video_id, title, thumbnail_url, category, difficulty_level')
         .eq('status', 'completed')
+        .eq('language', lang)
         .order('created_at', { ascending: false })
         .limit(8);
 
@@ -133,11 +134,12 @@ export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage,
 
       setCommunityVideos(data || []);
       
-      // Extract unique themes
+      // Extract unique themes for this language
       const { data: allVideos } = await supabase
         .from('youtube_videos')
         .select('category')
         .eq('status', 'completed')
+        .eq('language', lang)
         .not('category', 'is', null);
       
       const uniqueThemes = [...new Set(allVideos?.map(v => v.category).filter(Boolean) as string[])];

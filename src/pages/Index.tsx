@@ -244,7 +244,12 @@ const Index = () => {
       )}
 
       {appState === "profile" && (
-        <ProfilePage onBack={handleBackToDashboard} />
+        <ProfilePage 
+          onBack={handleBackToDashboard}
+          onNavigateToYouTube={() => setAppState('youtube-library')}
+          onNavigateToLibrary={() => setAppState('youtube-library')}
+          selectedLanguage={selectedLanguage || userProfile?.selected_language}
+        />
       )}
 
       {appState === "leaderboard" && (
