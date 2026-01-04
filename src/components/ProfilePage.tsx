@@ -28,7 +28,9 @@ import {
   Medal,
   Edit,
   Check,
-  X
+  X,
+  Youtube,
+  Library
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { EngagementFeatures } from "./EngagementFeatures";
@@ -93,9 +95,12 @@ interface LeaderboardUser {
 
 interface ProfilePageProps {
   onBack: () => void;
+  onNavigateToYouTube?: () => void;
+  onNavigateToLibrary?: () => void;
+  selectedLanguage?: string;
 }
 
-export function ProfilePage({ onBack }: ProfilePageProps) {
+export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, selectedLanguage }: ProfilePageProps) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [exerciseStats, setExerciseStats] = useState<ExerciseStats | null>(null);
@@ -108,12 +113,42 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
   const [newUsername, setNewUsername] = useState("");
   const [usernameValidation, setUsernameValidation] = useState<{ valid: boolean; reason?: string } | null>(null);
   const [validatingUsername, setValidatingUsername] = useState(false);
+  const [userVideoCount, setUserVideoCount] = useState(0);
+  const [availableVideoCount, setAvailableVideoCount] = useState(0);
+
+  const languageName = selectedLanguage === 'portuguese' ? 'Portoghese' : 
+                       selectedLanguage === 'italian' ? 'Italiano' : 
+                       selectedLanguage === 'spanish' ? 'Spagnolo' : 'la lingua selezionata';
 
   useEffect(() => {
-    if (user) {
-      loadProfileData();
+    if (user && selectedLanguage) {
+      loadVideoCounts();
     }
-  }, [user]);
+  }, [user, selectedLanguage]);
+
+  const loadVideoCounts = async () => {
+    if (!user || !selectedLanguage) return;
+    
+    try {
+      // Count user's imported videos
+      const { data: userVideos } = await supabase
+        .from('youtube_videos')
+        .select('id')
+        .match({ user_id: user.id });
+      
+      setUserVideoCount(userVideos?.length || 0);
+
+      // Count available videos in selected language
+      const { data: availableVideos } = await supabase
+        .from('youtube_videos')
+        .select('id')
+        .match({ status: 'completed', language: selectedLanguage });
+      
+      setAvailableVideoCount(availableVideos?.length || 0);
+    } catch (error) {
+      console.error('Error loading video counts:', error);
+    }
+  };
 
   const loadProfileData = async () => {
     try {
@@ -537,6 +572,66 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Two Main Sections */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+        >
+          {/* Card 1: I Tuoi Video YouTube */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all border-red-500/20 bg-gradient-to-br from-red-500/5 to-red-600/10"
+            onClick={() => onNavigateToYouTube?.()}
+          >
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-red-500/10 rounded-full">
+                  <Youtube className="h-8 w-8 text-red-500" />
+                </div>
+                <div>
+                  <CardTitle>I Tuoi Video</CardTitle>
+                  <CardDescription>Importa e studia video YouTube</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Aggiungi video YouTube e genera 90 esercizi automaticamente
+              </p>
+              <Badge variant="outline" className="bg-background">
+                {userVideoCount} video importati
+              </Badge>
+            </CardContent>
+          </Card>
+
+          {/* Card 2: Video Community Disponibili */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10"
+            onClick={() => onNavigateToLibrary?.()}
+          >
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <Library className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>Video Disponibili</CardTitle>
+                  <CardDescription>Esplora contenuti della community</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Accedi a tutti i video disponibili in {languageName}
+              </p>
+              <Badge variant="outline" className="bg-background">
+                {availableVideoCount} video pronti
+              </Badge>
             </CardContent>
           </Card>
         </motion.div>
