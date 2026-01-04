@@ -348,10 +348,13 @@ export type Database = {
           last_login_date: string | null
           longest_streak: number | null
           selected_language: string | null
+          subscription_tier: string | null
           total_xp: number | null
           updated_at: string | null
           user_id: string
           username: string | null
+          youtube_credits_reset_at: string | null
+          youtube_credits_used: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -364,10 +367,13 @@ export type Database = {
           last_login_date?: string | null
           longest_streak?: number | null
           selected_language?: string | null
+          subscription_tier?: string | null
           total_xp?: number | null
           updated_at?: string | null
           user_id: string
           username?: string | null
+          youtube_credits_reset_at?: string | null
+          youtube_credits_used?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -380,10 +386,13 @@ export type Database = {
           last_login_date?: string | null
           longest_streak?: number | null
           selected_language?: string | null
+          subscription_tier?: string | null
           total_xp?: number | null
           updated_at?: string | null
           user_id?: string
           username?: string | null
+          youtube_credits_reset_at?: string | null
+          youtube_credits_used?: number | null
         }
         Relationships: []
       }
