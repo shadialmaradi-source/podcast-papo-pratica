@@ -234,6 +234,10 @@ const Index = () => {
       {appState === "dashboard" && (
         <Dashboard 
           onNavigate={handleNavigateToPodcasts}
+          onVideoSelect={(videoId: string) => {
+            setSelectedVideoId(videoId);
+            setAppState('youtube-exercises-view');
+          }}
           selectedLanguage={selectedLanguage || userProfile?.selected_language}
           onLanguageChange={handleLanguageChange}
         />
