@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 interface VideoInfo {
   id: string;
   title: string;
@@ -56,7 +58,7 @@ export const getVideoInfo = async (videoId: string): Promise<VideoInfo> => {
   }
 };
 
-// Extract transcript using Supadata API (USA servers - no GDPR blocks)
+// Extract transcript using Supabase Edge Function (calls Supadata server-side - no CORS!)
 export const getVideoTranscript = async (videoIdOrUrl: string): Promise<string> => {
   console.log('[getVideoTranscript] Input:', videoIdOrUrl);
   
@@ -67,25 +69,27 @@ export const getVideoTranscript = async (videoIdOrUrl: string): Promise<string> 
   }
   
   console.log('[getVideoTranscript] Extracted video ID:', videoId);
-  console.log('[getVideoTranscript] Calling Supadata API...');
+  console.log('[getVideoTranscript] Calling Edge Function...');
   
   try {
-    const response = await fetch(
-      `https://supadata.ai/api/youtube-transcript?video_id=${videoId}`
+    const { data, error } = await supabase.functions.invoke(
+      'extract-youtube-transcript',
+      { body: { videoId } }
     );
     
-    if (!response.ok) {
-      throw new Error('Transcript API unavailable');
+    if (error) {
+      console.error('[getVideoTranscript] Edge function error:', error);
+      throw new Error(error.message || 'Failed to call transcript service');
     }
     
-    const transcript = await response.text();
+    console.log('[getVideoTranscript] Response:', data);
     
-    if (transcript.trim().length > 50) {
-      console.log(`[getVideoTranscript] Success via Supadata, ${transcript.length} chars`);
-      return transcript.trim();
+    if (!data?.success || !data?.transcript) {
+      throw new Error(data?.error || 'No transcript available for this video');
     }
     
-    throw new Error('No transcript available for this video');
+    console.log(`[getVideoTranscript] Success via ${data.method}, ${data.transcript.length} chars`);
+    return data.transcript;
     
   } catch (error) {
     console.error('[getVideoTranscript] Error:', error);
