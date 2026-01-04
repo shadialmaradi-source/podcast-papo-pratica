@@ -240,6 +240,7 @@ const Index = () => {
           }}
           selectedLanguage={selectedLanguage || userProfile?.selected_language}
           onLanguageChange={handleLanguageChange}
+          onNavigateToLibrary={() => setAppState('youtube-library')}
         />
       )}
 
