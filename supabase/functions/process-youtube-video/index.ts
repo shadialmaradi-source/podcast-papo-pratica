@@ -244,28 +244,8 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
     const theme = await extractThemeFromTranscript(transcript, video.id);
     console.log('Extracted theme:', theme);
 
-    // Update video with theme
-    await supabase
-      .from('youtube_videos')
-      .update({ category: theme })
-      .eq('id', video.id);
-
-    // Generate exercises using AI
-    const exercises = await generateAIExercises(transcript, video.id, video.language);
-    
-    if (exercises.length > 0) {
-      const { error: exercisesError } = await supabase
-        .from('youtube_exercises')
-        .insert(exercises);
-
-      if (exercisesError) {
-        throw new Error(`Failed to save exercises: ${exercisesError.message}`);
-      }
-
-      console.log('Saved', exercises.length, 'exercises for video:', video.id);
-    }
-
-    // Update video status to completed
+    // Update video with theme and status to completed (no exercise generation here)
+    // Exercises will be generated on-demand when user selects a difficulty level
     await supabase
       .from('youtube_videos')
       .update({
