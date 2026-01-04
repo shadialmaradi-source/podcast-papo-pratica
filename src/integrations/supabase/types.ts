@@ -861,6 +861,50 @@ export type Database = {
         }
         Relationships: []
       }
+      youtube_exercise_progress: {
+        Row: {
+          answers: Json | null
+          current_question_index: number | null
+          difficulty: string
+          id: string
+          started_at: string | null
+          total_questions: number | null
+          updated_at: string | null
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          answers?: Json | null
+          current_question_index?: number | null
+          difficulty: string
+          id?: string
+          started_at?: string | null
+          total_questions?: number | null
+          updated_at?: string | null
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          answers?: Json | null
+          current_question_index?: number | null
+          difficulty?: string
+          id?: string
+          started_at?: string | null
+          total_questions?: number | null
+          updated_at?: string | null
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_exercise_progress_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       youtube_exercises: {
         Row: {
           context_sentence: string | null

@@ -28,7 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface YouTubeVideosProps {
   onBack: () => void;
-  onStartExercises: (videoId: string, level: string, intensity: string) => void;
+  onStartExercises: (videoId: string, level: string) => void;
 }
 
 interface VideoData {
@@ -286,7 +286,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
     }
   };
 
-  const handleLevelSelect = async (level: string, intensity: string) => {
+  const handleLevelSelect = async (level: string) => {
     if (!currentVideo) return;
     
     // Check if transcript is already loaded
@@ -297,7 +297,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
       try {
         const transcript = await getVideoTranscript(currentVideo.id);
         setCurrentVideo(prev => prev ? { ...prev, transcript } : null);
-        onStartExercises(currentVideo.id, level, intensity);
+        onStartExercises(currentVideo.id, level);
       } catch (error) {
         setTranscriptError("Failed to load transcript. Please try another video.");
         console.error('Error loading transcript:', error);
@@ -310,7 +310,7 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
         setIsLoadingTranscript(false);
       }
     } else {
-      onStartExercises(currentVideo.id, level, intensity);
+      onStartExercises(currentVideo.id, level);
     }
   };
 
@@ -654,13 +654,12 @@ export function YouTubeVideos({ onBack, onStartExercises }: YouTubeVideosProps) 
         </div>
       )}
 
-      {/* Level and Intensity Selector */}
+      {/* Level Selector */}
       <LevelIntensitySelector
         isOpen={showLevelSelector}
         onClose={() => setShowLevelSelector(false)}
         onSelect={handleLevelSelect}
-        level="beginner"
-        title="Choose YouTube Exercise Settings"
+        title="Scegli il Livello"
       />
 
       {/* Instructions when no video loaded */}

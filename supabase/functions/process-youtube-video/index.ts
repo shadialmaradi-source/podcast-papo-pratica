@@ -177,26 +177,60 @@ async function getVideoInfo(videoId: string): Promise<VideoInfo> {
   }
 }
 
+// Language code mapping for detected languages
+const languageCodeMap: Record<string, string> = {
+  'it': 'italian',
+  'pt': 'portuguese',
+  'pt-BR': 'portuguese',
+  'pt-PT': 'portuguese',
+  'en': 'english',
+  'en-US': 'english',
+  'en-GB': 'english',
+  'es': 'spanish',
+  'fr': 'french',
+  'de': 'german',
+  'ja': 'japanese',
+  'ko': 'korean',
+  'zh': 'chinese',
+  'ru': 'russian',
+  'ar': 'arabic',
+  'hi': 'hindi'
+};
+
 async function processVideoInBackground(supabase: any, video: any, videoId: string) {
   try {
     console.log('Starting transcript extraction for video:', videoId);
     
-    // Extract transcript from YouTube captions
-    const transcript = await extractTranscriptFromCaptions(videoId);
+    // Extract transcript from YouTube captions (now returns language too)
+    const { transcript, detectedLanguage } = await extractTranscriptFromCaptions(videoId);
     
     if (!transcript || transcript.trim().length < 100) {
       throw new Error('Could not extract transcript. Video may not have captions enabled.');
     }
 
-    console.log('Extracted transcript, length:', transcript.length);
+    console.log('Extracted transcript, length:', transcript.length, 'detected language:', detectedLanguage);
 
-    // Save transcript
+    // Map detected language code to full language name
+    const correctLanguage = languageCodeMap[detectedLanguage] || languageCodeMap[detectedLanguage.split('-')[0]] || 'english';
+    console.log('Mapped language:', detectedLanguage, '->', correctLanguage);
+
+    // Update video with correct detected language
+    if (correctLanguage !== video.language) {
+      console.log('Updating video language from', video.language, 'to', correctLanguage);
+      await supabase
+        .from('youtube_videos')
+        .update({ language: correctLanguage })
+        .eq('id', video.id);
+      video.language = correctLanguage;
+    }
+
+    // Save transcript with correct language
     const { error: transcriptError } = await supabase
       .from('youtube_transcripts')
       .insert({
         video_id: video.id,
         transcript,
-        language: video.language,
+        language: correctLanguage,
         word_count: transcript.split(' ').length
       });
 
@@ -204,7 +238,7 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
       throw new Error(`Failed to save transcript: ${transcriptError.message}`);
     }
 
-    console.log('Saved transcript for video:', video.id);
+    console.log('Saved transcript for video:', video.id, 'with language:', correctLanguage);
 
     // Extract theme from transcript using AI
     const theme = await extractThemeFromTranscript(transcript, video.id);
@@ -311,7 +345,12 @@ Rispondi SOLO con il nome del tema.`
   }
 }
 
-async function extractTranscriptFromCaptions(videoId: string): Promise<string> {
+interface TranscriptResult {
+  transcript: string;
+  detectedLanguage: string;
+}
+
+async function extractTranscriptFromCaptions(videoId: string): Promise<TranscriptResult> {
   console.log('Extracting transcript via Supadata API for video:', videoId);
   
   const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY');
@@ -348,7 +387,10 @@ async function extractTranscriptFromCaptions(videoId: string): Promise<string> {
     }
 
     console.log(`Supadata success: ${data.content.length} chars, lang: ${data.lang}`);
-    return data.content;
+    return {
+      transcript: data.content,
+      detectedLanguage: data.lang || 'en'
+    };
     
   } catch (error) {
     console.error('Supadata transcript extraction failed:', error);

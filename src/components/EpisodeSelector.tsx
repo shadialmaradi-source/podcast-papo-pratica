@@ -13,7 +13,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 interface EpisodeSelectorProps {
   podcast: PodcastSource;
   onSelectEpisode: (episode: PodcastEpisode) => void;
-  onStartExercises: (episode: PodcastEpisode, level: string, intensity: string) => void;
+  onStartExercises: (episode: PodcastEpisode, level: string) => void;
   onBack: () => void;
 }
 
@@ -74,9 +74,9 @@ export function EpisodeSelector({ podcast, onSelectEpisode, onStartExercises, on
     onSelectEpisode(episode);
   };
 
-  const handleStartExercises = (level: string, intensity: string) => {
+  const handleStartExercises = (level: string) => {
     if (selectedEpisode) {
-      onStartExercises(selectedEpisode, level, intensity);
+      onStartExercises(selectedEpisode, level);
     }
   };
 

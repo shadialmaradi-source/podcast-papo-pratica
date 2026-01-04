@@ -56,7 +56,7 @@ interface YouTubeVideo {
 
 interface YouTubeVideoPlayerProps {
   videoId: string;
-  onStartExercises: (level: string, intensity: string) => void;
+  onStartExercises: (level: string) => void;
   onBack: () => void;
 }
 
@@ -168,9 +168,9 @@ export function YouTubeVideoPlayer({ videoId, onStartExercises, onBack }: YouTub
     }
   };
 
-  const handleLevelSelect = (level: string, intensity: string) => {
+  const handleLevelSelect = (level: string) => {
     setSelectedLevel(level);
-    onStartExercises(level, intensity);
+    onStartExercises(level);
     setShowLevelSelector(false);
   };
 
@@ -359,13 +359,12 @@ export function YouTubeVideoPlayer({ videoId, onStartExercises, onBack }: YouTub
         </CardContent>
       </Card>
 
-      {/* Level and Intensity Selector */}
+      {/* Level Selector */}
       <LevelIntensitySelector
         isOpen={showLevelSelector}
         onClose={() => setShowLevelSelector(false)}
         onSelect={handleLevelSelect}
-        level={selectedLevel || "beginner"}
-        title="Choose Exercise Settings"
+        title="Scegli il Livello"
       />
     </div>
   );

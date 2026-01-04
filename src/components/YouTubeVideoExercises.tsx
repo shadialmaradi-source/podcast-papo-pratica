@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 interface YouTubeVideoExercisesProps {
   videoId: string;
   onBack: () => void;
-  onStartExercises: (level: string, intensity: string) => void;
+  onStartExercises: (level: string) => void;
 }
 
 interface VideoData {
@@ -47,7 +47,6 @@ const mapDifficultyLevel = (level: string): string => {
 const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, onBack, onStartExercises }) => {
   const [videoData, setVideoData] = useState<VideoData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedLevel, setSelectedLevel] = useState<string>('beginner');
 
   useEffect(() => {
     loadVideoData();
@@ -76,9 +75,9 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     }
   };
 
-  const handleStartExercises = (level: string, intensity: string) => {
-    console.log('Starting exercises:', { level, intensity, videoId });
-    onStartExercises(level, intensity);
+  const handleStartExercises = (level: string) => {
+    console.log('Starting exercises:', { level, videoId });
+    onStartExercises(level);
   };
 
   if (isLoading) {
@@ -164,45 +163,49 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="text-sm text-muted-foreground space-y-2">
-                    <p className="font-medium">What you'll practice:</p>
+                    <p className="font-medium">Cosa praticherai:</p>
                     <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li>Vocabulary from the video</li>
-                      <li>Listening comprehension</li>
-                      <li>Grammar and sentence structure</li>
-                      <li>Context-based exercises</li>
+                      <li>Vocabolario dal video</li>
+                      <li>Comprensione orale</li>
+                      <li>Grammatica e struttura delle frasi</li>
+                      <li>Esercizi basati sul contesto</li>
                     </ul>
                   </div>
 
+                  <div className="text-sm font-medium mb-2">Scegli il livello di difficoltà:</div>
+                  
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Difficulty Level</label>
-                    <select 
-                      value={selectedLevel}
-                      onChange={(e) => setSelectedLevel(e.target.value)}
-                      className="w-full p-2 border rounded-md bg-background"
-                    >
-                      <option value="beginner">Beginner (A1-A2)</option>
-                      <option value="intermediate">Intermediate (B1-B2)</option>
-                      <option value="advanced">Advanced (C1-C2)</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
                     <Button 
-                      className="w-full" 
+                      className="w-full justify-start h-auto p-3 bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-foreground"
                       variant="outline"
-                      onClick={() => handleStartExercises(selectedLevel, 'light')}
+                      onClick={() => handleStartExercises('beginner')}
                     >
-                      Light Mode
-                      <span className="text-xs block">10 questions</span>
+                      <div className="text-left">
+                        <div className="font-medium">Beginner (A1-A2)</div>
+                        <div className="text-xs text-muted-foreground">20 esercizi • Vocabolario base</div>
+                      </div>
                     </Button>
                     <Button 
-                      className="w-full"
-                      onClick={() => handleStartExercises(selectedLevel, 'intense')}
+                      className="w-full justify-start h-auto p-3 bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20 text-foreground"
+                      variant="outline"
+                      onClick={() => handleStartExercises('intermediate')}
                     >
-                      Intense Mode
-                      <span className="text-xs block">20 questions</span>
+                      <div className="text-left">
+                        <div className="font-medium">Intermediate (B1-B2)</div>
+                        <div className="text-xs text-muted-foreground">20 esercizi • Grammatica complessa</div>
+                      </div>
+                    </Button>
+                    <Button 
+                      className="w-full justify-start h-auto p-3 bg-red-500/10 border-red-500/30 hover:bg-red-500/20 text-foreground"
+                      variant="outline"
+                      onClick={() => handleStartExercises('advanced')}
+                    >
+                      <div className="text-left">
+                        <div className="font-medium">Advanced (C1-C2)</div>
+                        <div className="text-xs text-muted-foreground">20 esercizi • Concetti astratti</div>
+                      </div>
                     </Button>
                   </div>
                 </div>
