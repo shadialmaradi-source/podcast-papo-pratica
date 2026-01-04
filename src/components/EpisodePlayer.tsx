@@ -44,7 +44,7 @@ const mapDifficultyLevel = (level: string): string => {
 
 interface EpisodePlayerProps {
   episode: PodcastEpisode;
-  onStartExercises: (level: string, intensity: string) => void;
+  onStartExercises: (level: string) => void;
   onBack: () => void;
 }
 
@@ -221,9 +221,9 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
     audio.currentTime = Math.max(audio.currentTime - 15, 0);
   };
 
-  const handleLevelSelect = (level: string, intensity: string) => {
+  const handleLevelSelect = (level: string) => {
     setSelectedLevel(level);
-    onStartExercises(level, intensity);
+    onStartExercises(level);
     setShowLevelSelector(false);
   };
 
@@ -377,13 +377,12 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
          </CardContent>
        </Card>
 
-       {/* Level and Intensity Selector */}
+       {/* Level Selector */}
         <LevelIntensitySelector
           isOpen={showLevelSelector}
           onClose={() => setShowLevelSelector(false)}
           onSelect={handleLevelSelect}
-          level={selectedLevel || "beginner"}
-          title="Choose Exercise Settings"
+          title="Scegli il Livello"
         />
      </div>
    );

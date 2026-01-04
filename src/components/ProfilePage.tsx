@@ -93,14 +93,29 @@ interface LeaderboardUser {
   rank: number;
 }
 
+interface ExerciseProgress {
+  id: string;
+  video_id: string;
+  difficulty: string;
+  current_question_index: number;
+  total_questions: number;
+  updated_at: string;
+  youtube_videos?: {
+    title: string;
+    thumbnail_url: string;
+    video_id: string;
+  };
+}
+
 interface ProfilePageProps {
   onBack: () => void;
   onNavigateToYouTube?: () => void;
   onNavigateToLibrary?: () => void;
+  onResumeExercise?: (videoId: string, level: string) => void;
   selectedLanguage?: string;
 }
 
-export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, selectedLanguage }: ProfilePageProps) {
+export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, onResumeExercise, selectedLanguage }: ProfilePageProps) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [exerciseStats, setExerciseStats] = useState<ExerciseStats | null>(null);
@@ -115,16 +130,46 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
   const [validatingUsername, setValidatingUsername] = useState(false);
   const [userVideoCount, setUserVideoCount] = useState(0);
   const [availableVideoCount, setAvailableVideoCount] = useState(0);
+  const [inProgressExercise, setInProgressExercise] = useState<ExerciseProgress | null>(null);
 
   const languageName = selectedLanguage === 'portuguese' ? 'Portoghese' : 
                        selectedLanguage === 'italian' ? 'Italiano' : 
+                       selectedLanguage === 'english' ? 'Inglese' :
                        selectedLanguage === 'spanish' ? 'Spagnolo' : 'la lingua selezionata';
 
   useEffect(() => {
     if (user && selectedLanguage) {
       loadVideoCounts();
+      loadInProgressExercise();
     }
   }, [user, selectedLanguage]);
+
+  const loadInProgressExercise = async () => {
+    if (!user || !selectedLanguage) return;
+    
+    try {
+      // Get in-progress exercise for current language
+      const { data, error } = await supabase
+        .from('youtube_exercise_progress')
+        .select(`
+          *,
+          youtube_videos!inner(title, thumbnail_url, video_id, language)
+        `)
+        .eq('user_id', user.id)
+        .eq('youtube_videos.language', selectedLanguage)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data && data.current_question_index < data.total_questions) {
+        setInProgressExercise(data as ExerciseProgress);
+      } else {
+        setInProgressExercise(null);
+      }
+    } catch (error) {
+      console.error('Error loading in-progress exercise:', error);
+    }
+  };
 
   const loadVideoCounts = async () => {
     if (!user || !selectedLanguage) return;
@@ -576,14 +621,40 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
           </Card>
         </motion.div>
 
-        {/* Two Main Sections */}
+        {/* Two Main Sections - Contenuti Pronti (left) and YouTube (right) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"
         >
-          {/* Card 1: I Tuoi Video YouTube */}
+          {/* Card 1: Contenuti Pronti (Verde - Sinistra) */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all border-green-500/20 bg-gradient-to-br from-green-500/5 to-green-600/10"
+            onClick={() => onNavigateToLibrary?.()}
+          >
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-green-500/10 rounded-full">
+                  <Headphones className="h-8 w-8 text-green-500" />
+                </div>
+                <div>
+                  <CardTitle>Contenuti Pronti</CardTitle>
+                  <CardDescription>Video e podcast disponibili</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Esplora tutti i contenuti disponibili in {languageName}
+              </p>
+              <Badge variant="outline" className="bg-background text-green-600 border-green-500/30">
+                {availableVideoCount} contenuti pronti
+              </Badge>
+            </CardContent>
+          </Card>
+
+          {/* Card 2: Aggiungi Video YouTube (Rosso - Destra) */}
           <Card 
             className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all border-red-500/20 bg-gradient-to-br from-red-500/5 to-red-600/10"
             onClick={() => onNavigateToYouTube?.()}
@@ -594,8 +665,8 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
                   <Youtube className="h-8 w-8 text-red-500" />
                 </div>
                 <div>
-                  <CardTitle>I Tuoi Video</CardTitle>
-                  <CardDescription>Importa e studia video YouTube</CardDescription>
+                  <CardTitle>Aggiungi Video</CardTitle>
+                  <CardDescription>Importa da YouTube</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -603,38 +674,51 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
               <p className="text-sm text-muted-foreground mb-4">
                 Aggiungi video YouTube e genera 90 esercizi automaticamente
               </p>
-              <Badge variant="outline" className="bg-background">
+              <Badge variant="outline" className="bg-background text-red-600 border-red-500/30">
                 {userVideoCount} video importati
               </Badge>
             </CardContent>
           </Card>
-
-          {/* Card 2: Video Community Disponibili */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10"
-            onClick={() => onNavigateToLibrary?.()}
-          >
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-primary/10 rounded-full">
-                  <Library className="h-8 w-8 text-primary" />
-                </div>
-                <div>
-                  <CardTitle>Video Disponibili</CardTitle>
-                  <CardDescription>Esplora contenuti della community</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Accedi a tutti i video disponibili in {languageName}
-              </p>
-              <Badge variant="outline" className="bg-background">
-                {availableVideoCount} video pronti
-              </Badge>
-            </CardContent>
-          </Card>
         </motion.div>
+
+        {/* Resume Section - Only shown if there's an exercise in progress */}
+        {inProgressExercise && inProgressExercise.youtube_videos && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mb-8"
+          >
+            <Card className="border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-orange-500/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={inProgressExercise.youtube_videos.thumbnail_url || `https://img.youtube.com/vi/${inProgressExercise.youtube_videos.video_id}/mqdefault.jpg`}
+                    alt={inProgressExercise.youtube_videos.title}
+                    className="w-24 h-16 object-cover rounded-lg"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Target className="h-4 w-4 text-amber-500" />
+                      <span className="text-sm font-medium text-amber-600">Riprendi da dove hai lasciato</span>
+                    </div>
+                    <p className="font-medium truncate">{inProgressExercise.youtube_videos.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {inProgressExercise.difficulty.charAt(0).toUpperCase() + inProgressExercise.difficulty.slice(1)} • Domanda {inProgressExercise.current_question_index + 1}/{inProgressExercise.total_questions}
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => onResumeExercise?.(inProgressExercise.youtube_videos!.video_id, inProgressExercise.difficulty)}
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    Continua
+                    <Zap className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Tabs for different sections */}
         <Tabs defaultValue="overview" className="space-y-6">

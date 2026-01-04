@@ -80,9 +80,59 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
   const [score, setScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [dbVideoId, setDbVideoId] = useState<string | null>(null);
 
   const currentExercise = exercises[currentExerciseIndex];
   const progress = exercises.length > 0 ? ((currentExerciseIndex + 1) / exercises.length) * 100 : 0;
+
+  // Save exercise progress to database
+  const saveProgress = async (questionIndex: number) => {
+    if (!dbVideoId) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const dbDifficulty = mapLevelToDbDifficulty(level);
+      
+      await supabase
+        .from('youtube_exercise_progress')
+        .upsert({
+          user_id: user.id,
+          video_id: dbVideoId,
+          difficulty: dbDifficulty,
+          current_question_index: questionIndex,
+          total_questions: exercises.length,
+          answers: answers,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,video_id,difficulty'
+        });
+    } catch (error) {
+      console.error('Error saving progress:', error);
+    }
+  };
+
+  // Delete progress when completed
+  const deleteProgress = async () => {
+    if (!dbVideoId) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const dbDifficulty = mapLevelToDbDifficulty(level);
+      
+      await supabase
+        .from('youtube_exercise_progress')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('video_id', dbVideoId)
+        .eq('difficulty', dbDifficulty);
+    } catch (error) {
+      console.error('Error deleting progress:', error);
+    }
+  };
 
   // Map level names to database difficulty values
   const mapLevelToDbDifficulty = (lvl: string): string => {
@@ -119,6 +169,7 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
           .single();
 
         if (videoData) {
+          setDbVideoId(videoData.id);
           // Try to load pre-generated exercises from database
           const dbDifficulty = mapLevelToDbDifficulty(level);
           const { data: dbExercises, error: dbError } = await supabase
@@ -243,9 +294,12 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
     }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentExerciseIndex < exercises.length - 1) {
-      setCurrentExerciseIndex(currentExerciseIndex + 1);
+      const newIndex = currentExerciseIndex + 1;
+      setCurrentExerciseIndex(newIndex);
+      // Save progress after each answer
+      await saveProgress(newIndex);
     } else {
       if (!showDragDrop && dragDropExercises.length > 0) {
         // Transition to drag & drop exercises
@@ -263,6 +317,8 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
       
       setScore(totalScore);
       setShowResults(true);
+      // Delete progress when completed
+      await deleteProgress();
     }
   };
 
