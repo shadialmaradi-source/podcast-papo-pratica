@@ -206,6 +206,16 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
 
     console.log('Saved transcript for video:', video.id);
 
+    // Extract theme from transcript using AI
+    const theme = await extractThemeFromTranscript(transcript, video.id);
+    console.log('Extracted theme:', theme);
+
+    // Update video with theme
+    await supabase
+      .from('youtube_videos')
+      .update({ category: theme })
+      .eq('id', video.id);
+
     // Generate exercises using AI
     const exercises = await generateAIExercises(transcript, video.id, video.language);
     
@@ -242,6 +252,62 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
         status: 'failed'
       })
       .eq('id', video.id);
+  }
+}
+
+async function extractThemeFromTranscript(transcript: string, videoId: string): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  
+  const THEMES = [
+    'Cultura', 'Viaggi', 'Sport', 'Cucina', 'Musica',
+    'Scienza', 'Storia', 'Grammatica', 'Conversazione', 
+    'Business', 'Tecnologia', 'Arte', 'Lifestyle'
+  ];
+  
+  if (!LOVABLE_API_KEY) {
+    console.log('No LOVABLE_API_KEY, defaulting to Cultura');
+    return 'Cultura';
+  }
+
+  try {
+    const truncatedTranscript = transcript.substring(0, 2000);
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [{
+          role: 'user',
+          content: `Analizza questo transcript e assegna UNO dei seguenti temi:
+${THEMES.join(', ')}
+
+Transcript:
+${truncatedTranscript}
+
+Rispondi SOLO con il nome del tema.`
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      return 'Cultura';
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim() || '';
+    
+    const matchedTheme = THEMES.find(t => 
+      content.toLowerCase().includes(t.toLowerCase())
+    ) || 'Cultura';
+
+    return matchedTheme;
+  } catch (error) {
+    console.error('Theme extraction error:', error);
+    return 'Cultura';
   }
 }
 
