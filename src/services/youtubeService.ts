@@ -6,18 +6,6 @@ interface VideoInfo {
   thumbnail: string;
 }
 
-interface TranscriptResponse {
-  success: boolean;
-  transcript: string | null;
-  method: string | null;
-  error: string | null;
-}
-
-// TODO: Replace with your Deno Deploy URL after deployment
-// Deploy deno-deploy/transcript-api.ts to https://dash.deno.com
-// Then update this URL
-const DENO_TRANSCRIPT_URL = 'https://YOUR-PROJECT.deno.dev';
-
 // Helper to extract video ID from full YouTube URL or return as-is if already an ID
 export const extractVideoId = (urlOrId: string): string | null => {
   if (!urlOrId) return null;
@@ -68,7 +56,7 @@ export const getVideoInfo = async (videoId: string): Promise<VideoInfo> => {
   }
 };
 
-// Extract transcript using Deno Deploy (USA servers - no GDPR blocks)
+// Extract transcript using Supadata API (USA servers - no GDPR blocks)
 export const getVideoTranscript = async (videoIdOrUrl: string): Promise<string> => {
   console.log('[getVideoTranscript] Input:', videoIdOrUrl);
   
@@ -79,25 +67,25 @@ export const getVideoTranscript = async (videoIdOrUrl: string): Promise<string> 
   }
   
   console.log('[getVideoTranscript] Extracted video ID:', videoId);
-  console.log('[getVideoTranscript] Calling Deno Deploy API...');
+  console.log('[getVideoTranscript] Calling Supadata API...');
   
   try {
-    const response = await fetch(DENO_TRANSCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoId })
-    });
+    const response = await fetch(
+      `https://supadata.ai/api/youtube-transcript?video_id=${videoId}`
+    );
     
-    const data: TranscriptResponse = await response.json();
-    
-    console.log('[getVideoTranscript] Response:', { success: data.success, method: data.method });
-    
-    if (!data.success || !data.transcript) {
-      throw new Error(data.error || 'No transcript available for this video');
+    if (!response.ok) {
+      throw new Error('Transcript API unavailable');
     }
     
-    console.log(`[getVideoTranscript] Success via ${data.method}, ${data.transcript.length} chars`);
-    return data.transcript;
+    const transcript = await response.text();
+    
+    if (transcript.trim().length > 50) {
+      console.log(`[getVideoTranscript] Success via Supadata, ${transcript.length} chars`);
+      return transcript.trim();
+    }
+    
+    throw new Error('No transcript available for this video');
     
   } catch (error) {
     console.error('[getVideoTranscript] Error:', error);
