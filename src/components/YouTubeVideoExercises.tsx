@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 interface YouTubeVideoExercisesProps {
   videoId: string;
   onBack: () => void;
+  onStartExercises: (level: string, intensity: string) => void;
 }
 
 interface VideoData {
@@ -43,7 +44,7 @@ const mapDifficultyLevel = (level: string): string => {
   }
 };
 
-const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, onBack }) => {
+const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, onBack, onStartExercises }) => {
   const [videoData, setVideoData] = useState<VideoData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string>('beginner');
@@ -77,11 +78,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
   const handleStartExercises = (level: string, intensity: string) => {
     console.log('Starting exercises:', { level, intensity, videoId });
-    // TODO: Navigate to exercise flow
-    toast({
-      title: "Starting Exercises",
-      description: `Level: ${level}, Intensity: ${intensity}`,
-    });
+    onStartExercises(level, intensity);
   };
 
   if (isLoading) {

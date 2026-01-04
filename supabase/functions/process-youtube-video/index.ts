@@ -298,101 +298,104 @@ async function generateAIExercises(transcript: string, videoId: string, language
     return generateBasicExercises(transcript, videoId);
   }
   
-  console.log('Generating exercises using AI...');
+  console.log('Generating 90 AI exercises for video:', videoId);
   
-  const difficulties = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-  const intensities = ['light', 'intense'];
-  const allExercises: any[] = [];
-  
-  // Use a subset of transcript to avoid token limits
-  const truncatedTranscript = transcript.substring(0, 3000);
-  
-  for (const difficulty of difficulties) {
-    for (const intensity of intensities) {
-      const exerciseCount = intensity === 'light' ? 5 : 10;
-      
-      try {
-        const prompt = `You are a language learning expert. Based on this video transcript, create ${exerciseCount} exercises for ${difficulty} level learners (intensity: ${intensity}).
+  // Truncate transcript to avoid token limits
+  const truncatedTranscript = transcript.substring(0, 6000);
+
+  const systemPrompt = `You are an expert language learning exercise creator. Generate exercises based on video transcripts.
+
+CRITICAL RULES:
+1. Create UNIQUE questions - NEVER repeat the same information
+2. RANDOMIZE correct answer positions
+3. Base ALL questions on actual transcript content
+
+EXERCISE TYPES:
+- multiple_choice: 4 options (70-80% of exercises)
+- fill_blank: Sentence with blank
+- matching: Term-definition pairs
+- sequencing: Order statements
+
+XP REWARDS: beginner=5, intermediate=10, advanced=15
+
+DIFFICULTY:
+- beginner: Simple facts, basic vocabulary
+- intermediate: Context, how/why questions
+- advanced: Analysis, inference, nuance`;
+
+  const userPrompt = `Generate 90 language learning exercises from this transcript.
+
+DISTRIBUTION:
+- BEGINNER: 30 exercises (10 light + 20 intense)
+- INTERMEDIATE: 30 exercises (10 light + 20 intense)
+- ADVANCED: 30 exercises (10 light + 20 intense)
 
 TRANSCRIPT:
 ${truncatedTranscript}
 
-Generate exercises in JSON format. Return ONLY a valid JSON array, no markdown or explanations.
-
-Each exercise should have:
+Return JSON array with 90 exercises. Each:
 {
-  "type": "multiple_choice" | "true_false" | "gap_fill",
-  "question": "the question text",
-  "options": ["option1", "option2", "option3", "option4"],
-  "correctAnswer": "the correct answer exactly as it appears in options",
-  "explanation": "brief explanation"
+  "question": "Question text",
+  "type": "multiple_choice" | "fill_blank" | "matching" | "sequencing",
+  "options": ["A", "B", "C", "D"],
+  "correctAnswer": "Exact option text",
+  "explanation": "Why correct",
+  "difficulty": "beginner" | "intermediate" | "advanced",
+  "intensity": "light" | "intense"
 }
 
-For ${difficulty} level:
-- A1/A2: Simple vocabulary, short sentences, common words
-- B1/B2: Moderate complexity, idiomatic expressions
-- C1/C2: Complex ideas, nuanced vocabulary, abstract concepts
+Return ONLY JSON array.`;
 
-Return a JSON array with exactly ${exerciseCount} exercises.`;
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+    });
 
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [
-              { role: 'user', content: prompt }
-            ],
-            max_tokens: 2000
-          })
-        });
-        
-        if (!response.ok) {
-          console.error('AI API error:', response.status);
-          continue;
-        }
-        
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || '';
-        
-        // Parse the JSON from the response
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const exercises = JSON.parse(jsonMatch[0]);
-          
-          for (let i = 0; i < exercises.length; i++) {
-            const exercise = exercises[i];
-            allExercises.push({
-              video_id: videoId,
-              question: exercise.question,
-              exercise_type: exercise.type || 'multiple_choice',
-              options: exercise.options ? JSON.stringify(exercise.options) : null,
-              correct_answer: exercise.correctAnswer,
-              explanation: exercise.explanation || '',
-              difficulty,
-              intensity,
-              xp_reward: getPointsByLevel(difficulty),
-              order_index: i
-            });
-          }
-        }
-        
-      } catch (error) {
-        console.error(`Error generating exercises for ${difficulty}/${intensity}:`, error);
-      }
+    if (!response.ok) {
+      console.error('AI API error:', response.status);
+      return generateBasicExercises(transcript, videoId);
     }
-  }
-  
-  // If AI generation failed, fall back to basic exercises
-  if (allExercises.length === 0) {
-    console.log('AI exercise generation failed, using basic generator');
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.error('No JSON in AI response');
+      return generateBasicExercises(transcript, videoId);
+    }
+
+    const exercises = JSON.parse(jsonMatch[0]);
+    console.log(`AI generated ${exercises.length} exercises`);
+
+    return exercises.map((ex: any, i: number) => ({
+      video_id: videoId,
+      question: ex.question,
+      exercise_type: ex.type || 'multiple_choice',
+      options: ex.options,
+      correct_answer: ex.correctAnswer,
+      explanation: ex.explanation || '',
+      difficulty: ex.difficulty || 'beginner',
+      intensity: ex.intensity || 'light',
+      xp_reward: ex.difficulty === 'advanced' ? 15 : ex.difficulty === 'intermediate' ? 10 : 5,
+      order_index: i
+    }));
+
+  } catch (error) {
+    console.error('AI exercise generation failed:', error);
     return generateBasicExercises(transcript, videoId);
   }
-  
-  return allExercises;
 }
 
 function generateBasicExercises(transcript: string, videoId: string): any[] {

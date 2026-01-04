@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { getVideoTranscript } from "@/services/youtubeService";
 import { generateTranscriptBasedExercises, Exercise } from "@/services/exerciseGeneratorService";
 import { DragDropExercises } from "./DragDropExercises";
@@ -83,13 +84,83 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
   const currentExercise = exercises[currentExerciseIndex];
   const progress = exercises.length > 0 ? ((currentExerciseIndex + 1) / exercises.length) * 100 : 0;
 
-  // Load exercises based on transcript
+  // Map level names to database difficulty values
+  const mapLevelToDbDifficulty = (lvl: string): string => {
+    switch (lvl.toLowerCase()) {
+      case 'a1':
+      case 'a2':
+      case 'beginner':
+        return 'beginner';
+      case 'b1':
+      case 'b2':
+      case 'intermediate':
+        return 'intermediate';
+      case 'c1':
+      case 'c2':
+      case 'advanced':
+        return 'advanced';
+      default:
+        return lvl.toLowerCase();
+    }
+  };
+
+  // Load exercises - first from DB, then fallback to client-side generation
   useEffect(() => {
     const loadExercises = async () => {
       setIsLoading(true);
       setError("");
       
       try {
+        // First, get the database video ID from the youtube video_id
+        const { data: videoData, error: videoError } = await supabase
+          .from('youtube_videos')
+          .select('id')
+          .eq('video_id', videoId)
+          .single();
+
+        if (videoData) {
+          // Try to load pre-generated exercises from database
+          const dbDifficulty = mapLevelToDbDifficulty(level);
+          const { data: dbExercises, error: dbError } = await supabase
+            .from('youtube_exercises')
+            .select('*')
+            .eq('video_id', videoData.id)
+            .eq('difficulty', dbDifficulty)
+            .eq('intensity', intensity)
+            .order('order_index');
+
+          if (dbExercises && dbExercises.length > 0) {
+            console.log(`Loaded ${dbExercises.length} exercises from database`);
+            
+            // Format DB exercises to match Exercise interface
+            const formattedExercises: Exercise[] = dbExercises.map((ex, idx) => ({
+              id: ex.id,
+              type: mapDbTypeToExerciseType(ex.exercise_type) as Exercise['type'],
+              question: ex.question,
+              options: parseOptions(ex.options),
+              correctAnswer: ex.correct_answer,
+              explanation: ex.explanation || '',
+              points: ex.xp_reward || 10,
+              difficulty: ex.difficulty,
+              level: level,
+              mode: (intensity === 'intense' ? 'intense' : 'light') as Exercise['mode']
+            }));
+
+            setRegularExercises(formattedExercises);
+            setExercises(formattedExercises);
+            setDragDropExercises([]);
+            
+            toast({
+              title: "Exercises Ready! 🎯",
+              description: `${formattedExercises.length} AI-generated exercises for ${level} level.`,
+            });
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Fallback: generate exercises client-side from transcript
+        console.log('No DB exercises found, generating from transcript...');
         const transcript = await getVideoTranscript(videoId);
         if (!transcript) {
           setError("No transcript available for this video");
@@ -106,15 +177,15 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
         
         setDragDropExercises(dragDropExs);
         setRegularExercises(regularExs);
-        setExercises(regularExs); // Start with regular exercises
+        setExercises(regularExs);
         
         toast({
           title: "Exercises Generated! 🎯",
-          description: `${intensity === "intense" ? "20" : "10"} transcript-based exercises created for ${level} level.`,
+          description: `${exerciseCount} transcript-based exercises created for ${level} level.`,
         });
       } catch (err) {
-        setError("Failed to generate exercises. Please try another video.");
-        console.error('Error generating exercises:', err);
+        setError("Failed to load exercises. Please try another video.");
+        console.error('Error loading exercises:', err);
       } finally {
         setIsLoading(false);
       }
@@ -122,6 +193,39 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
 
     loadExercises();
   }, [videoId, level, intensity]);
+
+  // Helper to map DB exercise types to our Exercise types
+  const mapDbTypeToExerciseType = (dbType: string): string => {
+    switch (dbType) {
+      case 'multiple_choice':
+        return 'MCQ';
+      case 'true_false':
+        return 'TF';
+      case 'fill_blank':
+      case 'gap_fill':
+        return 'Cloze';
+      case 'matching':
+        return 'Matching';
+      case 'sequencing':
+        return 'Sequencing';
+      default:
+        return 'MCQ';
+    }
+  };
+
+  // Helper to parse options from DB (could be JSON string or array)
+  const parseOptions = (options: any): string[] => {
+    if (!options) return [];
+    if (Array.isArray(options)) return options;
+    if (typeof options === 'string') {
+      try {
+        return JSON.parse(options);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
 
   const levelInfo = {
     A1: { name: "Beginner", color: "bg-green-500" },

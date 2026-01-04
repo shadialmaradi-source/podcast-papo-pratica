@@ -42,15 +42,12 @@ enable_anonymous_sign_ups = false
 
 [functions.send-daily-reminders]
 verify_jwt = false
-# Note: This should be called via pg_cron, not HTTP. Consider adding secret-based auth.
 
 [functions.send-weekly-recaps]
 verify_jwt = false
-# Note: This should be called via pg_cron, not HTTP. Consider adding secret-based auth.
 
 [functions.send-leaderboard-alerts]
 verify_jwt = false
-# Note: This should be called via pg_cron, not HTTP. Consider adding secret-based auth.
 
 [functions.process-youtube-video]
 verify_jwt = true
@@ -62,4 +59,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.extract-youtube-transcript]
+verify_jwt = false
+
+[functions.generate-ai-exercises]
 verify_jwt = false

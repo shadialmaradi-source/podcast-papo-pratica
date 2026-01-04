@@ -317,6 +317,11 @@ const Index = () => {
         <YouTubeVideoExercises
           videoId={selectedVideoId}
           onBack={handleBackToYouTubeLibrary}
+          onStartExercises={(level: string, intensity: string) => {
+            setSelectedLevel(level);
+            setSelectedIntensity(intensity);
+            setAppState("youtube-exercises");
+          }}
         />
       )}
 
