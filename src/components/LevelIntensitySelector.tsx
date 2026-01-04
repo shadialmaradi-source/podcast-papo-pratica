@@ -1,12 +1,13 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
-import { Target, BookOpen, Zap, Award } from "lucide-react";
+import { Target, BookOpen, Zap, Award, Loader2 } from "lucide-react";
 
 interface LevelSelectorProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (level: string) => void;
   title?: string;
+  isLoading?: boolean;
 }
 
 const DIFFICULTY_LEVELS = [
@@ -39,55 +40,69 @@ const DIFFICULTY_LEVELS = [
   },
 ];
 
-export function LevelIntensitySelector({ isOpen, onClose, onSelect, title = "Scegli il Livello" }: LevelSelectorProps) {
+export function LevelIntensitySelector({ isOpen, onClose, onSelect, title = "Scegli il Livello", isLoading = false }: LevelSelectorProps) {
   const handleLevelSelect = (level: string) => {
+    if (isLoading) return;
     onSelect(level);
-    onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !isLoading && !open && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Target className="h-5 w-5" />
+            )}
             {title}
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4 pt-2">
-          <p className="text-sm text-muted-foreground">
-            Seleziona il livello di difficoltà per gli esercizi (20 domande)
-          </p>
-          
-          <div className="space-y-3">
-            {DIFFICULTY_LEVELS.map((level) => {
-              const IconComponent = level.icon;
-              return (
-                <motion.div
-                  key={level.code}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => handleLevelSelect(level.code)}
-                  className="cursor-pointer"
-                >
-                  <div className={`border rounded-lg p-4 flex items-center gap-4 transition-all ${level.color}`}>
-                    <div className={`p-3 rounded-full bg-background ${level.iconColor}`}>
-                      <IconComponent className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{level.name}</span>
-                        <span className="text-xs text-muted-foreground">({level.description})</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{level.detail}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+        {isLoading ? (
+          <div className="py-8 flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground text-center">
+              Generazione esercizi in corso con GPT-5...<br />
+              Questo può richiedere 15-30 secondi.
+            </p>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Seleziona il livello di difficoltà per gli esercizi (20 domande)
+            </p>
+            
+            <div className="space-y-3">
+              {DIFFICULTY_LEVELS.map((level) => {
+                const IconComponent = level.icon;
+                return (
+                  <motion.div
+                    key={level.code}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => handleLevelSelect(level.code)}
+                    className="cursor-pointer"
+                  >
+                    <div className={`border rounded-lg p-4 flex items-center gap-4 transition-all ${level.color}`}>
+                      <div className={`p-3 rounded-full bg-background ${level.iconColor}`}>
+                        <IconComponent className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{level.name}</span>
+                          <span className="text-xs text-muted-foreground">({level.description})</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{level.detail}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

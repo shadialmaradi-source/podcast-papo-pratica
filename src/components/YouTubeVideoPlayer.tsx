@@ -52,6 +52,7 @@ interface YouTubeVideo {
   view_count?: number;
   rating?: number;
   total_ratings?: number;
+  language?: string;
 }
 
 interface YouTubeVideoPlayerProps {
@@ -93,6 +94,7 @@ export function YouTubeVideoPlayer({ videoId, onStartExercises, onBack }: YouTub
   const [showTranscript, setShowTranscript] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [showLevelSelector, setShowLevelSelector] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const levels = [
     { code: "beginner", name: "Beginner", color: "bg-green-500" },
@@ -168,10 +170,78 @@ export function YouTubeVideoPlayer({ videoId, onStartExercises, onBack }: YouTub
     }
   };
 
-  const handleLevelSelect = (level: string) => {
+  const handleLevelSelect = async (level: string) => {
+    if (!video) return;
+    
     setSelectedLevel(level);
-    onStartExercises(level);
-    setShowLevelSelector(false);
+    setIsGenerating(true);
+    
+    try {
+      // Check if exercises exist for this level
+      const { count } = await supabase
+        .from('youtube_exercises')
+        .select('id', { count: 'exact', head: true })
+        .eq('video_id', video.id)
+        .eq('difficulty', level);
+
+      if (!count || count === 0) {
+        // Generate exercises on-demand
+        toast({
+          title: "Generazione esercizi...",
+          description: "Sto creando 30 esercizi per questo livello con GPT-5. Attendi circa 20 secondi.",
+        });
+
+        const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
+          body: { 
+            videoId: video.id, 
+            level, 
+            transcript,
+            language: video.language || 'italian'
+          }
+        });
+
+        if (error) {
+          console.error('Error generating exercises:', error);
+          toast({ 
+            title: "Errore", 
+            description: error.message || "Impossibile generare esercizi", 
+            variant: "destructive" 
+          });
+          setIsGenerating(false);
+          setShowLevelSelector(false);
+          return;
+        }
+
+        if (data?.error) {
+          toast({ 
+            title: "Errore", 
+            description: data.error, 
+            variant: "destructive" 
+          });
+          setIsGenerating(false);
+          setShowLevelSelector(false);
+          return;
+        }
+
+        toast({
+          title: "Esercizi pronti! 🎯",
+          description: `${data?.count || 30} esercizi creati per il livello ${level}.`,
+        });
+      }
+
+      setIsGenerating(false);
+      setShowLevelSelector(false);
+      onStartExercises(level);
+    } catch (error) {
+      console.error('Error in handleLevelSelect:', error);
+      toast({ 
+        title: "Errore", 
+        description: "Si è verificato un errore. Riprova.", 
+        variant: "destructive" 
+      });
+      setIsGenerating(false);
+      setShowLevelSelector(false);
+    }
   };
 
   if (isLoading) {
@@ -362,9 +432,10 @@ export function YouTubeVideoPlayer({ videoId, onStartExercises, onBack }: YouTub
       {/* Level Selector */}
       <LevelIntensitySelector
         isOpen={showLevelSelector}
-        onClose={() => setShowLevelSelector(false)}
+        onClose={() => !isGenerating && setShowLevelSelector(false)}
         onSelect={handleLevelSelect}
-        title="Scegli il Livello"
+        title={isGenerating ? "Generazione in corso..." : "Scegli il Livello"}
+        isLoading={isGenerating}
       />
     </div>
   );
