@@ -51,22 +51,44 @@ serve(async (req) => {
 
     const userId = user.id;
 
-    // Check if video already exists
+    // Check if video already exists with transcript
     const { data: existingVideo } = await supabase
       .from('youtube_videos')
-      .select('*')
+      .select(`
+        *,
+        youtube_transcripts(transcript)
+      `)
       .eq('video_id', videoId)
       .single();
 
-    if (existingVideo) {
-      console.log('Video already exists:', videoId);
+    if (existingVideo && existingVideo.status === 'completed') {
+      console.log('Video already exists and completed:', videoId);
       return new Response(JSON.stringify({ 
         success: true, 
         video: existingVideo,
-        message: 'Video already processed' 
+        hasTranscript: !!existingVideo.youtube_transcripts?.[0]?.transcript,
+        message: 'Video already processed - using existing data' 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // If video exists but is still processing, return status
+    if (existingVideo && existingVideo.status === 'processing') {
+      console.log('Video is currently processing:', videoId);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        video: existingVideo,
+        message: 'Video is currently being processed' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // If video exists but failed, delete and retry
+    if (existingVideo && existingVideo.status === 'failed') {
+      console.log('Retrying failed video:', videoId);
+      await supabase.from('youtube_videos').delete().eq('id', existingVideo.id);
     }
 
     // Get video info from YouTube oEmbed API
@@ -224,128 +246,46 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
 }
 
 async function extractTranscriptFromCaptions(videoId: string): Promise<string> {
-  console.log('Extracting captions for video:', videoId);
+  console.log('Extracting transcript via Supadata API for video:', videoId);
   
+  const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY');
+  if (!SUPADATA_API_KEY) {
+    console.error('SUPADATA_API_KEY not configured');
+    throw new Error('Transcript service not configured. Please contact support.');
+  }
+
   try {
-    // Method 1: Fetch YouTube page and extract caption track URL
-    const pageResponse = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9'
+    const response = await fetch(
+      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`,
+      {
+        headers: {
+          'x-api-key': SUPADATA_API_KEY
+        }
       }
-    });
-    
-    if (!pageResponse.ok) {
-      throw new Error('Failed to fetch YouTube page');
-    }
-    
-    const html = await pageResponse.text();
-    
-    // Try to find caption track URL in the page
-    const captionPatterns = [
-      /"captionTracks":\[{"baseUrl":"([^"]+)"/,
-      /"captions":\{"playerCaptionsTracklistRenderer":\{"captionTracks":\[{"baseUrl":"([^"]+)"/
-    ];
-    
-    let captionUrl = null;
-    for (const pattern of captionPatterns) {
-      const match = html.match(pattern);
-      if (match) {
-        captionUrl = match[1].replace(/\\u0026/g, '&');
-        break;
-      }
-    }
-    
-    if (captionUrl) {
-      console.log('Found caption URL, fetching captions...');
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Supadata API error ${response.status}: ${errorText}`);
       
-      const captionsResponse = await fetch(captionUrl);
-      if (captionsResponse.ok) {
-        const captionsXml = await captionsResponse.text();
-        
-        // Parse XML and extract text
-        const textRegex = /<text[^>]*>([^<]*)<\/text>/g;
-        const texts: string[] = [];
-        let textMatch;
-        
-        while ((textMatch = textRegex.exec(captionsXml)) !== null) {
-          // Decode HTML entities
-          const text = textMatch[1]
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/\n/g, ' ')
-            .trim();
-          
-          if (text) {
-            texts.push(text);
-          }
-        }
-        
-        if (texts.length > 0) {
-          console.log('Successfully extracted', texts.length, 'caption segments');
-          return texts.join(' ');
-        }
+      if (response.status === 404) {
+        throw new Error('No captions available for this video. Try a video with subtitles enabled.');
       }
+      throw new Error('Failed to extract transcript. Please try again or use manual input.');
     }
+
+    const data = await response.json();
     
-    // Method 2: Try timedtext API directly with different language codes
-    const languages = ['en', 'en-US', 'en-GB', 'a.en'];
-    
-    for (const lang of languages) {
-      try {
-        const timedTextUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`;
-        console.log('Trying timedtext API:', timedTextUrl);
-        
-        const response = await fetch(timedTextUrl);
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.events && Array.isArray(data.events)) {
-            const transcript = data.events
-              .map((event: any) => event.segs?.map((seg: any) => seg.utf8).join('') || '')
-              .join(' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            
-            if (transcript.length > 100) {
-              console.log('Successfully extracted transcript from timedtext API');
-              return transcript;
-            }
-          }
-        }
-      } catch (e) {
-        console.log(`timedtext API failed for lang ${lang}:`, e);
-      }
+    if (!data.content || data.content.length < 50) {
+      console.error('Transcript too short or empty:', data.content?.length || 0);
+      throw new Error('Transcript is too short or unavailable. Try another video.');
     }
-    
-    // Method 3: Try third-party transcript API
-    try {
-      const apiUrl = `https://youtube-transcript-api.vercel.app/api/transcript?video_id=${videoId}`;
-      console.log('Trying third-party API:', apiUrl);
-      
-      const response = await fetch(apiUrl);
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (Array.isArray(data)) {
-          const transcript = data.map((item: any) => item.text).join(' ');
-          if (transcript.length > 100) {
-            console.log('Successfully extracted transcript from third-party API');
-            return transcript;
-          }
-        }
-      }
-    } catch (e) {
-      console.log('Third-party API failed:', e);
-    }
-    
-    throw new Error('No captions available for this video');
+
+    console.log(`Supadata success: ${data.content.length} chars, lang: ${data.lang}`);
+    return data.content;
     
   } catch (error) {
-    console.error('Caption extraction failed:', error);
+    console.error('Supadata transcript extraction failed:', error);
     throw error;
   }
 }
