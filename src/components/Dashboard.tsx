@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Flame, Star, Trophy, User, LogOut, Youtube, Plus, Play, Clock, Sparkles } from "lucide-react";
+import { Flame, Star, Trophy, User, LogOut, Youtube, Plus, Play, Clock, Sparkles, Headphones, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { LanguageSelectionModal } from "@/components/LanguageSelectionModal";
 import { LearningDestinationModal } from "@/components/LearningDestinationModal";
@@ -45,9 +45,10 @@ interface DashboardProps {
   onVideoSelect?: (videoId: string) => void;
   selectedLanguage?: string;
   onLanguageChange?: (language: string) => void;
+  onNavigateToLibrary?: () => void;
 }
 
-export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage, onLanguageChange }: DashboardProps) {
+export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage, onLanguageChange, onNavigateToLibrary }: DashboardProps) {
   const { user, signOut } = useAuth();
   const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -65,14 +66,50 @@ export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage,
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  
+  // Podcast content count
+  const [podcastEpisodeCount, setPodcastEpisodeCount] = useState(0);
 
   useEffect(() => {
     if (user) {
       fetchProfile();
       updateDailyActivity();
       fetchCommunityVideos();
+      fetchPodcastCount();
     }
   }, [user, selectedLanguage]);
+
+  const fetchPodcastCount = async () => {
+    try {
+      const lang = selectedLanguage || profile?.selected_language || 'italian';
+      
+      // First get podcast sources for this language
+      const { data: sources } = await supabase
+        .from('podcast_sources')
+        .select('id')
+        .eq('language', lang)
+        .eq('is_public', true);
+      
+      if (!sources || sources.length === 0) {
+        setPodcastEpisodeCount(0);
+        return;
+      }
+      
+      const sourceIds = sources.map(s => s.id);
+      
+      // Then count episodes with transcripts
+      const { count } = await supabase
+        .from('podcast_episodes')
+        .select('id', { count: 'exact', head: true })
+        .in('podcast_source_id', sourceIds)
+        .not('transcript', 'is', null)
+        .neq('transcript', '');
+      
+      setPodcastEpisodeCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching podcast count:', error);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -493,15 +530,16 @@ export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage,
             )}
           </div>
 
-          {/* Column 2: YouTube Import CTA (40% = 2/5) */}
-          <div className="lg:col-span-2">
-            <Card className="h-full bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20 hover:border-red-500/40 transition-colors">
-              <CardContent className="flex flex-col items-center justify-center h-full p-8 text-center min-h-[300px]">
-                <div className="p-4 bg-red-500/10 rounded-full mb-4">
-                  <Youtube className="h-12 w-12 text-red-500" />
+          {/* Column 2: Cards Stack (40% = 2/5) */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Card 1: YouTube Import CTA (Red) */}
+            <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20 hover:border-red-500/40 transition-colors">
+              <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                <div className="p-3 bg-red-500/10 rounded-full mb-3">
+                  <Youtube className="h-10 w-10 text-red-500" />
                 </div>
-                <h3 className="text-2xl font-bold mb-2">Il tuo primo video</h3>
-                <div className="flex items-center gap-4 text-muted-foreground mb-6">
+                <h3 className="text-xl font-bold mb-2">Il tuo primo video</h3>
+                <div className="flex items-center gap-4 text-muted-foreground mb-4 text-sm">
                   <span className="flex items-center gap-1">
                     <Clock className="h-4 w-4" />
                     Max 15min
@@ -514,8 +552,8 @@ export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage,
                 
                 <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
                   <DialogTrigger asChild>
-                    <Button size="lg" className="bg-red-500 hover:bg-red-600 text-white">
-                      <Plus className="h-5 w-5 mr-2" />
+                    <Button size="default" className="bg-red-500 hover:bg-red-600 text-white">
+                      <Plus className="h-4 w-4 mr-2" />
                       Inserisci link YouTube
                     </Button>
                   </DialogTrigger>
@@ -553,6 +591,26 @@ export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage,
                     </div>
                   </DialogContent>
                 </Dialog>
+              </CardContent>
+            </Card>
+
+            {/* Card 2: Ready Content (Green) */}
+            <Card 
+              className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20 hover:border-green-500/40 transition-colors cursor-pointer"
+              onClick={() => onNavigateToLibrary?.()}
+            >
+              <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                <div className="p-3 bg-green-500/10 rounded-full mb-3">
+                  <Headphones className="h-10 w-10 text-green-500" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Contenuti pronti</h3>
+                <p className="text-muted-foreground mb-4 text-sm">
+                  {podcastEpisodeCount} episodi con transcript disponibili
+                </p>
+                <Button variant="outline" className="border-green-500/50 text-green-600 hover:bg-green-500/10">
+                  Esplora tutti
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
               </CardContent>
             </Card>
           </div>
