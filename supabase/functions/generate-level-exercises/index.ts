@@ -81,8 +81,8 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Truncate transcript to avoid token limits
-    const truncatedTranscript = transcriptText.substring(0, 8000);
+    // Truncate transcript to avoid token limits (reduced to 5000 chars)
+    const truncatedTranscript = transcriptText.substring(0, 5000);
     
     // Get language name for prompt
     const languageName = language || 'italian';
@@ -91,166 +91,135 @@ serve(async (req) => {
     // XP based on level
     const xpReward = normalizedLevel === 'advanced' ? 15 : normalizedLevel === 'intermediate' ? 10 : 5;
 
-    // Difficulty descriptions
-    const difficultyDesc = {
-      beginner: `BEGINNER Level (A1-A2):
-- Simple, direct questions about facts mentioned in the video
-- Short, clear sentences
-- Basic vocabulary
-- Concrete information (who, what, when, where)
-- Simple true/false with obvious answers
-- Example: "Dove si trova il museo?" "Quando è successo l'evento?"`,
-      intermediate: `INTERMEDIATE Level (B1-B2):
-- More complex sentence structures
-- Questions requiring deeper comprehension
-- Understanding of context and relationships
-- Some idiomatic expressions
-- Numerical details and specific information
-- Questions about "how" and "why"
-- Example: "Quanto è costato il progetto?" "Qual era la principale preoccupazione dei critici?"`,
-      advanced: `ADVANCED Level (C1-C2):
-- Sophisticated vocabulary and complex grammar
-- Analysis and interpretation required
-- Idiomatic expressions and metaphors
-- Cultural and contextual nuances
-- Critical thinking about implications
-- Understanding of abstract concepts
-- Example: "Cosa significa l'espressione 'rafforzare' in questo contesto?" "Analizza il significato di..."`
-    };
+    // Simplified prompt for faster generation
+    const systemPrompt = `You are an expert ${languageDisplay} language teacher. Create exercises ENTIRELY in ${languageDisplay}. ALL questions, options, and explanations MUST be in ${languageDisplay}.`;
 
-    const systemPrompt = `You are an expert ${languageDisplay} language learning exercise creator.
-Create exercises ENTIRELY in ${languageDisplay}. ALL questions, options, and explanations MUST be in ${languageDisplay}.
+    const userPrompt = `Generate exactly 20 ${normalizedLevel.toUpperCase()} level exercises from this transcript. Return ONLY a JSON array.
 
-CRITICAL RULES:
-1. ALL text (questions, options, explanations) MUST be in ${languageDisplay} - NEVER use English
-2. Create UNIQUE questions - NEVER repeat the same information
-3. RANDOMIZE correct answer positions - mix first, second, third, fourth positions
-4. Base ALL questions on actual transcript content
-5. Escape apostrophes properly in JSON
-
-EXERCISE TYPES DISTRIBUTION:
-- multiple_choice: 70-80% (4 options each)
-- fill_blank: 3-5 questions
-- matching: 2-3 questions
-- sequencing: 2-3 questions
-
-${difficultyDesc[normalizedLevel as keyof typeof difficultyDesc]}
-
-XP REWARD: ${xpReward} XP per question`;
-
-    const userPrompt = `Generate exactly 30 ${normalizedLevel.toUpperCase()} level exercises from this transcript.
-All 30 exercises should be for "intense" mode (challenging comprehensive exercises).
-
-TRANSCRIPT (${languageDisplay}):
+TRANSCRIPT:
 ${truncatedTranscript}
 
-Return a JSON array with exactly 30 exercises. Each exercise must have:
+Each exercise must have this exact format:
 {
-  "question": "Question text in ${languageDisplay}",
-  "type": "multiple_choice" | "fill_blank" | "matching" | "sequencing",
-  "options": ["Option A", "Option B", "Option C", "Option D"],
-  "correctAnswer": "The correct option exactly as written in options",
-  "explanation": "Why this is correct (2-3 sentences in ${languageDisplay})"
+  "question": "Question in ${languageDisplay}",
+  "type": "multiple_choice",
+  "options": ["A", "B", "C", "D"],
+  "correctAnswer": "The correct option",
+  "explanation": "Brief explanation in ${languageDisplay}"
 }
 
-CRITICAL REQUIREMENTS:
-- ALL TEXT must be in ${languageDisplay}, including explanations
-- Randomize correct answer position for EVERY question
-- Ensure NO duplicate questions
-- Include variety: fill_blank (3-5), matching (2-3), sequencing (2-3), rest multiple_choice
-- Make questions test actual content from the transcript
-- Return ONLY the JSON array, no markdown or extra text`;
+Rules:
+- All text in ${languageDisplay}
+- 20 exercises total
+- Mix up correct answer positions
+- Return ONLY the JSON array, no markdown`;
 
-    console.log('Calling GPT-5 for exercise generation...');
+    console.log('[generate-level-exercises] Calling GPT-5...');
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-5',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ]
-      })
-    });
+    // Add timeout with AbortController (50 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 50000);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI API error:', response.status, errorText);
-      
-      if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again in a few minutes.');
-      }
-      if (response.status === 402) {
-        throw new Error('AI credits exhausted. Please add credits to continue.');
-      }
-      throw new Error(`AI generation failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-
-    console.log('GPT-5 response received, parsing JSON...');
-
-    // Parse JSON from response
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.error('No JSON array found in AI response:', content.substring(0, 500));
-      throw new Error('Failed to parse AI response - no valid JSON found');
-    }
-
-    let exercises;
     try {
-      exercises = JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError, jsonMatch[0].substring(0, 500));
-      throw new Error('Failed to parse exercise JSON');
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash', // Faster model
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ]
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+      
+      console.log('[generate-level-exercises] API response received, status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[generate-level-exercises] AI API error:', response.status, errorText);
+        
+        if (response.status === 429) {
+          throw new Error('Rate limit exceeded. Please try again in a few minutes.');
+        }
+        if (response.status === 402) {
+          throw new Error('AI credits exhausted. Please add credits to continue.');
+        }
+        throw new Error(`AI generation failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+
+      console.log('[generate-level-exercises] Parsing response...');
+
+      // Parse JSON from response
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.error('[generate-level-exercises] No JSON array found');
+        throw new Error('Failed to parse AI response - no valid JSON found');
+      }
+
+      let exercises;
+      try {
+        exercises = JSON.parse(jsonMatch[0]);
+      } catch (parseError) {
+        console.error('[generate-level-exercises] JSON parse error');
+        throw new Error('Failed to parse exercise JSON');
+      }
+
+      console.log(`[generate-level-exercises] Parsed ${exercises.length} exercises`);
+
+      // Format exercises for database
+      const formattedExercises = exercises.map((exercise: any, index: number) => ({
+        video_id: videoId,
+        question: exercise.question,
+        exercise_type: exercise.type || 'multiple_choice',
+        options: exercise.options,
+        correct_answer: exercise.correctAnswer,
+        explanation: exercise.explanation || '',
+        difficulty: normalizedLevel,
+        intensity: 'intense',
+        xp_reward: xpReward,
+        order_index: index
+      }));
+
+      // Save exercises to database
+      const { error: insertError } = await supabase
+        .from('youtube_exercises')
+        .insert(formattedExercises);
+
+      if (insertError) {
+        console.error('[generate-level-exercises] DB insert error:', insertError);
+        throw new Error(`Failed to save exercises: ${insertError.message}`);
+      }
+
+      console.log(`[generate-level-exercises] Saved ${formattedExercises.length} exercises`);
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        count: formattedExercises.length,
+        message: `Generated ${formattedExercises.length} ${normalizedLevel} exercises`
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+
+    } catch (fetchError) {
+      if (fetchError.name === 'AbortError') {
+        console.error('[generate-level-exercises] Request timed out');
+        throw new Error('AI request timed out. Please try again.');
+      }
+      throw fetchError;
     }
-
-    console.log(`GPT-5 generated ${exercises.length} exercises`);
-
-    // Format exercises for database
-    const formattedExercises = exercises.map((exercise: any, index: number) => ({
-      video_id: videoId,
-      question: exercise.question,
-      exercise_type: exercise.type || 'multiple_choice',
-      options: exercise.options,
-      correct_answer: exercise.correctAnswer,
-      explanation: exercise.explanation || '',
-      difficulty: normalizedLevel,
-      intensity: 'intense',
-      xp_reward: xpReward,
-      order_index: index
-    }));
-
-    console.log(`[generate-level-exercises] Formatted ${formattedExercises.length} exercises for ${normalizedLevel} level`);
-
-    // Save exercises to database
-    const { error: insertError } = await supabase
-      .from('youtube_exercises')
-      .insert(formattedExercises);
-
-    if (insertError) {
-      console.error('Failed to save exercises:', insertError);
-      throw new Error(`Failed to save exercises: ${insertError.message}`);
-    }
-
-    console.log(`[generate-level-exercises] Saved ${formattedExercises.length} exercises for ${normalizedLevel} level`);
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      count: formattedExercises.length,
-      message: `Generated ${formattedExercises.length} ${normalizedLevel} exercises`
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
 
   } catch (error) {
-    console.error('Error in generate-level-exercises:', error);
+    console.error('[generate-level-exercises] Error:', error.message);
     return new Response(JSON.stringify({ 
       error: error.message,
       success: false
