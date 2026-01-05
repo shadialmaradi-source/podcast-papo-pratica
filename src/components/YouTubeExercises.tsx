@@ -21,8 +21,7 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { getVideoTranscript } from "@/services/youtubeService";
-import { generateTranscriptBasedExercises, Exercise } from "@/services/exerciseGeneratorService";
+import { Exercise } from "@/services/exerciseGeneratorService";
 import { DragDropExercises } from "./DragDropExercises";
 
 interface YouTubeExercisesProps {
@@ -180,21 +179,25 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
 
         if (videoData) {
           setDbVideoId(videoData.id);
-          // Try to load pre-generated exercises from database
+          // Load pre-generated exercises from database (without intensity filter)
           const dbDifficulty = mapLevelToDbDifficulty(level);
           const { data: dbExercises, error: dbError } = await supabase
             .from('youtube_exercises')
             .select('*')
             .eq('video_id', videoData.id)
             .eq('difficulty', dbDifficulty)
-            .eq('intensity', intensity)
-            .order('order_index');
+            .order('order_index')
+            .limit(30);
 
           if (dbExercises && dbExercises.length > 0) {
             console.log(`Loaded ${dbExercises.length} exercises from database`);
             
+            // Shuffle and select up to 20 exercises
+            const shuffled = [...dbExercises].sort(() => Math.random() - 0.5);
+            const selected = shuffled.slice(0, 20);
+            
             // Format DB exercises to match Exercise interface
-            const formattedExercises: Exercise[] = dbExercises.map((ex, idx) => ({
+            const formattedExercises: Exercise[] = selected.map((ex, idx) => ({
               id: ex.id,
               type: mapDbTypeToExerciseType(ex.exercise_type) as Exercise['type'],
               question: ex.question,
@@ -204,7 +207,7 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
               points: ex.xp_reward || 10,
               difficulty: ex.difficulty,
               level: level,
-              mode: (intensity === 'intense' ? 'intense' : 'light') as Exercise['mode']
+              mode: 'intense' as Exercise['mode']
             }));
 
             setRegularExercises(formattedExercises);
@@ -220,30 +223,9 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
           }
         }
 
-        // Fallback: generate exercises client-side from transcript
-        console.log('No DB exercises found, generating from transcript...');
-        const transcript = await getVideoTranscript(videoId);
-        if (!transcript) {
-          setError("No transcript available for this video");
-          return;
-        }
-        
-        const exerciseCount = intensity === "intense" ? 20 : 10;
-        const generatedExercises = generateTranscriptBasedExercises(transcript, level, exerciseCount);
-        
-        // Separate drag & drop exercises from regular exercises
-        const dragDropTypes = ["DragDropMatching", "DragDropSequencing", "DragDropCategorization", "DragDropWordOrder"];
-        const dragDropExs = generatedExercises.filter(ex => dragDropTypes.includes(ex.type));
-        const regularExs = generatedExercises.filter(ex => !dragDropTypes.includes(ex.type));
-        
-        setDragDropExercises(dragDropExs);
-        setRegularExercises(regularExs);
-        setExercises(regularExs);
-        
-        toast({
-          title: "Exercises Generated! 🎯",
-          description: `${exerciseCount} transcript-based exercises created for ${level} level.`,
-        });
+        // No exercises found - show error (exercises should be generated from YouTubeVideoExercises)
+        console.error('No exercises found in database');
+        setError("Esercizi non trovati. Torna indietro e seleziona nuovamente il livello per generarli.");
       } catch (err) {
         setError("Failed to load exercises. Please try another video.");
         console.error('Error loading exercises:', err);

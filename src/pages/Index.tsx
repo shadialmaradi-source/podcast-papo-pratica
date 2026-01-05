@@ -14,11 +14,10 @@ import { Leaderboard } from "@/components/Leaderboard";
 import { VocabularyManager } from "@/components/VocabularyManager";
 import { VocabularyReview } from "@/components/VocabularyReview";
 import YouTubeLibrary from "@/components/YouTubeLibrary";
-import { YouTubeVideoPlayer } from "@/components/YouTubeVideoPlayer";
 import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
 import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "youtube-player" | "youtube-exercises-view" | "leaderboard" | "vocabulary" | "vocabulary-review";
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "youtube-exercises-view" | "leaderboard" | "vocabulary" | "vocabulary-review";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -213,7 +212,7 @@ const Index = () => {
   };
 
   const handleBackToYouTube = () => {
-    setAppState("youtube-player");
+    setAppState("youtube-exercises-view");
   };
 
   const handleBackToYouTubeLibrary = () => {
@@ -304,20 +303,6 @@ const Index = () => {
           onBack={handleBackToDashboard}
           selectedLanguage={selectedLanguage || userProfile?.selected_language}
         />
-      )}
-
-      {appState === "youtube-player" && selectedVideoId && (
-        <div className="container mx-auto px-4">
-          <YouTubeVideoPlayer 
-            videoId={selectedVideoId}
-            onBack={handleBackToYouTubeLibrary}
-            onStartExercises={(level: string) => {
-              setSelectedLevel(level);
-              setSelectedIntensity('intense');
-              setAppState("youtube-exercises");
-            }}
-          />
-        </div>
       )}
 
       {appState === "youtube" && (
