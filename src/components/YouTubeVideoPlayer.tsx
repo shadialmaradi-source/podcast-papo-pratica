@@ -110,12 +110,26 @@ export function YouTubeVideoPlayer({ videoId, onStartExercises, onBack }: YouTub
     try {
       setIsLoading(true);
       
-      // Try to fetch from database first
-      const { data: videoData, error: videoError } = await supabase
+      // Try to fetch by YouTube video_id first
+      let { data: videoData, error: videoError } = await supabase
         .from('youtube_videos')
         .select('*')
         .eq('video_id', videoId)
         .single();
+
+      // If not found, try by database UUID
+      if (!videoData || videoError) {
+        const { data: videoById, error: errorById } = await supabase
+          .from('youtube_videos')
+          .select('*')
+          .eq('id', videoId)
+          .single();
+        
+        if (videoById && !errorById) {
+          videoData = videoById;
+          videoError = null;
+        }
+      }
 
       if (videoData && !videoError) {
         setVideo(videoData);
@@ -177,25 +191,52 @@ export function YouTubeVideoPlayer({ videoId, onStartExercises, onBack }: YouTub
     setIsGenerating(true);
     
     try {
+      const dbLevel = level.toLowerCase(); // Ensure lowercase: beginner, intermediate, advanced
+      
       // Check if exercises exist for this level
       const { count } = await supabase
         .from('youtube_exercises')
         .select('id', { count: 'exact', head: true })
         .eq('video_id', video.id)
-        .eq('difficulty', level);
+        .eq('difficulty', dbLevel);
+
+      console.log(`Checking exercises for video ${video.id}, level ${dbLevel}: found ${count}`);
 
       if (!count || count === 0) {
-        // Generate exercises on-demand
+        // Get transcript for generation
+        let transcriptText = transcript;
+        if (!transcriptText) {
+          const { data: transcriptData } = await supabase
+            .from('youtube_transcripts')
+            .select('transcript')
+            .eq('video_id', video.id)
+            .single();
+          transcriptText = transcriptData?.transcript || '';
+        }
+
+        if (!transcriptText) {
+          toast({
+            title: "Errore",
+            description: "Nessun transcript disponibile per questo video",
+            variant: "destructive"
+          });
+          setIsGenerating(false);
+          setShowLevelSelector(false);
+          return;
+        }
+
         toast({
           title: "Generazione esercizi...",
           description: "Sto creando 30 esercizi per questo livello con GPT-5. Attendi circa 20 secondi.",
         });
 
+        console.log(`Calling generate-level-exercises for video ${video.id}, level ${dbLevel}, transcript length: ${transcriptText.length}`);
+
         const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
           body: { 
             videoId: video.id, 
-            level, 
-            transcript,
+            level: dbLevel, 
+            transcript: transcriptText,
             language: video.language || 'italian'
           }
         });

@@ -161,12 +161,22 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
       setError("");
       
       try {
-        // First, get the database video ID from the youtube video_id
-        const { data: videoData, error: videoError } = await supabase
+        // First, try to get video by YouTube video_id
+        let { data: videoData } = await supabase
           .from('youtube_videos')
           .select('id')
           .eq('video_id', videoId)
           .single();
+
+        // If not found, try by database UUID
+        if (!videoData) {
+          const { data: videoById } = await supabase
+            .from('youtube_videos')
+            .select('id')
+            .eq('id', videoId)
+            .single();
+          videoData = videoById;
+        }
 
         if (videoData) {
           setDbVideoId(videoData.id);
