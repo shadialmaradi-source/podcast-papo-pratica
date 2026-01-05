@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+
 interface YouTubeVideoExercisesProps {
   videoId: string;
   onBack: () => void;
@@ -20,6 +20,7 @@ interface VideoData {
   difficulty_level: string;
   thumbnail_url: string;
   duration: number;
+  language?: string;
 }
 
 const mapDifficultyLevel = (level: string): string => {
@@ -47,6 +48,8 @@ const mapDifficultyLevel = (level: string): string => {
 const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, onBack, onStartExercises }) => {
   const [videoData, setVideoData] = useState<VideoData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingLevel, setGeneratingLevel] = useState<string | null>(null);
 
   useEffect(() => {
     loadVideoData();
@@ -100,9 +103,105 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     }
   };
 
-  const handleStartExercises = (level: string) => {
-    console.log('Starting exercises:', { level, videoId });
-    onStartExercises(level);
+  const handleStartExercises = async (level: string) => {
+    if (!videoData) return;
+    
+    setIsGenerating(true);
+    setGeneratingLevel(level);
+    
+    const dbLevel = level.toLowerCase();
+    
+    try {
+      // Check if exercises already exist for this level
+      const { count } = await supabase
+        .from('youtube_exercises')
+        .select('id', { count: 'exact', head: true })
+        .eq('video_id', videoData.id)
+        .eq('difficulty', dbLevel);
+
+      console.log(`[YouTubeVideoExercises] Exercises count for ${dbLevel}:`, count);
+
+      if (!count || count === 0) {
+        console.log(`[YouTubeVideoExercises] No exercises found, generating...`);
+        
+        // Fetch transcript from DB
+        const { data: transcriptData, error: transcriptError } = await supabase
+          .from('youtube_transcripts')
+          .select('transcript')
+          .eq('video_id', videoData.id)
+          .single();
+
+        if (transcriptError || !transcriptData?.transcript) {
+          console.error('[YouTubeVideoExercises] No transcript found:', transcriptError);
+          toast({ 
+            title: "Errore", 
+            description: "Nessun transcript disponibile per questo video",
+            variant: "destructive"
+          });
+          setIsGenerating(false);
+          setGeneratingLevel(null);
+          return;
+        }
+
+        console.log(`[YouTubeVideoExercises] Transcript found, length: ${transcriptData.transcript.length}`);
+
+        // Generate exercises via edge function
+        const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
+          body: { 
+            videoId: videoData.id, 
+            level: dbLevel, 
+            transcript: transcriptData.transcript,
+            language: videoData.language || 'italian'
+          }
+        });
+
+        if (error) {
+          console.error('[YouTubeVideoExercises] Edge function error:', error);
+          toast({ 
+            title: "Errore generazione", 
+            description: error.message || "Impossibile generare esercizi",
+            variant: "destructive"
+          });
+          setIsGenerating(false);
+          setGeneratingLevel(null);
+          return;
+        }
+
+        if (data?.error) {
+          console.error('[YouTubeVideoExercises] Generation error:', data.error);
+          toast({ 
+            title: "Errore generazione", 
+            description: data.error,
+            variant: "destructive"
+          });
+          setIsGenerating(false);
+          setGeneratingLevel(null);
+          return;
+        }
+
+        console.log(`[YouTubeVideoExercises] Generation successful:`, data);
+        toast({
+          title: "Esercizi generati! 🎯",
+          description: `${data?.count || 30} esercizi creati per il livello ${level}`,
+        });
+      } else {
+        console.log(`[YouTubeVideoExercises] ${count} exercises already exist for ${dbLevel}`);
+      }
+
+      setIsGenerating(false);
+      setGeneratingLevel(null);
+      onStartExercises(level);
+      
+    } catch (err) {
+      console.error('[YouTubeVideoExercises] Unexpected error:', err);
+      toast({ 
+        title: "Errore", 
+        description: "Si è verificato un errore imprevisto",
+        variant: "destructive"
+      });
+      setIsGenerating(false);
+      setGeneratingLevel(null);
+    }
   };
 
   if (isLoading) {
@@ -184,7 +283,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
               <CardHeader>
                 <CardTitle>Practice Exercises</CardTitle>
                 <CardDescription>
-                  Choose your learning level and intensity to start practicing
+                  Choose your learning level to start practicing
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -206,31 +305,55 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                       className="w-full justify-start h-auto p-3 bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-foreground"
                       variant="outline"
                       onClick={() => handleStartExercises('beginner')}
+                      disabled={isGenerating}
                     >
-                      <div className="text-left">
-                        <div className="font-medium">Beginner (A1-A2)</div>
-                        <div className="text-xs text-muted-foreground">20 esercizi • Vocabolario base</div>
-                      </div>
+                      {isGenerating && generatingLevel === 'beginner' ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Generando esercizi...</span>
+                        </div>
+                      ) : (
+                        <div className="text-left">
+                          <div className="font-medium">Beginner (A1-A2)</div>
+                          <div className="text-xs text-muted-foreground">20 esercizi • Vocabolario base</div>
+                        </div>
+                      )}
                     </Button>
                     <Button 
                       className="w-full justify-start h-auto p-3 bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20 text-foreground"
                       variant="outline"
                       onClick={() => handleStartExercises('intermediate')}
+                      disabled={isGenerating}
                     >
-                      <div className="text-left">
-                        <div className="font-medium">Intermediate (B1-B2)</div>
-                        <div className="text-xs text-muted-foreground">20 esercizi • Grammatica complessa</div>
-                      </div>
+                      {isGenerating && generatingLevel === 'intermediate' ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Generando esercizi...</span>
+                        </div>
+                      ) : (
+                        <div className="text-left">
+                          <div className="font-medium">Intermediate (B1-B2)</div>
+                          <div className="text-xs text-muted-foreground">20 esercizi • Grammatica complessa</div>
+                        </div>
+                      )}
                     </Button>
                     <Button 
                       className="w-full justify-start h-auto p-3 bg-red-500/10 border-red-500/30 hover:bg-red-500/20 text-foreground"
                       variant="outline"
                       onClick={() => handleStartExercises('advanced')}
+                      disabled={isGenerating}
                     >
-                      <div className="text-left">
-                        <div className="font-medium">Advanced (C1-C2)</div>
-                        <div className="text-xs text-muted-foreground">20 esercizi • Concetti astratti</div>
-                      </div>
+                      {isGenerating && generatingLevel === 'advanced' ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Generando esercizi...</span>
+                        </div>
+                      ) : (
+                        <div className="text-left">
+                          <div className="font-medium">Advanced (C1-C2)</div>
+                          <div className="text-xs text-muted-foreground">20 esercizi • Concetti astratti</div>
+                        </div>
+                      )}
                     </Button>
                   </div>
                 </div>
