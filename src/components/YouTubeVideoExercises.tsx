@@ -55,13 +55,38 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const loadVideoData = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      
+      // Try to find by YouTube video_id first
+      let { data, error } = await supabase
         .from('youtube_videos')
         .select('*')
         .eq('video_id', videoId)
         .single();
 
-      if (error) throw error;
+      // If not found, try by database UUID
+      if (error || !data) {
+        const { data: dataById, error: errorById } = await supabase
+          .from('youtube_videos')
+          .select('*')
+          .eq('id', videoId)
+          .single();
+        
+        if (!errorById && dataById) {
+          data = dataById;
+          error = null;
+        }
+      }
+
+      if (error || !data) {
+        console.error('Video not found:', error);
+        toast({
+          title: "Error",
+          description: "Video not found",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       setVideoData(data);
     } catch (error) {
       console.error('Error loading video:', error);

@@ -24,17 +24,22 @@ serve(async (req) => {
       throw new Error('videoId and level are required');
     }
 
-    console.log(`Generating ${level} exercises for video ${videoId}, language: ${language}`);
+    console.log(`[generate-level-exercises] Starting for video ${videoId}`);
+    console.log(`[generate-level-exercises] Level: ${level}, Language: ${language || 'not specified'}`);
+    console.log(`[generate-level-exercises] Transcript provided: ${transcript ? 'yes, length=' + transcript.length : 'no'}`);
+
+    // Normalize level to lowercase
+    const normalizedLevel = level.toLowerCase();
 
     // Check if exercises already exist for this level
     const { count: existingCount } = await supabase
       .from('youtube_exercises')
       .select('id', { count: 'exact', head: true })
       .eq('video_id', videoId)
-      .eq('difficulty', level);
+      .eq('difficulty', normalizedLevel);
 
     if (existingCount && existingCount > 0) {
-      console.log(`Exercises already exist for ${level} level: ${existingCount}`);
+      console.log(`[generate-level-exercises] Exercises already exist for ${normalizedLevel} level: ${existingCount}`);
       return new Response(JSON.stringify({ 
         success: true, 
         message: 'Exercises already exist',
@@ -47,20 +52,29 @@ serve(async (req) => {
     // Get transcript if not provided
     let transcriptText = transcript;
     if (!transcriptText) {
-      const { data: transcriptData } = await supabase
+      console.log(`[generate-level-exercises] No transcript provided, fetching from DB...`);
+      
+      const { data: transcriptData, error: transcriptError } = await supabase
         .from('youtube_transcripts')
         .select('transcript')
         .eq('video_id', videoId)
         .single();
       
+      if (transcriptError) {
+        console.error(`[generate-level-exercises] Transcript fetch error:`, transcriptError);
+      }
+      
       if (transcriptData) {
         transcriptText = transcriptData.transcript;
+        console.log(`[generate-level-exercises] Fetched transcript, length: ${transcriptText?.length || 0}`);
       }
     }
 
     if (!transcriptText) {
-      throw new Error('No transcript available for this video');
+      throw new Error('No transcript available for this video. Please ensure the video has been processed.');
     }
+
+    console.log(`[generate-level-exercises] Using transcript of ${transcriptText.length} characters`);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -75,7 +89,7 @@ serve(async (req) => {
     const languageDisplay = languageName.charAt(0).toUpperCase() + languageName.slice(1);
 
     // XP based on level
-    const xpReward = level === 'advanced' ? 15 : level === 'intermediate' ? 10 : 5;
+    const xpReward = normalizedLevel === 'advanced' ? 15 : normalizedLevel === 'intermediate' ? 10 : 5;
 
     // Difficulty descriptions
     const difficultyDesc = {
@@ -120,11 +134,11 @@ EXERCISE TYPES DISTRIBUTION:
 - matching: 2-3 questions
 - sequencing: 2-3 questions
 
-${difficultyDesc[level as keyof typeof difficultyDesc]}
+${difficultyDesc[normalizedLevel as keyof typeof difficultyDesc]}
 
 XP REWARD: ${xpReward} XP per question`;
 
-    const userPrompt = `Generate exactly 30 ${level.toUpperCase()} level exercises from this transcript.
+    const userPrompt = `Generate exactly 30 ${normalizedLevel.toUpperCase()} level exercises from this transcript.
 All 30 exercises should be for "intense" mode (challenging comprehensive exercises).
 
 TRANSCRIPT (${languageDisplay}):
@@ -207,11 +221,13 @@ CRITICAL REQUIREMENTS:
       options: exercise.options,
       correct_answer: exercise.correctAnswer,
       explanation: exercise.explanation || '',
-      difficulty: level,
+      difficulty: normalizedLevel,
       intensity: 'intense',
       xp_reward: xpReward,
       order_index: index
     }));
+
+    console.log(`[generate-level-exercises] Formatted ${formattedExercises.length} exercises for ${normalizedLevel} level`);
 
     // Save exercises to database
     const { error: insertError } = await supabase
@@ -223,12 +239,12 @@ CRITICAL REQUIREMENTS:
       throw new Error(`Failed to save exercises: ${insertError.message}`);
     }
 
-    console.log(`Saved ${formattedExercises.length} exercises for ${level} level`);
+    console.log(`[generate-level-exercises] Saved ${formattedExercises.length} exercises for ${normalizedLevel} level`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       count: formattedExercises.length,
-      message: `Generated ${formattedExercises.length} ${level} exercises`
+      message: `Generated ${formattedExercises.length} ${normalizedLevel} exercises`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
