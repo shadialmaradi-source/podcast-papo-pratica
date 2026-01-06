@@ -192,9 +192,9 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
           if (dbExercises && dbExercises.length > 0) {
             console.log(`Loaded ${dbExercises.length} exercises from database`);
             
-            // Shuffle and select up to 20 exercises
+            // Shuffle and select up to 10 exercises
             const shuffled = [...dbExercises].sort(() => Math.random() - 0.5);
-            const selected = shuffled.slice(0, 20);
+            const selected = shuffled.slice(0, 10);
             
             // Format DB exercises to match Exercise interface
             const formattedExercises: Exercise[] = selected.map((ex, idx) => ({

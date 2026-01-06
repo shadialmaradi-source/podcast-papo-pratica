@@ -26,7 +26,6 @@ serve(async (req) => {
 
     console.log(`[generate-level-exercises] Starting for video ${videoId}`);
     console.log(`[generate-level-exercises] Level: ${level}, Language: ${language || 'not specified'}`);
-    console.log(`[generate-level-exercises] Transcript provided: ${transcript ? 'yes, length=' + transcript.length : 'no'}`);
 
     // Normalize level to lowercase
     const normalizedLevel = level.toLowerCase();
@@ -74,14 +73,12 @@ serve(async (req) => {
       throw new Error('No transcript available for this video. Please ensure the video has been processed.');
     }
 
-    console.log(`[generate-level-exercises] Using transcript of ${transcriptText.length} characters`);
-
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Truncate transcript to avoid token limits (reduced to 5000 chars)
+    // Truncate transcript to avoid token limits
     const truncatedTranscript = transcriptText.substring(0, 5000);
     
     // Get language name for prompt
@@ -91,30 +88,94 @@ serve(async (req) => {
     // XP based on level
     const xpReward = normalizedLevel === 'advanced' ? 15 : normalizedLevel === 'intermediate' ? 10 : 5;
 
-    // Simplified prompt for faster generation
-    const systemPrompt = `You are an expert ${languageDisplay} language teacher. Create exercises ENTIRELY in ${languageDisplay}. ALL questions, options, and explanations MUST be in ${languageDisplay}.`;
+    // Level-specific guidelines
+    const levelGuidelines: Record<string, string> = {
+      beginner: `BEGINNER Level Guidelines:
+- Simple, direct questions about facts mentioned in the episode
+- Short, clear sentences
+- Basic vocabulary
+- Concrete information (who, what, when, where)
+- Example: "Dove si trova il museo?" "Quando è successo?"`,
+      
+      intermediate: `INTERMEDIATE Level Guidelines:
+- More complex sentence structures
+- Questions requiring deeper comprehension
+- Understanding of context and relationships
+- Some idiomatic expressions
+- Numerical details and specific information
+- Questions about "how" and "why"
+- Example: "Quanto è costato il progetto?" "Qual era la preoccupazione principale?"`,
+      
+      advanced: `ADVANCED Level Guidelines:
+- Sophisticated vocabulary and complex grammar
+- Analysis and interpretation required
+- Idiomatic expressions and metaphors
+- Cultural and contextual nuances
+- Critical thinking about implications
+- Abstract concepts
+- Example: "Cosa significa 'rafforzare' in questo contesto?" "Analizza il significato di..."`
+    };
 
-    const userPrompt = `Generate exactly 20 ${normalizedLevel.toUpperCase()} level exercises from this transcript. Return ONLY a JSON array.
+    const systemPrompt = `You are an expert ${languageDisplay} language teacher creating exercises for language learners. ALL content must be in ${languageDisplay}.`;
+
+    const userPrompt = `Generate EXACTLY 10 exercises from this transcript with this EXACT distribution:
+- 6 multiple_choice questions (60%)
+- 2 fill_blank questions (20%)
+- 1 sequencing question (10%)
+- 1 matching question (10%)
+
+${levelGuidelines[normalizedLevel] || levelGuidelines.beginner}
 
 TRANSCRIPT:
 ${truncatedTranscript}
 
-Each exercise must have this exact format:
+EXERCISE FORMAT - Return a JSON array with EXACTLY these formats:
+
+For multiple_choice (6 total):
 {
-  "question": "Question in ${languageDisplay}",
   "type": "multiple_choice",
-  "options": ["A", "B", "C", "D"],
-  "correctAnswer": "The correct option",
+  "question": "Question text in ${languageDisplay}",
+  "options": ["Option A", "Option B", "Option C", "Option D"],
+  "correctAnswer": "Exact text of correct option",
   "explanation": "Brief explanation in ${languageDisplay}"
 }
 
-Rules:
-- All text in ${languageDisplay}
-- 20 exercises total
-- Mix up correct answer positions
-- Return ONLY the JSON array, no markdown`;
+For fill_blank (2 total):
+{
+  "type": "fill_blank",
+  "question": "Sentence with _____ for the blank in ${languageDisplay}",
+  "options": [],
+  "correctAnswer": "word that fills the blank",
+  "explanation": "Explanation in ${languageDisplay}"
+}
 
-    console.log('[generate-level-exercises] Calling GPT-5...');
+For sequencing (1 total):
+{
+  "type": "sequencing",
+  "question": "Ordina gli eventi in ordine cronologico.",
+  "options": ["Event 1", "Event 2", "Event 3", "Event 4"],
+  "correctAnswer": "Event 1|||Event 2|||Event 3|||Event 4",
+  "explanation": "Explanation of correct order in ${languageDisplay}"
+}
+
+For matching (1 total):
+{
+  "type": "matching",
+  "question": "Abbina i termini alle definizioni.",
+  "options": ["Term A → Definition 1", "Term B → Definition 2", "Term C → Definition 3", "Term D → Definition 4"],
+  "correctAnswer": "Term A → Definition 1|||Term B → Definition 2|||Term C → Definition 3|||Term D → Definition 4",
+  "explanation": "Explanation in ${languageDisplay}"
+}
+
+CRITICAL RULES:
+1. UNIQUENESS - NEVER create duplicate questions. Each question must test different information.
+2. RANDOMIZATION - For multiple_choice, randomize correct answer position (1st, 2nd, 3rd, or 4th). NEVER always put correct answer in same position.
+3. LANGUAGE - ALL text MUST be in ${languageDisplay} (questions, options, explanations).
+4. EXACTLY 10 exercises total with the distribution above.
+
+Return ONLY the JSON array, no markdown or explanation.`;
+
+    console.log('[generate-level-exercises] Calling AI API...');
 
     // Add timeout with AbortController (50 seconds)
     const controller = new AbortController();
@@ -128,7 +189,7 @@ Rules:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash', // Faster model
+          model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
@@ -162,7 +223,7 @@ Rules:
       // Parse JSON from response
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
-        console.error('[generate-level-exercises] No JSON array found');
+        console.error('[generate-level-exercises] No JSON array found in response');
         throw new Error('Failed to parse AI response - no valid JSON found');
       }
 

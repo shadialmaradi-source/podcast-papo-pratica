@@ -182,7 +182,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
         console.log(`[YouTubeVideoExercises] Generation successful:`, data);
         toast({
           title: "Esercizi generati! 🎯",
-          description: `${data?.count || 30} esercizi creati per il livello ${level}`,
+          description: `${data?.count || 10} esercizi creati per il livello ${level}`,
         });
       } else {
         console.log(`[YouTubeVideoExercises] ${count} exercises already exist for ${dbLevel}`);
@@ -315,7 +315,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                       ) : (
                         <div className="text-left">
                           <div className="font-medium">Beginner (A1-A2)</div>
-                          <div className="text-xs text-muted-foreground">20 esercizi • Vocabolario base</div>
+                          <div className="text-xs text-muted-foreground">10 esercizi • Vocabolario base</div>
                         </div>
                       )}
                     </Button>
@@ -333,7 +333,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                       ) : (
                         <div className="text-left">
                           <div className="font-medium">Intermediate (B1-B2)</div>
-                          <div className="text-xs text-muted-foreground">20 esercizi • Grammatica complessa</div>
+                          <div className="text-xs text-muted-foreground">10 esercizi • Grammatica complessa</div>
                         </div>
                       )}
                     </Button>
@@ -351,7 +351,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                       ) : (
                         <div className="text-left">
                           <div className="font-medium">Advanced (C1-C2)</div>
-                          <div className="text-xs text-muted-foreground">20 esercizi • Concetti astratti</div>
+                          <div className="text-xs text-muted-foreground">10 esercizi • Concetti astratti</div>
                         </div>
                       )}
                     </Button>
