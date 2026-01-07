@@ -88,92 +88,106 @@ serve(async (req) => {
     // XP based on level
     const xpReward = normalizedLevel === 'advanced' ? 15 : normalizedLevel === 'intermediate' ? 10 : 5;
 
-    // Level-specific guidelines
-    const levelGuidelines: Record<string, string> = {
-      beginner: `BEGINNER Level Guidelines:
-- Simple, direct questions about facts mentioned in the episode
-- Short, clear sentences
-- Basic vocabulary
-- Concrete information (who, what, when, where)
-- Example: "Dove si trova il museo?" "Quando è successo?"`,
-      
-      intermediate: `INTERMEDIATE Level Guidelines:
+    // Pedagogical system prompt
+    const systemPrompt = `You are a specialist in second-language pedagogy. Your job is to create effective comprehension and form-focused exercises from a single video transcript.
+
+Pedagogical principles to follow strictly:
+- All questions must be answerable only from the transcript (no outside knowledge)
+- Prioritize global understanding and key details that matter for real communication (who, where, what problem, what solution), not minor trivia
+- Encourage noticing of useful chunks (high-frequency phrases, polite expressions, common verbs) by using them as correct answers or blanks
+- Avoid trick questions; the goal is learning, not trapping the learner
+- Aim for 70-85% expected success if they understood the video
+- Each question must target a different part or idea from the transcript. No duplicates or near-duplicates.`;
+
+    // Level-specific pedagogical guidelines
+    const levelPrompts: Record<string, string> = {
+      beginner: `BEGINNER Level:
+- Use very simple ${languageDisplay} in questions
+- Focus on who/where/what questions, obvious choices, highly frequent words
+- Simple, direct questions about facts mentioned
+- Short, clear sentences with basic vocabulary
+- Concrete information only
+- Avoid idioms or subtle inferences`,
+
+      intermediate: `INTERMEDIATE Level:
+- Include some "why/how" questions and short inference (e.g. how the speaker feels based on what they say)
 - More complex sentence structures
 - Questions requiring deeper comprehension
+- You may include common idiomatic expressions but keep questions clear
 - Understanding of context and relationships
-- Some idiomatic expressions
-- Numerical details and specific information
-- Questions about "how" and "why"
-- Example: "Quanto è costato il progetto?" "Qual era la preoccupazione principale?"`,
-      
-      advanced: `ADVANCED Level Guidelines:
+- Numerical details and specific information`,
+
+      advanced: `ADVANCED Level:
 - Sophisticated vocabulary and complex grammar
 - Analysis and interpretation required
 - Idiomatic expressions and metaphors
 - Cultural and contextual nuances
 - Critical thinking about implications
-- Abstract concepts
-- Example: "Cosa significa 'rafforzare' in questo contesto?" "Analizza il significato di..."`
+- Abstract concepts and advanced reasoning`
     };
 
-    const systemPrompt = `You are an expert ${languageDisplay} language teacher creating exercises for language learners. ALL content must be in ${languageDisplay}.`;
+    const formatInstructions = `
+Generate EXACTLY 10 exercises with this EXACT distribution:
+- 6 exercises where "type" = "multiple_choice"
+- 2 exercises where "type" = "fill_blank"
+- 1 exercise where "type" = "sequencing"
+- 1 exercise where "type" = "matching"
 
-    const userPrompt = `Generate EXACTLY 10 exercises from this transcript with this EXACT distribution:
-- 6 multiple_choice questions (60%)
-- 2 fill_blank questions (20%)
-- 1 sequencing question (10%)
-- 1 matching question (10%)
-
-${levelGuidelines[normalizedLevel] || levelGuidelines.beginner}
-
-TRANSCRIPT:
-${truncatedTranscript}
-
-EXERCISE FORMAT - Return a JSON array with EXACTLY these formats:
+EXERCISE FORMATS (return JSON array):
 
 For multiple_choice (6 total):
 {
   "type": "multiple_choice",
-  "question": "Question text in ${languageDisplay}",
-  "options": ["Option A", "Option B", "Option C", "Option D"],
+  "question": "Question in ${languageDisplay}",
+  "options": ["A", "B", "C", "D"],
   "correctAnswer": "Exact text of correct option",
   "explanation": "Brief explanation in ${languageDisplay}"
 }
+Rules: 3-4 options, only one correct, plausible wrong options, RANDOMIZE correct answer position across questions
 
 For fill_blank (2 total):
 {
   "type": "fill_blank",
-  "question": "Sentence with _____ for the blank in ${languageDisplay}",
+  "question": "Sentence with _____ for the blank",
   "options": [],
   "correctAnswer": "word that fills the blank",
   "explanation": "Explanation in ${languageDisplay}"
 }
+Rules: Use high-value chunks from transcript, 1 blank per question, meaningful word (not articles)
 
 For sequencing (1 total):
 {
   "type": "sequencing",
   "question": "Ordina gli eventi in ordine cronologico.",
   "options": ["Event 1", "Event 2", "Event 3", "Event 4"],
-  "correctAnswer": "Event 1|||Event 2|||Event 3|||Event 4",
-  "explanation": "Explanation of correct order in ${languageDisplay}"
+  "correctAnswer": "0,1,2,3",
+  "explanation": "Explanation in ${languageDisplay}"
 }
+Rules: 3-5 key events from transcript, options are shuffled events, correctAnswer is comma-separated indices for correct order
 
 For matching (1 total):
 {
   "type": "matching",
   "question": "Abbina i termini alle definizioni.",
-  "options": ["Term A → Definition 1", "Term B → Definition 2", "Term C → Definition 3", "Term D → Definition 4"],
-  "correctAnswer": "Term A → Definition 1|||Term B → Definition 2|||Term C → Definition 3|||Term D → Definition 4",
+  "options": ["Term A", "Term B", "Term C", "Term D", "Def 1", "Def 2", "Def 3", "Def 4"],
+  "correctAnswer": "Term A->Def 1|||Term B->Def 2|||Term C->Def 3|||Term D->Def 4",
   "explanation": "Explanation in ${languageDisplay}"
 }
+Rules: Match 4 items to meanings/roles (person<->action, place<->event, phrase<->meaning)
 
-CRITICAL RULES:
-1. UNIQUENESS - NEVER create duplicate questions. Each question must test different information.
-2. RANDOMIZATION - For multiple_choice, randomize correct answer position (1st, 2nd, 3rd, or 4th). NEVER always put correct answer in same position.
-3. LANGUAGE - ALL text MUST be in ${languageDisplay} (questions, options, explanations).
-4. EXACTLY 10 exercises total with the distribution above.
+CRITICAL QUALITY CONSTRAINTS:
+1. Do not reuse the same correct answer text in more than 2 questions
+2. Do not create two questions whose explanations are essentially the same
+3. Ensure all ${languageDisplay} text strictly matches what appears in the transcript
+4. ALL text (questions, options, explanations) MUST be in ${languageDisplay}
+5. Return ONLY the JSON array, no markdown or code blocks`;
 
-Return ONLY the JSON array, no markdown or explanation.`;
+    const userPrompt = `${levelPrompts[normalizedLevel] || levelPrompts.beginner}
+
+TRANSCRIPT:
+${truncatedTranscript}
+
+${formatInstructions}`;
 
     console.log('[generate-level-exercises] Calling AI API...');
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -50,6 +50,8 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingLevel, setGeneratingLevel] = useState<string | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regeneratingLevel, setRegeneratingLevel] = useState<string | null>(null);
 
   useEffect(() => {
     loadVideoData();
@@ -204,6 +206,95 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     }
   };
 
+  const handleRegenerateExercises = async (level: string) => {
+    if (!videoData) return;
+    
+    setIsRegenerating(true);
+    setRegeneratingLevel(level);
+    const dbLevel = level.toLowerCase();
+    
+    try {
+      // Delete existing exercises for this level
+      const { error: deleteError } = await supabase
+        .from('youtube_exercises')
+        .delete()
+        .eq('video_id', videoData.id)
+        .eq('difficulty', dbLevel);
+
+      if (deleteError) {
+        console.error('[YouTubeVideoExercises] Delete error:', deleteError);
+        toast({
+          title: "Errore",
+          description: "Impossibile eliminare esercizi esistenti",
+          variant: "destructive"
+        });
+        setIsRegenerating(false);
+        setRegeneratingLevel(null);
+        return;
+      }
+
+      console.log(`[YouTubeVideoExercises] Deleted exercises for ${dbLevel}, regenerating...`);
+
+      // Fetch transcript
+      const { data: transcriptData, error: transcriptError } = await supabase
+        .from('youtube_transcripts')
+        .select('transcript')
+        .eq('video_id', videoData.id)
+        .single();
+
+      if (transcriptError || !transcriptData?.transcript) {
+        toast({ 
+          title: "Errore", 
+          description: "Nessun transcript disponibile",
+          variant: "destructive"
+        });
+        setIsRegenerating(false);
+        setRegeneratingLevel(null);
+        return;
+      }
+
+      // Generate new exercises
+      const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
+        body: { 
+          videoId: videoData.id, 
+          level: dbLevel, 
+          transcript: transcriptData.transcript,
+          language: videoData.language || 'italian'
+        }
+      });
+
+      if (error || data?.error) {
+        toast({ 
+          title: "Errore rigenerazione", 
+          description: error?.message || data?.error || "Errore sconosciuto",
+          variant: "destructive"
+        });
+        setIsRegenerating(false);
+        setRegeneratingLevel(null);
+        return;
+      }
+
+      toast({
+        title: "Esercizi rigenerati! 🎯",
+        description: `${data?.count || 10} nuovi esercizi creati per ${level}`,
+      });
+
+      setIsRegenerating(false);
+      setRegeneratingLevel(null);
+      onStartExercises(level);
+      
+    } catch (err) {
+      console.error('[YouTubeVideoExercises] Regenerate error:', err);
+      toast({ 
+        title: "Errore", 
+        description: "Errore imprevisto durante la rigenerazione",
+        variant: "destructive"
+      });
+      setIsRegenerating(false);
+      setRegeneratingLevel(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-6 flex items-center justify-center">
@@ -300,61 +391,55 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
                   <div className="text-sm font-medium mb-2">Scegli il livello di difficoltà:</div>
                   
-                  <div className="space-y-2">
-                    <Button 
-                      className="w-full justify-start h-auto p-3 bg-green-500/10 border-green-500/30 hover:bg-green-500/20 text-foreground"
-                      variant="outline"
-                      onClick={() => handleStartExercises('beginner')}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating && generatingLevel === 'beginner' ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Generando esercizi...</span>
+                  <div className="space-y-3">
+                    {['beginner', 'intermediate', 'advanced'].map((level) => {
+                      const levelConfig = {
+                        beginner: { label: 'Beginner (A1-A2)', desc: '10 esercizi • Vocabolario base', color: 'green' },
+                        intermediate: { label: 'Intermediate (B1-B2)', desc: '10 esercizi • Grammatica complessa', color: 'orange' },
+                        advanced: { label: 'Advanced (C1-C2)', desc: '10 esercizi • Concetti astratti', color: 'red' }
+                      }[level]!;
+                      
+                      const isLevelGenerating = isGenerating && generatingLevel === level;
+                      const isLevelRegenerating = isRegenerating && regeneratingLevel === level;
+                      const isDisabled = isGenerating || isRegenerating;
+                      
+                      return (
+                        <div key={level} className="flex gap-2">
+                          <Button 
+                            className={`flex-1 justify-start h-auto p-3 bg-${levelConfig.color}-500/10 border-${levelConfig.color}-500/30 hover:bg-${levelConfig.color}-500/20 text-foreground`}
+                            variant="outline"
+                            onClick={() => handleStartExercises(level)}
+                            disabled={isDisabled}
+                          >
+                            {isLevelGenerating ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Generando...</span>
+                              </div>
+                            ) : (
+                              <div className="text-left">
+                                <div className="font-medium">{levelConfig.label}</div>
+                                <div className="text-xs text-muted-foreground">{levelConfig.desc}</div>
+                              </div>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-auto w-10 shrink-0"
+                            onClick={() => handleRegenerateExercises(level)}
+                            disabled={isDisabled}
+                            title="Rigenera esercizi"
+                          >
+                            {isLevelRegenerating ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
-                      ) : (
-                        <div className="text-left">
-                          <div className="font-medium">Beginner (A1-A2)</div>
-                          <div className="text-xs text-muted-foreground">10 esercizi • Vocabolario base</div>
-                        </div>
-                      )}
-                    </Button>
-                    <Button 
-                      className="w-full justify-start h-auto p-3 bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20 text-foreground"
-                      variant="outline"
-                      onClick={() => handleStartExercises('intermediate')}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating && generatingLevel === 'intermediate' ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Generando esercizi...</span>
-                        </div>
-                      ) : (
-                        <div className="text-left">
-                          <div className="font-medium">Intermediate (B1-B2)</div>
-                          <div className="text-xs text-muted-foreground">10 esercizi • Grammatica complessa</div>
-                        </div>
-                      )}
-                    </Button>
-                    <Button 
-                      className="w-full justify-start h-auto p-3 bg-red-500/10 border-red-500/30 hover:bg-red-500/20 text-foreground"
-                      variant="outline"
-                      onClick={() => handleStartExercises('advanced')}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating && generatingLevel === 'advanced' ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Generando esercizi...</span>
-                        </div>
-                      ) : (
-                        <div className="text-left">
-                          <div className="font-medium">Advanced (C1-C2)</div>
-                          <div className="text-xs text-muted-foreground">10 esercizi • Concetti astratti</div>
-                        </div>
-                      )}
-                    </Button>
+                      );
+                    })}
                   </div>
                 </div>
               </CardContent>
