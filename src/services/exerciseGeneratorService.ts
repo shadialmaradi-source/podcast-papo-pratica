@@ -2,7 +2,7 @@ import { extractVocabulary, getContextualSentences } from './youtubeService';
 
 export interface Exercise {
   id: string;
-  type: "MCQ" | "TF" | "Matching" | "Sequencing" | "Cloze" | "SpotError" | "DragDropMatching" | "DragDropSequencing" | "DragDropCategorization" | "DragDropWordOrder" | "SentenceBuilding" | "TimelineOrdering" | "VisualErrorCorrection" | "MultiCategorization";
+  type: "MCQ" | "TF" | "Matching" | "Sequencing" | "Cloze" | "SpotError" | "DragDropMatching" | "DragDropSequencing" | "DragDropCategorization" | "DragDropWordOrder" | "SentenceBuilding" | "TimelineOrdering" | "VisualErrorCorrection" | "MultiCategorization" | "fill_blank" | "multiple_choice" | "sequencing" | "matching";
   question: string;
   options: string[];
   targets?: string[];
