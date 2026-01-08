@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -50,8 +50,6 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingLevel, setGeneratingLevel] = useState<string | null>(null);
-  const [isRegenerating, setIsRegenerating] = useState(false);
-  const [regeneratingLevel, setRegeneratingLevel] = useState<string | null>(null);
 
   useEffect(() => {
     loadVideoData();
@@ -114,81 +112,74 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     const dbLevel = level.toLowerCase();
     
     try {
-      // Check if exercises already exist for this level
-      const { count } = await supabase
+      // Always delete existing exercises and regenerate fresh ones
+      console.log(`[YouTubeVideoExercises] Deleting existing exercises for ${dbLevel}...`);
+      await supabase
         .from('youtube_exercises')
-        .select('id', { count: 'exact', head: true })
+        .delete()
         .eq('video_id', videoData.id)
         .eq('difficulty', dbLevel);
 
-      console.log(`[YouTubeVideoExercises] Exercises count for ${dbLevel}:`, count);
+      // Fetch transcript from DB
+      const { data: transcriptData, error: transcriptError } = await supabase
+        .from('youtube_transcripts')
+        .select('transcript')
+        .eq('video_id', videoData.id)
+        .single();
 
-      if (!count || count === 0) {
-        console.log(`[YouTubeVideoExercises] No exercises found, generating...`);
-        
-        // Fetch transcript from DB
-        const { data: transcriptData, error: transcriptError } = await supabase
-          .from('youtube_transcripts')
-          .select('transcript')
-          .eq('video_id', videoData.id)
-          .single();
-
-        if (transcriptError || !transcriptData?.transcript) {
-          console.error('[YouTubeVideoExercises] No transcript found:', transcriptError);
-          toast({ 
-            title: "Errore", 
-            description: "Nessun transcript disponibile per questo video",
-            variant: "destructive"
-          });
-          setIsGenerating(false);
-          setGeneratingLevel(null);
-          return;
-        }
-
-        console.log(`[YouTubeVideoExercises] Transcript found, length: ${transcriptData.transcript.length}`);
-
-        // Generate exercises via edge function
-        const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
-          body: { 
-            videoId: videoData.id, 
-            level: dbLevel, 
-            transcript: transcriptData.transcript,
-            language: videoData.language || 'italian'
-          }
+      if (transcriptError || !transcriptData?.transcript) {
+        console.error('[YouTubeVideoExercises] No transcript found:', transcriptError);
+        toast({ 
+          title: "Errore", 
+          description: "Nessun transcript disponibile per questo video",
+          variant: "destructive"
         });
-
-        if (error) {
-          console.error('[YouTubeVideoExercises] Edge function error:', error);
-          toast({ 
-            title: "Errore generazione", 
-            description: error.message || "Impossibile generare esercizi",
-            variant: "destructive"
-          });
-          setIsGenerating(false);
-          setGeneratingLevel(null);
-          return;
-        }
-
-        if (data?.error) {
-          console.error('[YouTubeVideoExercises] Generation error:', data.error);
-          toast({ 
-            title: "Errore generazione", 
-            description: data.error,
-            variant: "destructive"
-          });
-          setIsGenerating(false);
-          setGeneratingLevel(null);
-          return;
-        }
-
-        console.log(`[YouTubeVideoExercises] Generation successful:`, data);
-        toast({
-          title: "Esercizi generati! 🎯",
-          description: `${data?.count || 10} esercizi creati per il livello ${level}`,
-        });
-      } else {
-        console.log(`[YouTubeVideoExercises] ${count} exercises already exist for ${dbLevel}`);
+        setIsGenerating(false);
+        setGeneratingLevel(null);
+        return;
       }
+
+      console.log(`[YouTubeVideoExercises] Transcript found, generating exercises...`);
+
+      // Generate exercises via edge function
+      const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
+        body: { 
+          videoId: videoData.id, 
+          level: dbLevel, 
+          transcript: transcriptData.transcript,
+          language: videoData.language || 'italian'
+        }
+      });
+
+      if (error) {
+        console.error('[YouTubeVideoExercises] Edge function error:', error);
+        toast({ 
+          title: "Errore generazione", 
+          description: error.message || "Impossibile generare esercizi",
+          variant: "destructive"
+        });
+        setIsGenerating(false);
+        setGeneratingLevel(null);
+        return;
+      }
+
+      if (data?.error) {
+        console.error('[YouTubeVideoExercises] Generation error:', data.error);
+        toast({ 
+          title: "Errore generazione", 
+          description: data.error,
+          variant: "destructive"
+        });
+        setIsGenerating(false);
+        setGeneratingLevel(null);
+        return;
+      }
+
+      console.log(`[YouTubeVideoExercises] Generation successful:`, data);
+      toast({
+        title: "Esercizi generati! 🎯",
+        description: `${data?.count || 10} esercizi creati per il livello ${level}`,
+      });
 
       setIsGenerating(false);
       setGeneratingLevel(null);
@@ -206,94 +197,6 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     }
   };
 
-  const handleRegenerateExercises = async (level: string) => {
-    if (!videoData) return;
-    
-    setIsRegenerating(true);
-    setRegeneratingLevel(level);
-    const dbLevel = level.toLowerCase();
-    
-    try {
-      // Delete existing exercises for this level
-      const { error: deleteError } = await supabase
-        .from('youtube_exercises')
-        .delete()
-        .eq('video_id', videoData.id)
-        .eq('difficulty', dbLevel);
-
-      if (deleteError) {
-        console.error('[YouTubeVideoExercises] Delete error:', deleteError);
-        toast({
-          title: "Errore",
-          description: "Impossibile eliminare esercizi esistenti",
-          variant: "destructive"
-        });
-        setIsRegenerating(false);
-        setRegeneratingLevel(null);
-        return;
-      }
-
-      console.log(`[YouTubeVideoExercises] Deleted exercises for ${dbLevel}, regenerating...`);
-
-      // Fetch transcript
-      const { data: transcriptData, error: transcriptError } = await supabase
-        .from('youtube_transcripts')
-        .select('transcript')
-        .eq('video_id', videoData.id)
-        .single();
-
-      if (transcriptError || !transcriptData?.transcript) {
-        toast({ 
-          title: "Errore", 
-          description: "Nessun transcript disponibile",
-          variant: "destructive"
-        });
-        setIsRegenerating(false);
-        setRegeneratingLevel(null);
-        return;
-      }
-
-      // Generate new exercises
-      const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
-        body: { 
-          videoId: videoData.id, 
-          level: dbLevel, 
-          transcript: transcriptData.transcript,
-          language: videoData.language || 'italian'
-        }
-      });
-
-      if (error || data?.error) {
-        toast({ 
-          title: "Errore rigenerazione", 
-          description: error?.message || data?.error || "Errore sconosciuto",
-          variant: "destructive"
-        });
-        setIsRegenerating(false);
-        setRegeneratingLevel(null);
-        return;
-      }
-
-      toast({
-        title: "Esercizi rigenerati! 🎯",
-        description: `${data?.count || 10} nuovi esercizi creati per ${level}`,
-      });
-
-      setIsRegenerating(false);
-      setRegeneratingLevel(null);
-      onStartExercises(level);
-      
-    } catch (err) {
-      console.error('[YouTubeVideoExercises] Regenerate error:', err);
-      toast({ 
-        title: "Errore", 
-        description: "Errore imprevisto durante la rigenerazione",
-        variant: "destructive"
-      });
-      setIsRegenerating(false);
-      setRegeneratingLevel(null);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -400,44 +303,27 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                       }[level]!;
                       
                       const isLevelGenerating = isGenerating && generatingLevel === level;
-                      const isLevelRegenerating = isRegenerating && regeneratingLevel === level;
-                      const isDisabled = isGenerating || isRegenerating;
                       
                       return (
-                        <div key={level} className="flex gap-2">
-                          <Button 
-                            className={`flex-1 justify-start h-auto p-3 bg-${levelConfig.color}-500/10 border-${levelConfig.color}-500/30 hover:bg-${levelConfig.color}-500/20 text-foreground`}
-                            variant="outline"
-                            onClick={() => handleStartExercises(level)}
-                            disabled={isDisabled}
-                          >
-                            {isLevelGenerating ? (
-                              <div className="flex items-center gap-2">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>Generando...</span>
-                              </div>
-                            ) : (
-                              <div className="text-left">
-                                <div className="font-medium">{levelConfig.label}</div>
-                                <div className="text-xs text-muted-foreground">{levelConfig.desc}</div>
-                              </div>
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-auto w-10 shrink-0"
-                            onClick={() => handleRegenerateExercises(level)}
-                            disabled={isDisabled}
-                            title="Rigenera esercizi"
-                          >
-                            {isLevelRegenerating ? (
+                        <Button 
+                          key={level}
+                          className={`w-full justify-start h-auto p-3 bg-${levelConfig.color}-500/10 border-${levelConfig.color}-500/30 hover:bg-${levelConfig.color}-500/20 text-foreground`}
+                          variant="outline"
+                          onClick={() => handleStartExercises(level)}
+                          disabled={isGenerating}
+                        >
+                          {isLevelGenerating ? (
+                            <div className="flex items-center gap-2">
                               <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <RefreshCw className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
+                              <span>Generando...</span>
+                            </div>
+                          ) : (
+                            <div className="text-left">
+                              <div className="font-medium">{levelConfig.label}</div>
+                              <div className="text-xs text-muted-foreground">{levelConfig.desc}</div>
+                            </div>
+                          )}
+                        </Button>
                       );
                     })}
                   </div>
