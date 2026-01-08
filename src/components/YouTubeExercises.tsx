@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, 
@@ -43,9 +43,12 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
     case "TF":
     case "Cloze":
     case "SpotError":
+    case "multiple_choice":
+    case "fill_blank":
       return userAnswer.toLowerCase().trim() === exercise.correctAnswer.toLowerCase().trim();
     
     case "Matching":
+    case "matching":
       try {
         const correctPairs = JSON.parse(exercise.correctAnswer);
         const userPairs = userAnswer.split(',').filter(Boolean);
@@ -55,6 +58,7 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
       }
     
     case "Sequencing":
+    case "sequencing":
       try {
         const correctSequence = JSON.parse(exercise.correctAnswer);
         const userSequence = userAnswer.split(',').map(i => parseInt(i)).filter(i => !isNaN(i));
@@ -343,6 +347,7 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
     switch (currentExercise.type) {
       case "MCQ":
       case "TF":
+      case "multiple_choice":
         return (
           <RadioGroup value={userAnswer} onValueChange={handleAnswerChange}>
             {currentExercise.options?.map((option, index) => (
@@ -357,25 +362,25 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
         );
 
       case "Cloze":
+      case "fill_blank":
         return (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground mb-4">
-              Select the correct word to fill in the blank:
+              Type the correct word to fill in the blank:
             </p>
-            <RadioGroup value={userAnswer} onValueChange={handleAnswerChange}>
-              {currentExercise.options?.map((option, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option} id={`cloze-${index}`} />
-                  <Label htmlFor={`cloze-${index}`} className="cursor-pointer">
-                    {option}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+            <Input
+              type="text"
+              placeholder="Type your answer here..."
+              value={userAnswer}
+              onChange={(e) => handleAnswerChange(e.target.value)}
+              className="w-full text-lg"
+              autoFocus
+            />
           </div>
         );
 
       case "Matching":
+      case "matching":
         return (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground mb-4">
@@ -429,6 +434,7 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
         );
 
       case "Sequencing":
+      case "sequencing":
         return (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground mb-4">
