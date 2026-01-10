@@ -388,8 +388,8 @@ export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage,
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
-                ItalianPod
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
+                ListenFlow
               </h1>
               <p className="text-muted-foreground">
                 {t('welcome')}, {profile?.username}!
