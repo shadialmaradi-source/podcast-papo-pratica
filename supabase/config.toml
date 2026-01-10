@@ -66,3 +66,6 @@ verify_jwt = false
 
 [functions.generate-level-exercises]
 verify_jwt = false
+
+[functions.speech-analyze]
+verify_jwt = false

@@ -236,7 +236,8 @@ const FirstLesson = () => {
       return (
         <LessonSpeaking 
           level={userLevel} 
-          phrases={content.speakingPhrases} 
+          phrases={content.speakingPhrases}
+          videoTranscript={content.video.transcript}
           onComplete={handleSpeakingComplete} 
         />
       );
