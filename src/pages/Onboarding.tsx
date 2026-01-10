@@ -70,12 +70,8 @@ export default function Onboarding() {
     localStorage.setItem('onboarding_language', selectedLanguage);
     localStorage.setItem('onboarding_level', selectedLevel);
     
-    // If user is logged in, go to app; otherwise go to auth
-    if (user) {
-      navigate('/app');
-    } else {
-      navigate('/auth');
-    }
+    // Navigate to first lesson
+    navigate('/lesson/first');
   };
 
   return (
