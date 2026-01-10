@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import TestTranscript from "./pages/TestTranscript";
+import FirstLesson from "./pages/FirstLesson";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/test-transcript" element={<TestTranscript />} />
+            <Route path="/lesson/first" element={<FirstLesson />} />
             
             {/* Protected app route */}
             <Route 
