@@ -28,7 +28,7 @@ export default function Auth() {
   // Redirect if already authenticated
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate("/app");
     }
   }, [user, navigate]);
 
@@ -40,7 +40,7 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${window.location.origin}/app`
         }
       });
       
@@ -71,7 +71,7 @@ export default function Auth() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`
+            emailRedirectTo: `${window.location.origin}/app`
           }
         });
         
@@ -160,7 +160,7 @@ export default function Auth() {
               className="flex items-center justify-center gap-2 mb-2"
             >
               <BookOpen className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold">ItalianPod</h1>
+              <h1 className="text-2xl font-bold">ListenFlow</h1>
             </motion.div>
             <CardTitle className="text-xl">
               {isSignUp ? 'Create Account' : 'Sign In'}
