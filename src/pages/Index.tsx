@@ -55,10 +55,38 @@ const Index = () => {
         
         setUserProfile(profile);
         
-        // If user has a selected language, skip language selection
-        if (profile?.selected_language) {
+        // Check for onboarding preferences from localStorage
+        const onboardingLang = localStorage.getItem('onboarding_language');
+        const onboardingLevel = localStorage.getItem('onboarding_level');
+        
+        // If we have onboarding preferences, use them and save to profile
+        if (onboardingLang) {
+          setSelectedLanguage(onboardingLang);
+          // Save to profile if not already set
+          if (!profile?.selected_language || profile.selected_language !== onboardingLang) {
+            await supabase
+              .from('profiles')
+              .update({ 
+                selected_language: onboardingLang,
+                current_level: onboardingLevel || profile?.current_level 
+              })
+              .eq('user_id', user.id);
+          }
+          // Clear localStorage after saving
+          localStorage.removeItem('onboarding_language');
+          localStorage.removeItem('onboarding_level');
+          setAppState("dashboard");
+        } else if (profile?.selected_language) {
+          // Use existing profile language
           setSelectedLanguage(profile.selected_language);
           setAppState("dashboard");
+        }
+        
+        // Set level from profile or onboarding
+        if (onboardingLevel) {
+          setSelectedLevel(onboardingLevel);
+        } else if (profile?.current_level) {
+          setSelectedLevel(profile.current_level);
         }
         
         setProfileLoading(false);
