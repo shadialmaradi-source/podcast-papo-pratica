@@ -15,9 +15,10 @@ import { VocabularyManager } from "@/components/VocabularyManager";
 import { VocabularyReview } from "@/components/VocabularyReview";
 import YouTubeLibrary from "@/components/YouTubeLibrary";
 import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
+import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
 import { PodcastSource, PodcastEpisode } from "@/services/podcastService";
 
-type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "youtube-exercises-view" | "leaderboard" | "vocabulary" | "vocabulary-review";
+type AppState = "language-select" | "dashboard" | "podcasts" | "episodes" | "exercises" | "profile" | "youtube" | "youtube-exercises" | "youtube-library" | "youtube-exercises-view" | "youtube-speaking" | "leaderboard" | "vocabulary" | "vocabulary-review";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -247,6 +248,16 @@ const Index = () => {
     setAppState("youtube-library");
   };
 
+  const handleContinueToSpeaking = (videoId: string, lvl: string) => {
+    setSelectedVideoId(videoId);
+    setSelectedLevel(lvl);
+    setAppState('youtube-speaking');
+  };
+
+  const handleSpeakingComplete = () => {
+    setAppState('youtube-library');
+  };
+
   return (
     <div className="min-h-screen">
       {appState === "language-select" && (
@@ -362,8 +373,18 @@ const Index = () => {
             intensity={selectedIntensity}
             onBack={handleBackToYouTube}
             onComplete={handleBackToYouTube}
+            onContinueToSpeaking={handleContinueToSpeaking}
           />
         </div>
+      )}
+
+      {appState === "youtube-speaking" && selectedVideoId && (
+        <YouTubeSpeaking
+          videoId={selectedVideoId}
+          level={selectedLevel}
+          onComplete={handleSpeakingComplete}
+          onBack={() => setAppState('youtube-exercises')}
+        />
       )}
 
       {appState === "vocabulary" && (
