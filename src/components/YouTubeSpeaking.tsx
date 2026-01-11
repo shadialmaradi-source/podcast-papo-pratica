@@ -111,26 +111,26 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
         
         // For beginners, extract key phrases
         if (!isSummaryMode) {
-          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-speaking-phrases`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({
-              transcript: transcriptData.transcript,
-              level,
-              language: transcriptData.language
-            }),
-          });
-          
-          if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.error || "Failed to extract phrases");
+          const { data: phraseData, error: phraseError } = await supabase.functions.invoke(
+            'extract-speaking-phrases',
+            {
+              body: {
+                transcript: transcriptData.transcript,
+                level,
+                language: transcriptData.language,
+              },
+            }
+          );
+
+          if (phraseError) {
+            const serverMsg =
+              (phraseError as any)?.context?.json?.error ||
+              (phraseError as any)?.context?.body?.error ||
+              (phraseError as any)?.message;
+            throw new Error(serverMsg || 'Failed to extract phrases');
           }
-          
-          const phraseData = await response.json();
-          setPhrases(phraseData.phrases || []);
+
+          setPhrases((phraseData as any)?.phrases || []);
         }
         
         setIsLoading(false);
@@ -185,44 +185,43 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
     try {
       const audioBase64 = await blobToBase64(audioBlob);
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speech-analyze`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
+      const { data: result, error: fnError } = await supabase.functions.invoke('speech-analyze', {
+        body: {
           audioBase64,
           mode: isSummaryMode ? 'summary' : 'beginner',
-          phrases: isSummaryMode ? undefined : phrases.map(p => p.phrase),
+          phrases: isSummaryMode ? undefined : phrases.map((p) => p.phrase),
           videoTranscript: isSummaryMode ? transcript : undefined,
-        }),
+        },
       });
 
-      if (!response.ok) {
-        if (response.status === 429) {
+      if (fnError) {
+        const status = (fnError as any)?.context?.status;
+        if (status === 429) {
           throw new Error('Too many requests. Please wait a moment and try again.');
         }
-        if (response.status === 402) {
+        if (status === 402) {
           throw new Error('Service temporarily unavailable. Please try again later.');
         }
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Analysis failed. Please try again.');
+        const serverMsg =
+          (fnError as any)?.context?.json?.error ||
+          (fnError as any)?.context?.body?.error ||
+          (fnError as any)?.message;
+        throw new Error(serverMsg || 'Analysis failed. Please try again.');
       }
 
-      const result: AnalysisResult = await response.json();
-      setAnalysisResults(result);
+      const typedResult = result as AnalysisResult;
+      setAnalysisResults(typedResult);
 
-      if (result.mode === 'beginner' && result.results && result.results[currentIndex]) {
+      if (typedResult.mode === 'beginner' && typedResult.results && typedResult.results[currentIndex]) {
         setPhraseResults(prev => ({
           ...prev,
           [currentIndex]: {
-            ...result.results[currentIndex],
-            transcription: result.transcription
+            ...typedResult.results[currentIndex],
+            transcription: typedResult.transcription
           }
         }));
         setHasRecorded(prev => ({ ...prev, [currentIndex]: true }));
-      } else if (result.mode === 'summary') {
+      } else if (typedResult.mode === 'summary') {
         setSummaryRecorded(true);
       }
 
