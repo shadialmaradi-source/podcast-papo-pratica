@@ -20,6 +20,18 @@ serve(async (req: Request) => {
   }
 
   try {
+    // Validate cron secret for scheduled function security
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const providedSecret = req.headers.get('X-Cron-Secret');
+    
+    if (!cronSecret || providedSecret !== cronSecret) {
+      console.error('Unauthorized access attempt to send-leaderboard-alerts');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
     console.log('Starting leaderboard alerts check...');
 
     // Get users who are close to passing someone using existing function
