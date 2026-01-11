@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import TestTranscript from "./pages/TestTranscript";
 import FirstLesson from "./pages/FirstLesson";
+import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/test-transcript" element={<TestTranscript />} />
             <Route path="/lesson/first" element={<FirstLesson />} />
             
