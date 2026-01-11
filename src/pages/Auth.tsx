@@ -40,7 +40,9 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          // Use the site root as redirect target to reduce allowlist/path mismatch issues.
+          // We then forward to /auth/callback in-app if auth params are present.
+          redirectTo: `${window.location.origin}/`
         }
       });
       
@@ -71,7 +73,7 @@ export default function Auth() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`
+            emailRedirectTo: `${window.location.origin}/`
           }
         });
         
@@ -115,7 +117,7 @@ export default function Auth() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
-        redirectTo: `${window.location.origin}/auth/callback`
+        redirectTo: `${window.location.origin}/`
       });
 
       if (error) {

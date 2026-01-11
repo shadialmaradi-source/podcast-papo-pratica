@@ -9,10 +9,13 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      // Check for error in URL hash (e.g., expired link)
+      // Check for error in URL hash/query (e.g., expired link)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const errorCode = hashParams.get("error_code");
-      const errorDescription = hashParams.get("error_description");
+      const queryParamsForError = new URLSearchParams(window.location.search);
+
+      const errorCode = hashParams.get("error_code") || queryParamsForError.get("error_code");
+      const errorDescription =
+        hashParams.get("error_description") || queryParamsForError.get("error_description");
 
       if (errorCode) {
         setError(errorDescription?.replace(/\+/g, " ") || "Authentication failed");
