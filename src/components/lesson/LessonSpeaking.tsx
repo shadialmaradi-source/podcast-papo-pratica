@@ -16,6 +16,7 @@ interface PhraseResult {
   match: boolean;
   confidence: number;
   feedback: string;
+  transcription?: string;
 }
 
 interface BeginnerAnalysis {
@@ -139,11 +140,14 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete }: LessonS
       const result: AnalysisResult = await response.json();
       setAnalysisResults(result);
 
-      // For beginner mode, update individual phrase results
+      // For beginner mode, update individual phrase results with transcription
       if (result.mode === 'beginner' && result.results && result.results[currentIndex]) {
         setPhraseResults(prev => ({
           ...prev,
-          [currentIndex]: result.results[currentIndex]
+          [currentIndex]: {
+            ...result.results[currentIndex],
+            transcription: result.transcription
+          }
         }));
         setHasRecorded(prev => ({ ...prev, [currentIndex]: true }));
       } else if (result.mode === 'summary') {
@@ -565,6 +569,14 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete }: LessonS
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center space-y-3"
                   >
+                    {/* What the user said */}
+                    {phraseResults[currentIndex].transcription && (
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground mb-1">You said:</p>
+                        <p className="text-sm font-medium italic">"{phraseResults[currentIndex].transcription}"</p>
+                      </div>
+                    )}
+                    
                     <div className={`flex items-center justify-center gap-2 ${
                       phraseResults[currentIndex].match ? 'text-primary' : 'text-amber-500'
                     }`}>
@@ -593,6 +605,26 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete }: LessonS
                       </Button>
                     )}
                   </motion.div>
+                )}
+
+                {/* Skip button - shown when not recording and no result yet */}
+                {!isAnalyzing && !phraseResults[currentIndex] && !isRecording && (
+                  <div className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        // Mark as recorded and move to next
+                        setHasRecorded(prev => ({ ...prev, [currentIndex]: true }));
+                        if (currentIndex < phrases.length - 1) {
+                          setCurrentIndex(currentIndex + 1);
+                        }
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      Can't speak right now? Skip this phrase
+                    </Button>
+                  </div>
                 )}
 
                 {!isAnalyzing && !phraseResults[currentIndex] && (
