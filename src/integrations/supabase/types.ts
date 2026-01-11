@@ -1249,6 +1249,24 @@ export type Database = {
           xp_reward: number
         }[]
       }
+      get_youtube_exercises_with_answers: {
+        Args: { difficulty_param?: string; video_id_param: string }
+        Returns: {
+          context_sentence: string
+          correct_answer: string
+          difficulty: string
+          exercise_type: string
+          explanation: string
+          id: string
+          intensity: string
+          options: Json
+          order_index: number
+          question: string
+          video_id: string
+          vocabulary_words: Json
+          xp_reward: number
+        }[]
+      }
       update_vocabulary_progress: {
         Args: {
           p_difficulty_rating?: number
