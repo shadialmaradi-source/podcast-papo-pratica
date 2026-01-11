@@ -1,8 +1,9 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import LandingPage from "./pages/LandingPage";
 import Onboarding from "./pages/Onboarding";
@@ -30,6 +31,39 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AuthRedirector() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (location.pathname === "/auth/callback") return;
+
+    const hashParams = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+    const searchParams = new URLSearchParams(location.search || "");
+
+    const hasAuthHash =
+      hashParams.has("access_token") ||
+      hashParams.has("refresh_token") ||
+      hashParams.has("error_code") ||
+      hashParams.has("error");
+
+    const hasAuthQuery = searchParams.has("code") || searchParams.has("error_code") || searchParams.has("error");
+
+    if (!hasAuthHash && !hasAuthQuery) return;
+
+    navigate(
+      {
+        pathname: "/auth/callback",
+        search: location.search,
+        hash: location.hash,
+      },
+      { replace: true }
+    );
+  }, [location.hash, location.pathname, location.search, navigate]);
+
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -37,6 +71,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AuthRedirector />
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
