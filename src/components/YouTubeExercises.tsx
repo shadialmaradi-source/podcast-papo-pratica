@@ -30,6 +30,7 @@ interface YouTubeExercisesProps {
   intensity: string;
   onBack: () => void;
   onComplete: () => void;
+  onContinueToSpeaking?: (videoId: string, level: string) => void;
 }
 
 
@@ -72,7 +73,7 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
   }
 };
 
-export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete }: YouTubeExercisesProps) {
+export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete, onContinueToSpeaking }: YouTubeExercisesProps) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [dragDropExercises, setDragDropExercises] = useState<Exercise[]>([]);
   const [regularExercises, setRegularExercises] = useState<Exercise[]>([]);
@@ -626,9 +627,18 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
             </div>
 
             <div className="flex gap-3 justify-center">
-              <Button onClick={onComplete} className="gap-2">
+              <Button 
+                onClick={() => {
+                  if (onContinueToSpeaking) {
+                    onContinueToSpeaking(videoId, level);
+                  } else {
+                    onComplete();
+                  }
+                }} 
+                className="gap-2"
+              >
                 <CheckCircle className="h-4 w-4" />
-                Continue Learning
+                Continue to Speaking Practice
               </Button>
               <Button variant="outline" onClick={() => window.location.reload()}>
                 Try Again

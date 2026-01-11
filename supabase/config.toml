@@ -69,3 +69,6 @@ verify_jwt = false
 
 [functions.speech-analyze]
 verify_jwt = false
+
+[functions.extract-speaking-phrases]
+verify_jwt = false
