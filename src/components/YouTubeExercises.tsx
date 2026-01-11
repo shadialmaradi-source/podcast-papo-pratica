@@ -184,15 +184,17 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
 
         if (videoData) {
           setDbVideoId(videoData.id);
-          // Load pre-generated exercises from database (without intensity filter)
+          // Load pre-generated exercises from database using secure RPC function
           const dbDifficulty = mapLevelToDbDifficulty(level);
           const { data: dbExercises, error: dbError } = await supabase
-            .from('youtube_exercises')
-            .select('*')
-            .eq('video_id', videoData.id)
-            .eq('difficulty', dbDifficulty)
-            .order('order_index')
-            .limit(30);
+            .rpc('get_youtube_exercises_with_answers', { 
+              video_id_param: videoData.id,
+              difficulty_param: dbDifficulty
+            });
+
+          if (dbError) {
+            console.error('Error fetching exercises:', dbError);
+          }
 
           if (dbExercises && dbExercises.length > 0) {
             console.log(`Loaded ${dbExercises.length} exercises from database`);
