@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, ArrowLeft, Check, X, Award } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 
 interface Exercise {
   id: string;
@@ -17,35 +18,138 @@ interface Exercise {
 interface LessonExercisesProps {
   exercises: Exercise[];
   onComplete: (score: number, total: number) => void;
+  lessonId?: string;
 }
 
-const LessonExercises = ({ exercises, onComplete }: LessonExercisesProps) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+// Helper to safely parse localStorage
+const getSavedProgress = (key: string) => {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      const progress = JSON.parse(saved);
+      // Check if within 24 hours
+      if (Date.now() - progress.timestamp < 24 * 60 * 60 * 1000) {
+        return progress;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading progress:', e);
+  }
+  return null;
+};
+
+const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: LessonExercisesProps) => {
+  const { toast } = useToast();
+  
+  // Generate unique storage key
+  const targetLanguage = localStorage.getItem('onboarding_language') || 'spanish';
+  const userLevel = localStorage.getItem('onboarding_level') || 'absolute_beginner';
+  const progressKey = `listenflow_exercise_${targetLanguage}_${userLevel}_${lessonId}`;
+  
+  // State with lazy initialization from localStorage
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    const saved = getSavedProgress(progressKey);
+    return saved?.currentQuestionIndex ?? 0;
+  });
+  
+  const [answers, setAnswers] = useState<Record<string, string>>(() => {
+    const saved = getSavedProgress(progressKey);
+    return saved?.answers ?? {};
+  });
+  
+  const [score, setScore] = useState(() => {
+    const saved = getSavedProgress(progressKey);
+    return saved?.score ?? 0;
+  });
+  
+  const [isResuming, setIsResuming] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [score, setScore] = useState(0);
 
   const currentExercise = exercises[currentIndex];
   const progress = ((currentIndex + 1) / exercises.length) * 100;
 
+  // Save progress to localStorage
+  const saveProgress = (newIndex: number, newAnswers: Record<string, string>, newScore: number) => {
+    const progressData = {
+      currentQuestionIndex: newIndex,
+      answers: newAnswers,
+      score: newScore,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(progressKey, JSON.stringify(progressData));
+  };
+
+  // Show welcome back message if resuming
+  useEffect(() => {
+    const saved = getSavedProgress(progressKey);
+    if (saved && saved.currentQuestionIndex > 0) {
+      setIsResuming(true);
+      toast({
+        title: "Welcome back! ✓",
+        description: `Resuming question ${saved.currentQuestionIndex + 1}/${exercises.length}`,
+        className: "bg-primary text-primary-foreground",
+      });
+      setTimeout(() => setIsResuming(false), 2500);
+    }
+  }, []);
+
+  // Save on tab switch or close
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && !showResults) {
+        saveProgress(currentIndex, answers, score);
+      }
+    };
+    
+    const handleBeforeUnload = () => {
+      if (!showResults) {
+        saveProgress(currentIndex, answers, score);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentIndex, answers, score, showResults, progressKey]);
+
   const handleAnswer = (answer: string) => {
     if (showFeedback) return;
     
-    setAnswers(prev => ({ ...prev, [currentExercise.id]: answer }));
+    const newAnswers = { ...answers, [currentExercise.id]: answer };
+    setAnswers(newAnswers);
     
     const correct = answer.toLowerCase().trim() === currentExercise.correctAnswer.toLowerCase().trim();
     setIsCorrect(correct);
-    if (correct) setScore(prev => prev + 1);
+    const newScore = correct ? score + 1 : score;
+    if (correct) setScore(newScore);
     setShowFeedback(true);
+    
+    // Save progress after each answer
+    saveProgress(currentIndex, newAnswers, newScore);
+    
+    // Show subtle save confirmation
+    toast({
+      description: "Progress saved ✓",
+      duration: 1500,
+      className: "bg-muted text-muted-foreground text-sm",
+    });
   };
 
   const handleNext = () => {
     setShowFeedback(false);
     if (currentIndex < exercises.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+      const newIndex = currentIndex + 1;
+      setCurrentIndex(newIndex);
+      saveProgress(newIndex, answers, score);
     } else {
+      // Clear progress when completed
+      localStorage.removeItem(progressKey);
       setShowResults(true);
     }
   };
@@ -53,7 +157,9 @@ const LessonExercises = ({ exercises, onComplete }: LessonExercisesProps) => {
   const handlePrevious = () => {
     if (currentIndex > 0) {
       setShowFeedback(false);
-      setCurrentIndex(prev => prev - 1);
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
+      saveProgress(newIndex, answers, score);
     }
   };
 
@@ -233,6 +339,17 @@ const LessonExercises = ({ exercises, onComplete }: LessonExercisesProps) => {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Progress */}
         <div className="space-y-2">
+          {isResuming && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-2 text-sm text-primary font-medium"
+            >
+              <Check className="w-4 h-4" />
+              Resuming where you left off...
+            </motion.div>
+          )}
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Question {currentIndex + 1} of {exercises.length}</span>
             <span>{score} correct</span>
