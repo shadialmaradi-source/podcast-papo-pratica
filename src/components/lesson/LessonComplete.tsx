@@ -151,17 +151,16 @@ const LessonComplete = ({
           className="space-y-3"
         >
           <Button
-            onClick={() => navigate('/lesson/second')}
+            onClick={() => navigate('/auth')}
             size="lg"
             className="w-full bg-primary hover:bg-primary/90 rounded-full py-6 text-lg gap-2"
-            disabled
           >
             <ArrowRight className="w-5 h-5" />
-            Next Lesson (Coming Soon)
+            Next Lesson
           </Button>
 
           <Button
-            onClick={() => navigate('/app')}
+            onClick={() => navigate('/auth')}
             variant="outline"
             size="lg"
             className="w-full rounded-full py-6 text-lg gap-2"
