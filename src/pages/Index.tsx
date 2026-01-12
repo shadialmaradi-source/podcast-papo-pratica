@@ -76,11 +76,13 @@ const Index = () => {
           // Clear localStorage after saving
           localStorage.removeItem('onboarding_language');
           localStorage.removeItem('onboarding_level');
-          setAppState("dashboard");
+          // Only force dashboard during initial onboarding flow
+          setAppState((prev) => (prev === "language-select" ? "dashboard" : prev));
         } else if (profile?.selected_language) {
           // Use existing profile language
           setSelectedLanguage(profile.selected_language);
-          setAppState("dashboard");
+          // Don't override in-app navigation (e.g., profile) if auth refresh re-triggers this effect
+          setAppState((prev) => (prev === "language-select" ? "dashboard" : prev));
         }
         
         // Set level from profile or onboarding
