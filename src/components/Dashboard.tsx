@@ -427,7 +427,7 @@ export default function Dashboard({ onNavigate, onVideoSelect, selectedLanguage,
             </div>
             
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => onNavigate('profile')}>
+              <Button variant="outline" size="sm" onClick={() => { console.log('Profile button clicked'); onNavigate('profile'); }}>
                 <User className="h-4 w-4" />
               </Button>
               <Button variant="outline" size="sm" onClick={handleSignOut}>
