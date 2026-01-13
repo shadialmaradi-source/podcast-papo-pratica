@@ -273,7 +273,7 @@ const Index = () => {
 
       {appState === "dashboard" && (
         <Dashboard 
-          onNavigate={handleNavigateToPodcasts}
+          onNavigate={handleNavigate}
           onVideoSelect={(videoId: string) => {
             setSelectedVideoId(videoId);
             setAppState('youtube-exercises-view');
