@@ -137,6 +137,15 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
                        selectedLanguage === 'english' ? 'Inglese' :
                        selectedLanguage === 'spanish' ? 'Spagnolo' : 'la lingua selezionata';
 
+  // Load profile data on mount
+  useEffect(() => {
+    if (user) {
+      loadProfileData();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user && selectedLanguage) {
       loadVideoCounts();
