@@ -8,6 +8,8 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import LandingPage from "./pages/LandingPage";
 import Onboarding from "./pages/Onboarding";
 import Index from "./pages/Index";
+import AppHome from "./pages/AppHome";
+import Library from "./pages/Library";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import TestTranscript from "./pages/TestTranscript";
@@ -81,9 +83,25 @@ const App = () => (
             <Route path="/test-transcript" element={<TestTranscript />} />
             <Route path="/lesson/first" element={<FirstLesson />} />
             
-            {/* Protected app route */}
+            {/* Protected app routes */}
             <Route 
               path="/app" 
+              element={
+                <ProtectedRoute>
+                  <AppHome />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/library" 
+              element={
+                <ProtectedRoute>
+                  <Library />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/app/legacy" 
               element={
                 <ProtectedRoute>
                   <Index />
