@@ -68,7 +68,7 @@ export default function AppHome() {
     try {
       const { data, error } = await supabase.functions.invoke("process-youtube-video", {
         body: { 
-          url: videoUrl,
+          videoUrl: videoUrl,
           language: profile?.selected_language || "english"
         },
       });
