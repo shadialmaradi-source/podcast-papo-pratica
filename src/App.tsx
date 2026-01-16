@@ -12,6 +12,7 @@ import AppHome from "./pages/AppHome";
 import Library from "./pages/Library";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import { ProfilePage } from "./components/ProfilePage";
 import TestTranscript from "./pages/TestTranscript";
 import FirstLesson from "./pages/FirstLesson";
 import AuthCallback from "./pages/AuthCallback";
@@ -31,6 +32,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   
   return <>{children}</>;
+}
+
+// Wrapper to provide onBack to ProfilePage
+function ProfilePageWrapper() {
+  const navigate = useNavigate();
+  return <ProfilePage onBack={() => navigate("/app")} />;
 }
 
 function AuthRedirector() {
@@ -105,6 +112,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Index />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <ProfilePageWrapper />
                 </ProtectedRoute>
               } 
             />
