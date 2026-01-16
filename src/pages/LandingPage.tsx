@@ -42,6 +42,7 @@ const landingTranslations = {
     finalCTA: "Ready to understand real conversations?",
     startLesson: "Start 60-second lesson",
     selectLanguage: "Select language",
+    login: "Log in",
   },
   es: {
     heroTitle: "Aprende Idiomas de Conversaciones Reales",
@@ -71,6 +72,7 @@ const landingTranslations = {
     finalCTA: "¿Listo para entender conversaciones reales?",
     startLesson: "Comenzar lección de 60 segundos",
     selectLanguage: "Seleccionar idioma",
+    login: "Iniciar sesión",
   },
   fr: {
     heroTitle: "Apprenez les Langues à partir de Vraies Conversations",
@@ -100,6 +102,7 @@ const landingTranslations = {
     finalCTA: "Prêt à comprendre de vraies conversations?",
     startLesson: "Commencer une leçon de 60 secondes",
     selectLanguage: "Sélectionner la langue",
+    login: "Se connecter",
   },
   it: {
     heroTitle: "Impara le Lingue dalle Conversazioni Reali",
@@ -129,6 +132,7 @@ const landingTranslations = {
     finalCTA: "Pronto a capire le conversazioni reali?",
     startLesson: "Inizia una lezione di 60 secondi",
     selectLanguage: "Seleziona lingua",
+    login: "Accedi",
   },
   de: {
     heroTitle: "Sprachen aus Echten Gesprächen Lernen",
@@ -158,6 +162,7 @@ const landingTranslations = {
     finalCTA: "Bereit, echte Gespräche zu verstehen?",
     startLesson: "60-Sekunden-Lektion starten",
     selectLanguage: "Sprache auswählen",
+    login: "Anmelden",
   },
 };
 
@@ -196,8 +201,27 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Fixed Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border/50">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <Headphones className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold text-foreground">ListenFlow</span>
+          </div>
+          
+          {/* Log in button */}
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/auth')}
+          >
+            {t.login}
+          </Button>
+        </div>
+      </header>
+
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden pt-16">
         {/* Animated background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
           <div className="absolute inset-0 opacity-30">
