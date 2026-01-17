@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LevelSelector } from "@/components/library/LevelSelector";
 import { FilterBar } from "@/components/library/FilterBar";
 import { FeaturedRow } from "@/components/library/FeaturedRow";
 import { VideoCard } from "@/components/library/VideoCard";
+import { AppHeader } from "@/components/AppHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -141,16 +141,7 @@ export default function Library() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/app")}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="text-lg font-semibold text-foreground">Video Library</h1>
-          </div>
-        </div>
-      </header>
+      <AppHeader title="Video Library" showBackButton backTo="/app" />
 
       {/* Level Selector */}
       <div className="sticky top-[57px] z-40 bg-background border-b">
