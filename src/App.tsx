@@ -10,6 +10,7 @@ import Onboarding from "./pages/Onboarding";
 import Index from "./pages/Index";
 import AppHome from "./pages/AppHome";
 import Library from "./pages/Library";
+import Lesson from "./pages/Lesson";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { ProfilePage } from "./components/ProfilePage";
@@ -104,6 +105,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Library />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/lesson/:videoId" 
+              element={
+                <ProtectedRoute>
+                  <Lesson />
                 </ProtectedRoute>
               } 
             />
