@@ -5,6 +5,7 @@ import { Mic, Play, Square, Check, ArrowRight, RotateCcw, Volume2, AlertCircle, 
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getLanguageSpeechCode } from "@/utils/languageUtils";
 
 interface SpeakingPhrase {
   phrase: string;
@@ -52,6 +53,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
   const [error, setError] = useState<string | null>(null);
   const [phrases, setPhrases] = useState<SpeakingPhrase[]>([]);
   const [transcript, setTranscript] = useState<string>("");
+  const [language, setLanguage] = useState<string>("english");
   
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -108,6 +110,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
         }
         
         setTranscript(transcriptData.transcript);
+        setLanguage(transcriptData.language || "english");
         
         // For beginners, extract key phrases
         if (!isSummaryMode) {
@@ -160,7 +163,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
 
   const playAudio = (text: string) => {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'es-ES';
+    utterance.lang = getLanguageSpeechCode(language);
     utterance.rate = 0.8;
     speechSynthesis.speak(utterance);
   };

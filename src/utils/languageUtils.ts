@@ -50,3 +50,14 @@ export const getLanguageDescription = (languageCode: string): string => {
 export const getLanguageByCode = (languageCode: string): Language | undefined => {
   return languages.find(lang => lang.code === languageCode);
 };
+
+// Map app language codes to Web Speech API BCP 47 language tags with correct regional accents
+export const getLanguageSpeechCode = (languageCode: string): string => {
+  const speechCodes: Record<string, string> = {
+    portuguese: 'pt-BR',  // Brazilian Portuguese
+    english: 'en-GB',     // British English
+    spanish: 'es-ES',     // Spanish from Spain
+    italian: 'it-IT',     // Italian
+  };
+  return speechCodes[languageCode.toLowerCase()] || 'en-GB';
+};

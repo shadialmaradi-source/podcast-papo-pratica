@@ -238,6 +238,7 @@ const FirstLesson = () => {
           level={userLevel} 
           phrases={content.speakingPhrases}
           videoTranscript={content.video.transcript}
+          language="spanish"
           onComplete={handleSpeakingComplete} 
         />
       );
