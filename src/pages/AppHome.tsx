@@ -75,9 +75,18 @@ export default function AppHome() {
 
       if (error) throw error;
 
-      toast.success("Video added! Processing will complete shortly.");
-      setVideoUrl("");
-      setImportDialogOpen(false);
+      const videoDbId = data?.video?.id;
+      
+      if (videoDbId) {
+        setVideoUrl("");
+        setImportDialogOpen(false);
+        toast.success("Video ready! Starting your lesson...");
+        navigate(`/lesson/${videoDbId}`);
+      } else {
+        toast.success("Video added! Check the library when processing completes.");
+        setVideoUrl("");
+        setImportDialogOpen(false);
+      }
     } catch (error) {
       console.error("Error importing video:", error);
       toast.error("Failed to import video. Please check the URL and try again.");
