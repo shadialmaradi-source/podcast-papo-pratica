@@ -964,6 +964,47 @@ export type Database = {
           },
         ]
       }
+      youtube_flashcards: {
+        Row: {
+          created_at: string
+          difficulty: string
+          id: string
+          order_index: number
+          phrase: string
+          translation: string
+          video_id: string
+          why: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          order_index?: number
+          phrase: string
+          translation: string
+          video_id: string
+          why: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          order_index?: number
+          phrase?: string
+          translation?: string
+          video_id?: string
+          why?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_flashcards_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       youtube_transcripts: {
         Row: {
           confidence_score: number | null
