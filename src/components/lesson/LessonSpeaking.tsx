@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Play, Square, Check, ArrowRight, RotateCcw, Volume2, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { getLanguageSpeechCode } from "@/utils/languageUtils";
 
 interface SpeakingPhrase {
   phrase: string;
@@ -44,9 +45,10 @@ interface LessonSpeakingProps {
   phrases: SpeakingPhrase[];
   videoTranscript: string;
   onComplete: () => void;
+  language?: string;
 }
 
-const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete }: LessonSpeakingProps) => {
+const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language = "spanish" }: LessonSpeakingProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [hasRecorded, setHasRecorded] = useState<Record<number, boolean>>({});
@@ -87,7 +89,7 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete }: LessonS
 
   const playAudio = (text: string) => {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'es-ES';
+    utterance.lang = getLanguageSpeechCode(language);
     utterance.rate = 0.8;
     speechSynthesis.speak(utterance);
   };
