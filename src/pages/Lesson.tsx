@@ -3,8 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
 import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
+import VideoFlashcards from "@/components/VideoFlashcards";
 
-type LessonState = "select-level" | "exercises" | "speaking" | "complete";
+type LessonState = "select-level" | "exercises" | "speaking" | "flashcards" | "complete";
 
 export default function Lesson() {
   const { videoId } = useParams<{ videoId: string }>();
@@ -38,6 +39,10 @@ export default function Lesson() {
   };
 
   const handleSpeakingComplete = () => {
+    setLessonState("flashcards");
+  };
+
+  const handleFlashcardsComplete = () => {
     navigate("/library");
   };
 
@@ -73,6 +78,15 @@ export default function Lesson() {
           level={selectedLevel}
           onComplete={handleSpeakingComplete}
           onBack={() => setLessonState("exercises")}
+        />
+      )}
+
+      {lessonState === "flashcards" && (
+        <VideoFlashcards
+          videoId={videoId}
+          level={selectedLevel}
+          onComplete={handleFlashcardsComplete}
+          onBack={() => setLessonState("speaking")}
         />
       )}
     </div>
