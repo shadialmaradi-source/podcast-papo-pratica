@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import { toast } from "sonner";
+import { saveViewedFlashcards } from "@/services/flashcardService";
 
 interface VideoFlashcardsProps {
   videoId: string;
@@ -68,6 +69,10 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
 
         if (data?.flashcards && data.flashcards.length > 0) {
           setFlashcards(data.flashcards);
+          
+          // Save flashcards to user's repository
+          await saveViewedFlashcards(session.user.id, videoId);
+          
           if (data.cached) {
             console.log('Loaded cached flashcards');
           } else {
