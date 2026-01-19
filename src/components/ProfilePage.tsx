@@ -30,11 +30,14 @@ import {
   Check,
   X,
   Youtube,
-  Library
+  Library,
+  Layers
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { EngagementFeatures } from "./EngagementFeatures";
 import { PersonalizedRecommendations } from "./PersonalizedRecommendations";
+import { FlashcardRepository } from "./FlashcardRepository";
+import { getFlashcardCount } from "@/services/flashcardService";
 
 interface UserProfile {
   id: string;
@@ -131,6 +134,8 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
   const [userVideoCount, setUserVideoCount] = useState(0);
   const [availableVideoCount, setAvailableVideoCount] = useState(0);
   const [inProgressExercise, setInProgressExercise] = useState<ExerciseProgress | null>(null);
+  const [flashcardCount, setFlashcardCount] = useState(0);
+  const [showFlashcardRepository, setShowFlashcardRepository] = useState(false);
 
   const languageName = selectedLanguage === 'portuguese' ? 'Portoghese' : 
                        selectedLanguage === 'italian' ? 'Italiano' : 
@@ -150,8 +155,15 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
     if (user && selectedLanguage) {
       loadVideoCounts();
       loadInProgressExercise();
+      loadFlashcardCount();
     }
   }, [user, selectedLanguage]);
+
+  const loadFlashcardCount = async () => {
+    if (!user) return;
+    const count = await getFlashcardCount(user.id);
+    setFlashcardCount(count);
+  };
 
   const loadInProgressExercise = async () => {
     if (!user || !selectedLanguage) return;
@@ -500,6 +512,19 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
     );
   }
 
+  // Show Flashcard Repository if active
+  if (showFlashcardRepository && user) {
+    return (
+      <FlashcardRepository 
+        userId={user.id} 
+        onClose={() => {
+          setShowFlashcardRepository(false);
+          loadFlashcardCount(); // Refresh count after studying
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
       <div className="container mx-auto px-4 py-8">
@@ -731,12 +756,61 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
 
         {/* Tabs for different sections */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="flashcards" className="gap-1">
+              <Layers className="h-4 w-4" />
+              <span className="hidden sm:inline">Flashcards</span>
+            </TabsTrigger>
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="progress">Progress</TabsTrigger>
             <TabsTrigger value="achievements">Achievements</TabsTrigger>
           </TabsList>
+
+          {/* Flashcards Tab */}
+          <TabsContent value="flashcards" className="space-y-6">
+            <Card className="border-0 shadow-lg bg-gradient-to-r from-primary/10 to-secondary/10">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  My Flashcards
+                </CardTitle>
+                <CardDescription>
+                  All vocabulary from your completed video lessons
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Layers className="w-10 h-10 text-primary" />
+                  </div>
+                  <div className="text-4xl font-bold text-primary mb-2">
+                    {flashcardCount}
+                  </div>
+                  <p className="text-muted-foreground mb-6">
+                    flashcards in your collection
+                  </p>
+                  <Button 
+                    onClick={() => setShowFlashcardRepository(true)} 
+                    disabled={flashcardCount === 0}
+                    size="lg"
+                    className="gap-2"
+                  >
+                    <BookOpen className="h-5 w-5" />
+                    {flashcardCount > 0 ? 'Start Study Session' : 'Complete a lesson to collect flashcards'}
+                  </Button>
+                </div>
+                
+                {flashcardCount === 0 && (
+                  <div className="mt-6 p-4 bg-muted/50 rounded-lg text-center">
+                    <p className="text-sm text-muted-foreground">
+                      💡 Tip: Complete video lessons to automatically build your flashcard collection!
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

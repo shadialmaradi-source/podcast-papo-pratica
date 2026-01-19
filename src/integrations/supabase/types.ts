@@ -765,6 +765,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_viewed_flashcards: {
+        Row: {
+          created_at: string
+          first_viewed_at: string
+          flashcard_id: string
+          id: string
+          is_mastered: boolean
+          last_reviewed_at: string
+          times_reviewed: number
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_viewed_at?: string
+          flashcard_id: string
+          id?: string
+          is_mastered?: boolean
+          last_reviewed_at?: string
+          times_reviewed?: number
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          first_viewed_at?: string
+          flashcard_id?: string
+          id?: string
+          is_mastered?: boolean
+          last_reviewed_at?: string
+          times_reviewed?: number
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_viewed_flashcards_flashcard_id_fkey"
+            columns: ["flashcard_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_flashcards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_viewed_flashcards_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_vocabulary_progress: {
         Row: {
           created_at: string
