@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, RotateCw, Check, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getLanguageFlag } from "@/utils/languageUtils";
 
 interface Flashcard {
   phrase: string;
@@ -13,9 +14,10 @@ interface Flashcard {
 interface LessonFlashcardsProps {
   flashcards: Flashcard[];
   onComplete: () => void;
+  language?: string;
 }
 
-const LessonFlashcards = ({ flashcards, onComplete }: LessonFlashcardsProps) => {
+const LessonFlashcards = ({ flashcards, onComplete, language = "english" }: LessonFlashcardsProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [learned, setLearned] = useState<Record<number, boolean>>({});
@@ -103,10 +105,10 @@ const LessonFlashcards = ({ flashcards, onComplete }: LessonFlashcardsProps) => 
                     style={{ transformStyle: 'preserve-3d' }}
                   >
                     {!isFlipped ? (
-                      // Front - Spanish phrase
+                      // Front - Target language phrase
                       <div className="space-y-6">
                         <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">🇪🇸</span>
+                          <span className="text-2xl">{getLanguageFlag(language)}</span>
                         </div>
                         <p className="text-2xl md:text-3xl font-bold text-foreground">
                           {currentCard.phrase}

@@ -23,6 +23,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<string>("english");
 
   useEffect(() => {
     const fetchFlashcards = async () => {
@@ -69,6 +70,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
 
         if (data?.flashcards && data.flashcards.length > 0) {
           setFlashcards(data.flashcards);
+          setLanguage(transcriptData.language || 'english');
           
           // Save flashcards to user's repository
           await saveViewedFlashcards(session.user.id, videoId);
@@ -149,7 +151,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
     );
   }
 
-  return <LessonFlashcards flashcards={flashcards} onComplete={onComplete} />;
+  return <LessonFlashcards flashcards={flashcards} onComplete={onComplete} language={language} />;
 }
 
 export default VideoFlashcards;
