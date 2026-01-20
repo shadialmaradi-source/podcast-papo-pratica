@@ -755,7 +755,16 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
         )}
 
         {/* Tabs for different sections */}
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs 
+          defaultValue="overview" 
+          className="space-y-6"
+          onValueChange={(value) => {
+            // Refresh flashcard count when switching to flashcards tab
+            if (value === 'flashcards') {
+              loadFlashcardCount();
+            }
+          }}
+        >
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="flashcards" className="gap-1">
