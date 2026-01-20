@@ -26,6 +26,7 @@ interface UserFlashcard {
   why: string;
   video_title: string;
   video_thumbnail: string | null;
+  video_language: string;
 }
 
 interface VideoGroup {
@@ -42,6 +43,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   const [filter, setFilter] = useState<string>("all");
   const [videoGroups, setVideoGroups] = useState<VideoGroup[]>([]);
   const [studyFlashcards, setStudyFlashcards] = useState<{ phrase: string; translation: string; why: string }[]>([]);
+  const [studyLanguage, setStudyLanguage] = useState<string>("english");
 
   useEffect(() => {
     loadFlashcards();
@@ -63,7 +65,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
           times_reviewed,
           is_mastered,
           youtube_flashcards!inner(phrase, translation, why),
-          youtube_videos!inner(title, thumbnail_url)
+          youtube_videos!inner(title, thumbnail_url, language)
         `)
         .eq('user_id', userId)
         .order('last_reviewed_at', { ascending: false });
@@ -88,6 +90,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
           why: item.youtube_flashcards.why,
           video_title: item.youtube_videos.title,
           video_thumbnail: item.youtube_videos.thumbnail_url,
+          video_language: item.youtube_videos.language || 'english',
         }));
 
         setFlashcards(formattedFlashcards);
@@ -135,6 +138,10 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
       toast.error('No flashcards to study');
       return;
     }
+
+    // Determine the language from the first filtered card
+    const detectedLanguage = filtered[0]?.video_language || 'english';
+    setStudyLanguage(detectedLanguage);
 
     let cardsToStudy = filtered.map(fc => ({
       phrase: fc.phrase,
@@ -188,7 +195,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   }
 
   if (isStudying && studyFlashcards.length > 0) {
-    return <LessonFlashcards flashcards={studyFlashcards} onComplete={handleStudyComplete} />;
+    return <LessonFlashcards flashcards={studyFlashcards} onComplete={handleStudyComplete} language={studyLanguage} />;
   }
 
   const filteredCount = getFilteredFlashcards().length;
