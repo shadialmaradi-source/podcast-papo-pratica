@@ -72,3 +72,6 @@ verify_jwt = false
 
 [functions.extract-speaking-phrases]
 verify_jwt = false
+
+[functions.backfill-video-durations]
+verify_jwt = false

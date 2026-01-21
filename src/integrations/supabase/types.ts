@@ -876,6 +876,38 @@ export type Database = {
           },
         ]
       }
+      video_topics: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_primary: boolean | null
+          topic: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          topic: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_primary?: boolean | null
+          topic?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_topics_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vocabulary_words: {
         Row: {
           created_at: string

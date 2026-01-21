@@ -11,13 +11,18 @@ import { AppHeader } from "@/components/AppHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
+interface VideoTopic {
+  topic: string;
+  is_primary: boolean;
+}
+
 interface Video {
   id: string;
   video_id: string;
   title: string;
   description: string | null;
   thumbnail_url: string | null;
-  category: string | null;
+  topics?: string[];
   duration: number | null;
   difficulty_level: string;
   is_curated: boolean;
@@ -56,22 +61,31 @@ export default function Library() {
     fetchUserLanguage();
   }, [user]);
 
-  // Fetch videos
+  // Fetch videos with their topics
   useEffect(() => {
     const fetchVideos = async () => {
       setLoading(true);
       
       try {
-        let query = supabase
+        // Fetch videos with their topics from the junction table
+        const { data, error } = await supabase
           .from("youtube_videos")
-          .select("*")
+          .select(`
+            *,
+            video_topics(topic, is_primary)
+          `)
           .eq("status", "completed")
           .eq("language", userLanguage);
 
-        const { data, error } = await query;
-
         if (error) throw error;
-        setVideos(data || []);
+        
+        // Transform data to include topics array
+        const videosWithTopics = (data || []).map(video => ({
+          ...video,
+          topics: video.video_topics?.map((vt: VideoTopic) => vt.topic) || []
+        }));
+        
+        setVideos(videosWithTopics);
       } catch (error) {
         console.error("Error fetching videos:", error);
       } finally {
@@ -91,18 +105,10 @@ export default function Library() {
       // Filter by curated/community
       const tabMatch = activeTab === 'curated' ? video.is_curated : !video.is_curated;
       
-      // Filter by topic
+      // Filter by topic (check if video has the selected topic)
       let topicMatch = true;
-      if (selectedTopic) {
-        const category = (video.category || '').toLowerCase();
-        const topicMap: Record<string, string[]> = {
-          'restaurant': ['restaurant', 'food', 'dining'],
-          'travel': ['travel', 'viaggi', 'tourism'],
-          'daily': ['daily', 'daily life', 'everyday'],
-          'work': ['work', 'business', 'office'],
-          'culture': ['culture', 'cultura', 'art'],
-        };
-        topicMatch = topicMap[selectedTopic]?.some(t => category.includes(t)) || category.includes(selectedTopic);
+      if (selectedTopic && video.topics) {
+        topicMatch = video.topics.some(t => t.toLowerCase() === selectedTopic.toLowerCase());
       }
       
       // Filter by length
@@ -216,7 +222,7 @@ export default function Library() {
                       id={video.id}
                       title={video.title}
                       thumbnailUrl={video.thumbnail_url}
-                      category={video.category}
+                      topics={video.topics}
                       duration={video.duration}
                       difficultyLevel={video.difficulty_level}
                       isCurated={video.is_curated}

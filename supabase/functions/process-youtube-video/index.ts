@@ -290,9 +290,9 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
 
     console.log('Saved transcript for video:', video.id, 'with language:', correctLanguage);
 
-    // Extract theme from transcript using AI
-    const theme = await extractThemeFromTranscript(transcript, video.id);
-    console.log('Extracted theme:', theme);
+    // Extract topics from transcript using AI (1-3 topics)
+    const topics = await extractTopicsFromTranscript(supabase, transcript, video.id);
+    console.log('Extracted topics:', topics);
 
     // Update video with theme and status to completed (no exercise generation here)
     // Exercises will be generated on-demand when user selects a difficulty level
@@ -319,18 +319,19 @@ async function processVideoInBackground(supabase: any, video: any, videoId: stri
   }
 }
 
-async function extractThemeFromTranscript(transcript: string, videoId: string): Promise<string> {
+// Expanded topic list with English identifiers
+const TOPICS = [
+  'technology', 'business', 'travel', 'culture', 'food',
+  'lifestyle', 'music', 'sport', 'science', 'history',
+  'language', 'art', 'conversation', 'entertainment', 'health'
+];
+
+async function extractTopicsFromTranscript(supabase: any, transcript: string, videoId: string): Promise<string[]> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   
-  const THEMES = [
-    'Cultura', 'Viaggi', 'Sport', 'Cucina', 'Musica',
-    'Scienza', 'Storia', 'Grammatica', 'Conversazione', 
-    'Business', 'Tecnologia', 'Arte', 'Lifestyle'
-  ];
-  
   if (!LOVABLE_API_KEY) {
-    console.log('No LOVABLE_API_KEY, defaulting to Cultura');
-    return 'Cultura';
+    console.log('No LOVABLE_API_KEY, defaulting to culture');
+    return ['culture'];
   }
 
   try {
@@ -346,32 +347,75 @@ async function extractThemeFromTranscript(transcript: string, videoId: string): 
         model: 'google/gemini-2.5-flash',
         messages: [{
           role: 'user',
-          content: `Analizza questo transcript e assegna UNO dei seguenti temi:
-${THEMES.join(', ')}
+          content: `Analyze this transcript and assign 1-3 relevant topics from this list:
+${TOPICS.join(', ')}
+
+Return ONLY a JSON array with 1-3 topics, ordered by relevance (most relevant first).
+Example: ["technology", "business"]
 
 Transcript:
 ${truncatedTranscript}
 
-Rispondi SOLO con il nome del tema.`
+Return ONLY the JSON array, nothing else.`
         }]
       })
     });
 
     if (!response.ok) {
-      return 'Cultura';
+      return ['culture'];
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content?.trim() || '';
     
-    const matchedTheme = THEMES.find(t => 
-      content.toLowerCase().includes(t.toLowerCase())
-    ) || 'Cultura';
+    // Parse JSON array from response
+    let topics: string[] = [];
+    try {
+      // Clean response - remove markdown code blocks if present
+      const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
+      topics = JSON.parse(cleaned);
+      
+      // Validate topics are from our list and limit to 3
+      topics = topics
+        .filter((t: string) => TOPICS.includes(t.toLowerCase()))
+        .slice(0, 3)
+        .map((t: string) => t.toLowerCase());
+    } catch (parseError) {
+      // Fallback: try to find topics in the response text
+      topics = TOPICS.filter(t => content.toLowerCase().includes(t)).slice(0, 3);
+    }
 
-    return matchedTheme;
+    if (topics.length === 0) {
+      topics = ['culture'];
+    }
+
+    console.log('Extracted topics:', topics);
+
+    // Save topics to video_topics table
+    const topicInserts = topics.map((topic, index) => ({
+      video_id: videoId,
+      topic,
+      is_primary: index === 0
+    }));
+
+    const { error: topicsError } = await supabase
+      .from('video_topics')
+      .insert(topicInserts);
+
+    if (topicsError) {
+      console.error('Error saving topics:', topicsError);
+    }
+
+    // Also update the category field with primary topic for backward compatibility
+    await supabase
+      .from('youtube_videos')
+      .update({ category: topics[0] })
+      .eq('id', videoId);
+
+    return topics;
   } catch (error) {
-    console.error('Theme extraction error:', error);
-    return 'Cultura';
+    console.error('Topic extraction error:', error);
+    return ['culture'];
   }
 }
 

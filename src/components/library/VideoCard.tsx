@@ -1,4 +1,4 @@
-import { Play, Clock, Tag } from "lucide-react";
+import { Play, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,7 @@ interface VideoCardProps {
   id: string;
   title: string;
   thumbnailUrl: string | null;
-  category: string | null;
+  topics?: string[];
   duration: number | null;
   difficultyLevel: string;
   isCurated: boolean;
@@ -15,54 +15,75 @@ interface VideoCardProps {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (!seconds) return "0:00";
+  if (!seconds || seconds === 0) return "";
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function formatCategory(category: string | null): string {
-  if (!category) return "General";
-  // Normalize category names
-  const categoryMap: Record<string, string> = {
-    'restaurant': 'Restaurant',
+function formatTopic(topic: string): string {
+  const topicLabels: Record<string, string> = {
+    'technology': 'Technology',
+    'business': 'Business',
     'travel': 'Travel',
-    'viaggi': 'Travel',
-    'daily': 'Daily Life',
-    'daily life': 'Daily Life',
-    'work': 'Work',
-    'business': 'Work',
-    'cultura': 'Culture',
     'culture': 'Culture',
+    'food': 'Food',
+    'lifestyle': 'Lifestyle',
+    'music': 'Music',
+    'sport': 'Sport',
+    'science': 'Science',
+    'history': 'History',
+    'language': 'Language',
+    'art': 'Art',
+    'conversation': 'Conversation',
+    'entertainment': 'Entertainment',
+    'health': 'Health',
+    // Legacy mappings
+    'cucina': 'Food',
+    'viaggi': 'Travel',
+    'cultura': 'Culture',
+    'tecnologia': 'Technology',
   };
-  return categoryMap[category.toLowerCase()] || category;
+  return topicLabels[topic.toLowerCase()] || topic.charAt(0).toUpperCase() + topic.slice(1);
 }
 
-function getCategoryIcon(category: string | null): string {
-  if (!category) return "📚";
+function getTopicIcon(topic: string): string {
   const iconMap: Record<string, string> = {
-    'restaurant': '🍽️',
-    'travel': '✈️',
-    'viaggi': '✈️',
-    'daily': '🏠',
-    'daily life': '🏠',
-    'work': '💼',
+    'technology': '💻',
     'business': '💼',
-    'cultura': '🎭',
+    'travel': '✈️',
     'culture': '🎭',
+    'food': '🍽️',
+    'lifestyle': '🏠',
+    'music': '🎵',
+    'sport': '⚽',
+    'science': '🔬',
+    'history': '📜',
+    'language': '📚',
+    'art': '🎨',
+    'conversation': '💬',
+    'entertainment': '🎬',
+    'health': '❤️',
+    // Legacy mappings
+    'cucina': '🍽️',
+    'viaggi': '✈️',
+    'cultura': '🎭',
+    'tecnologia': '💻',
   };
-  return iconMap[category.toLowerCase()] || '📚';
+  return iconMap[topic.toLowerCase()] || '📚';
 }
 
 export function VideoCard({
   title,
   thumbnailUrl,
-  category,
+  topics = [],
   duration,
   difficultyLevel,
   isCurated,
   onClick,
 }: VideoCardProps) {
+  const durationDisplay = formatDuration(duration);
+  
   return (
     <Card
       className={cn(
@@ -98,6 +119,13 @@ export function VideoCard({
             ListenFlow
           </Badge>
         )}
+
+        {/* Duration badge */}
+        {durationDisplay && (
+          <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+            {durationDisplay}
+          </div>
+        )}
       </div>
 
       <CardContent className="p-3">
@@ -108,14 +136,19 @@ export function VideoCard({
 
         {/* Meta info */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-          <span className="flex items-center gap-1">
-            {getCategoryIcon(category)} {formatCategory(category)}
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {formatDuration(duration)}
-          </span>
-          <Badge variant="outline" className="text-xs py-0 px-1.5 capitalize">
+          {/* Topics (up to 3) */}
+          {topics.slice(0, 3).map((topic, index) => (
+            <span key={topic} className="flex items-center gap-0.5">
+              {getTopicIcon(topic)} {formatTopic(topic)}
+              {index < Math.min(topics.length, 3) - 1 && <span className="ml-1">•</span>}
+            </span>
+          ))}
+          {topics.length === 0 && (
+            <span className="flex items-center gap-1">
+              📚 General
+            </span>
+          )}
+          <Badge variant="outline" className="text-xs py-0 px-1.5 capitalize ml-auto">
             {difficultyLevel}
           </Badge>
         </div>

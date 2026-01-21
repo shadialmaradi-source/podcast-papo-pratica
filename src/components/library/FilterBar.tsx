@@ -18,11 +18,19 @@ interface FilterBarProps {
 
 const topics = [
   { id: null, label: 'All Topics' },
-  { id: 'restaurant', label: 'Restaurant' },
-  { id: 'travel', label: 'Travel' },
-  { id: 'daily', label: 'Daily Life' },
-  { id: 'work', label: 'Work' },
-  { id: 'culture', label: 'Culture' },
+  { id: 'technology', label: '💻 Technology' },
+  { id: 'business', label: '💼 Business' },
+  { id: 'travel', label: '✈️ Travel' },
+  { id: 'culture', label: '🎭 Culture' },
+  { id: 'food', label: '🍽️ Food' },
+  { id: 'lifestyle', label: '🏠 Lifestyle' },
+  { id: 'music', label: '🎵 Music' },
+  { id: 'sport', label: '⚽ Sport' },
+  { id: 'science', label: '🔬 Science' },
+  { id: 'history', label: '📜 History' },
+  { id: 'language', label: '📚 Language' },
+  { id: 'entertainment', label: '🎬 Entertainment' },
+  { id: 'health', label: '❤️ Health' },
 ];
 
 const lengths = [
