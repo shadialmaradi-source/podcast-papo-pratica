@@ -1,9 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Maximum audio size: ~7.5MB base64 (approximately 5MB raw)
+const MAX_AUDIO_SIZE = 10_000_000;
+// Rate limit: max requests per hour
+const MAX_REQUESTS_PER_HOUR = 10;
 
 interface BeginnerResult {
   phrase: string;
@@ -37,6 +43,46 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate limiting check
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count, error: countError } = await supabase
+      .from('user_activity_history')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('activity_type', 'speech_analysis')
+      .gte('created_at', oneHourAgo);
+
+    if (!countError && count !== null && count >= MAX_REQUESTS_PER_HOUR) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Maximum 10 speech analyses per hour. Try again later.' }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { audioBase64, mode, phrases, videoTranscript } = await req.json();
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -46,6 +92,11 @@ serve(async (req) => {
 
     if (!audioBase64) {
       throw new Error("No audio data provided");
+    }
+
+    // Validate audio size
+    if (audioBase64.length > MAX_AUDIO_SIZE) {
+      throw new Error("Audio file too large. Maximum 5MB.");
     }
 
     // Convert base64 to binary for Whisper API
@@ -238,6 +289,13 @@ Be specific and actionable with feedback. The "toReach100" items should be concr
         toReach100: analysis.toReach100 || [],
       };
     }
+
+    // Log activity for rate limiting and analytics
+    await supabase.from('user_activity_history').insert({
+      user_id: user.id,
+      activity_type: 'speech_analysis',
+      activity_data: { mode, audio_size: audioBase64.length }
+    });
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
