@@ -7,7 +7,7 @@ interface Video {
   id: string;
   title: string;
   thumbnail_url: string | null;
-  category: string | null;
+  topics?: string[];
   duration: number | null;
   difficulty_level: string;
   is_curated: boolean;
@@ -73,7 +73,7 @@ export function FeaturedRow({ videos, onVideoClick }: FeaturedRowProps) {
                 id={video.id}
                 title={video.title}
                 thumbnailUrl={video.thumbnail_url}
-                category={video.category}
+                topics={video.topics}
                 duration={video.duration}
                 difficultyLevel={video.difficulty_level}
                 isCurated={video.is_curated}
