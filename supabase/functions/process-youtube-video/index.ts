@@ -38,7 +38,7 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { videoUrl, language = 'english', difficulty = 'beginner' } = await req.json();
+    const { videoUrl, language = 'english', difficulty = 'beginner', skipDurationCheck = false } = await req.json();
     
     if (!videoUrl) {
       throw new Error('Video URL is required');
@@ -47,6 +47,22 @@ serve(async (req) => {
     const videoId = extractVideoId(videoUrl);
     if (!videoId) {
       throw new Error('Invalid YouTube URL');
+    }
+
+    // Fetch video duration and enforce 10-minute limit for user uploads
+    const MAX_DURATION_SECONDS = 600; // 10 minutes
+    let videoDuration = 0;
+    
+    if (!skipDurationCheck) {
+      videoDuration = await getVideoDuration(videoId);
+      console.log('Video duration:', videoDuration, 'seconds');
+      
+      if (videoDuration > MAX_DURATION_SECONDS) {
+        const durationMins = Math.ceil(videoDuration / 60);
+        throw new Error(
+          `Video is ${durationMins} minutes long. Maximum allowed is 10 minutes. Please choose a shorter video.`
+        );
+      }
     }
 
     const userId = user.id;
@@ -102,6 +118,7 @@ serve(async (req) => {
         title: videoInfo.title,
         description: videoInfo.description,
         thumbnail_url: videoInfo.thumbnail,
+        duration: videoDuration > 0 ? videoDuration : null,
         language,
         difficulty_level: difficulty,
         status: 'processing',
@@ -174,6 +191,39 @@ async function getVideoInfo(videoId: string): Promise<VideoInfo> {
   } catch (error) {
     console.error('Error fetching video info:', error);
     throw new Error('Could not fetch video information.');
+  }
+}
+
+async function getVideoDuration(videoId: string): Promise<number> {
+  const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY');
+  
+  if (!SUPADATA_API_KEY) {
+    console.log('SUPADATA_API_KEY not configured, skipping duration check');
+    return 0;
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.supadata.ai/v1/youtube/video?videoId=${videoId}`,
+      {
+        headers: {
+          'x-api-key': SUPADATA_API_KEY
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Failed to fetch video metadata:', response.status);
+      return 0;
+    }
+
+    const data = await response.json();
+    const duration = data.lengthSeconds || data.duration || 0;
+    console.log('Supadata video metadata:', { duration, title: data.title });
+    return duration;
+  } catch (error) {
+    console.error('Error fetching video duration:', error);
+    return 0;
   }
 }
 
