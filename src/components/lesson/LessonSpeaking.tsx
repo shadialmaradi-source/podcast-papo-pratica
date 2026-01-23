@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Play, Square, Check, ArrowRight, RotateCcw, Volume2, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { getLanguageSpeechCode } from "@/utils/languageUtils";
 
 interface SpeakingPhrase {
@@ -48,6 +50,25 @@ interface LessonSpeakingProps {
   language?: string;
 }
 
+// Anonymous session tracking utilities
+const getAnonymousSessionId = (): string => {
+  let sessionId = localStorage.getItem('anonymous_speech_session');
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem('anonymous_speech_session', sessionId);
+  }
+  return sessionId;
+};
+
+const getAnonymousAttempts = (): number => {
+  return parseInt(localStorage.getItem('anonymous_speech_attempts') || '0');
+};
+
+const incrementAnonymousAttempts = () => {
+  const current = getAnonymousAttempts();
+  localStorage.setItem('anonymous_speech_attempts', String(current + 1));
+};
+
 const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language = "spanish" }: LessonSpeakingProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -55,6 +76,11 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
   const [isSummaryMode, setIsSummaryMode] = useState(false);
   const [summaryTime, setSummaryTime] = useState(30);
   const [summaryRecorded, setSummaryRecorded] = useState(false);
+  
+  // Auth and limits
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [anonymousAttempts, setAnonymousAttempts] = useState(getAnonymousAttempts());
+  const [limitReached, setLimitReached] = useState(false);
   
   // New states for AI analysis
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -67,6 +93,18 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isAdvancedLevel = level === 'intermediate' || level === 'advanced';
+  const maxFreeAttempts = 2;
+  const remainingAttempts = maxFreeAttempts - anonymousAttempts;
+
+  // Check authentication status
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+      if (!session && anonymousAttempts >= maxFreeAttempts) {
+        setLimitReached(true);
+      }
+    });
+  }, [anonymousAttempts]);
 
   useEffect(() => {
     if (isAdvancedLevel) {
@@ -113,34 +151,49 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
 
     try {
       const audioBase64 = await blobToBase64(audioBlob);
+      
+      // Get session for auth header
+      const { data: { session } } = await supabase.auth.getSession();
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speech-analyze`, {
+      const response = await fetch(`https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/speech-analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          'Authorization': `Bearer ${session?.access_token || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlenB6aWhudmJsempyZHpnaW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODExNjksImV4cCI6MjA3MTk1NzE2OX0.LKxauwcMH0HaT-DeoBNG5mH7rneI8OiyfSQGrYG1R4M'}`,
         },
         body: JSON.stringify({
           audioBase64,
           mode: isSummaryMode ? 'summary' : 'beginner',
           phrases: isSummaryMode ? undefined : phrases.map(p => p.phrase),
           videoTranscript: isSummaryMode ? videoTranscript : undefined,
+          sessionId: !session ? getAnonymousSessionId() : undefined,
         }),
       });
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        if (response.status === 403 && errorData.limitReached) {
+          setLimitReached(true);
+          throw new Error('Free tries exhausted. Sign up for unlimited speaking practice!');
+        }
         if (response.status === 429) {
           throw new Error('Too many requests. Please wait a moment and try again.');
         }
         if (response.status === 402) {
           throw new Error('Service temporarily unavailable. Please try again later.');
         }
-        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Analysis failed. Please try again.');
       }
 
       const result: AnalysisResult = await response.json();
       setAnalysisResults(result);
+
+      // Update local anonymous attempts counter
+      if (!session) {
+        incrementAnonymousAttempts();
+        setAnonymousAttempts(prev => prev + 1);
+      }
 
       // For beginner mode, update individual phrase results with transcription
       if (result.mode === 'beginner' && result.results && result.results[currentIndex]) {
@@ -168,6 +221,13 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
   };
 
   const startRecording = async () => {
+    // Check anonymous limit before starting
+    if (!isAuthenticated && anonymousAttempts >= maxFreeAttempts) {
+      setLimitReached(true);
+      toast.error('Sign up to continue practicing speaking!');
+      return;
+    }
+
     try {
       setError(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -205,14 +265,16 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
       mediaRecorder.start();
       setIsRecording(true);
       
-      // Auto-stop for beginner mode after 5 seconds
-      if (!isSummaryMode) {
-        setTimeout(() => {
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            stopRecording();
-          }
-        }, 5000);
-      }
+      // Determine auto-stop duration:
+      // - 30 seconds for authenticated users in summary mode
+      // - 5 seconds for everyone else (beginner, anonymous, flashcard)
+      const maxDuration = (isAuthenticated && isSummaryMode) ? 30000 : 5000;
+      
+      setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          stopRecording();
+        }
+      }, maxDuration);
     } catch (err) {
       console.error('Error accessing microphone:', err);
       setError('Microphone access denied. Please enable microphone permissions in your browser settings.');
@@ -259,6 +321,62 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
 
   const allPhrasesRecorded = Object.keys(hasRecorded).length === phrases.length;
 
+  // Signup prompt for anonymous users who hit the limit
+  const SignupPrompt = () => (
+    <Card className="border-primary/30 bg-primary/5">
+      <CardContent className="p-6 text-center space-y-4">
+        <h3 className="font-semibold text-lg text-foreground">Want more speaking practice?</h3>
+        <p className="text-muted-foreground">
+          Sign up free to unlock unlimited AI-powered feedback on your pronunciation
+        </p>
+        <Button asChild className="w-full sm:w-auto">
+          <Link to="/auth">Create Free Account</Link>
+        </Button>
+        <Button variant="ghost" onClick={onComplete} className="w-full sm:w-auto">
+          Continue without speaking
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  // Remaining tries indicator for anonymous users
+  const RemainingTriesIndicator = () => {
+    if (isAuthenticated || isAuthenticated === null) return null;
+    if (limitReached) return null;
+    
+    return (
+      <p className="text-sm text-muted-foreground text-center">
+        {remainingAttempts} free {remainingAttempts === 1 ? 'try' : 'tries'} remaining.{' '}
+        <Link to="/auth" className="text-primary hover:underline">
+          Sign up for unlimited practice
+        </Link>
+      </p>
+    );
+  };
+
+  // Show signup prompt if limit reached
+  if (limitReached && !isAuthenticated) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+      >
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Speaking Practice
+            </h1>
+            <p className="text-muted-foreground">
+              You've used your free tries
+            </p>
+          </div>
+          <SignupPrompt />
+        </div>
+      </motion.div>
+    );
+  }
+
   // Summary mode for intermediate/advanced
   if (isSummaryMode) {
     return (
@@ -277,12 +395,14 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
             </p>
           </div>
 
+          <RemainingTriesIndicator />
+
           <Card className="shadow-xl rounded-2xl border-0">
             <CardContent className="p-6 md:p-8 space-y-6">
               <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
                 <h3 className="font-semibold text-foreground mb-2">Your task:</h3>
                 <p className="text-muted-foreground">
-                  Summarize what happened in the video in 20-30 seconds using Spanish. 
+                  Summarize what happened in the video in {isAuthenticated ? '20-30' : '5'} seconds using Spanish. 
                   Include the main characters, setting, and key events.
                 </p>
               </div>
@@ -414,6 +534,7 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                       variant="outline"
                       onClick={handleRetry}
                       className="flex-1"
+                      disabled={!isAuthenticated && anonymousAttempts >= maxFreeAttempts}
                     >
                       <RotateCcw className="w-4 h-4 mr-2" />
                       Try Again
@@ -454,6 +575,8 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
           </p>
         </div>
 
+        <RemainingTriesIndicator />
+
         {/* Progress */}
         <div className="flex justify-center gap-2">
           {phrases.map((_, idx) => (
@@ -480,20 +603,20 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
             <Card className="shadow-xl rounded-2xl border-0">
               <CardContent className="p-6 md:p-8 space-y-6">
                 {/* Phrase display */}
-                <div className="text-center space-y-4">
-                  <div className="bg-primary/5 rounded-2xl p-6">
+                <div className="text-center space-y-3">
+                  <div className="bg-primary/5 rounded-2xl p-6 border border-primary/20">
                     <p className="text-2xl md:text-3xl font-bold text-foreground">
-                      "{currentPhrase.phrase}"
-                    </p>
-                    <p className="text-muted-foreground mt-2">
-                      {currentPhrase.translation}
+                      {currentPhrase.phrase}
                     </p>
                   </div>
-
-                  <div className="bg-card rounded-xl p-4 border">
+                  
+                  <p className="text-muted-foreground">
+                    {currentPhrase.translation}
+                  </p>
+                  
+                  <div className="bg-muted/50 rounded-lg p-3">
                     <p className="text-sm text-muted-foreground">
-                      <span className="text-primary font-medium">Why this matters:</span>{' '}
-                      {currentPhrase.why}
+                      <strong>Why learn this:</strong> {currentPhrase.why}
                     </p>
                   </div>
                 </div>
@@ -528,152 +651,133 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                   </motion.div>
                 )}
 
-                {/* Audio controls - hide when analyzing */}
-                {!isAnalyzing && (
-                  <div className="flex justify-center gap-4">
+                {/* Controls */}
+                {!hasRecorded[currentIndex] && !isAnalyzing && !error ? (
+                  <div className="flex flex-col items-center gap-4">
+                    {/* Listen button */}
                     <Button
                       variant="outline"
-                      size="lg"
                       onClick={() => playAudio(currentPhrase.phrase)}
-                      className="gap-2 rounded-full"
+                      className="w-full max-w-xs"
                     >
-                      <Volume2 className="w-5 h-5" />
+                      <Volume2 className="w-4 h-4 mr-2" />
                       Listen
                     </Button>
 
+                    {/* Recording button */}
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={isRecording ? stopRecording : startRecording}
-                      disabled={hasRecorded[currentIndex]}
-                      className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
+                      className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
                         isRecording 
                           ? 'bg-destructive animate-pulse' 
-                          : hasRecorded[currentIndex]
-                            ? 'bg-primary'
-                            : 'bg-primary hover:bg-primary/90'
-                      } ${hasRecorded[currentIndex] ? 'cursor-default' : 'cursor-pointer'}`}
+                          : 'bg-primary hover:bg-primary/90'
+                      }`}
                     >
                       {isRecording ? (
-                        <Square className="w-7 h-7 text-destructive-foreground" />
-                      ) : hasRecorded[currentIndex] ? (
-                        <Check className="w-7 h-7 text-primary-foreground" />
+                        <Square className="w-8 h-8 text-destructive-foreground" />
                       ) : (
-                        <Mic className="w-7 h-7 text-primary-foreground" />
+                        <Mic className="w-8 h-8 text-primary-foreground" />
                       )}
                     </motion.button>
-                  </div>
-                )}
 
-                {/* Phrase result feedback */}
-                {phraseResults[currentIndex] && !isAnalyzing && (
+                    <p className="text-sm text-muted-foreground">
+                      {isRecording ? 'Recording... (5 seconds)' : 'Tap to record your pronunciation'}
+                    </p>
+                  </div>
+                ) : phraseResults[currentIndex] && !isAnalyzing ? (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-center space-y-3"
+                    className="space-y-4"
                   >
-                    {/* What the user said */}
-                    {phraseResults[currentIndex].transcription && (
-                      <div className="bg-muted/50 rounded-lg p-3">
-                        <p className="text-xs text-muted-foreground mb-1">You said:</p>
-                        <p className="text-sm font-medium italic">"{phraseResults[currentIndex].transcription}"</p>
-                      </div>
-                    )}
-                    
-                    <div className={`flex items-center justify-center gap-2 ${
-                      phraseResults[currentIndex].match ? 'text-primary' : 'text-amber-500'
+                    {/* Result */}
+                    <div className={`rounded-xl p-4 text-center ${
+                      phraseResults[currentIndex].match
+                        ? 'bg-primary/10 border border-primary/20'
+                        : 'bg-amber-500/10 border border-amber-500/20'
                     }`}>
-                      {phraseResults[currentIndex].match ? (
-                        <Check className="w-6 h-6" />
-                      ) : (
-                        <RotateCcw className="w-6 h-6" />
-                      )}
-                      <span className="font-medium">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        {phraseResults[currentIndex].match ? (
+                          <Check className="w-6 h-6 text-primary" />
+                        ) : (
+                          <AlertCircle className="w-6 h-6 text-amber-500" />
+                        )}
+                        <span className="text-2xl font-bold">
+                          {phraseResults[currentIndex].confidence}%
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
                         {phraseResults[currentIndex].feedback}
-                      </span>
+                      </p>
+                      {phraseResults[currentIndex].transcription && (
+                        <p className="text-xs text-muted-foreground mt-2 italic">
+                          You said: "{phraseResults[currentIndex].transcription}"
+                        </p>
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Confidence: {phraseResults[currentIndex].confidence}%
-                    </p>
-                    
-                    {!phraseResults[currentIndex].match && (
+
+                    <div className="flex gap-3">
                       <Button
                         variant="outline"
-                        size="sm"
                         onClick={handleRetry}
-                        className="mt-2"
+                        className="flex-1"
+                        disabled={!isAuthenticated && anonymousAttempts >= maxFreeAttempts}
                       >
                         <RotateCcw className="w-4 h-4 mr-2" />
                         Try Again
                       </Button>
-                    )}
+                      <Button
+                        onClick={handleNext}
+                        className="flex-1 bg-primary hover:bg-primary/90"
+                      >
+                        {currentIndex < phrases.length - 1 ? 'Next Phrase' : 'Continue'}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
                   </motion.div>
-                )}
+                ) : null}
 
-                {/* Skip button - shown when not recording and no result yet */}
-                {!isAnalyzing && !phraseResults[currentIndex] && !isRecording && (
-                  <div className="text-center">
+                {/* Navigation for skipping */}
+                {!hasRecorded[currentIndex] && !isRecording && !isAnalyzing && (
+                  <div className="flex justify-between pt-4 border-t">
                     <Button
                       variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        // Mark as recorded and move to next
-                        setHasRecorded(prev => ({ ...prev, [currentIndex]: true }));
-                        if (currentIndex < phrases.length - 1) {
-                          setCurrentIndex(currentIndex + 1);
-                        }
-                      }}
-                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => currentIndex > 0 && setCurrentIndex(prev => prev - 1)}
+                      disabled={currentIndex === 0}
                     >
-                      Can't speak right now? Skip this phrase
+                      Previous
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={handleNext}
+                    >
+                      Skip
+                      <ArrowRight className="w-4 h-4 ml-1" />
                     </Button>
                   </div>
-                )}
-
-                {!isAnalyzing && !phraseResults[currentIndex] && (
-                  <p className="text-center text-sm text-muted-foreground">
-                    {isRecording ? 'Recording... tap to stop (5s max)' : 'Tap the microphone to record'}
-                  </p>
                 )}
               </CardContent>
             </Card>
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation */}
-        <div className="flex justify-between">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setCurrentIndex(prev => prev - 1);
-              setAnalysisResults(null);
-            }}
-            disabled={currentIndex === 0}
+        {/* Complete button when all done */}
+        {allPhrasesRecorded && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
           >
-            Previous
-          </Button>
-
-          {hasRecorded[currentIndex] && (
             <Button
-              onClick={handleNext}
-              className="bg-primary hover:bg-primary/90 gap-2"
-            >
-              {currentIndex === phrases.length - 1 ? 'Continue' : 'Next Phrase'}
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-
-        {allPhrasesRecorded && currentIndex === phrases.length - 1 && (
-          <div className="text-center">
-            <Button
-              onClick={onComplete}
               size="lg"
-              className="bg-primary hover:bg-primary/90 rounded-full px-8"
+              onClick={onComplete}
+              className="bg-primary hover:bg-primary/90 px-8"
             >
               Continue to Flashcards
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-          </div>
+          </motion.div>
         )}
       </div>
     </motion.div>
