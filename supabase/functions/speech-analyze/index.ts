@@ -6,10 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Maximum audio size: ~7.5MB base64 (approximately 5MB raw)
-const MAX_AUDIO_SIZE = 10_000_000;
-// Rate limit: max requests per hour
+// Audio size limits (base64 encoded)
+const MAX_AUDIO_SIZE_ANONYMOUS = 500_000;    // ~5 seconds for anonymous users
+const MAX_AUDIO_SIZE_BEGINNER = 500_000;     // ~5 seconds for beginner/flashcard mode
+const MAX_AUDIO_SIZE_SUMMARY = 3_000_000;    // ~30 seconds for summary mode
+
+// Rate limits
 const MAX_REQUESTS_PER_HOUR = 10;
+const MAX_ANONYMOUS_ATTEMPTS = 2;
 
 interface BeginnerResult {
   phrase: string;
@@ -43,60 +47,114 @@ serve(async (req) => {
   }
 
   try {
-    // Verify authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Rate limiting check
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count, error: countError } = await supabase
-      .from('user_activity_history')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('activity_type', 'speech_analysis')
-      .gte('created_at', oneHourAgo);
-
-    if (!countError && count !== null && count >= MAX_REQUESTS_PER_HOUR) {
-      return new Response(
-        JSON.stringify({ error: 'Rate limit exceeded. Maximum 10 speech analyses per hour. Try again later.' }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { audioBase64, mode, phrases, videoTranscript } = await req.json();
-
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not configured");
-    }
+    // Parse request body first to get mode and sessionId
+    const { audioBase64, mode, phrases, videoTranscript, sessionId } = await req.json();
 
     if (!audioBase64) {
       throw new Error("No audio data provided");
     }
 
-    // Validate audio size
-    if (audioBase64.length > MAX_AUDIO_SIZE) {
-      throw new Error("Audio file too large. Maximum 5MB.");
+    // Check authentication status
+    const authHeader = req.headers.get('Authorization');
+    let user = null;
+    let isAnonymous = true;
+
+    if (authHeader && authHeader !== `Bearer ${supabaseAnonKey}`) {
+      // Try to authenticate user
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      if (!userError && authUser) {
+        user = authUser;
+        isAnonymous = false;
+      }
+    }
+
+    // Create admin client for database operations
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    if (isAnonymous) {
+      // === ANONYMOUS USER HANDLING ===
+      
+      // Require sessionId for anonymous tracking
+      if (!sessionId) {
+        return new Response(
+          JSON.stringify({ error: 'Session ID required for anonymous usage' }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check session attempt count
+      const { data: sessionData } = await supabaseAdmin
+        .from('anonymous_speech_attempts')
+        .select('attempt_count')
+        .eq('session_id', sessionId)
+        .single();
+
+      if (sessionData && sessionData.attempt_count >= MAX_ANONYMOUS_ATTEMPTS) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Free tries exhausted. Sign up for unlimited speaking practice!',
+            limitReached: true,
+            attemptsUsed: sessionData.attempt_count
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Enforce 5-second limit for anonymous users
+      if (audioBase64.length > MAX_AUDIO_SIZE_ANONYMOUS) {
+        return new Response(
+          JSON.stringify({ error: 'Anonymous users can record up to 5 seconds. Sign up for more!' }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      // === AUTHENTICATED USER HANDLING ===
+      
+      // Determine limit based on mode
+      const maxSize = mode === 'summary' 
+        ? MAX_AUDIO_SIZE_SUMMARY   // 30 sec for summary mode
+        : MAX_AUDIO_SIZE_BEGINNER; // 5 sec for beginner/flashcard
+        
+      if (audioBase64.length > maxSize) {
+        const limit = mode === 'summary' ? '30 seconds' : '5 seconds';
+        return new Response(
+          JSON.stringify({ error: `Audio too long. Maximum ${limit} for this exercise type.` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Rate limiting check for authenticated users
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader! } }
+      });
+
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count, error: countError } = await supabase
+        .from('user_activity_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user!.id)
+        .eq('activity_type', 'speech_analysis')
+        .gte('created_at', oneHourAgo);
+
+      if (!countError && count !== null && count >= MAX_REQUESTS_PER_HOUR) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Maximum 10 speech analyses per hour. Try again later.' }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not configured");
     }
 
     // Convert base64 to binary for Whisper API
@@ -114,7 +172,7 @@ serve(async (req) => {
     formData.append("language", "es");
     formData.append("response_format", "text");
 
-    console.log("Sending audio to Whisper API...");
+    console.log(`Sending audio to Whisper API (anonymous: ${isAnonymous}, mode: ${mode})...`);
 
     // Call Whisper API for transcription
     const whisperResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
@@ -290,12 +348,43 @@ Be specific and actionable with feedback. The "toReach100" items should be concr
       };
     }
 
-    // Log activity for rate limiting and analytics
-    await supabase.from('user_activity_history').insert({
-      user_id: user.id,
-      activity_type: 'speech_analysis',
-      activity_data: { mode, audio_size: audioBase64.length }
-    });
+    // Track usage
+    if (isAnonymous) {
+      // Increment or create anonymous session counter
+      const { data: existingSession } = await supabaseAdmin
+        .from('anonymous_speech_attempts')
+        .select('attempt_count')
+        .eq('session_id', sessionId)
+        .single();
+
+      if (existingSession) {
+        await supabaseAdmin
+          .from('anonymous_speech_attempts')
+          .update({ 
+            attempt_count: existingSession.attempt_count + 1,
+            updated_at: new Date().toISOString()
+          })
+          .eq('session_id', sessionId);
+      } else {
+        await supabaseAdmin
+          .from('anonymous_speech_attempts')
+          .insert({ 
+            session_id: sessionId,
+            attempt_count: 1
+          });
+      }
+    } else {
+      // Log activity for authenticated users
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader! } }
+      });
+      
+      await supabase.from('user_activity_history').insert({
+        user_id: user!.id,
+        activity_type: 'speech_analysis',
+        activity_data: { mode, audio_size: audioBase64.length }
+      });
+    }
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
