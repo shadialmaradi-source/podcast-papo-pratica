@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,9 @@ import {
   Star,
   Loader2,
   BookOpen,
-  Brain
+  Brain,
+  Mic,
+  TrendingUp
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -31,7 +34,28 @@ interface YouTubeExercisesProps {
   onBack: () => void;
   onComplete: () => void;
   onContinueToSpeaking?: (videoId: string, level: string) => void;
+  onTryNextLevel?: (nextLevel: string) => void;
 }
+
+const getNextLevel = (currentLevel: string): string | null => {
+  const normalized = currentLevel.toLowerCase();
+  switch (normalized) {
+    case 'beginner':
+    case 'a1':
+    case 'a2':
+      return 'intermediate';
+    case 'intermediate':
+    case 'b1':
+    case 'b2':
+      return 'advanced';
+    case 'advanced':
+    case 'c1':
+    case 'c2':
+      return null;
+    default:
+      return null;
+  }
+};
 
 
 
@@ -77,7 +101,8 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
   }
 };
 
-export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete, onContinueToSpeaking }: YouTubeExercisesProps) {
+export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete, onContinueToSpeaking, onTryNextLevel }: YouTubeExercisesProps) {
+  const navigate = useNavigate();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [dragDropExercises, setDragDropExercises] = useState<Exercise[]>([]);
   const [regularExercises, setRegularExercises] = useState<Exercise[]>([]);
@@ -627,9 +652,11 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
             </div>
             
             <div>
-              <h3 className="text-xl font-semibold">Great Work!</h3>
+              <h3 className="text-xl font-semibold">
+                {percentage >= 80 ? "Excellent Work!" : percentage >= 60 ? "Great Progress!" : "Keep Practicing!"}
+              </h3>
               <p className="text-muted-foreground">
-                You scored {score} out of {maxScore} points
+                You completed {level} level exercises
               </p>
             </div>
 
@@ -653,7 +680,9 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
               </div>
             </div>
 
-            <div className="flex gap-3 justify-center">
+            {/* Smart Action Buttons */}
+            <div className="space-y-3 max-w-sm mx-auto">
+              {/* Primary: Continue to Speaking */}
               <Button 
                 onClick={() => {
                   if (onContinueToSpeaking) {
@@ -662,13 +691,34 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
                     onComplete();
                   }
                 }} 
-                className="gap-2"
+                className="w-full gap-2"
+                size="lg"
               >
-                <CheckCircle className="h-4 w-4" />
+                <Mic className="h-4 w-4" />
                 Continue to Speaking Practice
               </Button>
-              <Button variant="outline" onClick={() => window.location.reload()}>
-                Try Again
+
+              {/* Secondary: Try Next Level (if not advanced) */}
+              {getNextLevel(level) && onTryNextLevel && (
+                <Button 
+                  variant="outline"
+                  onClick={() => onTryNextLevel(getNextLevel(level)!)}
+                  className="w-full gap-2"
+                  size="lg"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Try {getNextLevel(level)!.charAt(0).toUpperCase() + getNextLevel(level)!.slice(1)} Level
+                </Button>
+              )}
+
+              {/* Tertiary: Explore Community Videos */}
+              <Button 
+                variant="ghost"
+                onClick={() => navigate("/library?tab=community")}
+                className="w-full gap-2"
+              >
+                <Youtube className="h-4 w-4" />
+                Explore Community Videos
               </Button>
             </div>
           </CardContent>
