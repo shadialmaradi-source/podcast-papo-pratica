@@ -661,22 +661,27 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
                     </div>
                   )}
 
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      variant="outline"
-                      onClick={handleRetry}
-                      className="flex-1"
-                      disabled={!isAuthenticated && anonymousAttempts >= maxFreeAttempts}
-                    >
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      Try Again
-                    </Button>
+                  {/* Step 2 Completion */}
+                  <div className="flex items-center justify-center gap-2 py-3 bg-primary/5 rounded-xl">
+                    <div className="w-3 h-3 rounded-full bg-primary" />
+                    <div className="w-3 h-3 rounded-full bg-primary" />
+                    <div className="w-3 h-3 rounded-full bg-muted" />
+                    <span className="text-sm text-muted-foreground ml-2">Step 2 of 3 complete</span>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
                     <Button
                       onClick={onComplete}
-                      className="flex-1 bg-primary hover:bg-primary/90"
+                      className="w-full gap-2 py-6 text-lg"
+                      size="lg"
                     >
-                      Continue
-                      <ArrowRight className="w-4 h-4 ml-2" />
+                      📚 Review Flashcards
+                      <ArrowRight className="w-5 h-5" />
+                    </Button>
+
+                    <Button variant="ghost" onClick={onBack} className="w-full text-sm text-muted-foreground">
+                      <ArrowLeft className="w-4 h-4 mr-1" />
+                      Back to Video
                     </Button>
                   </div>
                 </motion.div>
@@ -879,24 +884,51 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
                       )}
                     </div>
 
-                    <div className="flex gap-3">
-                      <Button
-                        variant="outline"
-                        onClick={handleRetry}
-                        className="flex-1"
-                        disabled={!isAuthenticated && anonymousAttempts >= maxFreeAttempts}
-                      >
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        Try Again
-                      </Button>
-                      <Button
-                        onClick={handleNext}
-                        className="flex-1 bg-primary hover:bg-primary/90"
-                      >
-                        {currentIndex < phrases.length - 1 ? 'Next Phrase' : 'Continue'}
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Button>
-                    </div>
+                    {/* Show completion screen on last phrase */}
+                    {currentIndex === phrases.length - 1 ? (
+                      <div className="space-y-4">
+                        {/* Step 2 Completion */}
+                        <div className="flex items-center justify-center gap-2 py-3 bg-primary/5 rounded-xl">
+                          <div className="w-3 h-3 rounded-full bg-primary" />
+                          <div className="w-3 h-3 rounded-full bg-primary" />
+                          <div className="w-3 h-3 rounded-full bg-muted" />
+                          <span className="text-sm text-muted-foreground ml-2">Step 2 of 3 complete</span>
+                        </div>
+
+                        <Button
+                          onClick={onComplete}
+                          className="w-full gap-2 py-6 text-lg"
+                          size="lg"
+                        >
+                          📚 Review Flashcards
+                          <ArrowRight className="w-5 h-5" />
+                        </Button>
+
+                        <Button variant="ghost" onClick={onBack} className="w-full text-sm text-muted-foreground">
+                          <ArrowLeft className="w-4 h-4 mr-1" />
+                          Back to Video
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-3">
+                        <Button
+                          variant="outline"
+                          onClick={handleRetry}
+                          className="flex-1"
+                          disabled={!isAuthenticated && anonymousAttempts >= maxFreeAttempts}
+                        >
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          Try Again
+                        </Button>
+                        <Button
+                          onClick={handleNext}
+                          className="flex-1"
+                        >
+                          Next Phrase
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+                      </div>
+                    )}
                   </motion.div>
                 ) : null}
 
