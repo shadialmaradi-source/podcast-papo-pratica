@@ -42,6 +42,11 @@ export default function Lesson() {
     setLessonState("flashcards");
   };
 
+  const handleTryNextLevel = (nextLevel: string) => {
+    setSelectedLevel(nextLevel);
+    setLessonState("exercises");
+  };
+
   const handleFlashcardsComplete = () => {
     navigate("/library");
   };
@@ -69,6 +74,7 @@ export default function Lesson() {
           onBack={handleBack}
           onComplete={handleExercisesComplete}
           onContinueToSpeaking={handleContinueToSpeaking}
+          onTryNextLevel={handleTryNextLevel}
         />
       )}
 
