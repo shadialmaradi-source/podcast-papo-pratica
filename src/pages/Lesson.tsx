@@ -4,14 +4,28 @@ import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
 import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
 import VideoFlashcards from "@/components/VideoFlashcards";
+import LessonCompleteScreen from "@/components/lesson/LessonCompleteScreen";
 
 type LessonState = "select-level" | "exercises" | "speaking" | "flashcards" | "complete";
+
+interface LessonStats {
+  exerciseScore: number;
+  totalExercises: number;
+  exerciseAccuracy: number;
+  flashcardsCount: number;
+}
 
 export default function Lesson() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
   const [lessonState, setLessonState] = useState<LessonState>("select-level");
   const [selectedLevel, setSelectedLevel] = useState("");
+  const [lessonStats, setLessonStats] = useState<LessonStats>({
+    exerciseScore: 0,
+    totalExercises: 10,
+    exerciseAccuracy: 0,
+    flashcardsCount: 5,
+  });
 
   const handleBack = () => {
     if (lessonState === "select-level") {
@@ -21,6 +35,8 @@ export default function Lesson() {
       setSelectedLevel("");
     } else if (lessonState === "speaking") {
       setLessonState("exercises");
+    } else if (lessonState === "flashcards") {
+      setLessonState("speaking");
     }
   };
 
@@ -47,7 +63,29 @@ export default function Lesson() {
     setLessonState("exercises");
   };
 
-  const handleFlashcardsComplete = () => {
+  const handleFlashcardsComplete = (count?: number) => {
+    // Update lesson stats with flashcard count
+    setLessonStats(prev => ({
+      ...prev,
+      flashcardsCount: count || 5,
+    }));
+    setLessonState("complete");
+  };
+
+  const handleNextVideo = () => {
+    navigate("/library");
+  };
+
+  const handleViewProgress = () => {
+    navigate("/profile");
+  };
+
+  const handleRetry = () => {
+    setLessonState("select-level");
+    setSelectedLevel("");
+  };
+
+  const handleBackToLibrary = () => {
     navigate("/library");
   };
 
@@ -91,8 +129,21 @@ export default function Lesson() {
         <VideoFlashcards
           videoId={videoId}
           level={selectedLevel}
-          onComplete={handleFlashcardsComplete}
+          onComplete={() => handleFlashcardsComplete()}
           onBack={() => setLessonState("speaking")}
+        />
+      )}
+
+      {lessonState === "complete" && (
+        <LessonCompleteScreen
+          exerciseScore={lessonStats.exerciseScore}
+          totalExercises={lessonStats.totalExercises}
+          exerciseAccuracy={lessonStats.exerciseAccuracy}
+          flashcardsCount={lessonStats.flashcardsCount}
+          onNextVideo={handleNextVideo}
+          onViewProgress={handleViewProgress}
+          onRetry={handleRetry}
+          onBackToLibrary={handleBackToLibrary}
         />
       )}
     </div>

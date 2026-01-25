@@ -19,7 +19,7 @@ import {
   BookOpen,
   Brain,
   Mic,
-  TrendingUp
+  ArrowRight
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -628,142 +628,74 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
   if (showResults) {
     const maxScore = exercises.reduce((total, exercise) => total + exercise.points, 0);
     const percentage = Math.round((score / maxScore) * 100);
+    const correctCount = exercises.filter((ex) => 
+      checkAnswerCorrectness(ex, answers[ex.id])
+    ).length;
 
     return (
-      <div className="space-y-6 p-6">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Video
-          </Button>
-          
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Trophy className="h-6 w-6 text-warning" />
-              Exercise Results
-            </h2>
-          </div>
-        </div>
-
-        <Card className="text-center">
-          <CardContent className="pt-6 space-y-6">
-            <div className="flex justify-center">
-              <div className="text-6xl font-bold text-primary">{percentage}%</div>
-            </div>
-            
-            <div>
-              <h3 className="text-xl font-semibold">
-                {percentage >= 80 ? "Excellent Work!" : percentage >= 60 ? "Great Progress!" : "Keep Practicing!"}
-              </h3>
-              <p className="text-muted-foreground">
-                You completed {level} level exercises
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-lg mx-auto">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{exercises.length}</div>
-                <div className="text-sm text-muted-foreground">Exercises</div>
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8 flex items-center justify-center">
+        <div className="max-w-lg w-full space-y-6">
+          <Card className="shadow-xl rounded-2xl border-0">
+            <CardContent className="pt-8 pb-6 space-y-6 text-center">
+              {/* Score display */}
+              <div className="space-y-2">
+                <div className="text-5xl font-bold text-primary">{percentage}%</div>
+                <h3 className="text-xl font-semibold text-foreground">
+                  {percentage >= 80 ? "Excellent Work!" : percentage >= 60 ? "Great Progress!" : "Keep Practicing!"}
+                </h3>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{score}</div>
-                <div className="text-sm text-muted-foreground">Points</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{percentage}%</div>
-                <div className="text-sm text-muted-foreground">Accuracy</div>
-              </div>
-              <div className="text-center">
-                <Badge className={`${levelInfo[level as keyof typeof levelInfo]?.color} text-white`}>
-                  {level} Level
-                </Badge>
-              </div>
-            </div>
 
-            {/* Smart Action Buttons */}
-            <div className="space-y-3 max-w-sm mx-auto">
-              {/* Primary: Continue to Speaking */}
-              <Button 
-                onClick={() => {
-                  if (onContinueToSpeaking) {
-                    onContinueToSpeaking(videoId, level);
-                  } else {
-                    onComplete();
-                  }
-                }} 
-                className="w-full gap-2"
-                size="lg"
-              >
-                <Mic className="h-4 w-4" />
-                Continue to Speaking Practice
-              </Button>
+              {/* Stats row */}
+              <div className="flex justify-center gap-8 py-4 border-y">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-foreground">{correctCount}/{exercises.length}</div>
+                  <div className="text-sm text-muted-foreground">Exercises</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-foreground">{score}</div>
+                  <div className="text-sm text-muted-foreground">Points</div>
+                </div>
+              </div>
 
-              {/* Secondary: Try Next Level (if not advanced) */}
-              {getNextLevel(level) && onTryNextLevel && (
+              {/* Step Progress Indicator */}
+              <div className="flex items-center justify-center gap-2 py-2">
+                <div className="w-3 h-3 rounded-full bg-primary" />
+                <div className="w-3 h-3 rounded-full bg-muted" />
+                <div className="w-3 h-3 rounded-full bg-muted" />
+                <span className="text-sm text-muted-foreground ml-2">Step 1 of 3 complete</span>
+              </div>
+
+              {/* Single Primary CTA */}
+              <div className="space-y-3 pt-2">
                 <Button 
-                  variant="outline"
-                  onClick={() => onTryNextLevel(getNextLevel(level)!)}
-                  className="w-full gap-2"
+                  onClick={() => {
+                    if (onContinueToSpeaking) {
+                      onContinueToSpeaking(videoId, level);
+                    } else {
+                      onComplete();
+                    }
+                  }} 
+                  className="w-full gap-2 py-6 text-lg"
                   size="lg"
                 >
-                  <TrendingUp className="h-4 w-4" />
-                  Try {getNextLevel(level)!.charAt(0).toUpperCase() + getNextLevel(level)!.slice(1)} Level
+                  <Mic className="h-5 w-5" />
+                  🎤 Continue to Speaking Practice
+                  <ArrowRight className="h-5 w-5" />
                 </Button>
-              )}
 
-              {/* Tertiary: Explore Community Videos */}
-              <Button 
-                variant="ghost"
-                onClick={() => navigate("/library?tab=community")}
-                className="w-full gap-2"
-              >
-                <Youtube className="h-4 w-4" />
-                Explore Community Videos
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Detailed Results */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Exercise Review</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {exercises.map((exercise, index) => {
-              const userAnswer = answers[exercise.id] || "";
-              const isCorrect = checkAnswerCorrectness(exercise, userAnswer);
-              
-              return (
-                <div key={exercise.id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        {isCorrect ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        )}
-                        <span className="font-medium">Question {index + 1}</span>
-                      </div>
-                      <p className="text-sm mb-2">{exercise.question}</p>
-                      <div className="text-xs space-y-1">
-                        <div>Your answer: <span className={isCorrect ? "text-green-600" : "text-red-600"}>{userAnswer || "No answer"}</span></div>
-                        <div>Correct answer: <span className="text-green-600">{exercise.correctAnswer}</span></div>
-                        <div className="text-muted-foreground">{exercise.explanation}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {isCorrect ? exercise.points : 0}/{exercise.points} pts
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+                {/* Small back link */}
+                <Button 
+                  variant="ghost"
+                  onClick={onBack}
+                  className="text-sm text-muted-foreground"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back to Video
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
