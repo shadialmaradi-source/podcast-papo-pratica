@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getLanguageSpeechCode } from "@/utils/languageUtils";
+import { trackEvent } from "@/lib/analytics";
 
 interface SpeakingPhrase {
   phrase: string;
@@ -607,6 +608,16 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-4"
+                  onAnimationComplete={() => {
+                    // Track speaking completion for summary mode
+                    trackEvent('speaking_completed', {
+                      video_id: videoId,
+                      difficulty_level: level,
+                      mode: 'summary',
+                      score: analysisResults.contentScore,
+                      timestamp: new Date().toISOString()
+                    });
+                  }}
                 >
                   <div className="text-center">
                     <div className="text-5xl font-bold text-primary">
@@ -886,7 +897,18 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
 
                     {/* Show completion screen on last phrase */}
                     {currentIndex === phrases.length - 1 ? (
-                      <div className="space-y-4">
+                      <div className="space-y-4"
+                        ref={() => {
+                          // Track speaking completion for beginner mode on last phrase
+                          trackEvent('speaking_completed', {
+                            video_id: videoId,
+                            difficulty_level: level,
+                            mode: 'beginner',
+                            score: phraseResults[currentIndex]?.confidence || 0,
+                            timestamp: new Date().toISOString()
+                          });
+                        }}
+                      >
                         {/* Step 2 Completion */}
                         <div className="flex items-center justify-center gap-2 py-3 bg-primary/5 rounded-xl">
                           <div className="w-3 h-3 rounded-full bg-primary" />

@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, RotateCw, Check, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getLanguageFlag } from "@/utils/languageUtils";
+import { trackEvent } from "@/lib/analytics";
 
 interface Flashcard {
   phrase: string;
@@ -30,6 +31,13 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english" }: Less
   };
 
   const handleMarkLearned = () => {
+    // Track flashcard review
+    trackEvent('flashcard_reviewed', {
+      card_index: currentIndex,
+      total_cards: flashcards.length,
+      marked_learned: true,
+      timestamp: new Date().toISOString()
+    });
     setLearned(prev => ({ ...prev, [currentIndex]: true }));
     handleNext();
   };
