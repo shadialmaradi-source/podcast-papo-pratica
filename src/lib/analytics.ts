@@ -1,13 +1,13 @@
-import posthog from 'posthog-js';
+import posthog from "posthog-js";
 
 // Initialize PostHog (call once on app load)
 export const initAnalytics = () => {
-  if (typeof window !== 'undefined' && !posthog.__loaded) {
-    posthog.init('YOUR_POSTHOG_API_KEY', {
-      api_host: 'https://app.posthog.com',
+  if (typeof window !== "undefined" && !posthog.__loaded) {
+    posthog.init("phc_2UXnWZCt3IvklRR0OIiMG2dvMPnRBtd7C5pNTMv6v90", {
+      api_host: "https://app.posthog.com",
       capture_pageview: true,
       capture_pageleave: true,
-      persistence: 'localStorage',
+      persistence: "localStorage",
       // Respect user privacy
       respect_dnt: true,
     });
