@@ -26,6 +26,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Exercise } from "@/services/exerciseGeneratorService";
 import { DragDropExercises } from "./DragDropExercises";
+import { trackEvent } from "@/lib/analytics";
 
 interface YouTubeExercisesProps {
   videoId: string;
@@ -631,6 +632,16 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
     const correctCount = exercises.filter((ex) => 
       checkAnswerCorrectness(ex, answers[ex.id])
     ).length;
+
+    // Track exercise completion
+    trackEvent('exercise_completed', {
+      video_id: videoId,
+      difficulty_level: level,
+      score: score,
+      total_exercises: exercises.length,
+      accuracy: percentage,
+      timestamp: new Date().toISOString()
+    });
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8 flex items-center justify-center">

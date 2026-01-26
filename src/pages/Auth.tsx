@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff } from "lucide-react";
 
 export default function Auth() {
@@ -85,6 +86,11 @@ export default function Auth() {
             setError(error.message);
           }
         } else {
+          // Track successful signup
+          trackEvent('user_signup', {
+            method: 'email',
+            timestamp: new Date().toISOString()
+          });
           toast({
             title: "Registration Complete",
             description: "Check your email to confirm your account",

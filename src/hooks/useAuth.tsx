@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { identifyUser, trackEvent, resetAnalytics } from "@/lib/analytics";
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +24,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Track auth events for analytics
+        if (event === 'SIGNED_IN' && session?.user) {
+          identifyUser(session.user.id, session.user.email);
+          trackEvent('user_login', {
+            method: session.user.app_metadata?.provider || 'email',
+            timestamp: new Date().toISOString()
+          });
+        } else if (event === 'SIGNED_OUT') {
+          resetAnalytics();
+        }
       }
     );
 

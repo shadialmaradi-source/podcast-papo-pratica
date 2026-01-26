@@ -5,6 +5,7 @@ import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
 import VideoFlashcards from "@/components/VideoFlashcards";
 import LessonCompleteScreen from "@/components/lesson/LessonCompleteScreen";
+import { trackEvent } from "@/lib/analytics";
 
 type LessonState = "select-level" | "exercises" | "speaking" | "flashcards" | "complete";
 
@@ -41,6 +42,12 @@ export default function Lesson() {
   };
 
   const handleStartExercises = (level: string) => {
+    // Track video/lesson started
+    trackEvent('video_started', {
+      video_id: videoId,
+      difficulty_level: level,
+      timestamp: new Date().toISOString()
+    });
     setSelectedLevel(level);
     setLessonState("exercises");
   };

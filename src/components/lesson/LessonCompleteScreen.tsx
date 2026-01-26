@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trophy, CheckCircle, Play, ArrowRight, RotateCcw, BarChart3, Home } from "lucide-react";
 import { motion } from "framer-motion";
 import { StepProgress } from "./StepProgress";
+import { trackEvent } from "@/lib/analytics";
 
 interface LessonCompleteScreenProps {
   exerciseScore: number;
@@ -26,6 +28,18 @@ const LessonCompleteScreen = ({
   onBackToLibrary,
 }: LessonCompleteScreenProps) => {
   const xpEarned = Math.round(exerciseAccuracy * 0.5) + flashcardsCount * 2 + 10;
+
+  // Track lesson completion once on mount
+  useEffect(() => {
+    trackEvent('lesson_completed', {
+      exercises_count: totalExercises,
+      exercise_score: exerciseScore,
+      exercise_accuracy: exerciseAccuracy,
+      flashcards_count: flashcardsCount,
+      xp_earned: xpEarned,
+      timestamp: new Date().toISOString()
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <motion.div

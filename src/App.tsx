@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { initAnalytics } from "@/lib/analytics";
 import LandingPage from "./pages/LandingPage";
 import Onboarding from "./pages/Onboarding";
 import Index from "./pages/Index";
@@ -74,7 +75,13 @@ function AuthRedirector() {
   return null;
 }
 
-const App = () => (
+const App = () => {
+  // Initialize PostHog analytics on app load
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
@@ -138,6 +145,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
