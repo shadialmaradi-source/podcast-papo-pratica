@@ -16,6 +16,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { ProfilePage } from "./components/ProfilePage";
 import TestTranscript from "./pages/TestTranscript";
+import Premium from "./pages/Premium";
 import FirstLesson from "./pages/FirstLesson";
 import AuthCallback from "./pages/AuthCallback";
 
@@ -97,6 +98,7 @@ const App = () => {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/test-transcript" element={<TestTranscript />} />
             <Route path="/lesson/first" element={<FirstLesson />} />
+            <Route path="/premium" element={<Premium />} />
             
             {/* Protected app routes */}
             <Route 

@@ -444,6 +444,42 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_codes: {
+        Row: {
+          active: boolean | null
+          code: string
+          created_at: string | null
+          current_uses: number | null
+          duration_months: number | null
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+          type: string
+        }
+        Insert: {
+          active?: boolean | null
+          code: string
+          created_at?: string | null
+          current_uses?: number | null
+          duration_months?: number | null
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          type: string
+        }
+        Update: {
+          active?: boolean | null
+          code?: string
+          created_at?: string | null
+          current_uses?: number | null
+          duration_months?: number | null
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          type?: string
+        }
+        Relationships: []
+      }
       security_audit_log: {
         Row: {
           created_at: string | null
@@ -520,6 +556,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          promo_code: string | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          tier: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          promo_code?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          promo_code?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_activity_history: {
         Row: {
@@ -786,6 +861,38 @@ export type Database = {
         }
         Relationships: []
       }
+      user_video_uploads: {
+        Row: {
+          duration_seconds: number
+          id: string
+          uploaded_at: string | null
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          duration_seconds?: number
+          id?: string
+          uploaded_at?: string | null
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          duration_seconds?: number
+          id?: string
+          uploaded_at?: string | null
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_video_uploads_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_viewed_flashcards: {
         Row: {
           created_at: string
@@ -964,6 +1071,35 @@ export type Database = {
           word?: string
         }
         Relationships: []
+      }
+      vocal_exercise_completions: {
+        Row: {
+          completed_at: string | null
+          id: string
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vocal_exercise_completions_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       youtube_exercise_progress: {
         Row: {
