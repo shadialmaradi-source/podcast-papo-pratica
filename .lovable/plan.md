@@ -1,304 +1,360 @@
 
 
-## Add PostHog Analytics for User Retention Tracking
+## Complete Freemium Subscription System Implementation
 
 ### Overview
-Implement PostHog analytics throughout the app to track user behavior, retention, and lesson completion funnel. This will enable you to see retention charts, funnel analysis, and user paths in PostHog dashboard.
+Implement a tiered subscription system with Stripe payments, promo codes, and access controls for video uploads and vocal exercises. This will enable monetization while maintaining a compelling free tier.
 
 ---
 
-### Part 1: Install PostHog and Create Analytics Utility
+### Phase 1: Database Schema Setup
 
-**1.1 Add posthog-js package**
-Install the PostHog JavaScript SDK:
+Create 3 new tables and update the existing profiles table to properly track subscriptions:
+
+#### 1.1 Create `subscriptions` Table
+Centralized subscription management (not on profiles table to separate concerns):
+
+```sql
+CREATE TABLE subscriptions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  tier TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'premium', 'promo')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'expired')),
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  promo_code TEXT,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS policies
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own subscription" ON subscriptions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Service role can manage subscriptions" ON subscriptions FOR ALL USING ((auth.jwt() ->> 'role') = 'service_role');
 ```
-posthog-js (will be added to package.json)
+
+#### 1.2 Create `user_video_uploads` Table
+Track personal video uploads with duration for quota enforcement:
+
+```sql
+CREATE TABLE user_video_uploads (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  video_id UUID REFERENCES youtube_videos(id) ON DELETE CASCADE NOT NULL,
+  duration_seconds INTEGER NOT NULL DEFAULT 0,
+  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_uploads_user_date ON user_video_uploads(user_id, uploaded_at);
+ALTER TABLE user_video_uploads ENABLE ROW LEVEL SECURITY;
+-- RLS: Users can view their own, service role can insert
 ```
 
-**1.2 Create Analytics Utility File**
+#### 1.3 Create `vocal_exercise_completions` Table
+Track vocal exercise usage for free tier limits:
 
-Create `src/lib/analytics.ts` to centralize all PostHog logic:
+```sql
+CREATE TABLE vocal_exercise_completions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  video_id UUID REFERENCES youtube_videos(id) ON DELETE CASCADE NOT NULL,
+  completed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_vocal_completions_user_date ON vocal_exercise_completions(user_id, completed_at);
+ALTER TABLE vocal_exercise_completions ENABLE ROW LEVEL SECURITY;
+```
+
+#### 1.4 Create `promo_codes` Table
+
+```sql
+CREATE TABLE promo_codes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('unlimited', 'duration')),
+  duration_months INTEGER,
+  max_uses INTEGER,
+  current_uses INTEGER DEFAULT 0,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ
+);
+
+-- Public read for code validation, service role for management
+ALTER TABLE promo_codes ENABLE ROW LEVEL SECURITY;
+```
+
+---
+
+### Phase 2: Subscription Service Layer
+
+Create a new service file `src/services/subscriptionService.ts` with core quota functions:
+
+#### 2.1 Core Functions
 
 ```typescript
-import posthog from 'posthog-js';
+// Check if user can upload a video
+async function canUserUploadVideo(userId: string, videoDurationSeconds: number): Promise<{
+  allowed: boolean;
+  reason?: string;
+  uploadsUsed: number;
+  uploadsLimit: number;
+}>
 
-// Initialize PostHog (call once on app load)
-export const initAnalytics = () => {
-  if (typeof window !== 'undefined' && !posthog.__loaded) {
-    posthog.init('YOUR_POSTHOG_API_KEY', {
-      api_host: 'https://app.posthog.com',
-      capture_pageview: true,
-      capture_pageleave: true,
-      persistence: 'localStorage',
-      // Respect user privacy
-      respect_dnt: true,
-    });
-  }
+// Check if user can do vocal exercise
+async function canUserDoVocalExercise(userId: string): Promise<{
+  allowed: boolean;
+  count: number;
+  limit: number;
+}>
+
+// Get user's subscription tier
+async function getUserSubscription(userId: string): Promise<{
+  tier: 'free' | 'premium' | 'promo';
+  status: 'active' | 'cancelled' | 'expired';
+  expiresAt: string | null;
+}>
+
+// Record video upload
+async function recordVideoUpload(userId: string, videoId: string, durationSeconds: number): Promise<void>
+
+// Record vocal exercise completion
+async function recordVocalExerciseCompletion(userId: string, videoId: string): Promise<void>
+```
+
+#### 2.2 Subscription Limits Configuration
+
+| Feature | Free | Premium |
+|---------|------|---------|
+| Video uploads/month | 2 | 10 |
+| Max video length | 10 min | 15 min |
+| Total duration/month | 20 min | 150 min |
+| Vocal exercises/month | 5 | Unlimited |
+
+---
+
+### Phase 3: Update Existing Components
+
+#### 3.1 Update `process-youtube-video` Edge Function
+Add subscription quota checks before processing:
+
+```typescript
+// Add at start of function:
+// 1. Check subscription tier
+// 2. Validate video duration against limits
+// 3. Check monthly upload quota
+// 4. Return appropriate error if limits exceeded
+```
+
+#### 3.2 Update `YouTubeSpeaking.tsx`
+Add vocal exercise quota checking:
+
+- Before allowing recording, check `canUserDoVocalExercise()`
+- If limit reached for free users, show upgrade prompt with "Skip to Flashcards" option
+- Show usage indicator: "Vocal exercises: X/5 this month"
+
+#### 3.3 Update `YouTubeExercises.tsx` Results Screen
+After exercise completion, conditionally show speaking prompt:
+
+```
+If vocal quota NOT exceeded:
+  → Show normal "Continue to Speaking Practice" button
+  → For free users, show small text: "Vocal exercises: X/5 this month"
+
+If vocal quota exceeded (free user):
+  → Show upgrade modal with:
+    - "Speaking Practice (Premium Feature)"
+    - "You've used 5/5 free vocal exercises"
+    - [Upgrade to Premium] button
+    - [Skip to Flashcards] button
+    - Reset date info
+```
+
+#### 3.4 Update `AppHome.tsx` Import Dialog
+Add quota indicators and validation:
+
+```
+For Free Users:
+  - Show progress bar: "1/2 uploads used this month"
+  - After URL entry, validate duration before processing
+  - If rejected, show upgrade modal
+
+For Premium Users:
+  - Show: "7/10 uploads used this month"
+  - Optional: "Share with community?" checkbox
+```
+
+#### 3.5 Update `Lesson.tsx` State Machine
+Add ability to skip speaking step:
+
+```typescript
+// New handler:
+const handleSkipSpeaking = () => {
+  setLessonState("flashcards");
 };
 
-// Identify user (call on login/signup)
-export const identifyUser = (userId: string, email?: string) => {
-  posthog.identify(userId, email ? { email } : {});
-};
-
-// Reset on logout
-export const resetAnalytics = () => {
-  posthog.reset();
-};
-
-// Track events with properties
-export const trackEvent = (event: string, properties?: Record<string, any>) => {
-  posthog.capture(event, properties);
-};
+// Pass to YouTubeExercises:
+<YouTubeExercises
+  ...
+  onSkipToFlashcards={handleSkipSpeaking}
+  vocalQuotaExceeded={vocalQuotaExceeded}
+/>
 ```
 
 ---
 
-### Part 2: Initialize PostHog on App Load
+### Phase 4: Stripe Integration
 
-**File: `src/App.tsx`**
-
-Add initialization in the main App component:
+#### 4.1 Create `stripe-checkout` Edge Function
 
 ```typescript
-import { useEffect } from "react";
-import { initAnalytics } from "@/lib/analytics";
+// POST /functions/v1/stripe-checkout
+// Creates Stripe Checkout session for $9.99/month subscription
+// Returns: { url: string } for redirect
 
-// Inside App component, before the return:
-useEffect(() => {
-  initAnalytics();
-}, []);
+Input: { successUrl, cancelUrl }
+Output: { url: "https://checkout.stripe.com/..." }
+```
+
+#### 4.2 Create `stripe-webhook` Edge Function
+
+```typescript
+// POST /functions/v1/stripe-webhook
+// Handles Stripe webhook events:
+// - checkout.session.completed → Set tier to 'premium'
+// - customer.subscription.deleted → Set tier to 'free'
+// - customer.subscription.updated → Handle plan changes
+```
+
+#### 4.3 Required Secrets
+Need to add via Supabase secrets:
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+---
+
+### Phase 5: Premium Landing Page
+
+Create new route `/premium` with components:
+
+#### 5.1 Page Structure
+- Hero section with pricing ($9.99/month)
+- Benefits grid (6 key features)
+- Comparison table (Free vs Premium)
+- Primary CTA → Stripe Checkout
+- Promo code redemption section
+
+#### 5.2 Files to Create
+- `src/pages/Premium.tsx` - Main premium page
+- `src/components/subscription/PricingCard.tsx` - Feature display
+- `src/components/subscription/ComparisonTable.tsx` - Free vs Premium
+- `src/components/subscription/PromoCodeInput.tsx` - Reusable promo input
+
+---
+
+### Phase 6: Promo Code System
+
+#### 6.1 Create `redeem-promo-code` Edge Function
+
+```typescript
+// POST /functions/v1/redeem-promo-code
+// Input: { code: string }
+// Validates code, applies to user subscription
+// Returns: { success, message, expiresAt? }
+```
+
+#### 6.2 Promo Code UI Locations
+1. **Settings page** - Dedicated section
+2. **All paywall modals** - "OR" divider + input
+3. **Premium page** - Below main CTA
+4. **Post-signup banner** - Dismissible welcome prompt
+
+---
+
+### Phase 7: Profile Page Updates
+
+Update `ProfilePage.tsx` to show subscription status:
+
+```
+┌─────────────────────────────────────┐
+│ Your Plan: Free                      │
+│                                      │
+│ This Month:                          │
+│ • Video uploads: 1/2                 │
+│ • Vocal exercises: 3/5               │
+│                                      │
+│ Resets: Feb 1, 2026                 │
+│                                      │
+│ [💎 Upgrade to Premium →]           │
+└─────────────────────────────────────┘
 ```
 
 ---
 
-### Part 3: Track Authentication Events
+### Phase 8: Admin Panel (Optional)
 
-**3.1 Track User Signup**
+Create `/admin/promo-codes` route for code management:
+- Form to create new codes
+- Table of existing codes with usage stats
+- Toggle active/inactive status
 
-**File: `src/pages/Auth.tsx`**
-
-After successful signup (line ~88), add:
-```typescript
-import { trackEvent } from "@/lib/analytics";
-
-// After successful signUp:
-trackEvent('user_signup', { 
-  method: 'email',
-  timestamp: new Date().toISOString()
-});
-```
-
-For Google sign-in (line ~47), track after OAuth redirect completes.
-
-**3.2 Track User Login and Identify**
-
-**File: `src/hooks/useAuth.tsx`**
-
-Inside `onAuthStateChange`, when user logs in:
-```typescript
-import { identifyUser, trackEvent, resetAnalytics } from "@/lib/analytics";
-
-// In onAuthStateChange callback:
-if (event === 'SIGNED_IN' && session?.user) {
-  identifyUser(session.user.id, session.user.email);
-  trackEvent('user_login', {
-    method: session.user.app_metadata?.provider || 'email',
-    timestamp: new Date().toISOString()
-  });
-} else if (event === 'SIGNED_OUT') {
-  resetAnalytics();
-}
-```
+(Protected by admin role check)
 
 ---
 
-### Part 4: Track Lesson Flow Events
+### Files to Create
 
-**4.1 Video Started**
+| File | Purpose |
+|------|---------|
+| `src/services/subscriptionService.ts` | Core subscription/quota logic |
+| `src/pages/Premium.tsx` | Premium landing page |
+| `src/components/subscription/PricingCard.tsx` | Feature cards |
+| `src/components/subscription/ComparisonTable.tsx` | Free vs Premium |
+| `src/components/subscription/PromoCodeInput.tsx` | Reusable promo input |
+| `src/components/subscription/UpgradePrompt.tsx` | Paywall modal |
+| `src/components/subscription/QuotaIndicator.tsx` | Usage progress bar |
+| `src/hooks/useSubscription.tsx` | Subscription state hook |
+| `supabase/functions/stripe-checkout/index.ts` | Stripe checkout creation |
+| `supabase/functions/stripe-webhook/index.ts` | Stripe event handler |
+| `supabase/functions/redeem-promo-code/index.ts` | Promo code redemption |
 
-**File: `src/pages/Lesson.tsx`**
+### Files to Modify
 
-Track when user selects a level and starts the lesson:
-```typescript
-import { trackEvent } from "@/lib/analytics";
-
-const handleStartExercises = (level: string) => {
-  trackEvent('video_started', {
-    video_id: videoId,
-    difficulty_level: level,
-    timestamp: new Date().toISOString()
-  });
-  setSelectedLevel(level);
-  setLessonState("exercises");
-};
-```
-
-**4.2 Exercise Completed (Step 1)**
-
-**File: `src/components/YouTubeExercises.tsx`**
-
-Track when user finishes all exercises (in the results/completion handler):
-```typescript
-import { trackEvent } from "@/lib/analytics";
-
-// When showing results:
-trackEvent('exercise_completed', {
-  video_id: videoId,
-  difficulty_level: level,
-  score: score,
-  total_exercises: exercises.length,
-  accuracy: percentage,
-  timestamp: new Date().toISOString()
-});
-```
-
-**4.3 Speaking Completed (Step 2)**
-
-**File: `src/components/YouTubeSpeaking.tsx`**
-
-Track when user completes speaking practice:
-```typescript
-import { trackEvent } from "@/lib/analytics";
-
-// When speaking analysis completes:
-trackEvent('speaking_completed', {
-  video_id: videoId,
-  difficulty_level: level,
-  mode: isSummaryMode ? 'summary' : 'beginner',
-  score: analysisResults?.overallScore || analysisResults?.contentScore,
-  timestamp: new Date().toISOString()
-});
-```
-
-**4.4 Flashcard Reviewed (Step 3)**
-
-**File: `src/components/lesson/LessonFlashcards.tsx`**
-
-Track flashcard review progress:
-```typescript
-import { trackEvent } from "@/lib/analytics";
-
-// When user marks card as learned:
-trackEvent('flashcard_reviewed', {
-  card_index: currentIndex,
-  total_cards: flashcards.length,
-  marked_learned: true,
-  timestamp: new Date().toISOString()
-});
-```
-
-**4.5 Lesson Completed**
-
-**File: `src/components/lesson/LessonCompleteScreen.tsx`**
-
-Track when user completes all 3 steps:
-```typescript
-import { useEffect } from "react";
-import { trackEvent } from "@/lib/analytics";
-
-// In component body:
-useEffect(() => {
-  trackEvent('lesson_completed', {
-    exercises_count: totalExercises,
-    exercise_score: exerciseScore,
-    exercise_accuracy: exerciseAccuracy,
-    flashcards_count: flashcardsCount,
-    xp_earned: xpEarned,
-    timestamp: new Date().toISOString()
-  });
-}, []); // Track once on mount
-```
+| File | Changes |
+|------|---------|
+| `src/pages/AppHome.tsx` | Add quota checks to import dialog |
+| `src/pages/Lesson.tsx` | Add skip speaking option, quota tracking |
+| `src/components/YouTubeExercises.tsx` | Show vocal quota status, upgrade prompt |
+| `src/components/YouTubeSpeaking.tsx` | Check quota before recording, record completion |
+| `src/components/ProfilePage.tsx` | Add subscription section |
+| `src/App.tsx` | Add /premium route |
+| `supabase/functions/process-youtube-video/index.ts` | Add quota validation |
+| `supabase/config.toml` | Add new edge function configs |
 
 ---
 
-### Part 5: Track Premium/Payment Events (Placeholder)
+### Implementation Order
 
-When you add payment functionality, add these tracking points:
-
-```typescript
-// When user views premium screen
-trackEvent('premium_viewed', {
-  source: 'lesson_complete' | 'settings' | 'feature_gate',
-  timestamp: new Date().toISOString()
-});
-
-// When user initiates payment
-trackEvent('payment_initiated', {
-  plan_type: 'monthly' | 'yearly',
-  price: 9.99,
-  timestamp: new Date().toISOString()
-});
-
-// When payment succeeds
-trackEvent('payment_completed', {
-  plan_type: 'monthly' | 'yearly',
-  amount: 9.99,
-  currency: 'USD',
-  timestamp: new Date().toISOString()
-});
-```
+1. **Database migrations** - Create all tables with RLS
+2. **subscriptionService.ts** - Core quota logic
+3. **useSubscription hook** - React hook for subscription state
+4. **Update YouTubeSpeaking** - Add vocal quota checks
+5. **Update YouTubeExercises** - Add upgrade prompt on quota exceeded
+6. **Update AppHome** - Add upload quota checks
+7. **Premium page** - Landing page with benefits
+8. **Stripe edge functions** - Payment integration
+9. **Promo code system** - Redemption logic
+10. **Profile page updates** - Show subscription status
 
 ---
 
-### Files to Create/Modify
+### Cost Analysis
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/lib/analytics.ts` | Create | PostHog utility functions |
-| `src/App.tsx` | Modify | Initialize PostHog on app load |
-| `src/hooks/useAuth.tsx` | Modify | Identify users on login, track login/logout |
-| `src/pages/Auth.tsx` | Modify | Track signups |
-| `src/pages/Lesson.tsx` | Modify | Track video_started |
-| `src/components/YouTubeExercises.tsx` | Modify | Track exercise_completed |
-| `src/components/YouTubeSpeaking.tsx` | Modify | Track speaking_completed |
-| `src/components/lesson/LessonFlashcards.tsx` | Modify | Track flashcard_reviewed |
-| `src/components/lesson/LessonCompleteScreen.tsx` | Modify | Track lesson_completed |
+With these limits:
+- **Free tier cost**: ~$0.18/user max (2 uploads × 10 min + 5 vocal)
+- **Premium revenue**: $9.99/month
+- **Break-even**: 2-3% conversion rate
 
----
-
-### Event Summary
-
-| Event | When Triggered | Key Properties |
-|-------|---------------|----------------|
-| `user_signup` | After successful registration | method |
-| `user_login` | Every login (auth state change) | method |
-| `video_started` | User clicks to start exercises | video_id, difficulty_level |
-| `exercise_completed` | User finishes all quiz questions | video_id, score, accuracy |
-| `speaking_completed` | User completes speaking practice | video_id, mode, score |
-| `flashcard_reviewed` | User reviews flashcard | card_index, marked_learned |
-| `lesson_completed` | User finishes all 3 steps | exercises_count, accuracy, xp_earned |
-| `premium_viewed` | User views paywall | source |
-| `payment_initiated` | User clicks to pay | plan_type, price |
-| `payment_completed` | Payment succeeds | plan_type, amount |
-
----
-
-### After Implementation
-
-1. **Sign up at posthog.com** (free tier available)
-2. **Copy your Project API Key** from Settings → Project → API Keys
-3. **Replace `YOUR_POSTHOG_API_KEY`** in `src/lib/analytics.ts`
-4. **Test events** by using the app and checking PostHog's Live Events view
-
-### PostHog Retention Dashboard Setup
-
-Once events are flowing:
-1. Go to **Insights → New Insight → Retention**
-2. Set cohort starting event: `user_signup` or `user_login`
-3. Set returning event: `user_login`
-4. Time intervals: Daily
-5. Date range: Last 30 days
-
-This will show you Day 1, Day 7, Day 30 retention rates.
-
----
-
-### Technical Notes
-
-- PostHog only initializes client-side (safe for SSR)
-- Uses localStorage for session persistence
-- Respects Do Not Track browser setting
-- Won't block UI if PostHog fails to load
-- All events include timestamps for accurate time-based analysis
+This provides a sustainable freemium model while preserving a compelling free experience.
 
