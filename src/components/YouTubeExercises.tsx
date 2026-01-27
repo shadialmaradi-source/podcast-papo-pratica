@@ -19,7 +19,8 @@ import {
   BookOpen,
   Brain,
   Mic,
-  ArrowRight
+  ArrowRight,
+  Sparkles
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
@@ -27,6 +28,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Exercise } from "@/services/exerciseGeneratorService";
 import { DragDropExercises } from "./DragDropExercises";
 import { trackEvent } from "@/lib/analytics";
+import { useAuth } from "@/hooks/useAuth";
+import { canUserDoVocalExercise, getNextMonthResetDate, type VocalQuotaResult } from "@/services/subscriptionService";
+import { UpgradePrompt } from "./subscription/UpgradePrompt";
 
 interface YouTubeExercisesProps {
   videoId: string;
@@ -36,6 +40,7 @@ interface YouTubeExercisesProps {
   onComplete: () => void;
   onContinueToSpeaking?: (videoId: string, level: string) => void;
   onTryNextLevel?: (nextLevel: string) => void;
+  onSkipToFlashcards?: () => void;
 }
 
 const getNextLevel = (currentLevel: string): string | null => {
@@ -102,8 +107,9 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
   }
 };
 
-export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete, onContinueToSpeaking, onTryNextLevel }: YouTubeExercisesProps) {
+export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete, onContinueToSpeaking, onTryNextLevel, onSkipToFlashcards }: YouTubeExercisesProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [dragDropExercises, setDragDropExercises] = useState<Exercise[]>([]);
   const [regularExercises, setRegularExercises] = useState<Exercise[]>([]);
@@ -117,6 +123,10 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
   const [dbVideoId, setDbVideoId] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [currentAnswerCorrect, setCurrentAnswerCorrect] = useState(false);
+  
+  // Vocal quota state
+  const [vocalQuota, setVocalQuota] = useState<VocalQuotaResult | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
   const currentExercise = exercises[currentExerciseIndex];
   const progress = exercises.length > 0 ? ((currentExerciseIndex + 1) / exercises.length) * 100 : 0;
