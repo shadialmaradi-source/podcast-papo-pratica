@@ -286,7 +286,12 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
     loadExercises();
   }, [videoId, level, intensity]);
 
-  // Helper to map DB exercise types to our Exercise types
+  // Check vocal quota when results are shown
+  useEffect(() => {
+    if (showResults && user) {
+      canUserDoVocalExercise(user.id).then(setVocalQuota);
+    }
+  }, [showResults, user]);
   const mapDbTypeToExerciseType = (dbType: string): string => {
     switch (dbType) {
       case 'multiple_choice':
@@ -653,9 +658,25 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
       timestamp: new Date().toISOString()
     });
 
+    const vocalQuotaExceeded = vocalQuota && !vocalQuota.allowed;
+    const resetDate = getNextMonthResetDate();
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8 flex items-center justify-center">
         <div className="max-w-lg w-full space-y-6">
+          {/* Upgrade Prompt Modal */}
+          <UpgradePrompt
+            open={showUpgradePrompt}
+            onOpenChange={setShowUpgradePrompt}
+            title="Speaking Practice (Premium Feature)"
+            description="Upgrade to get unlimited vocal exercises and improve your pronunciation."
+            quotaUsed={vocalQuota?.count || 0}
+            quotaLimit={vocalQuota?.limit || 5}
+            resetDate={resetDate}
+            onSkip={onSkipToFlashcards}
+            skipLabel="Skip to Flashcards"
+          />
+
           <Card className="shadow-xl rounded-2xl border-0">
             <CardContent className="pt-8 pb-6 space-y-6 text-center">
               {/* Score display */}
@@ -678,6 +699,13 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
                 </div>
               </div>
 
+              {/* Vocal quota indicator for free users */}
+              {vocalQuota && vocalQuota.limit > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  Vocal exercises: {vocalQuota.count}/{vocalQuota.limit} this month
+                </div>
+              )}
+
               {/* Step Progress Indicator */}
               <div className="flex items-center justify-center gap-2 py-2">
                 <div className="w-3 h-3 rounded-full bg-primary" />
@@ -686,23 +714,40 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
                 <span className="text-sm text-muted-foreground ml-2">Step 1 of 3 complete</span>
               </div>
 
-              {/* Single Primary CTA */}
+              {/* Primary CTA - conditionally show based on quota */}
               <div className="space-y-3 pt-2">
-                <Button 
-                  onClick={() => {
-                    if (onContinueToSpeaking) {
-                      onContinueToSpeaking(videoId, level);
-                    } else {
-                      onComplete();
-                    }
-                  }} 
-                  className="w-full gap-2 py-6 text-lg"
-                  size="lg"
-                >
-                  <Mic className="h-5 w-5" />
-                  🎤 Continue to Speaking Practice
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
+                {vocalQuotaExceeded ? (
+                  <>
+                    <Button 
+                      onClick={() => setShowUpgradePrompt(true)}
+                      className="w-full gap-2 py-6 text-lg"
+                      size="lg"
+                    >
+                      <Mic className="h-5 w-5" />
+                      🎤 Continue to Speaking Practice
+                      <ArrowRight className="h-5 w-5" />
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      You've used all {vocalQuota?.limit} free vocal exercises this month
+                    </p>
+                  </>
+                ) : (
+                  <Button 
+                    onClick={() => {
+                      if (onContinueToSpeaking) {
+                        onContinueToSpeaking(videoId, level);
+                      } else {
+                        onComplete();
+                      }
+                    }} 
+                    className="w-full gap-2 py-6 text-lg"
+                    size="lg"
+                  >
+                    <Mic className="h-5 w-5" />
+                    🎤 Continue to Speaking Practice
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                )}
 
                 {/* Small back link */}
                 <Button 

@@ -4,10 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Play, Square, Check, ArrowRight, RotateCcw, Volume2, AlertCircle, Loader2, ArrowLeft, SkipForward } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getLanguageSpeechCode } from "@/utils/languageUtils";
 import { trackEvent } from "@/lib/analytics";
+import { canUserDoVocalExercise, recordVocalExerciseCompletion, getNextMonthResetDate, type VocalQuotaResult } from "@/services/subscriptionService";
+import { UpgradePrompt } from "./subscription/UpgradePrompt";
 
 interface SpeakingPhrase {
   phrase: string;
@@ -70,6 +72,7 @@ const incrementAnonymousAttempts = () => {
 };
 
 export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeSpeakingProps) {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [phrases, setPhrases] = useState<SpeakingPhrase[]>([]);
@@ -89,8 +92,14 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
   
   // Auth and limits
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [anonymousAttempts, setAnonymousAttempts] = useState(getAnonymousAttempts());
   const [limitReached, setLimitReached] = useState(false);
+  
+  // Subscription quota state
+  const [vocalQuota, setVocalQuota] = useState<VocalQuotaResult | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -100,12 +109,23 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
   const maxFreeAttempts = 2;
   const remainingAttempts = maxFreeAttempts - anonymousAttempts;
 
-  // Check authentication status
+  // Check authentication status and subscription quota
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setIsAuthenticated(!!session);
+      setUserId(session?.user?.id || null);
+      
       if (!session && anonymousAttempts >= maxFreeAttempts) {
         setLimitReached(true);
+      }
+      
+      // Check subscription quota for authenticated users
+      if (session?.user?.id) {
+        const quota = await canUserDoVocalExercise(session.user.id);
+        setVocalQuota(quota);
+        if (!quota.allowed) {
+          setQuotaExceeded(true);
+        }
       }
     });
   }, [anonymousAttempts]);
@@ -282,6 +302,14 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
         setSummaryRecorded(true);
       }
 
+      // Record vocal exercise completion for authenticated users
+      if (userId && videoId) {
+        await recordVocalExerciseCompletion(userId, videoId);
+        // Refresh quota
+        const updatedQuota = await canUserDoVocalExercise(userId);
+        setVocalQuota(updatedQuota);
+      }
+
       toast.success('Speech analyzed successfully!');
     } catch (err) {
       console.error('Speech analysis error:', err);
@@ -298,6 +326,12 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
     if (!isAuthenticated && anonymousAttempts >= maxFreeAttempts) {
       setLimitReached(true);
       toast.error('Sign up to continue practicing speaking!');
+      return;
+    }
+    
+    // Check subscription quota for authenticated users
+    if (isAuthenticated && quotaExceeded) {
+      setShowUpgradePrompt(true);
       return;
     }
 
@@ -481,6 +515,28 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
               </div>
             </CardContent>
           </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Show upgrade prompt if subscription quota exceeded
+  if (quotaExceeded && isAuthenticated) {
+    const resetDate = getNextMonthResetDate();
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <UpgradePrompt
+            open={true}
+            onOpenChange={(open) => { if (!open) navigate('/library'); }}
+            title="Speaking Practice (Premium Feature)"
+            description="You've used all your free vocal exercises this month. Upgrade to get unlimited practice."
+            quotaUsed={vocalQuota?.count || 0}
+            quotaLimit={vocalQuota?.limit || 5}
+            resetDate={resetDate}
+            onSkip={onComplete}
+            skipLabel="Skip to Flashcards"
+          />
         </div>
       </div>
     );

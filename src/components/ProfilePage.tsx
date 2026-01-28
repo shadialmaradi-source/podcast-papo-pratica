@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,13 +32,23 @@ import {
   X,
   Youtube,
   Library,
-  Layers
+  Layers,
+  Sparkles
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { EngagementFeatures } from "./EngagementFeatures";
 import { PersonalizedRecommendations } from "./PersonalizedRecommendations";
 import { FlashcardRepository } from "./FlashcardRepository";
 import { getFlashcardCount } from "@/services/flashcardService";
+import { 
+  getUserSubscription, 
+  getUploadQuotaStatus, 
+  getVocalQuotaStatus,
+  getNextMonthResetDate,
+  type UserSubscription 
+} from "@/services/subscriptionService";
+import { QuotaIndicator } from "./subscription/QuotaIndicator";
+import { format } from "date-fns";
 
 interface UserProfile {
   id: string;
@@ -120,6 +131,7 @@ interface ProfilePageProps {
 
 export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, onResumeExercise, selectedLanguage }: ProfilePageProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [exerciseStats, setExerciseStats] = useState<ExerciseStats | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -136,6 +148,21 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
   const [inProgressExercise, setInProgressExercise] = useState<ExerciseProgress | null>(null);
   const [flashcardCount, setFlashcardCount] = useState(0);
   const [showFlashcardRepository, setShowFlashcardRepository] = useState(false);
+  
+  // Subscription state
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [uploadQuota, setUploadQuota] = useState<{
+    uploadsUsed: number;
+    uploadsLimit: number;
+    totalDurationUsed: number;
+    totalDurationLimit: number;
+    isPremium: boolean;
+  } | null>(null);
+  const [vocalQuota, setVocalQuota] = useState<{
+    count: number;
+    limit: number;
+    isPremium: boolean;
+  } | null>(null);
 
   const languageName = selectedLanguage === 'portuguese' ? 'Portoghese' : 
                        selectedLanguage === 'italian' ? 'Italiano' : 
@@ -156,8 +183,25 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
       loadVideoCounts();
       loadInProgressExercise();
       loadFlashcardCount();
+      loadSubscriptionData();
     }
   }, [user, selectedLanguage]);
+
+  const loadSubscriptionData = async () => {
+    if (!user) return;
+    try {
+      const [sub, upload, vocal] = await Promise.all([
+        getUserSubscription(user.id),
+        getUploadQuotaStatus(user.id),
+        getVocalQuotaStatus(user.id)
+      ]);
+      setSubscription(sub);
+      setUploadQuota(upload);
+      setVocalQuota(vocal);
+    } catch (error) {
+      console.error("Error loading subscription data:", error);
+    }
+  };
 
   const loadFlashcardCount = async () => {
     if (!user) return;
@@ -822,6 +866,56 @@ export function ProfilePage({ onBack, onNavigateToYouTube, onNavigateToLibrary, 
           </TabsContent>
 
           <TabsContent value="overview" className="space-y-6">
+            {/* Subscription Status Card */}
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-yellow-500" />
+                  Your Plan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Badge variant={subscription?.tier === 'premium' || subscription?.tier === 'promo' ? 'default' : 'secondary'}>
+                      {subscription?.tier === 'premium' ? 'Premium' : subscription?.tier === 'promo' ? 'Promo' : 'Free'}
+                    </Badge>
+                    {subscription?.expiresAt && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Expires: {format(new Date(subscription.expiresAt), 'MMM d, yyyy')}
+                      </p>
+                    )}
+                  </div>
+                  {subscription?.tier === 'free' && (
+                    <Button size="sm" onClick={() => navigate('/premium')}>
+                      <Sparkles className="h-4 w-4 mr-1" />
+                      Upgrade
+                    </Button>
+                  )}
+                </div>
+                
+                {uploadQuota && (
+                  <QuotaIndicator
+                    used={uploadQuota.uploadsUsed}
+                    limit={uploadQuota.uploadsLimit}
+                    label="Video uploads this month"
+                  />
+                )}
+                
+                {vocalQuota && vocalQuota.limit > 0 && (
+                  <QuotaIndicator
+                    used={vocalQuota.count}
+                    limit={vocalQuota.limit}
+                    label="Vocal exercises this month"
+                  />
+                )}
+                
+                <p className="text-xs text-muted-foreground">
+                  Resets: {format(getNextMonthResetDate(), 'MMMM d, yyyy')}
+                </p>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Level Progress */}
               <Card>
