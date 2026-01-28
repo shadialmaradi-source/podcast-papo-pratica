@@ -17,6 +17,9 @@ import { AppHeader } from "@/components/AppHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getUploadQuotaStatus, canUserUploadVideo } from "@/services/subscriptionService";
+import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
+import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 
 interface UserProfile {
   full_name: string | null;
@@ -34,12 +37,34 @@ export default function AppHome() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  
+  // Upload quota state
+  const [uploadQuota, setUploadQuota] = useState<{
+    uploadsUsed: number;
+    uploadsLimit: number;
+    totalDurationUsed: number;
+    totalDurationLimit: number;
+    isPremium: boolean;
+  } | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState("");
 
   useEffect(() => {
     if (user) {
       fetchProfile();
+      fetchUploadQuota();
     }
   }, [user]);
+
+  const fetchUploadQuota = async () => {
+    if (!user) return;
+    try {
+      const quota = await getUploadQuotaStatus(user.id);
+      setUploadQuota(quota);
+    } catch (error) {
+      console.error("Error fetching upload quota:", error);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -64,6 +89,11 @@ export default function AppHome() {
       return;
     }
 
+    if (!user) {
+      toast.error("Please log in to import videos");
+      return;
+    }
+
     setImporting(true);
     try {
       const { data, error } = await supabase.functions.invoke("process-youtube-video", {
@@ -73,7 +103,16 @@ export default function AppHome() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a quota error
+        const errorMessage = error.message || "";
+        if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
+          setUpgradeReason(errorMessage);
+          setShowUpgradePrompt(true);
+          return;
+        }
+        throw error;
+      }
 
       const videoDbId = data?.video?.id;
       
@@ -81,11 +120,14 @@ export default function AppHome() {
         setVideoUrl("");
         setImportDialogOpen(false);
         toast.success("Video ready! Starting your lesson...");
+        // Refresh quota after successful upload
+        await fetchUploadQuota();
         navigate(`/lesson/${videoDbId}`);
       } else {
         toast.success("Video added! Check the library when processing completes.");
         setVideoUrl("");
         setImportDialogOpen(false);
+        await fetchUploadQuota();
       }
     } catch (error) {
       console.error("Error importing video:", error);
@@ -210,6 +252,16 @@ export default function AppHome() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
+            {/* Quota Indicator */}
+            {uploadQuota && (
+              <QuotaIndicator
+                used={uploadQuota.uploadsUsed}
+                limit={uploadQuota.uploadsLimit}
+                label="uploads"
+                showUpgradeHint={!uploadQuota.isPremium}
+              />
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="video-url">Video URL</Label>
               <Input
@@ -218,17 +270,46 @@ export default function AppHome() {
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
               />
+              {!uploadQuota?.isPremium && (
+                <p className="text-xs text-muted-foreground">
+                  Max video length: 10 minutes
+                </p>
+              )}
             </div>
             <Button
               className="w-full"
               onClick={handleImportVideo}
-              disabled={importing}
+              disabled={importing || (uploadQuota?.uploadsUsed ?? 0) >= (uploadQuota?.uploadsLimit ?? 2)}
             >
               {importing ? "Processing..." : "Add Video"}
             </Button>
+            
+            {!uploadQuota?.isPremium && (
+              <div className="text-center pt-2 border-t">
+                <p className="text-xs text-muted-foreground mb-2">Want more uploads?</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate('/premium')}
+                  className="text-xs"
+                >
+                  Upgrade to Premium
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Upgrade Prompt */}
+      <UpgradePrompt
+        open={showUpgradePrompt}
+        onOpenChange={setShowUpgradePrompt}
+        title="Upload Limit Reached"
+        description={upgradeReason || "Upgrade to Premium for more video uploads."}
+        quotaUsed={uploadQuota?.uploadsUsed}
+        quotaLimit={uploadQuota?.uploadsLimit}
+      />
     </div>
   );
 }
