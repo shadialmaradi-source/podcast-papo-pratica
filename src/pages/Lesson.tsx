@@ -70,6 +70,10 @@ export default function Lesson() {
     setLessonState("exercises");
   };
 
+  const handleSkipToFlashcards = () => {
+    setLessonState("flashcards");
+  };
+
   const handleFlashcardsComplete = (count?: number) => {
     // Update lesson stats with flashcard count
     setLessonStats(prev => ({
@@ -120,6 +124,7 @@ export default function Lesson() {
           onComplete={handleExercisesComplete}
           onContinueToSpeaking={handleContinueToSpeaking}
           onTryNextLevel={handleTryNextLevel}
+          onSkipToFlashcards={handleSkipToFlashcards}
         />
       )}
 

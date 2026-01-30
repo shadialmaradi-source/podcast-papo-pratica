@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
   Sparkles, 
@@ -20,11 +20,34 @@ import { PromoCodeInput } from "@/components/subscription/PromoCodeInput";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Premium() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+
+  // Track page view
+  useEffect(() => {
+    trackEvent('premium_viewed', {
+      source: searchParams.get('source') || 'direct',
+      timestamp: new Date().toISOString()
+    });
+  }, [searchParams]);
+
+  // Track successful payment from redirect
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      trackEvent('payment_completed', {
+        plan_type: 'monthly',
+        amount: 9.99,
+        currency: 'USD',
+        timestamp: new Date().toISOString()
+      });
+      toast.success("Welcome to Premium! Your subscription is now active.");
+    }
+  }, [searchParams]);
 
   const handleUpgrade = async () => {
     if (!user) {
@@ -34,6 +57,13 @@ export default function Premium() {
     }
 
     setLoading(true);
+    
+    trackEvent('payment_initiated', {
+      plan_type: 'monthly',
+      price: 9.99,
+      timestamp: new Date().toISOString()
+    });
+
     try {
       const { data, error } = await supabase.functions.invoke('stripe-checkout', {
         body: {

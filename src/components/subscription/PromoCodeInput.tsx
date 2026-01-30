@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { trackEvent } from "@/lib/analytics";
 
 interface PromoCodeInputProps {
   onSuccess?: () => void;
@@ -40,6 +41,9 @@ export function PromoCodeInput({ onSuccess, onCancel, className }: PromoCodeInpu
         setStatus('success');
         setMessage(data.message);
         toast.success(data.message);
+        trackEvent('promo_code_redeemed', {
+          timestamp: new Date().toISOString()
+        });
         onSuccess?.();
       } else {
         setStatus('error');
