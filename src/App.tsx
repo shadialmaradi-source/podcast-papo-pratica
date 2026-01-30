@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { initAnalytics } from "@/lib/analytics";
 import LandingPage from "./pages/LandingPage";
 import Onboarding from "./pages/Onboarding";
-import Index from "./pages/Index";
 import AppHome from "./pages/AppHome";
 import Library from "./pages/Library";
 import Lesson from "./pages/Lesson";
@@ -125,15 +124,7 @@ const App = () => {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/app/legacy" 
-              element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
+            <Route
               path="/profile" 
               element={
                 <ProtectedRoute>

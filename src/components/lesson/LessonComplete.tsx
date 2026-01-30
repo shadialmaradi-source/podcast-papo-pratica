@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Trophy, Star, Zap, ArrowRight, Video, Sparkles } from "lucide-react";
+import { Trophy, Star, Zap, ArrowRight, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface LessonCompleteProps {
@@ -59,6 +59,9 @@ const LessonComplete = ({
           </h1>
           <p className="text-muted-foreground text-lg">
             You're making amazing progress 🎉
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Create a free account to unlock unlimited lessons
           </p>
         </motion.div>
 
@@ -156,17 +159,16 @@ const LessonComplete = ({
             className="w-full bg-primary hover:bg-primary/90 rounded-full py-6 text-lg gap-2"
           >
             <ArrowRight className="w-5 h-5" />
-            Next Lesson
+            Create Free Account
           </Button>
 
           <Button
             onClick={() => navigate('/auth')}
-            variant="outline"
-            size="lg"
-            className="w-full rounded-full py-6 text-lg gap-2"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
           >
-            <Video className="w-5 h-5" />
-            Try Your Own Video
+            Already have an account? Sign in
           </Button>
         </motion.div>
 
