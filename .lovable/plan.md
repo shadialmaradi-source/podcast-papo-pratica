@@ -1,86 +1,98 @@
 
 
-## Fix Video Duration Limit and Localize Practice Exercises
+## Fix YouTube Video Duration Detection
 
-### Problem Summary
+### Problem Analysis
 
-1. **30-minute video was accepted**: The edge function duration check failed because `getVideoDuration()` returned 0 (API issue). When duration is 0, videos pass the limit check.
+Both Supadata and Invidious APIs are failing to return video duration:
+- **Supadata**: Returns 400 error for the `/video` endpoint (metadata)
+- **Invidious**: All public instances are failing or blocking requests
 
-2. **Italian text in Practice Exercises UI**: The component has hardcoded Italian strings like "Cosa praticherai:", "Vocabolario dal video", etc. that should be English per the default localization standard.
+This causes ALL video uploads to fail with "Unable to verify video duration" - blocking both valid short videos (9 min) and videos that should be blocked (25 min).
 
 ---
 
-### Task 1: Fix Duration Enforcement in Edge Function
+### Solution: Direct YouTube HTML Scraping
+
+YouTube embeds video duration in the HTML page as **microdata** following schema.org standards. We can extract this without any API key.
+
+**How it works:**
+1. Fetch the YouTube watch page: `https://www.youtube.com/watch?v={videoId}`
+2. Extract duration from either:
+   - **Meta tag**: `<meta itemprop="duration" content="PT3M33S">`
+   - **JSON-LD data**: `"duration": "PT3M33S"` in the script tag
+   - **ytInitialPlayerResponse**: `"lengthSeconds": "213"` in the embedded JSON
+3. Parse ISO 8601 duration format (PT#H#M#S) to seconds
+
+---
+
+### Implementation Plan
 
 **File: `supabase/functions/process-youtube-video/index.ts`**
 
-The current logic at lines 52-66:
-```typescript
-const MAX_DURATION_SECONDS = 600; // 10 minutes
-let videoDuration = 0;
+Rewrite `getVideoDuration()` function with this priority order:
 
-if (!skipDurationCheck) {
-  videoDuration = await getVideoDuration(videoId);
-  if (videoDuration > MAX_DURATION_SECONDS) {
-    throw new Error(...)
-  }
+1. **Try Supadata API first** (if configured) - keeps existing behavior for reliability
+2. **Fallback: Scrape YouTube HTML directly** - extract duration from page microdata
+3. **Secondary fallback: Try Invidious instances** - as last resort
+
+**New helper function to parse ISO 8601 duration:**
+```typescript
+function parseISO8601Duration(duration: string): number {
+  // Parses "PT3M33S" or "PT1H5M30S" to seconds
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  
+  const hours = parseInt(match[1] || '0', 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const seconds = parseInt(match[3] || '0', 10);
+  
+  return hours * 3600 + minutes * 60 + seconds;
 }
 ```
 
-**Problem**: When `getVideoDuration()` returns 0 (API failure or missing key), the check passes silently.
-
-**Solution**: If we cannot verify the duration, we should either:
-- Block the upload with an error (safer)
-- Or log a warning and allow with caution
-
-**Recommended Change**: Require successful duration verification before allowing upload:
+**New scraping function:**
 ```typescript
-if (!skipDurationCheck) {
-  videoDuration = await getVideoDuration(videoId);
+async function scrapeDurationFromYouTube(videoId: string): Promise<number> {
+  const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; bot)',
+      'Accept-Language': 'en-US,en;q=0.9'
+    }
+  });
   
-  // If we couldn't get duration, block the upload
-  if (videoDuration === 0) {
-    throw new Error('Unable to verify video duration. Please try again or contact support.');
+  if (!response.ok) return 0;
+  const html = await response.text();
+  
+  // Method 1: Extract from meta tag
+  const metaMatch = html.match(/<meta\s+itemprop="duration"\s+content="([^"]+)"/);
+  if (metaMatch) {
+    return parseISO8601Duration(metaMatch[1]);
   }
   
-  if (videoDuration > MAX_DURATION_SECONDS) {
-    const durationMins = Math.ceil(videoDuration / 60);
-    throw new Error(`Video is ${durationMins} minutes long. Maximum allowed is 10 minutes.`);
+  // Method 2: Extract from ytInitialPlayerResponse JSON
+  const jsonMatch = html.match(/"lengthSeconds"\s*:\s*"(\d+)"/);
+  if (jsonMatch) {
+    return parseInt(jsonMatch[1], 10);
   }
+  
+  return 0;
 }
 ```
 
----
-
-### Task 2: Translate Italian Strings to English
-
-**File: `src/components/YouTubeVideoExercises.tsx`**
-
-Replace all hardcoded Italian strings with English equivalents:
-
-| Current (Italian) | Replace With (English) |
-|-------------------|------------------------|
-| `"Cosa praticherai:"` | `"What you'll practice:"` |
-| `"Vocabolario dal video"` | `"Video vocabulary"` |
-| `"Comprensione orale"` | `"Listening comprehension"` |
-| `"Grammatica e struttura delle frasi"` | `"Grammar and sentence structure"` |
-| `"Esercizi basati sul contesto"` | `"Context-based exercises"` |
-| `"Scegli il livello di difficoltà:"` | `"Choose difficulty level:"` |
-| `"10 esercizi • Vocabolario base"` | `"10 exercises • Basic vocabulary"` |
-| `"10 esercizi • Grammatica complessa"` | `"10 exercises • Complex grammar"` |
-| `"10 esercizi • Concetti astratti"` | `"10 exercises • Abstract concepts"` |
-| `"Generando..."` | `"Generating..."` |
-
-Also fix error messages (lines 132-193):
-| Current (Italian) | Replace With (English) |
-|-------------------|------------------------|
-| `"Errore"` | `"Error"` |
-| `"Nessun transcript disponibile per questo video"` | `"No transcript available for this video"` |
-| `"Errore generazione"` | `"Generation error"` |
-| `"Impossibile generare esercizi"` | `"Unable to generate exercises"` |
-| `"Si è verificato un errore imprevisto"` | `"An unexpected error occurred"` |
-| `"Esercizi generati! 🎯"` | `"Exercises generated! 🎯"` |
-| `"esercizi creati per il livello"` | `"exercises created for level"` |
+**Updated `getVideoDuration()` flow:**
+```text
+getVideoDuration(videoId)
+    │
+    ├─→ Try Supadata API
+    │   └─→ Success? Return duration
+    │
+    ├─→ Try scraping YouTube HTML
+    │   └─→ Found duration? Return it
+    │
+    └─→ Try Invidious instances (existing fallback)
+        └─→ Return duration or 0
+```
 
 ---
 
@@ -88,15 +100,24 @@ Also fix error messages (lines 132-193):
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/process-youtube-video/index.ts` | Add duration=0 check to block videos when duration can't be verified |
-| `src/components/YouTubeVideoExercises.tsx` | Replace Italian text with English |
+| `supabase/functions/process-youtube-video/index.ts` | Add `parseISO8601Duration()`, add `scrapeDurationFromYouTube()`, update `getVideoDuration()` to use HTML scraping as primary fallback |
 
 ---
 
 ### Technical Notes
 
-- The edge function log confirms: `Video duration: 0 seconds` - the Supadata API returned 0
-- The `SUPADATA_API_KEY` may be missing or the API call failed
-- Default UI language should always be English per existing standard
-- The translations.ts file exists but doesn't have keys for these specific strings, so we'll use hardcoded English
+- **No API key required**: Direct scraping works without credentials
+- **Reliable**: YouTube's microdata is a stable part of their SEO implementation
+- **ISO 8601 format**: Duration like "PT10M30S" = 10 minutes 30 seconds = 630 seconds
+- **User-Agent**: Setting a browser-like User-Agent helps avoid blocks
+- **Credit cost**: Zero - this is just fetching a public HTML page
+
+### Advantages Over Current Approach
+
+| Current | Proposed |
+|---------|----------|
+| Depends on external APIs | Direct scraping from source |
+| Supadata costs credits | Free (no API) |
+| Invidious is unreliable | YouTube HTML is always available |
+| Multiple points of failure | Single reliable source |
 
