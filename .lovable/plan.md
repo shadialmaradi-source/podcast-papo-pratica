@@ -1,107 +1,102 @@
 
 
-## Fix Post-Onboarding Flow and Remove Legacy Dashboard
+## Fix Video Duration Limit and Localize Practice Exercises
 
-### Problem Analysis
+### Problem Summary
 
-After completing the first lesson, users are shown the `LessonComplete` component which correctly routes to `/auth` for signup. However, there's confusion about where users end up:
+1. **30-minute video was accepted**: The edge function duration check failed because `getVideoDuration()` returned 0 (API issue). When duration is 0, videos pass the limit check.
 
-1. **Current First Lesson CTA**: Both "Next Lesson" and "Try Your Own Video" navigate to `/auth` - this is correct for signup prompt
-2. **Old Dashboard**: The legacy `Dashboard.tsx` component (with the red YouTube card) is still accessible via `/app/legacy` and `Index.tsx`
-3. **User reached old version**: Based on the screenshot, the user somehow ended up on the old Dashboard after registration
+2. **Italian text in Practice Exercises UI**: The component has hardcoded Italian strings like "Cosa praticherai:", "Vocabolario dal video", etc. that should be English per the default localization standard.
 
-### Solution
+---
 
-#### 1. Delete Legacy Code (Remove Old Dashboard)
+### Task 1: Fix Duration Enforcement in Edge Function
 
-**Files to Remove:**
-- `src/pages/Index.tsx` - Legacy app entry point with complex state machine
-- `src/components/Dashboard.tsx` - Old dashboard with red YouTube card
-- `src/components/LanguageSelector.tsx` - Only used by Index
-- `src/components/LearningDestinationModal.tsx` - Only used by Dashboard
-- `src/components/LanguageSelectionModal.tsx` - Only used by Dashboard
+**File: `supabase/functions/process-youtube-video/index.ts`**
 
-**Update `src/App.tsx`:**
-- Remove the `/app/legacy` route completely
-- Remove imports for Index.tsx
-
+The current logic at lines 52-66:
 ```typescript
-// REMOVE this route block:
-<Route 
-  path="/app/legacy" 
-  element={
-    <ProtectedRoute>
-      <Index />
-    </ProtectedRoute>
-  } 
-/>
+const MAX_DURATION_SECONDS = 600; // 10 minutes
+let videoDuration = 0;
+
+if (!skipDurationCheck) {
+  videoDuration = await getVideoDuration(videoId);
+  if (videoDuration > MAX_DURATION_SECONDS) {
+    throw new Error(...)
+  }
+}
 ```
 
-#### 2. Improve First Lesson Complete CTA
+**Problem**: When `getVideoDuration()` returns 0 (API failure or missing key), the check passes silently.
 
-The current `LessonComplete.tsx` shows "Next Lesson" and "Try Your Own Video" buttons, both going to `/auth`. This is correct for the signup prompt, but we should:
+**Solution**: If we cannot verify the duration, we should either:
+- Block the upload with an error (safer)
+- Or log a warning and allow with caution
 
-**Update `src/components/lesson/LessonComplete.tsx`:**
-- Make the signup intent clearer in the button text
-- Add a welcome message explaining why registration is needed
-
-```text
-Current:
-  [→ Next Lesson]
-  [Try Your Own Video]
-
-Improved:
-  "🎉 You completed your first lesson!"
-  "Create a free account to continue learning"
+**Recommended Change**: Require successful duration verification before allowing upload:
+```typescript
+if (!skipDurationCheck) {
+  videoDuration = await getVideoDuration(videoId);
   
-  [Create Account →] (primary CTA)
-  [Sign In] (secondary link for existing users)
+  // If we couldn't get duration, block the upload
+  if (videoDuration === 0) {
+    throw new Error('Unable to verify video duration. Please try again or contact support.');
+  }
+  
+  if (videoDuration > MAX_DURATION_SECONDS) {
+    const durationMins = Math.ceil(videoDuration / 60);
+    throw new Error(`Video is ${durationMins} minutes long. Maximum allowed is 10 minutes.`);
+  }
+}
 ```
 
-#### 3. Ensure Proper Post-Auth Redirect
+---
 
-**Verify `src/pages/Auth.tsx` and `src/pages/AuthCallback.tsx`:**
-- Both already redirect to `/app` (the new AppHome) ✓
-- The new `AppHome.tsx` is the correct destination
+### Task 2: Translate Italian Strings to English
+
+**File: `src/components/YouTubeVideoExercises.tsx`**
+
+Replace all hardcoded Italian strings with English equivalents:
+
+| Current (Italian) | Replace With (English) |
+|-------------------|------------------------|
+| `"Cosa praticherai:"` | `"What you'll practice:"` |
+| `"Vocabolario dal video"` | `"Video vocabulary"` |
+| `"Comprensione orale"` | `"Listening comprehension"` |
+| `"Grammatica e struttura delle frasi"` | `"Grammar and sentence structure"` |
+| `"Esercizi basati sul contesto"` | `"Context-based exercises"` |
+| `"Scegli il livello di difficoltà:"` | `"Choose difficulty level:"` |
+| `"10 esercizi • Vocabolario base"` | `"10 exercises • Basic vocabulary"` |
+| `"10 esercizi • Grammatica complessa"` | `"10 exercises • Complex grammar"` |
+| `"10 esercizi • Concetti astratti"` | `"10 exercises • Abstract concepts"` |
+| `"Generando..."` | `"Generating..."` |
+
+Also fix error messages (lines 132-193):
+| Current (Italian) | Replace With (English) |
+|-------------------|------------------------|
+| `"Errore"` | `"Error"` |
+| `"Nessun transcript disponibile per questo video"` | `"No transcript available for this video"` |
+| `"Errore generazione"` | `"Generation error"` |
+| `"Impossibile generare esercizi"` | `"Unable to generate exercises"` |
+| `"Si è verificato un errore imprevisto"` | `"An unexpected error occurred"` |
+| `"Esercizi generati! 🎯"` | `"Exercises generated! 🎯"` |
+| `"esercizi creati per il livello"` | `"exercises created for level"` |
+
+---
 
 ### Files to Modify
 
-| File | Action |
-|------|--------|
-| `src/App.tsx` | Remove `/app/legacy` route and Index import |
-| `src/components/lesson/LessonComplete.tsx` | Improve CTA messaging for registration |
+| File | Changes |
+|------|---------|
+| `supabase/functions/process-youtube-video/index.ts` | Add duration=0 check to block videos when duration can't be verified |
+| `src/components/YouTubeVideoExercises.tsx` | Replace Italian text with English |
 
-### Files to Delete
-
-| File | Reason |
-|------|--------|
-| `src/pages/Index.tsx` | Legacy app entry point - no longer needed |
-| `src/components/Dashboard.tsx` | Old dashboard with red YouTube card |
-| `src/components/LanguageSelector.tsx` | Only used by legacy Index |
-| `src/components/LearningDestinationModal.tsx` | Only used by legacy Dashboard |
-| `src/components/LanguageSelectionModal.tsx` | Only used by legacy Dashboard |
-
-### Updated User Flow
-
-```text
-Landing Page (/)
-     ↓
-Onboarding (/onboarding) - Select language + level
-     ↓
-First Lesson (/lesson/first) - Intro → Video → Exercises → Speaking → Flashcards
-     ↓
-Lesson Complete - Show stats + "Create Account" CTA
-     ↓
-Auth (/auth) - Register or sign in
-     ↓
-App Home (/app) - Clean design with "Learn from Library" + "Your Own Video"
-     ↓
-Library (/library) or Lesson (/lesson/:videoId)
-```
+---
 
 ### Technical Notes
 
-- The new `AppHome.tsx` already has the clean design with green "Learn from Library" button and neutral "Your Own Video" button
-- All protected routes (`/app`, `/library`, `/lesson/:videoId`, `/profile`) will continue to work
-- The subscription/quota system integrated in AppHome will continue to function
+- The edge function log confirms: `Video duration: 0 seconds` - the Supadata API returned 0
+- The `SUPADATA_API_KEY` may be missing or the API call failed
+- Default UI language should always be English per existing standard
+- The translations.ts file exists but doesn't have keys for these specific strings, so we'll use hardcoded English
 
