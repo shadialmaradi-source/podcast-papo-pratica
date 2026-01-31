@@ -57,6 +57,11 @@ serve(async (req) => {
       videoDuration = await getVideoDuration(videoId);
       console.log('Video duration:', videoDuration, 'seconds');
       
+      // If we couldn't get duration, block the upload for safety
+      if (videoDuration === 0) {
+        throw new Error('Unable to verify video duration. Please try again or contact support.');
+      }
+      
       if (videoDuration > MAX_DURATION_SECONDS) {
         const durationMins = Math.ceil(videoDuration / 60);
         throw new Error(

@@ -130,8 +130,8 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
       if (transcriptError || !transcriptData?.transcript) {
         console.error('[YouTubeVideoExercises] No transcript found:', transcriptError);
         toast({ 
-          title: "Errore", 
-          description: "Nessun transcript disponibile per questo video",
+          title: "Error", 
+          description: "No transcript available for this video",
           variant: "destructive"
         });
         setIsGenerating(false);
@@ -154,8 +154,8 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
       if (error) {
         console.error('[YouTubeVideoExercises] Edge function error:', error);
         toast({ 
-          title: "Errore generazione", 
-          description: error.message || "Impossibile generare esercizi",
+          title: "Generation error", 
+          description: error.message || "Unable to generate exercises",
           variant: "destructive"
         });
         setIsGenerating(false);
@@ -166,7 +166,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
       if (data?.error) {
         console.error('[YouTubeVideoExercises] Generation error:', data.error);
         toast({ 
-          title: "Errore generazione", 
+          title: "Generation error", 
           description: data.error,
           variant: "destructive"
         });
@@ -177,8 +177,8 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
       console.log(`[YouTubeVideoExercises] Generation successful:`, data);
       toast({
-        title: "Esercizi generati! 🎯",
-        description: `${data?.count || 10} esercizi creati per il livello ${level}`,
+        title: "Exercises generated! 🎯",
+        description: `${data?.count || 10} exercises created for ${level} level`,
       });
 
       setIsGenerating(false);
@@ -188,8 +188,8 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     } catch (err) {
       console.error('[YouTubeVideoExercises] Unexpected error:', err);
       toast({ 
-        title: "Errore", 
-        description: "Si è verificato un errore imprevisto",
+        title: "Error", 
+        description: "An unexpected error occurred",
         variant: "destructive"
       });
       setIsGenerating(false);
@@ -283,23 +283,23 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
               <CardContent className="space-y-4">
                 <div className="space-y-4">
                   <div className="text-sm text-muted-foreground space-y-2">
-                    <p className="font-medium">Cosa praticherai:</p>
+                    <p className="font-medium">What you'll practice:</p>
                     <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li>Vocabolario dal video</li>
-                      <li>Comprensione orale</li>
-                      <li>Grammatica e struttura delle frasi</li>
-                      <li>Esercizi basati sul contesto</li>
+                      <li>Video vocabulary</li>
+                      <li>Listening comprehension</li>
+                      <li>Grammar and sentence structure</li>
+                      <li>Context-based exercises</li>
                     </ul>
                   </div>
 
-                  <div className="text-sm font-medium mb-2">Scegli il livello di difficoltà:</div>
+                  <div className="text-sm font-medium mb-2">Choose difficulty level:</div>
                   
                   <div className="space-y-3">
                     {['beginner', 'intermediate', 'advanced'].map((level) => {
                       const levelConfig = {
-                        beginner: { label: 'Beginner (A1-A2)', desc: '10 esercizi • Vocabolario base', color: 'green' },
-                        intermediate: { label: 'Intermediate (B1-B2)', desc: '10 esercizi • Grammatica complessa', color: 'orange' },
-                        advanced: { label: 'Advanced (C1-C2)', desc: '10 esercizi • Concetti astratti', color: 'red' }
+                        beginner: { label: 'Beginner (A1-A2)', desc: '10 exercises • Basic vocabulary', color: 'green' },
+                        intermediate: { label: 'Intermediate (B1-B2)', desc: '10 exercises • Complex grammar', color: 'orange' },
+                        advanced: { label: 'Advanced (C1-C2)', desc: '10 exercises • Abstract concepts', color: 'red' }
                       }[level]!;
                       
                       const isLevelGenerating = isGenerating && generatingLevel === level;
@@ -312,10 +312,10 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                           onClick={() => handleStartExercises(level)}
                           disabled={isGenerating}
                         >
-                          {isLevelGenerating ? (
+                        {isLevelGenerating ? (
                             <div className="flex items-center gap-2">
                               <Loader2 className="h-4 w-4 animate-spin" />
-                              <span>Generando...</span>
+                              <span>Generating...</span>
                             </div>
                           ) : (
                             <div className="text-left">
