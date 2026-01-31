@@ -200,36 +200,65 @@ async function getVideoInfo(videoId: string): Promise<VideoInfo> {
 }
 
 async function getVideoDuration(videoId: string): Promise<number> {
+  // Try Supadata first (if configured)
   const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY');
   
-  if (!SUPADATA_API_KEY) {
-    console.log('SUPADATA_API_KEY not configured, skipping duration check');
-    return 0;
+  if (SUPADATA_API_KEY) {
+    try {
+      const response = await fetch(
+        `https://api.supadata.ai/v1/youtube/video?videoId=${videoId}`,
+        {
+          headers: {
+            'x-api-key': SUPADATA_API_KEY
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const duration = data.lengthSeconds || data.duration || 0;
+        if (duration > 0) {
+          console.log('Supadata video metadata:', { duration, title: data.title });
+          return duration;
+        }
+      } else {
+        console.log('Supadata failed:', response.status);
+      }
+    } catch (error) {
+      console.log('Supadata error:', error);
+    }
   }
 
-  try {
-    const response = await fetch(
-      `https://api.supadata.ai/v1/youtube/video?videoId=${videoId}`,
-      {
-        headers: {
-          'x-api-key': SUPADATA_API_KEY
+  // Fallback to free Invidious API (no API key needed)
+  console.log('Trying Invidious API fallback for duration...');
+  const invidiousInstances = [
+    'https://vid.puffyan.us',
+    'https://invidious.snopyta.org',
+    'https://yewtu.be',
+    'https://inv.nadeko.net'
+  ];
+
+  for (const instance of invidiousInstances) {
+    try {
+      const response = await fetch(
+        `${instance}/api/v1/videos/${videoId}?fields=lengthSeconds`,
+        { headers: { 'Accept': 'application/json' } }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.lengthSeconds && data.lengthSeconds > 0) {
+          console.log(`Got duration from Invidious (${instance}): ${data.lengthSeconds}s`);
+          return data.lengthSeconds;
         }
       }
-    );
-
-    if (!response.ok) {
-      console.error('Failed to fetch video metadata:', response.status);
-      return 0;
+    } catch (error) {
+      console.log(`Invidious instance ${instance} failed`);
     }
-
-    const data = await response.json();
-    const duration = data.lengthSeconds || data.duration || 0;
-    console.log('Supadata video metadata:', { duration, title: data.title });
-    return duration;
-  } catch (error) {
-    console.error('Error fetching video duration:', error);
-    return 0;
   }
+
+  console.log('All duration sources failed for video:', videoId);
+  return 0;
 }
 
 // Language code mapping for detected languages
