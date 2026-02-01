@@ -1,123 +1,207 @@
 
 
-## Fix YouTube Video Duration Detection
+## Simplified YouTube Video Duration Detection
 
-### Problem Analysis
+### Overview
 
-Both Supadata and Invidious APIs are failing to return video duration:
-- **Supadata**: Returns 400 error for the `/video` endpoint (metadata)
-- **Invidious**: All public instances are failing or blocking requests
-
-This causes ALL video uploads to fail with "Unable to verify video duration" - blocking both valid short videos (9 min) and videos that should be blocked (25 min).
+Replace all complex duration detection methods with a simple, reliable approach using **YouTube Data API v3** as the primary method, with basic HTML scraping as fallback only if the API key is not configured.
 
 ---
 
-### Solution: Direct YouTube HTML Scraping
+### Changes to `supabase/functions/process-youtube-video/index.ts`
 
-YouTube embeds video duration in the HTML page as **microdata** following schema.org standards. We can extract this without any API key.
+**1. Add YouTube Data API v3 function**
 
-**How it works:**
-1. Fetch the YouTube watch page: `https://www.youtube.com/watch?v={videoId}`
-2. Extract duration from either:
-   - **Meta tag**: `<meta itemprop="duration" content="PT3M33S">`
-   - **JSON-LD data**: `"duration": "PT3M33S"` in the script tag
-   - **ytInitialPlayerResponse**: `"lengthSeconds": "213"` in the embedded JSON
-3. Parse ISO 8601 duration format (PT#H#M#S) to seconds
-
----
-
-### Implementation Plan
-
-**File: `supabase/functions/process-youtube-video/index.ts`**
-
-Rewrite `getVideoDuration()` function with this priority order:
-
-1. **Try Supadata API first** (if configured) - keeps existing behavior for reliability
-2. **Fallback: Scrape YouTube HTML directly** - extract duration from page microdata
-3. **Secondary fallback: Try Invidious instances** - as last resort
-
-**New helper function to parse ISO 8601 duration:**
 ```typescript
-function parseISO8601Duration(duration: string): number {
-  // Parses "PT3M33S" or "PT1H5M30S" to seconds
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return 0;
-  
-  const hours = parseInt(match[1] || '0', 10);
-  const minutes = parseInt(match[2] || '0', 10);
-  const seconds = parseInt(match[3] || '0', 10);
-  
-  return hours * 3600 + minutes * 60 + seconds;
+async function getYouTubeAPIv3Duration(videoId: string): Promise<number> {
+  const API_KEY = Deno.env.get('YOUTUBE_DATA_API_KEY');
+  if (!API_KEY) {
+    console.log('YOUTUBE_DATA_API_KEY not configured');
+    return 0;
+  }
+
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=contentDetails&key=${API_KEY}`
+    );
+
+    if (!response.ok) {
+      console.log('YouTube API v3 failed:', response.status);
+      return 0;
+    }
+
+    const data = await response.json();
+    const duration = data.items?.[0]?.contentDetails?.duration;
+    
+    if (duration) {
+      const seconds = parseISO8601Duration(duration);
+      console.log(`YouTube API v3 duration: ${seconds}s (${duration})`);
+      return seconds;
+    }
+
+    return 0;
+  } catch (error) {
+    console.log('YouTube API v3 error:', error);
+    return 0;
+  }
 }
 ```
 
-**New scraping function:**
+**2. Simplify HTML scraping (keep as fallback only)**
+
+Update `scrapeDurationFromYouTube()` to add CONSENT cookie:
+
 ```typescript
 async function scrapeDurationFromYouTube(videoId: string): Promise<number> {
-  const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; bot)',
-      'Accept-Language': 'en-US,en;q=0.9'
+  try {
+    console.log('Fallback: Scraping YouTube HTML for duration...');
+    const response = await fetch(
+      `https://www.youtube.com/watch?v=${videoId}&hl=en&gl=US`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cookie': 'CONSENT=YES+1'
+        }
+      }
+    );
+    
+    if (!response.ok) return 0;
+    const html = await response.text();
+    
+    // Flexible meta tag match
+    const metaMatch = html.match(/<meta[^>]*itemprop="duration"[^>]*content="([^"]+)"/i);
+    if (metaMatch) {
+      const duration = parseISO8601Duration(metaMatch[1]);
+      if (duration > 0) return duration;
     }
-  });
-  
-  if (!response.ok) return 0;
-  const html = await response.text();
-  
-  // Method 1: Extract from meta tag
-  const metaMatch = html.match(/<meta\s+itemprop="duration"\s+content="([^"]+)"/);
-  if (metaMatch) {
-    return parseISO8601Duration(metaMatch[1]);
+    
+    // lengthSeconds - accept both quoted and unquoted
+    const lengthMatch = html.match(/"lengthSeconds"\s*:\s*"?(\d+)"?/);
+    if (lengthMatch) {
+      return parseInt(lengthMatch[1], 10);
+    }
+    
+    return 0;
+  } catch {
+    return 0;
   }
+}
+```
+
+**3. Simplify `getVideoDuration()` function**
+
+Replace the entire function with:
+
+```typescript
+async function getVideoDuration(videoId: string): Promise<number> {
+  // Primary: YouTube Data API v3 (official, reliable)
+  let duration = await getYouTubeAPIv3Duration(videoId);
+  if (duration > 0) return duration;
   
-  // Method 2: Extract from ytInitialPlayerResponse JSON
-  const jsonMatch = html.match(/"lengthSeconds"\s*:\s*"(\d+)"/);
-  if (jsonMatch) {
-    return parseInt(jsonMatch[1], 10);
-  }
+  // Fallback: Simple HTML scraping (only if API key not set)
+  duration = await scrapeDurationFromYouTube(videoId);
+  if (duration > 0) return duration;
   
+  console.log('All duration sources failed for video:', videoId);
   return 0;
 }
 ```
 
-**Updated `getVideoDuration()` flow:**
-```text
-getVideoDuration(videoId)
-    │
-    ├─→ Try Supadata API
-    │   └─→ Success? Return duration
-    │
-    ├─→ Try scraping YouTube HTML
-    │   └─→ Found duration? Return it
-    │
-    └─→ Try Invidious instances (existing fallback)
-        └─→ Return duration or 0
+**4. Remove all complexity**
+
+Delete:
+- Supadata API calls for duration
+- Invidious API fallback
+- All the complex scraping logic
+
+---
+
+### Changes to `src/pages/AppHome.tsx`
+
+**Improve error handling to show real messages**
+
+Update the `handleImportVideo` function to properly extract and display error messages from the backend:
+
+```typescript
+const handleImportVideo = async () => {
+  if (!videoUrl.trim()) {
+    toast.error("Please enter a video URL");
+    return;
+  }
+
+  if (!user) {
+    toast.error("Please log in to import videos");
+    return;
+  }
+
+  setImporting(true);
+  try {
+    const { data, error } = await supabase.functions.invoke("process-youtube-video", {
+      body: { 
+        videoUrl: videoUrl,
+        language: profile?.selected_language || "english"
+      },
+    });
+
+    // Handle function error
+    if (error) {
+      const errorMessage = error.message || "Failed to import video";
+      
+      // Check for quota/limit errors
+      if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
+        setUpgradeReason(errorMessage);
+        setShowUpgradePrompt(true);
+        return;
+      }
+      
+      // Show the actual error message
+      toast.error(errorMessage);
+      return;
+    }
+
+    // Handle error in response data (from non-2xx responses)
+    if (data?.error) {
+      toast.error(data.error);
+      return;
+    }
+
+    // Success handling (existing code)
+    const videoDbId = data?.video?.id;
+    // ... rest of success logic
+  } catch (error: any) {
+    console.error("Error importing video:", error);
+    toast.error(error?.message || "Failed to import video. Please try again.");
+  } finally {
+    setImporting(false);
+  }
+};
 ```
 
 ---
 
-### Files to Modify
+### Summary of Changes
 
-| File | Changes |
-|------|---------|
-| `supabase/functions/process-youtube-video/index.ts` | Add `parseISO8601Duration()`, add `scrapeDurationFromYouTube()`, update `getVideoDuration()` to use HTML scraping as primary fallback |
+| File | Action |
+|------|--------|
+| `supabase/functions/process-youtube-video/index.ts` | Add `getYouTubeAPIv3Duration()`, simplify `scrapeDurationFromYouTube()` with CONSENT cookie, simplify `getVideoDuration()`, remove Supadata/Invidious code |
+| `src/pages/AppHome.tsx` | Update error handling to show real backend error messages |
+
+---
+
+### Error Messages
+
+| Condition | Error Message |
+|-----------|---------------|
+| Duration = 0 | "Unable to verify video duration. Please try a different video." |
+| Duration > 600 seconds | "Video is X minutes long. Maximum allowed is 10 minutes. Please choose a shorter video." |
 
 ---
 
 ### Technical Notes
 
-- **No API key required**: Direct scraping works without credentials
-- **Reliable**: YouTube's microdata is a stable part of their SEO implementation
-- **ISO 8601 format**: Duration like "PT10M30S" = 10 minutes 30 seconds = 630 seconds
-- **User-Agent**: Setting a browser-like User-Agent helps avoid blocks
-- **Credit cost**: Zero - this is just fetching a public HTML page
-
-### Advantages Over Current Approach
-
-| Current | Proposed |
-|---------|----------|
-| Depends on external APIs | Direct scraping from source |
-| Supadata costs credits | Free (no API) |
-| Invidious is unreliable | YouTube HTML is always available |
-| Multiple points of failure | Single reliable source |
+- **YouTube Data API v3** uses the existing `YOUTUBE_DATA_API_KEY` secret
+- **API endpoint**: `https://www.googleapis.com/youtube/v3/videos?id={videoId}&part=contentDetails&key={API_KEY}`
+- **Duration format**: ISO 8601 (e.g., `PT3M33S`) - parsed by existing `parseISO8601Duration()` function
+- **API quota**: Checking duration costs 1 quota unit per video (10,000 units/day free)
 
