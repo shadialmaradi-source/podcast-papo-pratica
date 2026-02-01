@@ -211,127 +211,91 @@ function parseISO8601Duration(duration: string): number {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-// Scrape duration directly from YouTube HTML page (no API key needed)
-async function scrapeDurationFromYouTube(videoId: string): Promise<number> {
+// Primary method: YouTube Data API v3 (official, reliable)
+async function getYouTubeAPIv3Duration(videoId: string): Promise<number> {
+  const API_KEY = Deno.env.get('YOUTUBE_DATA_API_KEY');
+  if (!API_KEY) {
+    console.log('YOUTUBE_DATA_API_KEY not configured');
+    return 0;
+  }
+
   try {
-    console.log('Scraping YouTube HTML for duration...');
-    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      }
-    });
-    
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=contentDetails&key=${API_KEY}`
+    );
+
     if (!response.ok) {
-      console.log('YouTube HTML fetch failed:', response.status);
+      console.log('YouTube API v3 failed:', response.status);
       return 0;
     }
+
+    const data = await response.json();
+    const duration = data.items?.[0]?.contentDetails?.duration;
     
+    if (duration) {
+      const seconds = parseISO8601Duration(duration);
+      console.log(`YouTube API v3 duration: ${seconds}s (${duration})`);
+      return seconds;
+    }
+
+    return 0;
+  } catch (error) {
+    console.log('YouTube API v3 error:', error);
+    return 0;
+  }
+}
+
+// Fallback: Simple HTML scraping with CONSENT cookie (only if API key not set)
+async function scrapeDurationFromYouTube(videoId: string): Promise<number> {
+  try {
+    console.log('Fallback: Scraping YouTube HTML for duration...');
+    const response = await fetch(
+      `https://www.youtube.com/watch?v=${videoId}&hl=en&gl=US`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cookie': 'CONSENT=YES+1'
+        }
+      }
+    );
+    
+    if (!response.ok) return 0;
     const html = await response.text();
     
-    // Method 1: Extract from meta tag <meta itemprop="duration" content="PT3M33S">
-    const metaMatch = html.match(/<meta\s+itemprop="duration"\s+content="([^"]+)"/i);
+    // Flexible meta tag match (order-independent)
+    const metaMatch = html.match(/<meta[^>]*itemprop="duration"[^>]*content="([^"]+)"/i);
     if (metaMatch) {
       const duration = parseISO8601Duration(metaMatch[1]);
       if (duration > 0) {
-        console.log(`Got duration from YouTube meta tag: ${duration}s (${metaMatch[1]})`);
+        console.log(`Got duration from YouTube meta tag: ${duration}s`);
         return duration;
       }
     }
     
-    // Method 2: Extract from ytInitialPlayerResponse JSON "lengthSeconds": "213"
-    const jsonMatch = html.match(/"lengthSeconds"\s*:\s*"(\d+)"/);
-    if (jsonMatch) {
-      const duration = parseInt(jsonMatch[1], 10);
-      if (duration > 0) {
-        console.log(`Got duration from ytInitialPlayerResponse: ${duration}s`);
-        return duration;
-      }
+    // lengthSeconds - accept both quoted and unquoted
+    const lengthMatch = html.match(/"lengthSeconds"\s*:\s*"?(\d+)"?/);
+    if (lengthMatch) {
+      const duration = parseInt(lengthMatch[1], 10);
+      console.log(`Got duration from lengthSeconds: ${duration}s`);
+      return duration;
     }
     
-    // Method 3: Try approxDurationMs from embedded JSON
-    const approxMatch = html.match(/"approxDurationMs"\s*:\s*"(\d+)"/);
-    if (approxMatch) {
-      const duration = Math.round(parseInt(approxMatch[1], 10) / 1000);
-      if (duration > 0) {
-        console.log(`Got duration from approxDurationMs: ${duration}s`);
-        return duration;
-      }
-    }
-    
-    console.log('Could not extract duration from YouTube HTML');
     return 0;
-  } catch (error) {
-    console.log('YouTube HTML scraping error:', error);
+  } catch {
     return 0;
   }
 }
 
 async function getVideoDuration(videoId: string): Promise<number> {
-  // Try Supadata first (if configured)
-  const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY');
+  // Primary: YouTube Data API v3 (official, reliable)
+  let duration = await getYouTubeAPIv3Duration(videoId);
+  if (duration > 0) return duration;
   
-  if (SUPADATA_API_KEY) {
-    try {
-      const response = await fetch(
-        `https://api.supadata.ai/v1/youtube/video?videoId=${videoId}`,
-        {
-          headers: {
-            'x-api-key': SUPADATA_API_KEY
-          }
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const duration = data.lengthSeconds || data.duration || 0;
-        if (duration > 0) {
-          console.log('Supadata video metadata:', { duration, title: data.title });
-          return duration;
-        }
-      } else {
-        console.log('Supadata failed:', response.status);
-      }
-    } catch (error) {
-      console.log('Supadata error:', error);
-    }
-  }
-
-  // Fallback: Scrape YouTube HTML directly (no API key, free, reliable)
-  const scrapedDuration = await scrapeDurationFromYouTube(videoId);
-  if (scrapedDuration > 0) {
-    return scrapedDuration;
-  }
-
-  // Last resort: Try Invidious API instances
-  console.log('Trying Invidious API fallback for duration...');
-  const invidiousInstances = [
-    'https://vid.puffyan.us',
-    'https://invidious.snopyta.org',
-    'https://yewtu.be',
-    'https://inv.nadeko.net'
-  ];
-
-  for (const instance of invidiousInstances) {
-    try {
-      const response = await fetch(
-        `${instance}/api/v1/videos/${videoId}?fields=lengthSeconds`,
-        { headers: { 'Accept': 'application/json' } }
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.lengthSeconds && data.lengthSeconds > 0) {
-          console.log(`Got duration from Invidious (${instance}): ${data.lengthSeconds}s`);
-          return data.lengthSeconds;
-        }
-      }
-    } catch (error) {
-      console.log(`Invidious instance ${instance} failed`);
-    }
-  }
-
+  // Fallback: Simple HTML scraping (only if API key not set or failed)
+  duration = await scrapeDurationFromYouTube(videoId);
+  if (duration > 0) return duration;
+  
   console.log('All duration sources failed for video:', videoId);
   return 0;
 }

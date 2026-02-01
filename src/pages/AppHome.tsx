@@ -103,15 +103,26 @@ export default function AppHome() {
         },
       });
 
+      // Handle function error
       if (error) {
-        // Check if it's a quota error
-        const errorMessage = error.message || "";
+        const errorMessage = error.message || "Failed to import video";
+        
+        // Check for quota/limit errors
         if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
           setUpgradeReason(errorMessage);
           setShowUpgradePrompt(true);
           return;
         }
-        throw error;
+        
+        // Show the actual error message
+        toast.error(errorMessage);
+        return;
+      }
+
+      // Handle error in response data (from non-2xx responses)
+      if (data?.error) {
+        toast.error(data.error);
+        return;
       }
 
       const videoDbId = data?.video?.id;
@@ -129,9 +140,9 @@ export default function AppHome() {
         setImportDialogOpen(false);
         await fetchUploadQuota();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error importing video:", error);
-      toast.error("Failed to import video. Please check the URL and try again.");
+      toast.error(error?.message || "Failed to import video. Please try again.");
     } finally {
       setImporting(false);
     }
