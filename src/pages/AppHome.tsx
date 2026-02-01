@@ -96,16 +96,35 @@ export default function AppHome() {
 
     setImporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("process-youtube-video", {
-        body: { 
-          videoUrl: videoUrl,
-          language: profile?.selected_language || "english"
-        },
-      });
-
-      // Handle function error
-      if (error) {
-        const errorMessage = error.message || "Failed to import video";
+      // Use direct fetch to properly capture error messages from response body
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      
+      if (!accessToken) {
+        toast.error("Please log in to import videos");
+        return;
+      }
+      
+      const response = await fetch(
+        `https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/process-youtube-video`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            videoUrl: videoUrl,
+            language: profile?.selected_language || "english"
+          }),
+        }
+      );
+      
+      const data = await response.json();
+      
+      // Handle error from response (non-2xx or data.error)
+      if (!response.ok || data.error) {
+        const errorMessage = data.error || "Failed to import video";
         
         // Check for quota/limit errors
         if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
@@ -114,14 +133,8 @@ export default function AppHome() {
           return;
         }
         
-        // Show the actual error message
+        // Show the actual error message (e.g., "Video is 25 minutes long...")
         toast.error(errorMessage);
-        return;
-      }
-
-      // Handle error in response data (from non-2xx responses)
-      if (data?.error) {
-        toast.error(data.error);
         return;
       }
 

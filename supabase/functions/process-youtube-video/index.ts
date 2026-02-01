@@ -140,6 +140,22 @@ serve(async (req) => {
 
     console.log('Created video record:', video.id);
 
+    // Track this upload against user's monthly quota
+    const { error: uploadTrackError } = await supabase
+      .from('user_video_uploads')
+      .insert({
+        user_id: userId,
+        video_id: video.id,
+        duration_seconds: videoDuration
+      });
+
+    if (uploadTrackError) {
+      console.error('Failed to track upload quota:', uploadTrackError);
+      // Non-blocking - continue with processing
+    } else {
+      console.log('Tracked upload for user quota:', userId);
+    }
+
     // Start background processing (don't await - let it run async)
     processVideoInBackground(supabase, video, videoId);
 
