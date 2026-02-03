@@ -1,252 +1,303 @@
 
+# Flashcard PDF Download Feature
 
-# ListenFlow Launch Roadmap
-
-A prioritized list of fixes organized from quickest wins to more complex tasks. Each item can be completed in one session.
-
----
-
-## Day 1: Quick Wins (5-10 minutes each)
-
-### Task 1.1: Remove Test Route
-**Time:** 5 minutes | **Difficulty:** Easy
-
-Remove the `/test-transcript` route from production. This is a debug page that shouldn't be public.
-
-**What to do:**
-- Remove line 98 from `src/App.tsx`: `<Route path="/test-transcript" element={<TestTranscript />} />`
-- Remove the import on line 17: `import TestTranscript from "./pages/TestTranscript";`
+## Summary
+Add a premium-only feature to download flashcards as a beautifully formatted, printable PDF from the Profile page's Flashcards section.
 
 ---
 
-### Task 1.2: Add Missing Secret
-**Time:** 2 minutes | **Difficulty:** Easy
+## Architecture Overview
 
-The `YOUTUBE_DATA_API_KEY` secret is missing from Supabase. Without it, video duration detection falls back to HTML scraping.
-
-**What to do:**
-- Go to Supabase Dashboard > Settings > Edge Functions
-- Add `YOUTUBE_DATA_API_KEY` with your Google API key
-
----
-
-### Task 1.3: Enable Leaked Password Protection
-**Time:** 2 minutes | **Difficulty:** Easy
-
-Security feature that checks if passwords have been exposed in data breaches.
-
-**What to do:**
-- Go to Supabase Dashboard > Authentication > Providers > Email
-- Enable "Leaked password protection"
-
----
-
-## Day 2: Database Security (15-20 minutes)
-
-### Task 2.1: Fix RLS Policies for 3 Tables
-**Time:** 15 minutes | **Difficulty:** Medium
-
-Three tables have RLS enabled but no policies, which blocks all access:
-1. `youtube_exercises` - Exercises for videos
-2. `exercises` - Podcast exercises  
-3. `anonymous_speech_attempts` - Speech attempt tracking
-
-**What to do:**
-Add appropriate RLS policies via migration:
-
-```sql
--- youtube_exercises: Anyone can read, service role can write
-CREATE POLICY "Anyone can view youtube exercises" ON youtube_exercises
-  FOR SELECT USING (true);
-
-CREATE POLICY "Service role can manage youtube exercises" ON youtube_exercises
-  FOR ALL USING ((auth.jwt() ->> 'role') = 'service_role');
-
--- exercises: Anyone can read, service role can write
-CREATE POLICY "Anyone can view exercises" ON exercises
-  FOR SELECT USING (true);
-
-CREATE POLICY "Service role can manage exercises" ON exercises
-  FOR ALL USING ((auth.jwt() ->> 'role') = 'service_role');
-
--- anonymous_speech_attempts: Anyone can read/write (anonymous)
-CREATE POLICY "Anyone can manage anonymous attempts" ON anonymous_speech_attempts
-  FOR ALL USING (true) WITH CHECK (true);
+```text
++-------------------+     +------------------+     +-------------------+
+|   ProfilePage     | --> | FlashcardPDF     | --> | PDFDocument       |
+|   (Download Btn)  |     | Generator        |     | (jsPDF)           |
++-------------------+     +------------------+     +-------------------+
+         |                        |
+         v                        v
++-------------------+     +------------------+
+| UpgradePrompt     |     | flashcardService |
+| (Free users)      |     | (Fetch data)     |
++-------------------+     +------------------+
 ```
 
 ---
 
-## Day 3: Content & Library (20-30 minutes)
+## Components to Create/Modify
 
-### Task 3.1: Add Curated Starter Videos
-**Time:** 30 minutes | **Difficulty:** Medium
+### 1. New Files
 
-Currently 10 videos exist but none are marked as curated. New users see an empty library.
+**`src/services/pdfGeneratorService.ts`**
+- Handles PDF generation using jsPDF library
+- Creates cover page with user info
+- Generates flashcard pages (fronts and backs)
+- Applies app branding and styling
 
-**What to do:**
-1. Find 3-5 good beginner YouTube videos (under 10 min) for each language:
-   - Portuguese (primary)
-   - English
-   - Spanish
-   - French
-   - Italian
-   - German
+**`src/components/subscription/PdfDownloadButton.tsx`**
+- Reusable button component with premium lock state
+- Shows loading spinner during generation
+- Handles premium vs free user logic
 
-2. Import each video through the app OR update existing videos:
-```sql
-UPDATE youtube_videos 
-SET is_curated = true 
-WHERE id IN ('uuid1', 'uuid2', 'uuid3');
+### 2. Modified Files
+
+**`src/components/ProfilePage.tsx`**
+- Add Download PDF button in Flashcards section (lines 624-631)
+- Import new PdfDownloadButton component
+- Pass subscription state and flashcard count
+
+**`src/services/flashcardService.ts`**
+- Add new function to fetch all flashcard data for PDF export
+- Include video title for "source" field
+
+### 3. Dependencies
+
+**Package to Install: `jspdf`**
+- Client-side PDF generation library
+- Lightweight and well-supported
+- No backend required
+
+---
+
+## Implementation Details
+
+### Phase 1: Install jsPDF
+
+Add to package.json:
+```json
+"jspdf": "^2.5.1"
 ```
 
-3. Ensure each has exercises generated and status = 'completed'
+### Phase 2: PDF Generator Service
 
----
+Create `src/services/pdfGeneratorService.ts`:
 
-## Day 4: Stripe Production Setup (30 minutes)
+**Functions:**
+- `generateFlashcardPDF(flashcards, userInfo)` - Main entry point
+- `createCoverPage(doc, userInfo, cardCount)` - Title page with branding
+- `createFlashcardFronts(doc, flashcards)` - Word/phrase cards
+- `createFlashcardBacks(doc, flashcards)` - Translation + context cards
+- `downloadPDF(doc, filename)` - Trigger browser download
 
-### Task 4.1: Configure Stripe Webhook
-**Time:** 20 minutes | **Difficulty:** Medium
+**PDF Layout:**
+- A4 paper size (210mm x 297mm)
+- 6 cards per page (2 columns x 3 rows)
+- Card size: ~90mm x 75mm
+- Cut lines between cards (optional)
+- App colors: Primary green (#22c55e)
 
-The webhook receives payment events to update subscriptions.
+**Cover Page Content:**
+```text
+┌────────────────────────────────┐
+│                                │
+│       📚 My Flashcards         │
+│                                │
+│    Created for: username       │
+│    Language: Portuguese        │
+│    Total cards: 47             │
+│                                │
+│    Generated: February 3, 2026 │
+│                                │
+│       ListenFlow               │
+└────────────────────────────────┘
+```
 
-**What to do:**
-1. Log into Stripe Dashboard
-2. Go to Developers > Webhooks
-3. Add endpoint: `https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/stripe-webhook`
-4. Select events:
-   - `checkout.session.completed`
-   - `customer.subscription.deleted`
-   - `customer.subscription.updated`
-   - `invoice.payment_failed`
-5. Copy the webhook signing secret
-6. Update `STRIPE_WEBHOOK_SECRET` in Supabase secrets
+**Card Front Design:**
+```text
+┌─────────────────┐
+│                 │
+│   ESCOVAR       │
+│   (verb)        │
+│                 │
+└─────────────────┘
+```
 
----
+**Card Back Design:**
+```text
+┌─────────────────────────┐
+│ ESCOVAR                 │
+│                         │
+│ to brush                │
+│                         │
+│ Why: Common daily verb  │
+│ used in morning routine │
+│                         │
+│ From: Morning Routine   │
+└─────────────────────────┘
+```
 
-### Task 4.2: Switch to Live Stripe Keys
-**Time:** 10 minutes | **Difficulty:** Easy
+### Phase 3: Flashcard Service Update
 
-If still using test keys, switch to live keys.
+Add to `src/services/flashcardService.ts`:
 
-**What to do:**
-1. Get live keys from Stripe Dashboard
-2. Update `STRIPE_SECRET_KEY` in Supabase secrets
-3. Create live product/price if needed
+```typescript
+interface FlashcardExportData {
+  id: string;
+  phrase: string;
+  translation: string;
+  why: string;
+  difficulty: string;
+  videoTitle: string;
+  language: string;
+}
 
----
+async function getFlashcardsForExport(userId: string): Promise<FlashcardExportData[]>
+```
 
-## Day 5: Automation Setup (30 minutes)
+### Phase 4: PDF Download Button Component
 
-### Task 5.1: Set Up Cron Jobs for Notifications
-**Time:** 30 minutes | **Difficulty:** Medium
+Create `src/components/subscription/PdfDownloadButton.tsx`:
 
-Edge functions exist but aren't scheduled:
-- `send-daily-reminders` - Reminder emails
-- `send-weekly-recaps` - Weekly progress emails
-- `send-leaderboard-alerts` - Competition alerts
+**Props:**
+- `userId: string`
+- `isPremium: boolean`
+- `flashcardCount: number`
+- `username: string`
+- `language: string`
 
-**What to do:**
-1. Go to Supabase Dashboard > Database > Extensions
-2. Enable `pg_cron` if not enabled
-3. Add cron jobs via SQL:
+**States:**
+- `isGenerating: boolean` - Loading state
+- `showUpgradePrompt: boolean` - For free users
 
-```sql
--- Daily reminders at 9am UTC
-SELECT cron.schedule(
-  'daily-reminders',
-  '0 9 * * *',
-  $$SELECT net.http_post(
-    'https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/send-daily-reminders',
-    '{}',
-    '{"Authorization": "Bearer YOUR_CRON_SECRET"}'
-  )$$
-);
+**Button Variants:**
+1. **Free User (Locked):**
+   - Grayed out with lock icon
+   - Text: "Download PDF 🔒"
+   - Subtitle: "Premium only"
+   - OnClick: Shows UpgradePrompt
 
--- Weekly recaps on Sundays at 10am UTC
-SELECT cron.schedule(
-  'weekly-recaps',
-  '0 10 * * 0',
-  $$SELECT net.http_post(
-    'https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/send-weekly-recaps',
-    '{}',
-    '{"Authorization": "Bearer YOUR_CRON_SECRET"}'
-  )$$
-);
+2. **Premium User (Enabled):**
+   - Primary color with download icon
+   - Text: "Download PDF"
+   - OnClick: Generates and downloads PDF
+
+3. **Loading State:**
+   - Spinner icon
+   - Text: "Generating PDF..."
+   - Disabled
+
+### Phase 5: Profile Page Integration
+
+Update Flashcards section (lines 613-642):
+
+```tsx
+<CardContent>
+  <div className="text-center py-6">
+    {/* ... existing flashcard count UI ... */}
+    
+    {/* Action buttons row */}
+    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+      <Button 
+        onClick={() => setShowFlashcardRepository(true)} 
+        disabled={flashcardCount === 0}
+        className="gap-2"
+      >
+        <BookOpen className="h-4 w-4" />
+        Start Study Session
+      </Button>
+      
+      <PdfDownloadButton
+        userId={user.id}
+        isPremium={subscription?.tier === 'premium' || subscription?.tier === 'promo'}
+        flashcardCount={flashcardCount}
+        username={profile?.username || profile?.display_name || 'User'}
+        language={profile?.selected_language || 'english'}
+      />
+    </div>
+  </div>
+</CardContent>
 ```
 
 ---
 
-## Day 6: Testing & Polish (1-2 hours)
+## User Flows
 
-### Task 6.1: End-to-End Testing
-**Time:** 1 hour | **Difficulty:** Medium
+### Free User Flow
+1. User sees "Download PDF 🔒" button with "Premium only" label
+2. User clicks button
+3. UpgradePrompt modal appears with:
+   - Title: "Upgrade to Premium"
+   - Description: "Download your flashcards as printable PDFs..."
+   - Benefits list (PDF downloads, unlimited videos, etc.)
+   - Upgrade button -> navigates to /premium
+   - Promo code input option
+4. User can close modal or upgrade
 
-Test all critical user flows:
+### Premium User Flow
+1. User sees "Download PDF" button (enabled, primary color)
+2. User clicks button
+3. Button shows "Generating PDF..." with spinner
+4. PDF is generated client-side (2-5 seconds)
+5. Browser downloads file: `flashcards_username_2026-02-03.pdf`
+6. Toast notification: "Your flashcards PDF has been downloaded!"
 
-| Flow | Test |
-|------|------|
-| Sign up | Create new account, verify email works |
-| First lesson | Complete onboarding flow, watch video, do exercises |
-| Import video | Add personal YouTube video, verify quota tracking |
-| Premium | Test Stripe checkout, verify subscription updates |
-| Profile | Check streak, badges, weekly stats display |
-| Logout/Login | Session persistence works |
-
----
-
-### Task 6.2: Mobile Responsiveness Check
-**Time:** 30 minutes | **Difficulty:** Easy
-
-Test on mobile devices:
-- Landing page
-- Lesson flow
-- Profile page
-- Import dialog
-
----
-
-## Day 7: Launch Prep (30 minutes)
-
-### Task 7.1: Final Checklist
-
-- [ ] All test routes removed
-- [ ] Secrets configured correctly
-- [ ] RLS policies in place
-- [ ] Curated content exists
-- [ ] Stripe webhook configured
-- [ ] Cron jobs scheduled
-- [ ] E2E tests pass
-- [ ] Mobile looks good
-
-### Task 7.2: Publish!
-
-Click **Publish** in Lovable to deploy to `listenflow.lovable.app`
+### Edge Cases
+- **No flashcards:** Button disabled, shows "Complete a lesson first"
+- **Error during generation:** Toast error "Failed to generate PDF. Please try again."
+- **Large collection (100+ cards):** Warning but proceed (PDF handles it)
 
 ---
 
-## Summary by Day
+## Technical Specifications
 
-| Day | Focus | Time | Items |
-|-----|-------|------|-------|
-| 1 | Quick Wins | 15 min | Remove test route, add API key, enable password protection |
-| 2 | Database | 20 min | Fix RLS policies for 3 tables |
-| 3 | Content | 30 min | Add curated starter videos |
-| 4 | Payments | 30 min | Configure Stripe webhook + live keys |
-| 5 | Automation | 30 min | Set up cron jobs for emails |
-| 6 | Testing | 1.5 hrs | E2E testing + mobile check |
-| 7 | Launch | 30 min | Final checklist + publish |
+### PDF Dimensions
+- Page: A4 (210 x 297mm)
+- Margins: 10mm all sides
+- Card grid: 2 columns x 3 rows = 6 cards/page
+- Card size: 90mm x 75mm
+- Font: Helvetica (built into jsPDF)
 
-**Total: ~4-5 hours spread over 7 days**
+### File Naming
+`flashcards_${username.toLowerCase()}_${YYYY-MM-DD}.pdf`
+Example: `flashcards_shaytz_2026-02-03.pdf`
+
+### Colors (Matching App Theme)
+- Primary: #22c55e (green)
+- Text: #1a1a1a
+- Muted: #6b7280
+- Background: #ffffff
+- Border: #e5e7eb
 
 ---
 
-## Optional Enhancements (Post-Launch)
+## Files Changed Summary
 
-These can be done after launch:
-- Add more curated videos for each language
-- Implement proper notification/account settings in profile
-- Add analytics dashboard for admin
-- Implement referral system
-- Add social sharing features
+| File | Change Type | Description |
+|------|-------------|-------------|
+| `package.json` | Modify | Add jspdf dependency |
+| `src/services/pdfGeneratorService.ts` | Create | PDF generation logic |
+| `src/services/flashcardService.ts` | Modify | Add export function |
+| `src/components/subscription/PdfDownloadButton.tsx` | Create | Download button component |
+| `src/components/ProfilePage.tsx` | Modify | Add button to Flashcards section |
 
+---
+
+## Error Handling
+
+1. **No flashcards:** Disable button, show helper text
+2. **PDF generation error:** Try-catch with toast notification
+3. **Not authenticated:** Check user exists before generating
+4. **Subscription check failure:** Default to showing locked state
+
+---
+
+## Success Feedback
+
+Using existing `toast` from sonner:
+```typescript
+toast.success("Your flashcards PDF has been downloaded!");
+```
+
+---
+
+## Testing Checklist
+
+- [ ] Free user sees locked button with upgrade prompt on click
+- [ ] Premium user can download PDF successfully
+- [ ] PDF contains cover page with correct user info
+- [ ] PDF contains all flashcard fronts and backs
+- [ ] Cards are formatted correctly for printing
+- [ ] Loading state shows during generation
+- [ ] Success toast appears after download
+- [ ] Error handling works for edge cases
+- [ ] Button disabled when no flashcards exist
+- [ ] Filename format is correct
