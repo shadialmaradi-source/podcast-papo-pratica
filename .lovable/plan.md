@@ -1,261 +1,427 @@
 
-# Flashcard PDF Download Feature
+# Video Transcript Viewer with Flashcard Creation
 
 ## Summary
-Add a premium-only feature to download flashcards as a beautifully formatted, printable PDF from the Profile page's Flashcards section.
+Add a premium-only interactive transcript viewer to the video lesson page that allows users to read along with videos and create custom flashcards by selecting text directly from the transcript.
 
 ---
 
 ## Architecture Overview
 
 ```text
-+-------------------+     +------------------+     +-------------------+
-|   ProfilePage     | --> | FlashcardPDF     | --> | PDFDocument       |
-|   (Download Btn)  |     | Generator        |     | (jsPDF)           |
-+-------------------+     +------------------+     +-------------------+
-         |                        |
-         v                        v
-+-------------------+     +------------------+
-| UpgradePrompt     |     | flashcardService |
-| (Free users)      |     | (Fetch data)     |
-+-------------------+     +------------------+
++----------------------+     +---------------------+     +-------------------+
+| YouTubeVideoExercises| --> | TranscriptViewer    | --> | FlashcardCreator  |
+| (Video + Transcript) |     | (Premium gated)     |     | Modal             |
++----------------------+     +---------------------+     +-------------------+
+         |                           |                          |
+         v                           v                          v
++-------------------+     +----------------------+     +------------------+
+| useSubscription   |     | TextSelectionPopover |     | user_created_    |
+| (Premium check)   |     | (Selection actions)  |     | flashcards table |
++-------------------+     +----------------------+     +------------------+
 ```
 
 ---
 
-## Components to Create/Modify
+## Database Changes
 
-### 1. New Files
+### New Table: `user_created_flashcards`
 
-**`src/services/pdfGeneratorService.ts`**
-- Handles PDF generation using jsPDF library
-- Creates cover page with user info
-- Generates flashcard pages (fronts and backs)
-- Applies app branding and styling
+This table stores flashcards created by users from transcript selections:
 
-**`src/components/subscription/PdfDownloadButton.tsx`**
-- Reusable button component with premium lock state
-- Shows loading spinner during generation
-- Handles premium vs free user logic
+```sql
+CREATE TABLE user_created_flashcards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  video_id UUID NOT NULL REFERENCES youtube_videos(id) ON DELETE CASCADE,
+  phrase TEXT NOT NULL,                    -- Selected text from transcript
+  translation TEXT,                        -- User-provided translation
+  part_of_speech TEXT,                     -- noun, verb, adjective, etc.
+  example_sentence TEXT,                   -- Full sentence from context
+  notes TEXT,                              -- Optional user notes
+  source_timestamp TEXT,                   -- Timestamp in transcript (00:00)
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  is_mastered BOOLEAN DEFAULT FALSE,
+  times_reviewed INTEGER DEFAULT 0
+);
 
-### 2. Modified Files
+-- Index for fast user lookups
+CREATE INDEX idx_user_created_flashcards_user ON user_created_flashcards(user_id);
+CREATE INDEX idx_user_created_flashcards_video ON user_created_flashcards(video_id);
 
-**`src/components/ProfilePage.tsx`**
-- Add Download PDF button in Flashcards section (lines 624-631)
-- Import new PdfDownloadButton component
-- Pass subscription state and flashcard count
+-- RLS policies
+ALTER TABLE user_created_flashcards ENABLE ROW LEVEL SECURITY;
 
-**`src/services/flashcardService.ts`**
-- Add new function to fetch all flashcard data for PDF export
-- Include video title for "source" field
+CREATE POLICY "Users can view own flashcards" ON user_created_flashcards
+  FOR SELECT USING (auth.uid() = user_id);
 
-### 3. Dependencies
+CREATE POLICY "Users can create own flashcards" ON user_created_flashcards
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-**Package to Install: `jspdf`**
-- Client-side PDF generation library
-- Lightweight and well-supported
-- No backend required
+CREATE POLICY "Users can update own flashcards" ON user_created_flashcards
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own flashcards" ON user_created_flashcards
+  FOR DELETE USING (auth.uid() = user_id);
+```
 
 ---
 
-## Implementation Details
+## Components to Create
 
-### Phase 1: Install jsPDF
+### 1. TranscriptViewer Component
+**File:** `src/components/transcript/TranscriptViewer.tsx`
 
-Add to package.json:
-```json
-"jspdf": "^2.5.1"
-```
-
-### Phase 2: PDF Generator Service
-
-Create `src/services/pdfGeneratorService.ts`:
-
-**Functions:**
-- `generateFlashcardPDF(flashcards, userInfo)` - Main entry point
-- `createCoverPage(doc, userInfo, cardCount)` - Title page with branding
-- `createFlashcardFronts(doc, flashcards)` - Word/phrase cards
-- `createFlashcardBacks(doc, flashcards)` - Translation + context cards
-- `downloadPDF(doc, filename)` - Trigger browser download
-
-**PDF Layout:**
-- A4 paper size (210mm x 297mm)
-- 6 cards per page (2 columns x 3 rows)
-- Card size: ~90mm x 75mm
-- Cut lines between cards (optional)
-- App colors: Primary green (#22c55e)
-
-**Cover Page Content:**
-```text
-┌────────────────────────────────┐
-│                                │
-│       📚 My Flashcards         │
-│                                │
-│    Created for: username       │
-│    Language: Portuguese        │
-│    Total cards: 47             │
-│                                │
-│    Generated: February 3, 2026 │
-│                                │
-│       ListenFlow               │
-└────────────────────────────────┘
-```
-
-**Card Front Design:**
-```text
-┌─────────────────┐
-│                 │
-│   ESCOVAR       │
-│   (verb)        │
-│                 │
-└─────────────────┘
-```
-
-**Card Back Design:**
-```text
-┌─────────────────────────┐
-│ ESCOVAR                 │
-│                         │
-│ to brush                │
-│                         │
-│ Why: Common daily verb  │
-│ used in morning routine │
-│                         │
-│ From: Morning Routine   │
-└─────────────────────────┘
-```
-
-### Phase 3: Flashcard Service Update
-
-Add to `src/services/flashcardService.ts`:
-
-```typescript
-interface FlashcardExportData {
-  id: string;
-  phrase: string;
-  translation: string;
-  why: string;
-  difficulty: string;
-  videoTitle: string;
-  language: string;
-}
-
-async function getFlashcardsForExport(userId: string): Promise<FlashcardExportData[]>
-```
-
-### Phase 4: PDF Download Button Component
-
-Create `src/components/subscription/PdfDownloadButton.tsx`:
+Main component that displays the video transcript with premium gating.
 
 **Props:**
-- `userId: string`
-- `isPremium: boolean`
-- `flashcardCount: number`
-- `username: string`
-- `language: string`
+- `videoId: string` - Database video UUID
+- `isPremium: boolean` - User subscription status
+- `onUpgradeClick: () => void` - Callback to show upgrade modal
 
-**States:**
-- `isGenerating: boolean` - Loading state
-- `showUpgradePrompt: boolean` - For free users
+**Features:**
+- Parses transcript text with timestamps `(00:00)`
+- Shows full transcript for premium users
+- Shows blurred/locked transcript for free users
+- Auto-scroll toggle (follows video playback)
+- Text size controls (small/medium/large)
+- Clickable timestamps to seek video
 
-**Button Variants:**
-1. **Free User (Locked):**
-   - Grayed out with lock icon
-   - Text: "Download PDF 🔒"
-   - Subtitle: "Premium only"
-   - OnClick: Shows UpgradePrompt
+**Layout:**
+```
++-----------------------------------+
+| Transcript          [Auto][Aa][+] | <- Header with controls
+|-----------------------------------|
+| [00:00] Good morning! I am        |
+| brushing my teeth.                |
+|                                   |
+| [00:03] This is my toothbrush.    | <- Highlighted line (current)
+|                                   |
+| [00:06] This is toothpaste.       |
++-----------------------------------+
+```
 
-2. **Premium User (Enabled):**
-   - Primary color with download icon
-   - Text: "Download PDF"
-   - OnClick: Generates and downloads PDF
+### 2. TranscriptLine Component
+**File:** `src/components/transcript/TranscriptLine.tsx`
 
-3. **Loading State:**
-   - Spinner icon
-   - Text: "Generating PDF..."
-   - Disabled
+Individual line component with timestamp and text selection support.
 
-### Phase 5: Profile Page Integration
+**Props:**
+- `timestamp: string` - Time in format "00:00"
+- `text: string` - Transcript text
+- `isHighlighted: boolean` - Currently playing line
+- `savedPhrases: string[]` - Phrases already saved as flashcards
+- `onTimestampClick: (time: number) => void`
+- `onTextSelect: (text: string, fullSentence: string, timestamp: string) => void`
 
-Update Flashcards section (lines 613-642):
+**Features:**
+- Clickable timestamp (styled as badge)
+- Text selection detection
+- Saved phrases shown with highlight/underline
+- Mobile-friendly touch selection
 
-```tsx
-<CardContent>
-  <div className="text-center py-6">
-    {/* ... existing flashcard count UI ... */}
-    
-    {/* Action buttons row */}
-    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-      <Button 
-        onClick={() => setShowFlashcardRepository(true)} 
-        disabled={flashcardCount === 0}
-        className="gap-2"
-      >
-        <BookOpen className="h-4 w-4" />
-        Start Study Session
-      </Button>
-      
-      <PdfDownloadButton
-        userId={user.id}
-        isPremium={subscription?.tier === 'premium' || subscription?.tier === 'promo'}
-        flashcardCount={flashcardCount}
-        username={profile?.username || profile?.display_name || 'User'}
-        language={profile?.selected_language || 'english'}
-      />
-    </div>
-  </div>
-</CardContent>
+### 3. TextSelectionPopover Component
+**File:** `src/components/transcript/TextSelectionPopover.tsx`
+
+Floating popup that appears when user selects text.
+
+**Props:**
+- `selectedText: string`
+- `position: { x: number, y: number }`
+- `onCreateFlashcard: () => void`
+- `onDismiss: () => void`
+
+**Layout:**
+```
++---------------------------+
+| Create Flashcard     |
++---------------------------+
+       ^
+"selected text here"
+```
+
+### 4. FlashcardCreatorModal Component
+**File:** `src/components/transcript/FlashcardCreatorModal.tsx`
+
+Modal dialog for creating/editing flashcards from transcript.
+
+**Props:**
+- `open: boolean`
+- `onOpenChange: (open: boolean) => void`
+- `selectedText: string` - Pre-filled phrase
+- `fullSentence: string` - Context sentence
+- `timestamp: string` - Source timestamp
+- `videoId: string` - Video UUID
+- `videoTitle: string` - Video name for display
+- `language: string` - Target language
+- `onSuccess: () => void` - Callback after save
+
+**Form Fields:**
+1. Word/Phrase (pre-filled, editable)
+2. Translation (manual input)
+3. Part of Speech (dropdown: noun, verb, adjective, adverb, phrase, other)
+4. Example Sentence (pre-filled with full sentence)
+5. Notes (optional text area)
+
+**Layout:**
+```
++---------------------------------------+
+| Create New Flashcard               X |
+|---------------------------------------|
+| Word/Phrase:                          |
+| [brushing my teeth                  ] |
+|                                       |
+| Translation (English):                |
+| [Enter translation...               ] |
+|                                       |
+| Part of Speech:                       |
+| [verb phrase v]                       |
+|                                       |
+| Example Sentence:                     |
+| [I am brushing my teeth.            ] |
+|                                       |
+| Notes (optional):                     |
+| [                                   ] |
+|                                       |
+| From: Morning Routine #1              |
+| Timestamp: 00:09                      |
+|                                       |
+| [Cancel]                    [Save]    |
++---------------------------------------+
+```
+
+### 5. LockedTranscript Component
+**File:** `src/components/transcript/LockedTranscript.tsx`
+
+Blurred transcript overlay for free users.
+
+**Props:**
+- `previewText: string` - First 2-3 lines shown clearly
+- `onUpgradeClick: () => void`
+
+**Layout:**
+```
++-----------------------------------+
+| Transcript              Lock      |
+|-----------------------------------|
+| [00:00] Good morning! I am...     | <- Clear preview
+|                                   |
+| ░░░░░ ░░░░░░░! ░ ░░              | <- Blurred
+| ░░░░░░░░ ░░ ░░░░░.               |
+|                                   |
+|   [Unlock Transcript - Upgrade]   |
++-----------------------------------+
+```
+
+---
+
+## Files to Modify
+
+### 1. YouTubeVideoExercises.tsx
+Add the TranscriptViewer component below the video player.
+
+**Changes:**
+- Import TranscriptViewer component
+- Fetch transcript data (already fetched for exercises)
+- Add subscription check using useSubscription hook
+- Pass transcript to TranscriptViewer
+- Handle upgrade modal state
+
+**Updated Layout:**
+```
++------------------+------------------+
+|                  |                  |
+|   VIDEO PLAYER   |   EXERCISES      |
+|   (YouTube)      |   PANEL          |
+|                  |                  |
++------------------+------------------+
+|                                     |
+|         TRANSCRIPT VIEWER           |
+|         (Collapsible)               |
+|                                     |
++-------------------------------------+
+```
+
+### 2. ProfilePage.tsx
+Add user-created flashcards to the Flashcards section.
+
+**Changes:**
+- Fetch count of user-created flashcards
+- Display combined count (system + user-created)
+- Update FlashcardRepository to include user-created cards
+
+### 3. FlashcardRepository.tsx
+Include user-created flashcards in study sessions.
+
+**Changes:**
+- Fetch from both `youtube_flashcards` and `user_created_flashcards`
+- Add filter option for "My Created Cards"
+- Allow editing/deleting user-created cards
+
+### 4. services/flashcardService.ts
+Add functions for user-created flashcards.
+
+**New Functions:**
+```typescript
+// Create flashcard from transcript selection
+async function createFlashcardFromTranscript(
+  userId: string,
+  videoId: string,
+  data: {
+    phrase: string;
+    translation?: string;
+    partOfSpeech?: string;
+    exampleSentence?: string;
+    notes?: string;
+    sourceTimestamp?: string;
+  }
+): Promise<{ success: boolean; error?: string }>
+
+// Get user's created flashcards for a video
+async function getUserCreatedFlashcards(
+  userId: string,
+  videoId?: string
+): Promise<UserCreatedFlashcard[]>
+
+// Check if phrase is already saved
+async function isPhraseSaved(
+  userId: string,
+  videoId: string,
+  phrase: string
+): Promise<boolean>
+
+// Get saved phrases for highlighting
+async function getSavedPhrasesForVideo(
+  userId: string,
+  videoId: string
+): Promise<string[]>
+```
+
+### 5. pdfGeneratorService.ts
+Include user-created flashcards in PDF export.
+
+**Changes:**
+- Fetch user-created flashcards alongside system flashcards
+- Format appropriately for PDF output
+
+---
+
+## Utility Functions
+
+### Transcript Parser
+**File:** `src/utils/transcriptUtils.ts`
+
+```typescript
+interface TranscriptSegment {
+  timestamp: string;      // "00:00"
+  timeSeconds: number;    // 0
+  text: string;           // "Good morning! I am..."
+}
+
+// Parse raw transcript into segments
+function parseTranscript(rawTranscript: string): TranscriptSegment[]
+
+// Convert timestamp string to seconds
+function timestampToSeconds(timestamp: string): number
+
+// Find segment for current playback time
+function getCurrentSegment(segments: TranscriptSegment[], currentTime: number): number
+
+// Extract full sentence containing selection
+function getFullSentence(text: string, selection: string): string
 ```
 
 ---
 
 ## User Flows
 
-### Free User Flow
-1. User sees "Download PDF 🔒" button with "Premium only" label
-2. User clicks button
-3. UpgradePrompt modal appears with:
-   - Title: "Upgrade to Premium"
-   - Description: "Download your flashcards as printable PDFs..."
-   - Benefits list (PDF downloads, unlimited videos, etc.)
-   - Upgrade button -> navigates to /premium
-   - Promo code input option
-4. User can close modal or upgrade
+### Premium User - Create Flashcard
+1. User watches video with transcript visible below
+2. User sees transcript auto-scrolling with current line highlighted
+3. User selects a word/phrase by clicking and dragging
+4. Floating popover appears above selection: "Create Flashcard"
+5. User clicks "Create Flashcard"
+6. Modal opens with pre-filled phrase and example sentence
+7. User enters translation and optionally selects part of speech
+8. User clicks "Save"
+9. Toast: "Flashcard saved! ✨"
+10. Selected phrase now shows highlight in transcript
+11. Modal closes, user continues watching
 
-### Premium User Flow
-1. User sees "Download PDF" button (enabled, primary color)
-2. User clicks button
-3. Button shows "Generating PDF..." with spinner
-4. PDF is generated client-side (2-5 seconds)
-5. Browser downloads file: `flashcards_username_2026-02-03.pdf`
-6. Toast notification: "Your flashcards PDF has been downloaded!"
+### Free User - See Upgrade Prompt
+1. User sees blurred transcript section below video
+2. First 2-3 lines are readable as preview
+3. User clicks "Unlock Transcript" button
+4. UpgradePrompt modal appears with benefits list
+5. User can upgrade or dismiss
 
-### Edge Cases
-- **No flashcards:** Button disabled, shows "Complete a lesson first"
-- **Error during generation:** Toast error "Failed to generate PDF. Please try again."
-- **Large collection (100+ cards):** Warning but proceed (PDF handles it)
+### Premium User - Review Created Flashcards
+1. User goes to Profile > Flashcards
+2. User sees "My Created Cards" filter option
+3. User selects filter to see their custom flashcards
+4. Study session works the same as system flashcards
+5. User can edit or delete their created cards
 
 ---
 
 ## Technical Specifications
 
-### PDF Dimensions
-- Page: A4 (210 x 297mm)
-- Margins: 10mm all sides
-- Card grid: 2 columns x 3 rows = 6 cards/page
-- Card size: 90mm x 75mm
-- Font: Helvetica (built into jsPDF)
+### Text Selection Detection
+```typescript
+// Hook for detecting text selection
+function useTextSelection(containerRef: RefObject<HTMLElement>) {
+  const [selection, setSelection] = useState<{
+    text: string;
+    position: { x: number; y: number };
+  } | null>(null);
 
-### File Naming
-`flashcards_${username.toLowerCase()}_${YYYY-MM-DD}.pdf`
-Example: `flashcards_shaytz_2026-02-03.pdf`
+  useEffect(() => {
+    const handleMouseUp = () => {
+      const sel = window.getSelection();
+      if (sel && sel.toString().trim().length > 0) {
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        setSelection({
+          text: sel.toString().trim(),
+          position: { x: rect.left + rect.width / 2, y: rect.top - 10 }
+        });
+      }
+    };
 
-### Colors (Matching App Theme)
-- Primary: #22c55e (green)
-- Text: #1a1a1a
-- Muted: #6b7280
-- Background: #ffffff
-- Border: #e5e7eb
+    const container = containerRef.current;
+    container?.addEventListener('mouseup', handleMouseUp);
+    return () => container?.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  return { selection, clearSelection: () => setSelection(null) };
+}
+```
+
+### Transcript Format (from DB sample)
+```
+Title - YouTube
+https://www.youtube.com/watch?v=...
+
+Transcript:
+(00:00) First sentence here.
+(00:21) Second sentence continues...
+```
+
+The parser will:
+1. Skip title and URL lines
+2. Extract timestamp in `(MM:SS)` format
+3. Group text by timestamp
+
+### Auto-scroll Behavior
+- Current line has subtle background highlight
+- Scroll into view with `scrollIntoView({ behavior: 'smooth', block: 'center' })`
+- Toggle button to enable/disable
+- Pause auto-scroll when user manually scrolls
+
+### Phrase Character Limit
+- Maximum 100 characters for phrase selection
+- Show warning if exceeded: "Selection too long. Please select a shorter phrase."
 
 ---
 
@@ -263,41 +429,80 @@ Example: `flashcards_shaytz_2026-02-03.pdf`
 
 | File | Change Type | Description |
 |------|-------------|-------------|
-| `package.json` | Modify | Add jspdf dependency |
-| `src/services/pdfGeneratorService.ts` | Create | PDF generation logic |
-| `src/services/flashcardService.ts` | Modify | Add export function |
-| `src/components/subscription/PdfDownloadButton.tsx` | Create | Download button component |
-| `src/components/ProfilePage.tsx` | Modify | Add button to Flashcards section |
+| `supabase/migrations/xxx_create_user_created_flashcards.sql` | Create | New table for user flashcards |
+| `src/integrations/supabase/types.ts` | Regenerate | Add new table types |
+| `src/utils/transcriptUtils.ts` | Create | Transcript parsing utilities |
+| `src/components/transcript/TranscriptViewer.tsx` | Create | Main transcript component |
+| `src/components/transcript/TranscriptLine.tsx` | Create | Individual line component |
+| `src/components/transcript/TextSelectionPopover.tsx` | Create | Selection action popover |
+| `src/components/transcript/FlashcardCreatorModal.tsx` | Create | Flashcard creation form |
+| `src/components/transcript/LockedTranscript.tsx` | Create | Free user locked state |
+| `src/hooks/useTextSelection.tsx` | Create | Text selection hook |
+| `src/services/flashcardService.ts` | Modify | Add user-created flashcard functions |
+| `src/services/pdfGeneratorService.ts` | Modify | Include user-created in export |
+| `src/components/YouTubeVideoExercises.tsx` | Modify | Add TranscriptViewer below video |
+| `src/components/FlashcardRepository.tsx` | Modify | Include user-created flashcards |
+| `src/components/ProfilePage.tsx` | Modify | Show combined flashcard count |
+
+---
+
+## Premium Feature Benefits List
+
+Used in the LockedTranscript upgrade prompt:
+- Full video transcripts with timestamps
+- Create flashcards from any word
+- Highlight and save phrases
+- Auto-scroll with video playback
+- Download flashcards as PDF
 
 ---
 
 ## Error Handling
 
-1. **No flashcards:** Disable button, show helper text
-2. **PDF generation error:** Try-catch with toast notification
-3. **Not authenticated:** Check user exists before generating
-4. **Subscription check failure:** Default to showing locked state
+1. **No transcript available:**
+   - Show friendly message: "Transcript not available for this video"
+   - Hide transcript section entirely
+
+2. **Selection too long:**
+   - Toast warning with character limit
+   - Prevent flashcard creation
+
+3. **Duplicate phrase:**
+   - Check if phrase exists before saving
+   - Show: "This phrase is already saved!"
+
+4. **Save failed:**
+   - Toast error with retry option
+   - Keep modal open with data
+
+5. **Not authenticated:**
+   - Redirect to login if session expired
 
 ---
 
-## Success Feedback
+## Mobile Considerations
 
-Using existing `toast` from sonner:
-```typescript
-toast.success("Your flashcards PDF has been downloaded!");
-```
+- Transcript below video (single column)
+- Touch selection supported via `touchend` event
+- Popover positioned above keyboard
+- Modal is full-screen on mobile
+- Larger touch targets for timestamps
 
 ---
 
 ## Testing Checklist
 
-- [ ] Free user sees locked button with upgrade prompt on click
-- [ ] Premium user can download PDF successfully
-- [ ] PDF contains cover page with correct user info
-- [ ] PDF contains all flashcard fronts and backs
-- [ ] Cards are formatted correctly for printing
-- [ ] Loading state shows during generation
-- [ ] Success toast appears after download
-- [ ] Error handling works for edge cases
-- [ ] Button disabled when no flashcards exist
-- [ ] Filename format is correct
+- [ ] Free user sees locked transcript with preview
+- [ ] Free user clicking unlock shows upgrade modal
+- [ ] Premium user sees full transcript
+- [ ] Auto-scroll follows video playback
+- [ ] Clicking timestamp seeks video
+- [ ] Text selection shows popover
+- [ ] Flashcard creation modal opens with pre-filled data
+- [ ] Saving flashcard shows success toast
+- [ ] Saved phrases are highlighted in transcript
+- [ ] Clicking saved phrase shows edit/view options
+- [ ] User-created cards appear in FlashcardRepository
+- [ ] PDF export includes user-created cards
+- [ ] Works on mobile devices
+- [ ] Character limit enforced on selection
