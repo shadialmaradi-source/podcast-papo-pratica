@@ -29,6 +29,7 @@ import {
 import { motion } from "framer-motion";
 import { FlashcardRepository } from "./FlashcardRepository";
 import { getFlashcardCount } from "@/services/flashcardService";
+import { PdfDownloadButton } from "./subscription/PdfDownloadButton";
 import { 
   getUserSubscription, 
   type UserSubscription 
@@ -621,14 +622,24 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                 <p className="text-muted-foreground mb-4">
                   flashcards in your collection
                 </p>
-                <Button 
-                  onClick={() => setShowFlashcardRepository(true)} 
-                  disabled={flashcardCount === 0}
-                  className="gap-2"
-                >
-                  <BookOpen className="h-4 w-4" />
-                  {flashcardCount > 0 ? 'Start Study Session' : 'Complete a lesson first'}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button 
+                    onClick={() => setShowFlashcardRepository(true)} 
+                    disabled={flashcardCount === 0}
+                    className="gap-2"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    {flashcardCount > 0 ? 'Start Study Session' : 'Complete a lesson first'}
+                  </Button>
+                  
+                  <PdfDownloadButton
+                    userId={user?.id || ''}
+                    isPremium={subscription?.tier === 'premium' || subscription?.tier === 'promo'}
+                    flashcardCount={flashcardCount}
+                    username={profile?.username || profile?.display_name || 'User'}
+                    language={profile?.selected_language || 'english'}
+                  />
+                </div>
               </div>
               
               {flashcardCount === 0 && (
