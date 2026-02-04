@@ -694,6 +694,62 @@ export type Database = {
           },
         ]
       }
+      user_created_flashcards: {
+        Row: {
+          created_at: string
+          example_sentence: string | null
+          id: string
+          is_mastered: boolean
+          notes: string | null
+          part_of_speech: string | null
+          phrase: string
+          source_timestamp: string | null
+          times_reviewed: number
+          translation: string | null
+          updated_at: string
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          example_sentence?: string | null
+          id?: string
+          is_mastered?: boolean
+          notes?: string | null
+          part_of_speech?: string | null
+          phrase: string
+          source_timestamp?: string | null
+          times_reviewed?: number
+          translation?: string | null
+          updated_at?: string
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          example_sentence?: string | null
+          id?: string
+          is_mastered?: boolean
+          notes?: string | null
+          part_of_speech?: string | null
+          phrase?: string
+          source_timestamp?: string | null
+          times_reviewed?: number
+          translation?: string | null
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_created_flashcards_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_episode_progress: {
         Row: {
           completed_at: string | null

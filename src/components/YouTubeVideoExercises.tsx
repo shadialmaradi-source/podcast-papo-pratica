@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useSubscription } from "@/hooks/useSubscription";
+import TranscriptViewer from "@/components/transcript/TranscriptViewer";
+import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 
 interface YouTubeVideoExercisesProps {
   videoId: string;
@@ -46,10 +49,15 @@ const mapDifficultyLevel = (level: string): string => {
 };
 
 const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, onBack, onStartExercises }) => {
+  const { isPremium } = useSubscription();
   const [videoData, setVideoData] = useState<VideoData | null>(null);
+  const [transcript, setTranscript] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingLevel, setGeneratingLevel] = useState<string | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [currentVideoTime, setCurrentVideoTime] = useState(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     loadVideoData();
@@ -91,6 +99,17 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
       }
       
       setVideoData(data);
+
+      // Fetch transcript for the TranscriptViewer
+      const { data: transcriptData } = await supabase
+        .from('youtube_transcripts')
+        .select('transcript')
+        .eq('video_id', data.id)
+        .single();
+      
+      if (transcriptData?.transcript) {
+        setTranscript(transcriptData.transcript);
+      }
     } catch (error) {
       console.error('Error loading video:', error);
       toast({
@@ -102,6 +121,16 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
       setIsLoading(false);
     }
   };
+
+  const handleSeekVideo = useCallback((timeSeconds: number) => {
+    // Note: YouTube iframe API requires postMessage for seek
+    // For a basic implementation, we can append ?start= but that requires reload
+    // Full implementation would use YouTube IFrame Player API
+    if (iframeRef.current && videoData) {
+      const newSrc = `https://www.youtube.com/embed/${videoData.video_id}?start=${Math.floor(timeSeconds)}&autoplay=1`;
+      iframeRef.current.src = newSrc;
+    }
+  }, [videoData]);
 
   const handleStartExercises = async (level: string) => {
     if (!videoData) return;
@@ -241,9 +270,10 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
               <CardContent className="p-0">
                 <div className="aspect-video w-full">
                   <iframe
+                    ref={iframeRef}
                     width="100%"
                     height="100%"
-                    src={`https://www.youtube.com/embed/${videoData.video_id}`}
+                    src={`https://www.youtube.com/embed/${videoData.video_id}?enablejsapi=1`}
                     title={videoData.title}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -269,6 +299,20 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                 </CardDescription>
               </CardHeader>
             </Card>
+
+            {/* Transcript Viewer - Premium Feature */}
+            {transcript && (
+              <TranscriptViewer
+                videoId={videoData.id}
+                transcript={transcript}
+                videoTitle={videoData.title}
+                language={videoData.language || 'english'}
+                isPremium={isPremium}
+                currentTime={currentVideoTime}
+                onSeek={handleSeekVideo}
+                onUpgradeClick={() => setShowUpgradePrompt(true)}
+              />
+            )}
           </div>
 
           {/* Exercise Selection Panel */}
@@ -333,6 +377,14 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
           </div>
         </div>
       </div>
+
+      {/* Upgrade Prompt Modal */}
+      <UpgradePrompt
+        open={showUpgradePrompt}
+        onOpenChange={setShowUpgradePrompt}
+        title="Unlock Interactive Transcripts"
+        description="Create flashcards directly from video transcripts as you watch. Highlight any word or phrase to save it instantly."
+      />
     </div>
   );
 };

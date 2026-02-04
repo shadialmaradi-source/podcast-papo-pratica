@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { FlashcardRepository } from "./FlashcardRepository";
-import { getFlashcardCount } from "@/services/flashcardService";
+import { getFlashcardCount, getUserCreatedFlashcardCount } from "@/services/flashcardService";
 import { PdfDownloadButton } from "./subscription/PdfDownloadButton";
 import { 
   getUserSubscription, 
@@ -109,8 +109,12 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
 
   const loadFlashcardCount = async () => {
     if (!user) return;
-    const count = await getFlashcardCount(user.id);
-    setFlashcardCount(count);
+    // Get both system flashcards and user-created flashcards
+    const [systemCount, userCreatedCount] = await Promise.all([
+      getFlashcardCount(user.id),
+      getUserCreatedFlashcardCount(user.id),
+    ]);
+    setFlashcardCount(systemCount + userCreatedCount);
   };
 
   const loadWeeklyStats = async () => {
