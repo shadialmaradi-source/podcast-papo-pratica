@@ -1,4 +1,59 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { FlashcardExportData } from "@/services/pdfGeneratorService";
+
+/**
+ * Get all flashcards for PDF export with video titles
+ */
+export async function getFlashcardsForExport(userId: string): Promise<FlashcardExportData[]> {
+  try {
+    // Fetch user's viewed flashcards with the flashcard data and video info
+    const { data, error } = await supabase
+      .from('user_viewed_flashcards')
+      .select(`
+        flashcard_id,
+        video_id,
+        youtube_flashcards (
+          id,
+          phrase,
+          translation,
+          why,
+          difficulty
+        ),
+        youtube_videos (
+          title,
+          language
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching flashcards for export:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Transform the data into the export format
+    const flashcards: FlashcardExportData[] = data
+      .filter(item => item.youtube_flashcards) // Filter out items without flashcard data
+      .map(item => ({
+        id: item.youtube_flashcards!.id,
+        phrase: item.youtube_flashcards!.phrase,
+        translation: item.youtube_flashcards!.translation,
+        why: item.youtube_flashcards!.why,
+        difficulty: item.youtube_flashcards!.difficulty,
+        videoTitle: item.youtube_videos?.title || 'Unknown Video',
+        language: item.youtube_videos?.language || 'unknown',
+      }));
+
+    return flashcards;
+  } catch (error) {
+    console.error('Error in getFlashcardsForExport:', error);
+    return [];
+  }
+}
 
 /**
  * Save viewed flashcards to the user's flashcard repository
