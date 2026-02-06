@@ -10,7 +10,9 @@ import {
   Ban,
   ArrowLeft,
   Check,
-  Shield
+  Shield,
+  Home,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,18 +41,19 @@ export default function Premium() {
     });
   }, [searchParams]);
 
+  const isSuccess = searchParams.get('success') === 'true';
+
   // Track successful payment from redirect
   useEffect(() => {
-    if (searchParams.get('success') === 'true') {
+    if (isSuccess) {
       trackEvent('payment_completed', {
         plan_type: 'monthly',
         amount: 9.99,
         currency: 'USD',
         timestamp: new Date().toISOString()
       });
-      toast.success("Welcome to Premium! Your subscription is now active.");
     }
-  }, [searchParams]);
+  }, [isSuccess]);
 
   const handleUpgrade = async () => {
     if (!user) {
@@ -147,6 +150,42 @@ export default function Premium() {
     },
   ];
 
+  // Success screen after payment
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto px-4 py-16 max-w-lg">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="text-center space-y-6"
+          >
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4">
+              <Sparkles className="h-10 w-10 text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold text-foreground">
+              Welcome to Premium! 🎉
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Your subscription is now active. Enjoy unlimited learning with all premium features unlocked.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+              <Button size="lg" onClick={() => navigate('/app')} className="gap-2">
+                <Home className="h-4 w-4" />
+                Go to Dashboard
+              </Button>
+              <Button size="lg" variant="outline" onClick={() => navigate('/app?view=profile')} className="gap-2">
+                <User className="h-4 w-4" />
+                View Profile
+              </Button>
+            </div>
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -155,7 +194,7 @@ export default function Premium() {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/app')}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
