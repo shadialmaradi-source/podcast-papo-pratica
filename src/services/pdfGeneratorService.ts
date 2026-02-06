@@ -78,10 +78,11 @@ function createCoverPage(doc: jsPDF, userInfo: UserPdfInfo, cardCount: number): 
   doc.setFillColor(...PRIMARY_COLOR);
   doc.circle(centerX, 80, 30, 'F');
   
-  // Book icon (simplified)
+  // Book icon text (emojis not supported in jsPDF)
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(40);
-  doc.text('📚', centerX, 85, { align: 'center' });
+  doc.setFontSize(32);
+  doc.setFont('helvetica', 'bold');
+  doc.text('LF', centerX, 85, { align: 'center' });
   
   // Title
   doc.setTextColor(...TEXT_COLOR);
@@ -270,7 +271,7 @@ function createFooterPage(doc: jsPDF): void {
   doc.setTextColor(...TEXT_COLOR);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text('Happy Learning! 🎉', centerX, 120, { align: 'center' });
+  doc.text('Happy Learning!', centerX, 120, { align: 'center' });
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
@@ -280,7 +281,7 @@ function createFooterPage(doc: jsPDF): void {
   
   // Tips
   doc.setFontSize(10);
-  doc.text('💡 Tips for studying:', centerX, 180, { align: 'center' });
+  doc.text('Tips for studying:', centerX, 180, { align: 'center' });
   doc.text('• Review cards daily for best retention', centerX, 195, { align: 'center' });
   doc.text('• Quiz yourself with fronts first, then backs', centerX, 207, { align: 'center' });
   doc.text('• Mark cards you know well and focus on difficult ones', centerX, 219, { align: 'center' });
@@ -302,11 +303,11 @@ function createFooterPage(doc: jsPDF): void {
  */
 function formatLanguage(lang: string): string {
   const languages: Record<string, string> = {
-    portuguese: 'Portuguese 🇧🇷',
-    english: 'English 🇺🇸',
-    spanish: 'Spanish 🇪🇸',
-    french: 'French 🇫🇷',
-    italian: 'Italian 🇮🇹',
+    portuguese: 'Portuguese (BR)',
+    english: 'English (US)',
+    spanish: 'Spanish (ES)',
+    french: 'French (FR)',
+    italian: 'Italian (IT)',
   };
   return languages[lang.toLowerCase()] || lang;
 }
