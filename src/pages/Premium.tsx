@@ -22,6 +22,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 
+const SUPABASE_URL = "https://fezpzihnvblzjrdzgioq.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlenB6aWhudmJsempyZHpnaW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODExNjksImV4cCI6MjA3MTk1NzE2OX0.LKxauwcMH0HaT-DeoBNG5mH7rneI8OiyfSQGrYG1R4M";
+
 export default function Premium() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -65,23 +68,42 @@ export default function Premium() {
     });
 
     try {
-      const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-        body: {
-          successUrl: `${window.location.origin}/premium?success=true`,
-          cancelUrl: `${window.location.origin}/premium?cancelled=true`,
-        },
-      });
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (error) throw error;
+      if (!session?.access_token) {
+        toast.error("Session expired. Please sign in again.");
+        navigate("/auth");
+        return;
+      }
 
-      if (data?.url) {
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/stripe-checkout`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            successUrl: `${window.location.origin}/premium?success=true`,
+            cancelUrl: `${window.location.origin}/premium?cancelled=true`,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data?.url) {
         window.location.href = data.url;
       } else {
-        throw new Error('No checkout URL returned');
+        const errorMsg = data?.error || data?.message || 'Unable to start checkout. Please try again.';
+        console.error('Checkout error:', errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
-      toast.error('Unable to start checkout. Please try again.');
+      toast.error('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Loader2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { trackEvent } from "@/lib/analytics";
+
+const SUPABASE_URL = "https://fezpzihnvblzjrdzgioq.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlenB6aWhudmJsempyZHpnaW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODExNjksImV4cCI6MjA3MTk1NzE2OX0.LKxauwcMH0HaT-DeoBNG5mH7rneI8OiyfSQGrYG1R4M";
 
 interface PromoCodeInputProps {
   onSuccess?: () => void;
@@ -15,13 +19,20 @@ interface PromoCodeInputProps {
 
 export function PromoCodeInput({ onSuccess, onCancel, className }: PromoCodeInputProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState("");
 
   const handleRedeem = async () => {
-    if (!code.trim() || !user?.id) {
+    if (!user?.id) {
+      toast.error("Please sign in to redeem a promo code");
+      navigate("/auth");
+      return;
+    }
+
+    if (!code.trim()) {
       toast.error("Please enter a promo code");
       return;
     }
@@ -31,30 +42,49 @@ export function PromoCodeInput({ onSuccess, onCancel, className }: PromoCodeInpu
     setMessage("");
 
     try {
-      const { data, error } = await supabase.functions.invoke('redeem-promo-code', {
-        body: { code: code.trim().toUpperCase() },
-      });
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (error) throw error;
+      if (!session?.access_token) {
+        toast.error("Session expired. Please sign in again.");
+        navigate("/auth");
+        return;
+      }
 
-      if (data.success) {
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/redeem-promo-code`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ code: code.trim().toUpperCase() }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
         setStatus('success');
-        setMessage(data.message);
-        toast.success(data.message);
+        setMessage(data.message || "Promo code redeemed successfully!");
+        toast.success(data.message || "Promo code redeemed successfully!");
         trackEvent('promo_code_redeemed', {
           timestamp: new Date().toISOString()
         });
         onSuccess?.();
       } else {
         setStatus('error');
-        setMessage(data.message);
-        toast.error(data.message);
+        const errorMsg = data.message || data.error || 'Invalid promo code. Please try again.';
+        setMessage(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
       console.error('Error redeeming promo code:', error);
       setStatus('error');
-      setMessage('Failed to redeem code. Please try again.');
-      toast.error('Failed to redeem code. Please try again.');
+      const errorMsg = 'Network error. Please check your connection and try again.';
+      setMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
