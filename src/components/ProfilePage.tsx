@@ -24,7 +24,9 @@ import {
   Trophy,
   Edit,
   Check,
-  X
+  X,
+  CreditCard,
+  Loader2
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { FlashcardRepository } from "./FlashcardRepository";
@@ -84,6 +86,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
   const [showFlashcardRepository, setShowFlashcardRepository] = useState(false);
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ videosWatched: 0, wordsLearned: 0, studyTimeMinutes: 0 });
+  const [portalLoading, setPortalLoading] = useState(false);
 
   // Load profile data on mount
   useEffect(() => {
@@ -352,6 +355,43 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
       toast.error('An error occurred. Please try again.');
     } finally {
       setValidatingUsername(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    if (!user) return;
+    setPortalLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Session expired. Please sign in again.");
+        return;
+      }
+      const response = await fetch(
+        `https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/stripe-portal`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlenB6aWhudmJsempyZHpnaW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODExNjksImV4cCI6MjA3MTk1NzE2OX0.LKxauwcMH0HaT-DeoBNG5mH7rneI8OiyfSQGrYG1R4M',
+          },
+          body: JSON.stringify({
+            returnUrl: `${window.location.origin}/app?view=profile`,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (response.ok && data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data?.error || 'Unable to open subscription management.');
+      }
+    } catch (error) {
+      console.error('Error opening portal:', error);
+      toast.error('Network error. Please try again.');
+    } finally {
+      setPortalLoading(false);
     }
   };
 
@@ -725,6 +765,24 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                   )}
                 </div>
               </div>
+
+              {/* Manage Subscription (only for Stripe-paying premium users) */}
+              {subscription?.tier === 'premium' && subscription?.stripeCustomerId && (
+                <div 
+                  className="flex items-center justify-between py-2 cursor-pointer hover:bg-muted/50 -mx-3 px-3 rounded-lg transition-colors"
+                  onClick={handleManageSubscription}
+                >
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <span>Manage Subscription</span>
+                  </div>
+                  {portalLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180" />
+                  )}
+                </div>
+              )}
               
               {/* Notifications */}
               <div 
