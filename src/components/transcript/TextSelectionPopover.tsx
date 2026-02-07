@@ -1,12 +1,13 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, BookOpen, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface TextSelectionPopoverProps {
   selectedText: string;
   position: { x: number; y: number };
   onCreateFlashcard: () => void;
+  onExploreWord: () => void;
   onDismiss: () => void;
 }
 
@@ -14,10 +15,10 @@ export function TextSelectionPopover({
   selectedText,
   position,
   onCreateFlashcard,
+  onExploreWord,
   onDismiss,
 }: TextSelectionPopoverProps) {
-  // Adjust position to keep popover on screen
-  const adjustedX = Math.max(80, Math.min(position.x, window.innerWidth - 80));
+  const adjustedX = Math.max(120, Math.min(position.x, window.innerWidth - 120));
   const adjustedY = Math.max(60, position.y);
 
   return (
@@ -47,7 +48,20 @@ export function TextSelectionPopover({
             }}
           >
             <Sparkles className="w-4 h-4" />
-            Create Flashcard
+            Save Flashcard
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="gap-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onExploreWord();
+            }}
+          >
+            <BookOpen className="w-4 h-4" />
+            Explore
           </Button>
           <Button
             size="sm"
@@ -63,7 +77,7 @@ export function TextSelectionPopover({
           </Button>
         </div>
         {/* Arrow pointing down */}
-        <div 
+        <div
           className="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-popover border-b border-r rotate-45"
           style={{ marginBottom: '-1px' }}
         />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Sparkles, Clock, Video } from 'lucide-react';
 import { createFlashcardFromTranscript } from '@/services/flashcardService';
+import { analyzeWord, type WordAnalysis } from '@/services/wordAnalysisService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -33,6 +35,11 @@ interface FlashcardCreatorModalProps {
   videoTitle: string;
   language: string;
   onSuccess: () => void;
+  /** Pre-loaded AI data (from suggested words) to skip the API call */
+  preloadedAnalysis?: {
+    translation: string;
+    partOfSpeech: string;
+  } | null;
 }
 
 const PARTS_OF_SPEECH = [
@@ -42,6 +49,9 @@ const PARTS_OF_SPEECH = [
   { value: 'adverb', label: 'Adverb' },
   { value: 'phrase', label: 'Phrase' },
   { value: 'expression', label: 'Expression' },
+  { value: 'preposition', label: 'Preposition' },
+  { value: 'conjunction', label: 'Conjunction' },
+  { value: 'pronoun', label: 'Pronoun' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -55,10 +65,12 @@ export function FlashcardCreatorModal({
   videoTitle,
   language,
   onSuccess,
+  preloadedAnalysis,
 }: FlashcardCreatorModalProps) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
-  
+  const [analyzing, setAnalyzing] = useState(false);
+
   // Form state
   const [phrase, setPhrase] = useState(selectedText);
   const [translation, setTranslation] = useState('');
@@ -66,16 +78,45 @@ export function FlashcardCreatorModal({
   const [exampleSentence, setExampleSentence] = useState(fullSentence);
   const [notes, setNotes] = useState('');
 
-  // Reset form when modal opens with new selection
-  React.useEffect(() => {
-    if (open) {
-      setPhrase(selectedText);
+  // Run AI auto-fill when modal opens
+  useEffect(() => {
+    if (!open) return;
+
+    setPhrase(selectedText);
+    setNotes('');
+
+    // If we have preloaded data (from suggested words), use it directly
+    if (preloadedAnalysis) {
+      setTranslation(preloadedAnalysis.translation);
+      setPartOfSpeech(preloadedAnalysis.partOfSpeech);
       setExampleSentence(fullSentence);
-      setTranslation('');
-      setPartOfSpeech('');
-      setNotes('');
+      return;
     }
-  }, [open, selectedText, fullSentence]);
+
+    // Otherwise call AI to auto-fill
+    setTranslation('');
+    setPartOfSpeech('');
+    setExampleSentence(fullSentence);
+
+    if (selectedText.trim()) {
+      setAnalyzing(true);
+      analyzeWord(selectedText, language, fullSentence)
+        .then((analysis) => {
+          setTranslation(analysis.translation);
+          setPartOfSpeech(analysis.partOfSpeech);
+          if (analysis.exampleSentence) {
+            setExampleSentence(analysis.exampleSentence);
+          }
+        })
+        .catch((err) => {
+          console.error('AI auto-fill failed:', err);
+          // Silently fail - user can still fill manually
+        })
+        .finally(() => {
+          setAnalyzing(false);
+        });
+    }
+  }, [open, selectedText, fullSentence, language, preloadedAnalysis]);
 
   const handleSave = async () => {
     if (!user?.id) {
@@ -124,7 +165,9 @@ export function FlashcardCreatorModal({
             Create New Flashcard
           </DialogTitle>
           <DialogDescription>
-            Create a flashcard from the selected text to study later.
+            {analyzing
+              ? 'AI is analyzing this word...'
+              : 'Flashcard auto-filled by AI. Edit anything or just save.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -144,44 +187,56 @@ export function FlashcardCreatorModal({
           {/* Translation */}
           <div className="space-y-2">
             <Label htmlFor="translation">Translation (English)</Label>
-            <Input
-              id="translation"
-              value={translation}
-              onChange={(e) => setTranslation(e.target.value)}
-              placeholder="Enter the English translation"
-            />
+            {analyzing ? (
+              <Skeleton className="h-10 w-full rounded-md" />
+            ) : (
+              <Input
+                id="translation"
+                value={translation}
+                onChange={(e) => setTranslation(e.target.value)}
+                placeholder="English translation"
+              />
+            )}
           </div>
 
           {/* Part of Speech */}
           <div className="space-y-2">
-            <Label>Part of Speech (optional)</Label>
-            <Select value={partOfSpeech} onValueChange={setPartOfSpeech}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                {PARTS_OF_SPEECH.map((pos) => (
-                  <SelectItem key={pos.value} value={pos.value}>
-                    {pos.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Part of Speech</Label>
+            {analyzing ? (
+              <Skeleton className="h-10 w-full rounded-md" />
+            ) : (
+              <Select value={partOfSpeech} onValueChange={setPartOfSpeech}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PARTS_OF_SPEECH.map((pos) => (
+                    <SelectItem key={pos.value} value={pos.value}>
+                      {pos.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Example Sentence */}
           <div className="space-y-2">
             <Label htmlFor="example">Example Sentence</Label>
-            <Textarea
-              id="example"
-              value={exampleSentence}
-              onChange={(e) => setExampleSentence(e.target.value)}
-              placeholder="Full sentence for context"
-              rows={2}
-            />
+            {analyzing ? (
+              <Skeleton className="h-16 w-full rounded-md" />
+            ) : (
+              <Textarea
+                id="example"
+                value={exampleSentence}
+                onChange={(e) => setExampleSentence(e.target.value)}
+                placeholder="Example sentence for context"
+                rows={2}
+              />
+            )}
           </div>
 
-          {/* Notes */}
+          {/* Notes (always editable, never auto-filled) */}
           <div className="space-y-2">
             <Label htmlFor="notes">Notes (optional)</Label>
             <Textarea
@@ -210,7 +265,7 @@ export function FlashcardCreatorModal({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving || !phrase.trim()}>
+          <Button onClick={handleSave} disabled={saving || analyzing || !phrase.trim()}>
             {saving ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
