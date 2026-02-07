@@ -1,88 +1,130 @@
 
 
-# Fix Stripe Payment Flow, Webhook, Post-Payment UX, and Subscription Management
+# Smart Flashcard System: AI-Powered Vocabulary from Transcripts
 
-## Problems Identified
+## Overview
 
-### 1. CRITICAL: Webhook is completely broken
-The `stripe-webhook` edge function crashes on every Stripe event. The error:
-```
-SubtleCryptoProvider cannot be used in a synchronous context.
-Use `await constructEventAsync(...)` instead of `constructEvent(...)`
-```
-The code uses `stripe.webhooks.constructEvent()` (synchronous), but Deno's runtime requires the async version `stripe.webhooks.constructEventAsync()`. This means:
-- Stripe charges the customer successfully
-- Stripe sends the webhook event to your server
-- The webhook **crashes** before processing
-- The database is **never updated** with premium status or Stripe IDs
-- Result: payment goes through but user stays on their previous tier
-
-### 2. Post-payment redirect lands on a dead-end
-After Stripe checkout completes, the user is redirected to `/premium?success=true`. This page shows a toast message but:
-- No "Go to Profile" or "Go to Dashboard" button appears
-- The back arrow uses `navigate(-1)` which goes to Stripe's page (external), not your app
-- The user is stuck on the Premium page with no clear next step
-
-### 3. No subscription management for users
-- Users cannot check if their subscription is recurring
-- Users cannot cancel their subscription
-- No link to Stripe's Customer Portal for billing history
-
-### 4. No payment confirmation email
-- Stripe can send automatic receipt emails, but this is a Stripe Dashboard setting (not code)
-- The webhook could trigger an email via Resend, but since the webhook is broken, nothing happens
+Transform the manual flashcard creation flow into an AI-powered, context-aware vocabulary learning experience. The system will auto-analyze selected text, suggest key words in the transcript, and offer deep-dive tools based on word type -- all without requiring the user to type anything except optional personal notes.
 
 ---
 
-## Solution
+## What Changes for the User
 
-### Fix 1: Repair the webhook (stripe-webhook edge function)
-Change `constructEvent` to `constructEventAsync` with `await`:
+### 1. Auto-Filled Flashcard Modal
+When you select a word or phrase in the transcript, the modal opens and immediately calls AI to fill in:
+- Translation (English)
+- Part of Speech (noun, verb, adjective, etc.)
+- Example Sentence (a new one generated from context)
 
-```typescript
-// Before (broken):
-event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+All fields show a brief loading shimmer, then populate automatically. You can still edit any field, but you never have to type anything. The "Notes" field remains blank for your personal input.
 
-// After (working):
-event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+### 2. AI-Suggested Vocabulary in the Transcript
+When the transcript loads, the system analyzes it and highlights 8-12 high-value vocabulary words/phrases directly in the transcript text. These appear with a subtle dashed underline (distinct from the solid highlight of your saved flashcards). Clicking a suggested word opens the flashcard modal pre-filled with AI data.
+
+### 3. Context-Aware Word Actions
+When you select text or click a suggested word, a smarter popover appears offering actions based on the word type:
+
+**For all words:**
+- "Save as Flashcard" (quick save with AI auto-fill)
+- "Explore Word" (opens deep-dive panel)
+
+**The Explore Word panel shows different sections based on type:**
+- **Verbs**: Full conjugation table (Present, Past, Future) + translation + example sentences
+- **Nouns**: Gender, plural form, related words + translation + example in context
+- **Adjectives**: Masculine/feminine forms, comparative/superlative + translation + example
+- **Phrases/Expressions**: Literal vs. idiomatic meaning, usage context, formality level
+
+From the Explore panel, you can save as flashcard with one click (all data pre-filled).
+
+---
+
+## UX Flow
+
+```text
+User watches video with transcript
+         |
+         v
+Transcript loads --> AI suggests 8-12 key words (dashed underline)
+         |
+         +-- User clicks suggested word --> Popover: "Save Flashcard" | "Explore Word"
+         |
+         +-- User selects any text --> Same popover appears
+                  |
+                  +-- "Save Flashcard" --> Modal opens, AI auto-fills all fields, user clicks Save
+                  |
+                  +-- "Explore Word" --> Deep-dive panel with conjugation/grammar/context
+                           |
+                           +-- "Save as Flashcard" button at bottom
 ```
 
-This single line fix will make the entire payment flow work: Stripe events will be properly verified and processed, updating the user's subscription tier to `premium` with the correct Stripe customer and subscription IDs.
+---
 
-### Fix 2: Improve post-payment experience (Premium.tsx)
-When `?success=true` is in the URL:
-- Show a success state with a congratulations message instead of the regular pricing page
-- Add prominent "Go to Dashboard" and "View Profile" buttons
-- Remove the upgrade buttons (user just paid)
+## Technical Plan
 
-### Fix 3: Create Stripe Customer Portal (new edge function + UI)
-- **New edge function**: `stripe-portal` -- creates a Stripe Customer Portal session where users can view invoices, update payment method, and cancel subscription
-- **Profile page update**: Add a "Manage Subscription" button next to the subscription badge in the Settings section (only shown for Stripe-paying premium users, not promo users)
+### New Edge Function: `analyze-word`
+- **Purpose**: Takes a word/phrase + language + context sentence, returns translation, part of speech, example sentence, and type-specific data (conjugation for verbs, gender for nouns, etc.)
+- **AI Model**: `google/gemini-3-flash-preview` via Lovable AI Gateway (consistent with other edge functions)
+- **Uses tool calling** for structured output (translation, partOfSpeech, exampleSentence, extras)
+- **Input**: `{ word, language, contextSentence }`
+- **Output**: `{ translation, partOfSpeech, exampleSentence, extras: { conjugation?, gender?, plural?, relatedWords?, formality? } }`
 
-### Fix 4: Enable Stripe receipt emails
-This requires a setting change in the Stripe Dashboard (Settings > Emails > Successful payments). This cannot be done via code, so I will add a note about it. Additionally, the Stripe Customer Portal (Fix 3) will give users access to their full billing history and invoices.
+### New Edge Function: `suggest-transcript-words`
+- **Purpose**: Analyzes a transcript and returns 8-12 high-value vocabulary suggestions with their positions
+- **Caching**: Results stored in a new `transcript_word_suggestions` table (keyed by video_id + difficulty level) so AI is only called once per video
+- **Output**: Array of `{ phrase, translation, partOfSpeech, why, approximatePosition }` -- position is the segment index where the word appears
+
+### Database Changes
+- **New table: `transcript_word_suggestions`** -- caches AI-suggested words per video
+  - `id` (uuid), `video_id` (references youtube_videos), `difficulty` (text), `phrase` (text), `translation` (text), `part_of_speech` (text), `why` (text), `segment_index` (int), `created_at`
+
+### Frontend Changes
+
+| File | Change |
+|------|--------|
+| `supabase/functions/analyze-word/index.ts` | New edge function for AI word analysis |
+| `supabase/functions/suggest-transcript-words/index.ts` | New edge function for transcript vocabulary suggestions |
+| `src/components/transcript/FlashcardCreatorModal.tsx` | Add AI auto-fill on open: call `analyze-word`, show loading shimmers, pre-populate all fields |
+| `src/components/transcript/TextSelectionPopover.tsx` | Add "Explore Word" button alongside "Create Flashcard"; smarter layout |
+| `src/components/transcript/TranscriptViewer.tsx` | Load AI-suggested words, pass them to TranscriptLine for highlighting, handle click on suggested words |
+| `src/components/transcript/TranscriptLine.tsx` | Add dashed-underline highlighting for AI-suggested words (distinct from saved phrases); make suggested words clickable |
+| `src/components/transcript/WordExplorerPanel.tsx` | New component: slide-out panel showing conjugation (verbs), gender/plural (nouns), comparative (adjectives), usage context |
+| `supabase/config.toml` | Register new edge functions |
+
+### AI Auto-Fill Flow (FlashcardCreatorModal)
+1. Modal opens with the selected phrase pre-filled
+2. Immediately calls `analyze-word` edge function
+3. Shows skeleton/shimmer loaders on Translation, Part of Speech, and Example Sentence fields
+4. When AI responds, fields auto-populate with a smooth transition
+5. User can override any field
+6. "Notes" remains empty for personal input
+7. Save button works as before
+
+### Suggested Words Flow (TranscriptViewer)
+1. When transcript loads for a premium user, call `suggest-transcript-words` (which checks cache first)
+2. Store suggestions in component state
+3. Pass suggested words array to each TranscriptLine
+4. TranscriptLine renders suggested phrases with a dashed underline and subtle background
+5. Clicking a suggested word triggers the popover with pre-loaded AI data (no extra API call needed since data comes from the suggestion)
+
+### Word Explorer Panel Design
+- Opens as a slide-over panel (not a full modal -- keeps transcript visible)
+- Header: the word in the target language with pronunciation guide
+- Sections vary by word type:
+  - **Verb**: Conjugation grid (3 tenses x 6 persons), infinitive form, translation, 2 example sentences
+  - **Noun**: Translation, gender indicator, singular/plural, 2 example sentences, related words
+  - **Adjective**: Translation, masc/fem forms, comparative/superlative, 2 example sentences
+  - **Phrase**: Literal translation, idiomatic meaning, formality level, usage examples
+- Footer: "Save as Flashcard" button (all data pre-filled from the explore results)
 
 ---
 
-## Files to Create/Modify
+## Implementation Order
 
-| File | Action | Description |
-|------|--------|-------------|
-| `supabase/functions/stripe-webhook/index.ts` | Modify | Change `constructEvent` to `await constructEventAsync` |
-| `supabase/functions/stripe-portal/index.ts` | Create | New edge function for Stripe Customer Portal sessions |
-| `src/pages/Premium.tsx` | Modify | Add post-payment success screen with navigation buttons |
-| `src/components/ProfilePage.tsx` | Modify | Add "Manage Subscription" button that opens Stripe Portal |
-
----
-
-## Post-Implementation Steps (Manual)
-
-To enable automatic payment receipt emails, you will need to go to your Stripe Dashboard:
-1. Go to **Settings > Emails** in your Stripe Dashboard
-2. Enable **"Successful payments"** to send receipts automatically
-3. Optionally enable **"Failed payments"** for failed payment notifications
-
-To fix the existing subscription record (since the webhook was broken when you paid):
-- If you want to keep using the promo code access, no action needed
-- If you want to verify the Stripe payment flow works, I can provide a SQL query to reset your subscription so you can test again after deploying the webhook fix
+1. Create `analyze-word` edge function (AI auto-fill backbone)
+2. Update `FlashcardCreatorModal` to call `analyze-word` and auto-fill fields
+3. Create `suggest-transcript-words` edge function + database table
+4. Update `TranscriptViewer` and `TranscriptLine` to show suggested words
+5. Update `TextSelectionPopover` with "Explore Word" option
+6. Create `WordExplorerPanel` component
+7. Wire everything together and test
 
