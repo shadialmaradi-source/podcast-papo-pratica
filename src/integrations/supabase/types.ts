@@ -596,6 +596,50 @@ export type Database = {
         }
         Relationships: []
       }
+      transcript_word_suggestions: {
+        Row: {
+          created_at: string
+          difficulty: string
+          id: string
+          part_of_speech: string | null
+          phrase: string
+          segment_index: number | null
+          translation: string
+          video_id: string
+          why: string | null
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          part_of_speech?: string | null
+          phrase: string
+          segment_index?: number | null
+          translation: string
+          video_id: string
+          why?: string | null
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          part_of_speech?: string | null
+          phrase?: string
+          segment_index?: number | null
+          translation?: string
+          video_id?: string
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcript_word_suggestions_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_activity_history: {
         Row: {
           activity_data: Json | null

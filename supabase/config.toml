@@ -87,3 +87,9 @@ verify_jwt = false
 
 [functions.stripe-portal]
 verify_jwt = false
+
+[functions.analyze-word]
+verify_jwt = false
+
+[functions.suggest-transcript-words]
+verify_jwt = false
