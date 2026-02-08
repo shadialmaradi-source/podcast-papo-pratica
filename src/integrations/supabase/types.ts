@@ -175,6 +175,48 @@ export type Database = {
           },
         ]
       }
+      learning_weeks: {
+        Row: {
+          cefr_level: string
+          created_at: string
+          description: string
+          id: string
+          is_locked_by_default: boolean
+          language: string
+          level: string
+          order_index: number
+          title: string
+          total_videos: number
+          week_number: number
+        }
+        Insert: {
+          cefr_level?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_locked_by_default?: boolean
+          language?: string
+          level: string
+          order_index?: number
+          title: string
+          total_videos?: number
+          week_number: number
+        }
+        Update: {
+          cefr_level?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_locked_by_default?: boolean
+          language?: string
+          level?: string
+          order_index?: number
+          title?: string
+          total_videos?: number
+          week_number?: number
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           content: string
@@ -961,6 +1003,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_video_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          status: string
+          user_id: string
+          week_video_id: string
+          xp_earned: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          user_id: string
+          week_video_id: string
+          xp_earned?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          user_id?: string
+          week_video_id?: string
+          xp_earned?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_video_progress_week_video_id_fkey"
+            columns: ["week_video_id"]
+            isOneToOne: false
+            referencedRelation: "week_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_video_uploads: {
         Row: {
           duration_seconds: number
@@ -1104,6 +1184,50 @@ export type Database = {
           },
         ]
       }
+      user_week_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          is_completed: boolean
+          is_unlocked: boolean
+          unlocked_at: string | null
+          user_id: string
+          videos_completed: number
+          week_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          is_unlocked?: boolean
+          unlocked_at?: string | null
+          user_id: string
+          videos_completed?: number
+          week_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          is_unlocked?: boolean
+          unlocked_at?: string | null
+          user_id?: string
+          videos_completed?: number
+          week_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_week_progress_week_id_fkey"
+            columns: ["week_id"]
+            isOneToOne: false
+            referencedRelation: "learning_weeks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_topics: {
         Row: {
           created_at: string | null
@@ -1197,6 +1321,62 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      week_videos: {
+        Row: {
+          created_at: string
+          duration_seconds: number
+          grammar_focus: string
+          id: string
+          order_in_week: number
+          source: string
+          thumbnail_url: string | null
+          title: string
+          vocabulary_tags: string[] | null
+          week_id: string
+          xp_reward: number
+          youtube_id: string
+          youtube_url: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number
+          grammar_focus?: string
+          id?: string
+          order_in_week?: number
+          source?: string
+          thumbnail_url?: string | null
+          title: string
+          vocabulary_tags?: string[] | null
+          week_id: string
+          xp_reward?: number
+          youtube_id: string
+          youtube_url?: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number
+          grammar_focus?: string
+          id?: string
+          order_in_week?: number
+          source?: string
+          thumbnail_url?: string | null
+          title?: string
+          vocabulary_tags?: string[] | null
+          week_id?: string
+          xp_reward?: number
+          youtube_id?: string
+          youtube_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "week_videos_week_id_fkey"
+            columns: ["week_id"]
+            isOneToOne: false
+            referencedRelation: "learning_weeks"
             referencedColumns: ["id"]
           },
         ]
