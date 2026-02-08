@@ -7,6 +7,7 @@ import { LevelSelector } from "@/components/library/LevelSelector";
 import { FilterBar } from "@/components/library/FilterBar";
 import { FeaturedRow } from "@/components/library/FeaturedRow";
 import { VideoCard } from "@/components/library/VideoCard";
+import { LearningPath } from "@/components/library/LearningPath";
 import { AppHeader } from "@/components/AppHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -168,71 +169,76 @@ export default function Library() {
           </TabsList>
         </Tabs>
 
-        <FilterBar
-          selectedTopic={selectedTopic}
-          selectedLength={selectedLength}
-          onTopicChange={setSelectedTopic}
-          onLengthChange={setSelectedLength}
-        />
+        {activeTab === 'community' && (
+          <FilterBar
+            selectedTopic={selectedTopic}
+            selectedLength={selectedLength}
+            onTopicChange={setSelectedTopic}
+            onLengthChange={setSelectedLength}
+          />
+        )}
       </div>
 
       {/* Content */}
       <main className="container mx-auto px-4 pb-8">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
-        ) : filteredVideos.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-12"
-          >
-            <p className="text-muted-foreground">
-              No videos found for this selection.
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Try adjusting your filters or check back later.
-            </p>
-          </motion.div>
+        {activeTab === 'curated' ? (
+          <LearningPath level={selectedLevel} language={userLanguage} />
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="space-y-8"
-          >
-            {/* Featured Row */}
-            {featuredVideos.length > 0 && (
-              <FeaturedRow
-                videos={featuredVideos}
-                onVideoClick={handleVideoClick}
-              />
-            )}
-
-            {/* Video Grid */}
-            {remainingVideos.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold text-foreground mb-3">
-                  All Videos
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {remainingVideos.map((video) => (
-                    <VideoCard
-                      key={video.id}
-                      id={video.id}
-                      title={video.title}
-                      thumbnailUrl={video.thumbnail_url}
-                      topics={video.topics}
-                      duration={video.duration}
-                      difficultyLevel={video.difficulty_level}
-                      isCurated={video.is_curated}
-                      onClick={() => handleVideoClick(video.id)}
-                    />
-                  ))}
-                </div>
+          <>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
+            ) : filteredVideos.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <p className="text-muted-foreground">
+                  No videos found for this selection.
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Try adjusting your filters or check back later.
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-8"
+              >
+                {featuredVideos.length > 0 && (
+                  <FeaturedRow
+                    videos={featuredVideos}
+                    onVideoClick={handleVideoClick}
+                  />
+                )}
+                {remainingVideos.length > 0 && (
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground mb-3">
+                      All Videos
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {remainingVideos.map((video) => (
+                        <VideoCard
+                          key={video.id}
+                          id={video.id}
+                          title={video.title}
+                          thumbnailUrl={video.thumbnail_url}
+                          topics={video.topics}
+                          duration={video.duration}
+                          difficultyLevel={video.difficulty_level}
+                          isCurated={video.is_curated}
+                          onClick={() => handleVideoClick(video.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
             )}
-          </motion.div>
+          </>
         )}
       </main>
     </div>
