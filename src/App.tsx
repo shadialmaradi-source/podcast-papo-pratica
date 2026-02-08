@@ -18,6 +18,7 @@ import { ProfilePage } from "./components/ProfilePage";
 import Premium from "./pages/Premium";
 import FirstLesson from "./pages/FirstLesson";
 import AuthCallback from "./pages/AuthCallback";
+import WeekDetail from "./pages/WeekDetail";
 
 const queryClient = new QueryClient();
 
@@ -121,6 +122,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <Lesson />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/learn/week/:weekId" 
+              element={
+                <ProtectedRoute>
+                  <WeekDetail />
                 </ProtectedRoute>
               } 
             />
