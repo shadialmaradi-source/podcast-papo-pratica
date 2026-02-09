@@ -210,7 +210,7 @@ export default function AppHome() {
                   <div>
                     <h3 className="font-semibold text-foreground">Learn from Library</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Curated videos by level
+                      Structured learning path
                     </p>
                   </div>
                 </CardContent>
