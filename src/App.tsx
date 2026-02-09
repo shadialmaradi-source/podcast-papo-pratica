@@ -19,6 +19,7 @@ import Premium from "./pages/Premium";
 import FirstLesson from "./pages/FirstLesson";
 import AuthCallback from "./pages/AuthCallback";
 import WeekDetail from "./pages/WeekDetail";
+import WeekVideo from "./pages/WeekVideo";
 
 const queryClient = new QueryClient();
 
@@ -130,6 +131,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <WeekDetail />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/learn/video/:weekVideoId" 
+              element={
+                <ProtectedRoute>
+                  <WeekVideo />
                 </ProtectedRoute>
               } 
             />
