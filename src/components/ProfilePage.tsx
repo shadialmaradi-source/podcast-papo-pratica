@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchWeeksForLevel, getEffectiveWeekState, type WeekWithProgress } from "@/services/learningPathService";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,8 @@ import {
   Check,
   X,
   CreditCard,
-  Loader2
+  Loader2,
+  GraduationCap
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { FlashcardRepository } from "./FlashcardRepository";
@@ -87,6 +89,13 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ videosWatched: 0, wordsLearned: 0, studyTimeMinutes: 0 });
   const [portalLoading, setPortalLoading] = useState(false);
+  const [learningPathProgress, setLearningPathProgress] = useState<{
+    currentWeek: WeekWithProgress | null;
+    totalWeeks: number;
+    totalCompleted: number;
+    totalVideosCompleted: number;
+    totalVideos: number;
+  } | null>(null);
 
   // Load profile data on mount
   useEffect(() => {
@@ -95,10 +104,36 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
       loadFlashcardCount();
       loadSubscriptionData();
       loadWeeklyStats();
+      loadLearningPathData();
     } else {
       setLoading(false);
     }
   }, [user]);
+
+  const loadLearningPathData = async () => {
+    if (!user) return;
+    try {
+      const weeks = await fetchWeeksForLevel("beginner", "english", user.id);
+      if (weeks.length === 0) return;
+
+      const totalVideos = weeks.reduce((sum, w) => sum + w.total_videos, 0);
+      const totalVideosCompleted = weeks.reduce((sum, w) => {
+        return sum + (w.progress?.videos_completed || 0);
+      }, 0);
+      const totalCompleted = weeks.filter(w => getEffectiveWeekState(w, weeks) === "completed").length;
+      const currentWeek = weeks.find(w => getEffectiveWeekState(w, weeks) === "in_progress") || null;
+
+      setLearningPathProgress({
+        currentWeek,
+        totalWeeks: weeks.length,
+        totalCompleted,
+        totalVideosCompleted,
+        totalVideos,
+      });
+    } catch (error) {
+      console.error("Error loading learning path data:", error);
+    }
+  };
 
   const loadSubscriptionData = async () => {
     if (!user) return;
@@ -567,7 +602,63 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
           </Button>
         </motion.div>
 
-        {/* Level Progress Card */}
+        {/* Learning Path Progress Card */}
+        {learningPathProgress && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+            className="mb-6"
+          >
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <GraduationCap className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <h3 className="font-semibold text-foreground text-sm">Learning Path</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {learningPathProgress.currentWeek
+                        ? `Week ${learningPathProgress.currentWeek.week_number} of ${learningPathProgress.totalWeeks} — Beginner`
+                        : `${learningPathProgress.totalCompleted} of ${learningPathProgress.totalWeeks} weeks completed`}
+                    </p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{learningPathProgress.totalVideosCompleted}/{learningPathProgress.totalVideos} videos</span>
+                        <span>
+                          {learningPathProgress.totalVideos > 0
+                            ? Math.round((learningPathProgress.totalVideosCompleted / learningPathProgress.totalVideos) * 100)
+                            : 0}%
+                        </span>
+                      </div>
+                      <Progress
+                        value={
+                          learningPathProgress.totalVideos > 0
+                            ? (learningPathProgress.totalVideosCompleted / learningPathProgress.totalVideos) * 100
+                            : 0
+                        }
+                        className="h-2"
+                      />
+                    </div>
+                    {learningPathProgress.currentWeek && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-1 text-xs h-8"
+                        onClick={() => navigate(`/learn/week/${learningPathProgress.currentWeek!.id}`)}
+                      >
+                        Continue — {learningPathProgress.currentWeek.title}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
