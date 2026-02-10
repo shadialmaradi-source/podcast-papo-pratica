@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { FileText, Minus, Plus, ScrollText, Sparkles, Loader2 } from 'lucide-react';
+import { FileText, Minus, Plus, Sparkles, Loader2, X } from 'lucide-react';
 import { parseTranscript, getCurrentSegmentIndex, type TranscriptSegment } from '@/utils/transcriptUtils';
 import { useTextSelection } from '@/hooks/useTextSelection';
 import { getSavedPhrasesForVideo } from '@/services/flashcardService';
@@ -16,6 +16,7 @@ import WordExplorerPanel from './WordExplorerPanel';
 import LockedTranscript from './LockedTranscript';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TranscriptViewerProps {
   videoId: string;
@@ -58,6 +59,12 @@ export function TranscriptViewer({
   const [savedPhrases, setSavedPhrases] = useState<string[]>([]);
   const [suggestedWords, setSuggestedWords] = useState<TranscriptWordSuggestion[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
+  // Onboarding / hint banner state
+  const [showOnboarding, setShowOnboarding] = useState(
+    () => !localStorage.getItem('transcript_onboarding_seen')
+  );
+  const [hintDismissed, setHintDismissed] = useState(false);
 
   // Flashcard modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -202,8 +209,25 @@ export function TranscriptViewer({
     });
   };
 
+  // Auto-dismiss onboarding after 8 seconds
+  useEffect(() => {
+    if (showOnboarding && suggestedWords.length > 0) {
+      const timer = setTimeout(() => {
+        setShowOnboarding(false);
+        localStorage.setItem('transcript_onboarding_seen', 'true');
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [showOnboarding, suggestedWords.length]);
+
+  const dismissOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    localStorage.setItem('transcript_onboarding_seen', 'true');
+  }, []);
+
   // --- Suggested word click ---
   const handleSuggestedWordClick = (suggestion: TranscriptWordSuggestion) => {
+    dismissOnboarding();
     const segment = segments[suggestion.segmentIndex] || segments[0];
     openFlashcardModal(suggestion.phrase, segment?.text || suggestion.phrase, segment?.timestamp || '0:00', {
       translation: suggestion.translation,
@@ -287,16 +311,56 @@ export function TranscriptViewer({
         </CardHeader>
 
         <CardContent className="pt-0">
-          {/* Hint */}
-          <div className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
-            <ScrollText className="w-3 h-3" />
-            Select any text to create a flashcard or explore a word
-            {suggestedWords.length > 0 && (
-              <span className="ml-1">
-                · <span className="border-b border-dashed border-accent-foreground/30">Dashed words</span> are AI suggestions
-              </span>
+          {/* Onboarding tooltip for first-time users */}
+          <AnimatePresence>
+            {showOnboarding && suggestedWords.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3 }}
+                className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-3 flex items-start gap-2"
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                >
+                  <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                </motion.div>
+                <p className="text-sm text-foreground flex-1">
+                  <strong>Tip:</strong> Tap any{' '}
+                  <span className="border-b-2 border-dashed border-primary/50">underlined word</span>{' '}
+                  to save it as a flashcard, or select text to explore vocabulary!
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 shrink-0"
+                  onClick={dismissOnboarding}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
+
+          {/* Persistent hint banner (shown after onboarding dismissed) */}
+          {!showOnboarding && !hintDismissed && (
+            <div className="bg-muted/50 border border-border rounded-lg p-2.5 mb-3 flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground flex-1">
+                Tap <span className="border-b border-dashed border-accent-foreground/30">underlined words</span> to save flashcards — or select any text to explore
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 w-5 p-0 shrink-0"
+                onClick={() => setHintDismissed(true)}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+          )}
 
           {/* Transcript content */}
           <div
