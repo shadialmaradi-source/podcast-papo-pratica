@@ -87,7 +87,7 @@ export function TranscriptLine({
           newResult.push(
             <span
               key={`suggested-${suggestion.phrase}-${index}-${Math.random()}`}
-              className="border-b-2 border-dashed border-accent-foreground/30 cursor-pointer hover:bg-accent/20 rounded px-0.5 transition-colors"
+              className="border-b-2 border-dashed border-accent-foreground/30 cursor-pointer hover:bg-accent/20 rounded px-1 py-0.5 sm:px-0.5 sm:py-0 transition-colors"
               title={`${suggestion.translation} — ${suggestion.why}`}
               onClick={(e) => {
                 e.stopPropagation();

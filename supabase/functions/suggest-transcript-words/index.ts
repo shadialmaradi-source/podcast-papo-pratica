@@ -61,7 +61,9 @@ Focus on:
 - Words that might be tricky for English speakers
 - A mix of different parts of speech (nouns, verbs, adjectives, expressions)
 
-Do NOT suggest very common/basic words (like "the", "and", "is" equivalents) unless they have an unusual usage in context.`;
+Do NOT suggest very common/basic words (like "the", "and", "is" equivalents) unless they have an unusual usage in context.
+
+IMPORTANT: Include at least 2 of your suggestions from the first 3 transcript segments (the beginning of the transcript), so users immediately see interactive vocabulary when they start reading.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
