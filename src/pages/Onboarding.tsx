@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Headphones, ArrowRight, ArrowLeft, Check, Sprout, BookOpen, Zap, Award } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const languages = [
   { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: true },
@@ -15,39 +16,40 @@ const languages = [
   { code: 'german', name: 'German', flag: '🇩🇪', native: 'Deutsch', available: false },
 ];
 
-const proficiencyLevels = [
-  { 
-    code: 'absolute_beginner', 
-    label: 'Absolute beginner', 
-    description: 'Never really learned it',
-    icon: Sprout
-  },
-  { 
-    code: 'beginner', 
-    label: 'Beginner', 
-    description: 'Know basics, A1-A2',
-    icon: BookOpen
-  },
-  { 
-    code: 'intermediate', 
-    label: 'Intermediate', 
-    description: 'Follow conversations, B1',
-    icon: Zap
-  },
-  { 
-    code: 'advanced', 
-    label: 'Advanced', 
-    description: 'Discuss most topics, B2+',
-    icon: Award
-  },
-];
-
 export default function Onboarding() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [step, setStep] = useState<'language' | 'level'>('language');
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+
+  const proficiencyLevels = [
+    { 
+      code: 'absolute_beginner', 
+      label: t('absoluteBeginner'), 
+      description: t('absoluteBeginnerDesc'),
+      icon: Sprout
+    },
+    { 
+      code: 'beginner', 
+      label: t('beginnerLabel'), 
+      description: t('beginnerDesc'),
+      icon: BookOpen
+    },
+    { 
+      code: 'intermediate', 
+      label: t('intermediateLabel'), 
+      description: t('intermediateDesc'),
+      icon: Zap
+    },
+    { 
+      code: 'advanced', 
+      label: t('advancedLabel'), 
+      description: t('advancedDesc'),
+      icon: Award
+    },
+  ];
 
   const handleLanguageSelect = (langCode: string, available: boolean) => {
     if (!available) return;
@@ -90,11 +92,11 @@ export default function Onboarding() {
       <div className="container mx-auto px-4 pt-4">
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <span className={step === 'language' ? 'text-primary font-medium' : ''}>
-            Step 1: Language
+            {t('onboardingStep1')}
           </span>
           <ArrowRight className="h-4 w-4" />
           <span className={step === 'level' ? 'text-primary font-medium' : ''}>
-            Step 2: Level
+            {t('onboardingStep2')}
           </span>
         </div>
       </div>
@@ -112,10 +114,10 @@ export default function Onboarding() {
             >
               <div className="text-center mb-8">
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                  What language do you want to learn?
+                  {t('onboardingLangTitle')}
                 </h1>
                 <p className="text-muted-foreground">
-                  Choose your target language to get started
+                  {t('onboardingLangSubtitle')}
                 </p>
               </div>
 
@@ -154,7 +156,7 @@ export default function Onboarding() {
                       {!lang.available && (
                         <div className="absolute inset-0 bg-muted/40 rounded-lg flex items-center justify-center z-10">
                           <Badge variant="secondary" className="bg-muted-foreground/80 text-background">
-                            Soon
+                            {t('soon')}
                           </Badge>
                         </div>
                       )}
@@ -173,7 +175,7 @@ export default function Onboarding() {
                 size="lg"
                 className="w-full py-6 text-lg rounded-full"
               >
-                Continue
+                {t('continue')}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </motion.div>
@@ -187,10 +189,10 @@ export default function Onboarding() {
             >
               <div className="text-center mb-8">
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                  What's your level?
+                  {t('onboardingLevelTitle')}
                 </h1>
                 <p className="text-muted-foreground">
-                  We'll adapt the content to your proficiency
+                  {t('onboardingLevelSubtitle')}
                 </p>
               </div>
 
@@ -243,7 +245,7 @@ export default function Onboarding() {
                   className="py-6 text-lg rounded-full"
                 >
                   <ArrowLeft className="mr-2 h-5 w-5" />
-                  Back
+                  {t('back')}
                 </Button>
                 <Button
                   onClick={handleFinalContinue}
@@ -251,7 +253,7 @@ export default function Onboarding() {
                   size="lg"
                   className="flex-1 py-6 text-lg rounded-full"
                 >
-                  Continue
+                  {t('continue')}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </div>
