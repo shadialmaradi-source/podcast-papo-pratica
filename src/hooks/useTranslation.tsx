@@ -3,16 +3,17 @@ import { getTranslation, mapLanguageToCode, type LanguageCode } from "@/utils/tr
 import { translations } from "@/utils/translations";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { detectUILanguage } from "@/utils/browserLanguage";
 
 export function useTranslation() {
   const { user } = useAuth();
-  const [languageCode, setLanguageCode] = useState<LanguageCode>('en');
+  const [languageCode, setLanguageCode] = useState<LanguageCode>(() => detectUILanguage());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserLanguage = async () => {
       if (!user) {
-        setLanguageCode('en');
+        setLanguageCode(detectUILanguage());
         setLoading(false);
         return;
       }
