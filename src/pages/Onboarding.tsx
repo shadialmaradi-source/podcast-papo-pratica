@@ -8,7 +8,7 @@ import { Headphones, ArrowRight, ArrowLeft, Check, Sprout, BookOpen, Zap, Award 
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/hooks/useTranslation";
 
-const languages = [
+const targetLanguages = [
   { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: true },
   { code: 'english', name: 'English', flag: '🇺🇸', native: 'English', available: true },
   { code: 'french', name: 'French', flag: '🇫🇷', native: 'Français', available: false },
@@ -16,65 +16,80 @@ const languages = [
   { code: 'german', name: 'German', flag: '🇩🇪', native: 'Deutsch', available: false },
 ];
 
+const nativeLanguages = [
+  { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
+  { code: 'es', name: 'Spanish', flag: '🇪🇸', native: 'Español' },
+  { code: 'fr', name: 'French', flag: '🇫🇷', native: 'Français' },
+  { code: 'it', name: 'Italian', flag: '🇮🇹', native: 'Italiano' },
+  { code: 'pt', name: 'Portuguese', flag: '🇧🇷', native: 'Português' },
+];
+
+type Step = 'language' | 'native' | 'level';
+
+// Map target language codes to native language codes for filtering
+const targetToNativeCode: Record<string, string> = {
+  english: 'en',
+  spanish: 'es',
+  french: 'fr',
+  italian: 'it',
+};
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const [step, setStep] = useState<'language' | 'level'>('language');
+  const [step, setStep] = useState<Step>('language');
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
+  const [selectedNativeLanguage, setSelectedNativeLanguage] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
   const proficiencyLevels = [
-    { 
-      code: 'absolute_beginner', 
-      label: t('absoluteBeginner'), 
-      description: t('absoluteBeginnerDesc'),
-      icon: Sprout
-    },
-    { 
-      code: 'beginner', 
-      label: t('beginnerLabel'), 
-      description: t('beginnerDesc'),
-      icon: BookOpen
-    },
-    { 
-      code: 'intermediate', 
-      label: t('intermediateLabel'), 
-      description: t('intermediateDesc'),
-      icon: Zap
-    },
-    { 
-      code: 'advanced', 
-      label: t('advancedLabel'), 
-      description: t('advancedDesc'),
-      icon: Award
-    },
+    { code: 'absolute_beginner', label: t('absoluteBeginner'), description: t('absoluteBeginnerDesc'), icon: Sprout },
+    { code: 'beginner', label: t('beginnerLabel'), description: t('beginnerDesc'), icon: BookOpen },
+    { code: 'intermediate', label: t('intermediateLabel'), description: t('intermediateDesc'), icon: Zap },
+    { code: 'advanced', label: t('advancedLabel'), description: t('advancedDesc'), icon: Award },
   ];
+
+  const steps: Step[] = ['language', 'native', 'level'];
+  const currentStepIndex = steps.indexOf(step);
+
+  const filteredNativeLanguages = nativeLanguages.filter(
+    lang => lang.code !== targetToNativeCode[selectedLanguage || '']
+  );
 
   const handleLanguageSelect = (langCode: string, available: boolean) => {
     if (!available) return;
     setSelectedLanguage(langCode);
   };
 
-  const handleContinueToLevel = () => {
+  const handleContinueToNative = () => {
     if (!selectedLanguage) return;
+    // If previously selected native lang matches target, reset it
+    if (selectedNativeLanguage === targetToNativeCode[selectedLanguage]) {
+      setSelectedNativeLanguage(null);
+    }
+    setStep('native');
+  };
+
+  const handleContinueToLevel = () => {
+    if (!selectedNativeLanguage) return;
     setStep('level');
   };
 
   const handleBack = () => {
-    setStep('language');
+    if (step === 'native') setStep('language');
+    else if (step === 'level') setStep('native');
   };
 
   const handleFinalContinue = () => {
-    if (!selectedLanguage || !selectedLevel) return;
-    
-    // Store selected preferences in localStorage
+    if (!selectedLanguage || !selectedLevel || !selectedNativeLanguage) return;
     localStorage.setItem('onboarding_language', selectedLanguage);
     localStorage.setItem('onboarding_level', selectedLevel);
-    
-    // Navigate to first lesson
+    localStorage.setItem('onboarding_native_language', selectedNativeLanguage);
     navigate('/lesson/first');
   };
+
+  const stepLabels = [t('onboardingStep1'), t('onboardingStep2'), t('onboardingStep3')];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
@@ -91,76 +106,48 @@ export default function Onboarding() {
       {/* Progress Indicator */}
       <div className="container mx-auto px-4 pt-4">
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <span className={step === 'language' ? 'text-primary font-medium' : ''}>
-            {t('onboardingStep1')}
-          </span>
-          <ArrowRight className="h-4 w-4" />
-          <span className={step === 'level' ? 'text-primary font-medium' : ''}>
-            {t('onboardingStep2')}
-          </span>
+          {stepLabels.map((label, i) => (
+            <span key={i} className="flex items-center gap-2">
+              {i > 0 && <ArrowRight className="h-4 w-4" />}
+              <span className={currentStepIndex === i ? 'text-primary font-medium' : currentStepIndex > i ? 'text-primary/60' : ''}>
+                {label}
+              </span>
+            </span>
+          ))}
         </div>
       </div>
 
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center p-4">
         <AnimatePresence mode="wait">
-          {step === 'language' ? (
-            <motion.div
-              key="language"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="w-full max-w-lg"
-            >
+          {step === 'language' && (
+            <motion.div key="language" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-lg">
               <div className="text-center mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                  {t('onboardingLangTitle')}
-                </h1>
-                <p className="text-muted-foreground">
-                  {t('onboardingLangSubtitle')}
-                </p>
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingLangTitle')}</h1>
+                <p className="text-muted-foreground">{t('onboardingLangSubtitle')}</p>
               </div>
-
               <div className="grid grid-cols-2 gap-4 mb-8">
-                {languages.map((lang) => (
+                {targetLanguages.map((lang) => (
                   <Card
                     key={lang.code}
                     onClick={() => handleLanguageSelect(lang.code, lang.available)}
-                    className={`relative transition-all ${
-                      lang.available 
-                        ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' 
-                        : 'cursor-not-allowed'
-                    } ${
-                      selectedLanguage === lang.code
-                        ? 'ring-2 ring-primary border-primary bg-primary/5'
-                        : lang.available 
-                          ? 'hover:border-primary/50' 
-                          : 'opacity-60'
+                    className={`relative transition-all ${lang.available ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' : 'cursor-not-allowed'} ${
+                      selectedLanguage === lang.code ? 'ring-2 ring-primary border-primary bg-primary/5' : lang.available ? 'hover:border-primary/50' : 'opacity-60'
                     }`}
                   >
                     <CardContent className="p-6 text-center relative">
-                      {/* Selected checkmark */}
                       {selectedLanguage === lang.code && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="absolute top-2 right-2"
-                        >
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2">
                           <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                             <Check className="h-4 w-4 text-primary-foreground" />
                           </div>
                         </motion.div>
                       )}
-                      
-                      {/* Coming soon badge */}
                       {!lang.available && (
                         <div className="absolute inset-0 bg-muted/40 rounded-lg flex items-center justify-center z-10">
-                          <Badge variant="secondary" className="bg-muted-foreground/80 text-background">
-                            {t('soon')}
-                          </Badge>
+                          <Badge variant="secondary" className="bg-muted-foreground/80 text-background">{t('soon')}</Badge>
                         </div>
                       )}
-                      
                       <span className="text-4xl mb-3 block">{lang.flag}</span>
                       <h3 className="font-bold text-foreground">{lang.name}</h3>
                       <p className="text-sm text-muted-foreground">{lang.native}</p>
@@ -168,34 +155,59 @@ export default function Onboarding() {
                   </Card>
                 ))}
               </div>
-
-              <Button
-                onClick={handleContinueToLevel}
-                disabled={!selectedLanguage}
-                size="lg"
-                className="w-full py-6 text-lg rounded-full"
-              >
-                {t('continue')}
-                <ArrowRight className="ml-2 h-5 w-5" />
+              <Button onClick={handleContinueToNative} disabled={!selectedLanguage} size="lg" className="w-full py-6 text-lg rounded-full">
+                {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </motion.div>
-          ) : (
-            <motion.div
-              key="level"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="w-full max-w-lg"
-            >
-              <div className="text-center mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                  {t('onboardingLevelTitle')}
-                </h1>
-                <p className="text-muted-foreground">
-                  {t('onboardingLevelSubtitle')}
-                </p>
-              </div>
+          )}
 
+          {step === 'native' && (
+            <motion.div key="native" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-lg">
+              <div className="text-center mb-8">
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingNativeTitle')}</h1>
+                <p className="text-muted-foreground">{t('onboardingNativeSubtitle')}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                {filteredNativeLanguages.map((lang) => (
+                  <Card
+                    key={lang.code}
+                    onClick={() => setSelectedNativeLanguage(lang.code)}
+                    className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${
+                      selectedNativeLanguage === lang.code ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'
+                    }`}
+                  >
+                    <CardContent className="p-6 text-center relative">
+                      {selectedNativeLanguage === lang.code && (
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2">
+                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-4 w-4 text-primary-foreground" />
+                          </div>
+                        </motion.div>
+                      )}
+                      <span className="text-4xl mb-3 block">{lang.flag}</span>
+                      <h3 className="font-bold text-foreground">{lang.name}</h3>
+                      <p className="text-sm text-muted-foreground">{lang.native}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <Button onClick={handleBack} variant="outline" size="lg" className="py-6 text-lg rounded-full">
+                  <ArrowLeft className="mr-2 h-5 w-5" /> {t('back')}
+                </Button>
+                <Button onClick={handleContinueToLevel} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-6 text-lg rounded-full">
+                  {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 'level' && (
+            <motion.div key="level" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="w-full max-w-lg">
+              <div className="text-center mb-8">
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingLevelTitle')}</h1>
+                <p className="text-muted-foreground">{t('onboardingLevelSubtitle')}</p>
+              </div>
               <div className="space-y-3 mb-8">
                 {proficiencyLevels.map((level) => {
                   const IconComponent = level.icon;
@@ -204,28 +216,21 @@ export default function Onboarding() {
                       key={level.code}
                       onClick={() => setSelectedLevel(level.code)}
                       className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.01] ${
-                        selectedLevel === level.code
-                          ? 'ring-2 ring-primary border-primary bg-primary/5'
-                          : 'hover:border-primary/50'
+                        selectedLevel === level.code ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'
                       }`}
                     >
                       <CardContent className="p-4 flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
                           selectedLevel === level.code ? 'bg-primary/20' : 'bg-muted'
                         }`}>
-                          <IconComponent className={`h-6 w-6 ${
-                            selectedLevel === level.code ? 'text-primary' : 'text-muted-foreground'
-                          }`} />
+                          <IconComponent className={`h-6 w-6 ${selectedLevel === level.code ? 'text-primary' : 'text-muted-foreground'}`} />
                         </div>
                         <div className="flex-1">
                           <h3 className="font-bold text-foreground">{level.label}</h3>
                           <p className="text-sm text-muted-foreground">{level.description}</p>
                         </div>
                         {selectedLevel === level.code && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                          >
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
                             <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                               <Check className="h-4 w-4 text-primary-foreground" />
                             </div>
@@ -236,25 +241,12 @@ export default function Onboarding() {
                   );
                 })}
               </div>
-
               <div className="flex gap-3">
-                <Button
-                  onClick={handleBack}
-                  variant="outline"
-                  size="lg"
-                  className="py-6 text-lg rounded-full"
-                >
-                  <ArrowLeft className="mr-2 h-5 w-5" />
-                  {t('back')}
+                <Button onClick={handleBack} variant="outline" size="lg" className="py-6 text-lg rounded-full">
+                  <ArrowLeft className="mr-2 h-5 w-5" /> {t('back')}
                 </Button>
-                <Button
-                  onClick={handleFinalContinue}
-                  disabled={!selectedLevel}
-                  size="lg"
-                  className="flex-1 py-6 text-lg rounded-full"
-                >
-                  {t('continue')}
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                <Button onClick={handleFinalContinue} disabled={!selectedLevel} size="lg" className="flex-1 py-6 text-lg rounded-full">
+                  {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </div>
             </motion.div>
