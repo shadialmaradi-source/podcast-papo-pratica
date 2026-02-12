@@ -410,6 +410,7 @@ export type Database = {
           id: string
           last_login_date: string | null
           longest_streak: number | null
+          native_language: string | null
           selected_language: string | null
           subscription_tier: string | null
           total_xp: number | null
@@ -429,6 +430,7 @@ export type Database = {
           id?: string
           last_login_date?: string | null
           longest_streak?: number | null
+          native_language?: string | null
           selected_language?: string | null
           subscription_tier?: string | null
           total_xp?: number | null
@@ -448,6 +450,7 @@ export type Database = {
           id?: string
           last_login_date?: string | null
           longest_streak?: number | null
+          native_language?: string | null
           selected_language?: string | null
           subscription_tier?: string | null
           total_xp?: number | null
