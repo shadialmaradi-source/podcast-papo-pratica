@@ -6,9 +6,15 @@ import { motion } from "framer-motion";
 interface LessonIntroProps {
   onStart: () => void;
   level: string;
+  language?: string;
 }
 
-const LessonIntro = ({ onStart, level }: LessonIntroProps) => {
+const languageNames: Record<string, string> = {
+  spanish: 'Spanish',
+  english: 'English',
+};
+
+const LessonIntro = ({ onStart, level, language = 'spanish' }: LessonIntroProps) => {
   const getDuration = () => {
     switch (level) {
       case 'absolute_beginner': return '60';
@@ -36,10 +42,10 @@ const LessonIntro = ({ onStart, level }: LessonIntroProps) => {
             <Play className="w-10 h-10 text-primary" />
           </motion.div>
           <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-            Your First Lesson
+            Your First {languageNames[language] || 'Language'} Lesson
           </h1>
           <p className="text-muted-foreground text-lg">
-            Learn Spanish through real conversations
+            Learn {languageNames[language] || 'a language'} through real conversations
           </p>
         </div>
 
