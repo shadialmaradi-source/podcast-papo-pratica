@@ -19,6 +19,7 @@ export interface Exercise {
   mode: "light" | "intense";
   hints?: string[];
   timeLimit?: number;
+  questionTranslation?: string | null;
 }
 
 // Generate exercises based on actual transcript content

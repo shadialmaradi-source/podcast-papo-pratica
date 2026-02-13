@@ -1441,6 +1441,7 @@ export type Database = {
           options: Json | null
           order_index: number | null
           question: string
+          question_translation: string | null
           video_id: string
           vocabulary_words: Json | null
           xp_reward: number | null
@@ -1457,6 +1458,7 @@ export type Database = {
           options?: Json | null
           order_index?: number | null
           question: string
+          question_translation?: string | null
           video_id: string
           vocabulary_words?: Json | null
           xp_reward?: number | null
@@ -1473,6 +1475,7 @@ export type Database = {
           options?: Json | null
           order_index?: number | null
           question?: string
+          question_translation?: string | null
           video_id?: string
           vocabulary_words?: Json | null
           xp_reward?: number | null
@@ -1826,6 +1829,7 @@ export type Database = {
           options: Json
           order_index: number
           question: string
+          question_translation: string
           video_id: string
           vocabulary_words: Json
           xp_reward: number
