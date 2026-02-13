@@ -18,14 +18,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { videoId, level, transcript, language } = await req.json();
+    const { videoId, level, transcript, language, nativeLanguage } = await req.json();
 
     if (!videoId || !level) {
       throw new Error('videoId and level are required');
     }
 
     console.log(`[generate-level-exercises] Starting for video ${videoId}`);
-    console.log(`[generate-level-exercises] Level: ${level}, Language: ${language || 'not specified'}`);
+    console.log(`[generate-level-exercises] Level: ${level}, Language: ${language || 'not specified'}, NativeLanguage: ${nativeLanguage || 'not specified'}`);
 
     // Normalize level to lowercase
     const normalizedLevel = level.toLowerCase();
@@ -84,6 +84,8 @@ serve(async (req) => {
     // Get language name for prompt
     const languageName = language || 'italian';
     const languageDisplay = languageName.charAt(0).toUpperCase() + languageName.slice(1);
+    const nativeLangName = nativeLanguage || 'english';
+    const nativeLangDisplay = nativeLangName.charAt(0).toUpperCase() + nativeLangName.slice(1);
 
     // XP based on level
     const xpReward = normalizedLevel === 'advanced' ? 15 : normalizedLevel === 'intermediate' ? 10 : 5;
@@ -141,7 +143,8 @@ For multiple_choice (6 total):
   "question": "Question in ${languageDisplay}",
   "options": ["A", "B", "C", "D"],
   "correctAnswer": "Exact text of correct option",
-  "explanation": "Brief explanation in ${languageDisplay}"
+  "explanation": "Brief explanation in ${languageDisplay}",
+  "questionTranslation": "Translation of the question in ${nativeLangDisplay}"
 }
 Rules: 3-4 options, only one correct, plausible wrong options, RANDOMIZE correct answer position across questions
 
@@ -151,7 +154,8 @@ For fill_blank (2 total):
   "question": "Sentence with _____ for the blank",
   "options": [],
   "correctAnswer": "word that fills the blank",
-  "explanation": "Explanation in ${languageDisplay}"
+  "explanation": "Explanation in ${languageDisplay}",
+  "questionTranslation": "Translation of the question in ${nativeLangDisplay}"
 }
 Rules: Use high-value chunks from transcript, 1 blank per question, meaningful word (not articles)
 
@@ -161,7 +165,8 @@ For sequencing (1 total):
   "question": "Ordina gli eventi in ordine cronologico.",
   "options": ["Event 1", "Event 2", "Event 3", "Event 4"],
   "correctAnswer": "0,1,2,3",
-  "explanation": "Explanation in ${languageDisplay}"
+  "explanation": "Explanation in ${languageDisplay}",
+  "questionTranslation": "Translation of the question in ${nativeLangDisplay}"
 }
 Rules: 3-5 key events from transcript, options are shuffled events, correctAnswer is comma-separated indices for correct order
 
@@ -171,7 +176,8 @@ For matching (1 total):
   "question": "Abbina i termini alle definizioni.",
   "options": ["Term A", "Term B", "Term C", "Term D", "Def 1", "Def 2", "Def 3", "Def 4"],
   "correctAnswer": "Term A->Def 1|||Term B->Def 2|||Term C->Def 3|||Term D->Def 4",
-  "explanation": "Explanation in ${languageDisplay}"
+  "explanation": "Explanation in ${languageDisplay}",
+  "questionTranslation": "Translation of the question in ${nativeLangDisplay}"
 }
 Rules: Match 4 items to meanings/roles (person<->action, place<->event, phrase<->meaning)
 
@@ -180,7 +186,8 @@ CRITICAL QUALITY CONSTRAINTS:
 2. Do not create two questions whose explanations are essentially the same
 3. Ensure all ${languageDisplay} text strictly matches what appears in the transcript
 4. ALL text (questions, options, explanations) MUST be in ${languageDisplay}
-5. Return ONLY the JSON array, no markdown or code blocks`;
+5. The "questionTranslation" field MUST be a natural translation of the question into ${nativeLangDisplay}
+6. Return ONLY the JSON array, no markdown or code blocks`;
 
     const userPrompt = `${levelPrompts[normalizedLevel] || levelPrompts.beginner}
 
@@ -259,6 +266,7 @@ ${formatInstructions}`;
         options: exercise.options,
         correct_answer: exercise.correctAnswer,
         explanation: exercise.explanation || '',
+        question_translation: exercise.questionTranslation || null,
         difficulty: normalizedLevel,
         intensity: 'intense',
         xp_reward: xpReward,

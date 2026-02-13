@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowRight, ArrowLeft, Check, X, Award } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { TranslationHint } from "@/components/exercises/TranslationHint";
 
 interface Exercise {
   id: string;
@@ -13,6 +14,7 @@ interface Exercise {
   options?: string[];
   correctAnswer: string;
   explanation: string;
+  questionTranslation?: string | null;
 }
 
 interface LessonExercisesProps {
@@ -379,6 +381,7 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
                   <h2 className="text-xl md:text-2xl font-semibold text-foreground">
                     {currentExercise.question}
                   </h2>
+                  <TranslationHint translation={currentExercise.questionTranslation} />
                 </div>
 
                 {renderExercise()}

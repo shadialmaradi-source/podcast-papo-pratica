@@ -27,6 +27,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Exercise } from "@/services/exerciseGeneratorService";
 import { DragDropExercises } from "./DragDropExercises";
+import { TranslationHint } from "./exercises/TranslationHint";
 import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/hooks/useAuth";
 import { canUserDoVocalExercise, getNextMonthResetDate, type VocalQuotaResult } from "@/services/subscriptionService";
@@ -256,7 +257,8 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
               points: ex.xp_reward || 10,
               difficulty: ex.difficulty,
               level: level,
-              mode: 'intense' as Exercise['mode']
+              mode: 'intense' as Exercise['mode'],
+              questionTranslation: (ex as any).question_translation || null
             }));
 
             setRegularExercises(formattedExercises);
@@ -848,6 +850,7 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
         <CardContent className="space-y-6">
           <div>
             <h3 className="font-medium mb-4 text-lg leading-relaxed">{currentExercise.question}</h3>
+            <TranslationHint translation={(currentExercise as any).questionTranslation} />
             {renderExercise()}
           </div>
           
