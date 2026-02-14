@@ -170,13 +170,32 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
       console.log(`[YouTubeVideoExercises] Transcript found, generating exercises...`);
 
+      // Resolve native language for translation hints
+      let userNativeLanguage = 'english';
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('native_language')
+          .eq('user_id', user.id)
+          .single();
+        if (profile?.native_language) {
+          userNativeLanguage = profile.native_language;
+        }
+      }
+      if (userNativeLanguage === 'english') {
+        const stored = localStorage.getItem('onboarding_native_language');
+        if (stored) userNativeLanguage = stored;
+      }
+
       // Generate exercises via edge function
       const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
         body: { 
           videoId: videoData.id, 
           level: dbLevel, 
           transcript: transcriptData.transcript,
-          language: videoData.language || 'italian'
+          language: videoData.language || 'italian',
+          nativeLanguage: userNativeLanguage
         }
       });
 
