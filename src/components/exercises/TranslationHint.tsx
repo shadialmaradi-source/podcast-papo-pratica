@@ -4,12 +4,16 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface TranslationHintProps {
   translation: string | null | undefined;
+  question?: string;
 }
 
-export function TranslationHint({ translation }: TranslationHintProps) {
+export function TranslationHint({ translation, question }: TranslationHintProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!translation) return null;
+
+  // Don't show if translation is essentially the same as the question (same-language)
+  if (question && translation.trim().toLowerCase() === question.trim().toLowerCase()) return null;
 
   return (
     <div className="mt-2">

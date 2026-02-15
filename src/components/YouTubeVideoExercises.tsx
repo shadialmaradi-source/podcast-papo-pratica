@@ -171,7 +171,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
       console.log(`[YouTubeVideoExercises] Transcript found, generating exercises...`);
 
       // Resolve native language for translation hints
-      let userNativeLanguage = 'english';
+      let userNativeLanguage = '';
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
@@ -183,9 +183,20 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
           userNativeLanguage = profile.native_language;
         }
       }
-      if (userNativeLanguage === 'english') {
+      if (!userNativeLanguage) {
         const stored = localStorage.getItem('onboarding_native_language');
         if (stored) userNativeLanguage = stored;
+      }
+      if (!userNativeLanguage) {
+        // Detect from browser language
+        const browserLang = navigator.language.split('-')[0].toLowerCase();
+        const langMap: Record<string, string> = { en: 'english', it: 'italian', es: 'spanish', pt: 'portuguese', fr: 'french' };
+        userNativeLanguage = langMap[browserLang] || 'english';
+      }
+      // Guard: if native language matches video language, pick a useful fallback
+      const videoLang = (videoData.language || 'italian').toLowerCase();
+      if (userNativeLanguage.toLowerCase() === videoLang) {
+        userNativeLanguage = videoLang === 'english' ? 'italian' : 'english';
       }
 
       // Generate exercises via edge function

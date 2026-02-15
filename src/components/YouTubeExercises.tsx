@@ -792,28 +792,20 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <Button variant="outline" size="sm" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Video
         </Button>
         
         <div className="flex-1">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Target className="h-6 w-6" />
-            Transcript-Based Exercises
+          <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Target className="h-5 w-5 sm:h-6 sm:w-6" />
+            Exercises
           </h2>
           <div className="flex items-center gap-2 mt-1">
             <Badge className={`${levelInfo[level as keyof typeof levelInfo]?.color} text-white`}>
               {level} - {levelInfo[level as keyof typeof levelInfo]?.name}
-            </Badge>
-            <Badge variant="outline">
-              <Youtube className="h-3 w-3 mr-1" />
-              Video: {videoId}
-            </Badge>
-            <Badge variant="outline" className={intensity === "intense" ? "bg-orange-100 text-orange-800" : "bg-green-100 text-green-800"}>
-              <BookOpen className="h-3 w-3 mr-1" />
-              {intensity === "intense" ? "20" : "10"} Custom Exercises - {intensity === "intense" ? "Intense" : "Light"}
             </Badge>
           </div>
         </div>
