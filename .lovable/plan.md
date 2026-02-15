@@ -1,28 +1,72 @@
 
-# Fix: Pass Native Language to Exercise Generation
 
-## Problem
-The `generate-level-exercises` edge function already supports `nativeLanguage` and uses it to generate `questionTranslation` fields, but `YouTubeVideoExercises.tsx` never sends this parameter. It defaults to `'english'` on the backend, which is wrong when the user's native language is something else.
+# Fix Translation Hints and Mobile Exercise UI
 
-## Solution
-Update `YouTubeVideoExercises.tsx` to fetch the user's native language and pass it in the edge function call.
+## Issues Found
 
-## Changes (1 file)
+1. **English exercises show English translation**: Your profile (`shadi.almaradi@gmail.com`) has `native_language` set to `null` in the database. When generating exercises, the code defaults to `'english'`, so English exercises get translated to English (same language -- useless). The fix needs to detect when the native language matches the target language and skip the translation, or pick a sensible fallback.
 
-### `src/components/YouTubeVideoExercises.tsx`
+2. **Italian exercises have no translation hint**: These exercises were generated before the native language feature was deployed, so their `question_translation` column is empty. New exercises will have translations, but the existing ones need to be regenerated.
 
-1. **Fetch native language** from the user's profile (authenticated) or `localStorage` (guest), defaulting to `'english'`.
-2. **Pass `nativeLanguage`** in the `generate-level-exercises` call body alongside `videoId`, `level`, `transcript`, and `language`.
+3. **Ugly mobile exercise header**: The exercise screen shows "Transcript-Based Exercises" as the title, displays the raw video UUID (e.g., `c5c4bc7b-6ecc-4a29-a18c-0b38561860c7`), and shows badges like "20 Custom Exercises - Intense" that overflow on mobile.
 
-The logic:
+---
+
+## Plan
+
+### 1. Smart translation fallback logic (`YouTubeVideoExercises.tsx`)
+
+Update the native language resolution to handle edge cases:
+- If `native_language` is null/empty, check `localStorage`
+- If still empty, detect from browser language
+- **If the resolved native language matches the video's target language**, skip translation (don't pass `nativeLanguage`, or pass a different fallback like `'english'` for non-English content)
+
+### 2. Clean up exercise header for mobile (`YouTubeExercises.tsx`)
+
+- Replace "Transcript-Based Exercises" with just "Exercises"
+- Remove the badge showing the raw video UUID (`Video: c5c4bc7b-...`)
+- Remove or simplify the "20 Custom Exercises - Intense" badge
+- Make the header layout responsive: stack elements vertically on mobile
+- Keep only the level badge (e.g., "beginner") as useful context
+
+### 3. Hide translation when same language
+
+In the `TranslationHint` component or at the exercise rendering level, add a check: if the translation text is essentially the same as the question (same language), don't show the hint at all. This handles existing data where translations were generated in the same language as the question.
+
+---
+
+## Technical Details
+
+### Files to modify
+
+| File | Changes |
+|------|---------|
+| `src/components/YouTubeVideoExercises.tsx` | Add logic: if resolved native language equals video language, use browser language or `'english'` as fallback |
+| `src/components/YouTubeExercises.tsx` (lines 792-820) | Simplify header: remove "Transcript-Based Exercises" title, remove video UUID badge, remove intensity badge, make layout mobile-friendly |
+| `src/components/exercises/TranslationHint.tsx` | Add guard: don't render if translation is too similar to the parent question (same-language detection) |
+
+### Native language resolution (updated logic)
+
 ```text
-1. Try: supabase profiles.native_language (logged-in user)
-2. Fallback: localStorage 'onboarding_native_language'  
-3. Default: 'english'
+1. Fetch profile.native_language
+2. Fallback: localStorage 'onboarding_native_language'
+3. Fallback: detect from browser (navigator.language)
+4. Final fallback: 'english'
+5. GUARD: if resolvedNative == videoLanguage, use 'english' instead
+   (unless videoLanguage is also English, then use browser language)
 ```
 
-Add to the `handleStartExercises` function, before calling the edge function:
-- Query the authenticated user's profile for `native_language`
-- Include it in the request body: `nativeLanguage: userNativeLanguage`
+### Header cleanup (before/after)
 
-This is a small, focused fix -- the edge function and the `TranslationHint` UI component are already working correctly. The only gap is this missing parameter.
+Before (mobile):
+```text
+[Back to Video] [beginner] [Video: c5c4bc7b-6ecc-...] [20 Custom Exercises - Intense]
+```
+
+After (mobile):
+```text
+[Back to Video]
+Exercises
+[beginner]
+```
+
