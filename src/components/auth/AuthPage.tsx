@@ -7,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { motion } from "framer-motion";
+import RoleSelector from "./RoleSelector";
+
+type AppRole = "teacher" | "student";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,6 +19,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<AppRole>("student");
 
   useEffect(() => {
     // Check if user is already logged in and redirect
@@ -54,11 +58,24 @@ export default function AuthPage() {
             });
           }
         } else {
+          // Fetch user role to redirect appropriately
+          const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+          let redirectPath = "/app";
+          if (loggedInUser) {
+            const { data: roleData } = await supabase
+              .from("user_roles" as any)
+              .select("role")
+              .eq("user_id", loggedInUser.id)
+              .maybeSingle();
+            if (roleData && (roleData as any).role === "teacher") {
+              redirectPath = "/teacher";
+            }
+          }
           toast({
             title: "Accesso effettuato!",
             description: "Benvenuto nell'app",
           });
-          window.location.href = "/";
+          window.location.href = redirectPath;
         }
       } else {
         if (password !== confirmPassword) {
@@ -71,13 +88,22 @@ export default function AuthPage() {
         }
 
         const redirectUrl = `${window.location.origin}/`;
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: redirectUrl,
+            data: { role: selectedRole },
           },
         });
+
+        // If teacher was selected and signup succeeded, update role
+        if (!error && signUpData.user && selectedRole === "teacher") {
+          await supabase
+            .from("user_roles" as any)
+            .update({ role: "teacher" } as any)
+            .eq("user_id", signUpData.user.id);
+        }
 
         if (error) {
           if (error.message.includes("User already registered")) {
@@ -229,21 +255,27 @@ export default function AuthPage() {
               </div>
               
               {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Conferma Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Conferma la password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Conferma Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="Conferma la password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
+                  <div className="space-y-2">
+                    <Label>Sei un...</Label>
+                    <RoleSelector selectedRole={selectedRole} onRoleChange={setSelectedRole} />
+                  </div>
+                </>
               )}
               
               <Button 

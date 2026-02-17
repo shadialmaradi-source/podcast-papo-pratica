@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { initAnalytics } from "@/lib/analytics";
 import LandingPage from "./pages/LandingPage";
 import Onboarding from "./pages/Onboarding";
@@ -20,6 +21,7 @@ import FirstLesson from "./pages/FirstLesson";
 import AuthCallback from "./pages/AuthCallback";
 import WeekDetail from "./pages/WeekDetail";
 import WeekVideo from "./pages/WeekVideo";
+import TeacherDashboard from "./pages/TeacherDashboard";
 
 const queryClient = new QueryClient();
 
@@ -100,6 +102,16 @@ const App = () => {
             
             <Route path="/lesson/first" element={<FirstLesson />} />
             <Route path="/premium" element={<Premium />} />
+
+            {/* Teacher routes */}
+            <Route
+              path="/teacher"
+              element={
+                <ProtectedRoute>
+                  <TeacherDashboard />
+                </ProtectedRoute>
+              }
+            />
             
             {/* Protected app routes */}
             <Route 
