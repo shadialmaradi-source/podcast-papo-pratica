@@ -1,72 +1,113 @@
 
 
-# Fix Translation Hints and Mobile Exercise UI
+# Day 1: Add Teacher/Student Roles to ListenFlow
 
-## Issues Found
+## What This Does
 
-1. **English exercises show English translation**: Your profile (`shadi.almaradi@gmail.com`) has `native_language` set to `null` in the database. When generating exercises, the code defaults to `'english'`, so English exercises get translated to English (same language -- useless). The fix needs to detect when the native language matches the target language and skip the translation, or pick a sensible fallback.
+When users sign up, they will choose whether they are a **Teacher** or a **Student**. This role determines which dashboard and features they see after login. Existing users will default to the "student" role (preserving current behavior).
 
-2. **Italian exercises have no translation hint**: These exercises were generated before the native language feature was deployed, so their `question_translation` column is empty. New exercises will have translations, but the existing ones need to be regenerated.
+## Database Changes
 
-3. **Ugly mobile exercise header**: The exercise screen shows "Transcript-Based Exercises" as the title, displays the raw video UUID (e.g., `c5c4bc7b-6ecc-4a29-a18c-0b38561860c7`), and shows badges like "20 Custom Exercises - Intense" that overflow on mobile.
+### 1. Create role enum and `user_roles` table
 
----
+Following security best practices, roles are stored in a **separate table** (not on the profiles table) to prevent privilege escalation.
 
-## Plan
+```text
+- New enum: app_role ('teacher', 'student')
+- New table: user_roles (id, user_id, role)
+  - Foreign key to auth.users with CASCADE delete
+  - Unique constraint on (user_id, role)
+  - RLS enabled
+```
 
-### 1. Smart translation fallback logic (`YouTubeVideoExercises.tsx`)
+### 2. Security definer function: `has_role()`
 
-Update the native language resolution to handle edge cases:
-- If `native_language` is null/empty, check `localStorage`
-- If still empty, detect from browser language
-- **If the resolved native language matches the video's target language**, skip translation (don't pass `nativeLanguage`, or pass a different fallback like `'english'` for non-English content)
+A `SECURITY DEFINER` function to safely check roles from RLS policies without recursion:
 
-### 2. Clean up exercise header for mobile (`YouTubeExercises.tsx`)
+```text
+has_role(user_id uuid, role app_role) -> boolean
+```
 
-- Replace "Transcript-Based Exercises" with just "Exercises"
-- Remove the badge showing the raw video UUID (`Video: c5c4bc7b-...`)
-- Remove or simplify the "20 Custom Exercises - Intense" badge
-- Make the header layout responsive: stack elements vertically on mobile
-- Keep only the level badge (e.g., "beginner") as useful context
+### 3. RLS policies on `user_roles`
 
-### 3. Hide translation when same language
+- Users can **read** their own roles
+- Users can **insert** their own role (only during signup)
+- No update/delete from client (role changes require admin)
 
-In the `TranslationHint` component or at the exercise rendering level, add a check: if the translation text is essentially the same as the question (same language), don't show the hint at all. This handles existing data where translations were generated in the same language as the question.
+### 4. Auto-assign default role
 
----
+Update the `handle_new_user()` trigger function to insert a default 'student' role into `user_roles` when a new user signs up. This ensures existing auth flow still works.
 
-## Technical Details
+## Frontend Changes
 
-### Files to modify
+### 1. Role selection during signup (`src/components/auth/AuthPage.tsx`)
+
+- Add a **Teacher / Student** toggle that appears only during registration (not login)
+- Two cards: "I'm a Teacher" (with icon) and "I'm a Student" (with icon)
+- Store the selected role and pass it to the signup metadata
+- After signup, insert the role into `user_roles`
+
+### 2. Role-aware routing (`src/App.tsx`)
+
+- After login, check the user's role from `user_roles`
+- Students go to `/app` (current behavior, unchanged)
+- Teachers go to `/teacher` (new dashboard, placeholder for now)
+
+### 3. Teacher Dashboard placeholder (`src/pages/TeacherDashboard.tsx`)
+
+- New page at `/teacher` route
+- Simple placeholder with: welcome message, "Create Lesson" button (non-functional yet), and a sign-out button
+- This will be fleshed out in Days 2-3
+
+### 4. Role hook (`src/hooks/useUserRole.tsx`)
+
+- New hook: `useUserRole()` returns `{ role: 'teacher' | 'student' | null, loading: boolean }`
+- Queries `user_roles` table for the current authenticated user
+- Used by the router and dashboards to determine which UI to show
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useUserRole.tsx` | Hook to fetch user role |
+| `src/pages/TeacherDashboard.tsx` | Placeholder teacher dashboard |
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/YouTubeVideoExercises.tsx` | Add logic: if resolved native language equals video language, use browser language or `'english'` as fallback |
-| `src/components/YouTubeExercises.tsx` (lines 792-820) | Simplify header: remove "Transcript-Based Exercises" title, remove video UUID badge, remove intensity badge, make layout mobile-friendly |
-| `src/components/exercises/TranslationHint.tsx` | Add guard: don't render if translation is too similar to the parent question (same-language detection) |
+| `src/components/auth/AuthPage.tsx` | Add role selection cards during signup, insert role after registration |
+| `src/App.tsx` | Add `/teacher` route, update post-login redirect logic |
+| `src/hooks/useAuth.tsx` | No changes needed (role is separate) |
 
-### Native language resolution (updated logic)
+## Migration SQL (1 migration)
 
 ```text
-1. Fetch profile.native_language
-2. Fallback: localStorage 'onboarding_native_language'
-3. Fallback: detect from browser (navigator.language)
-4. Final fallback: 'english'
-5. GUARD: if resolvedNative == videoLanguage, use 'english' instead
-   (unless videoLanguage is also English, then use browser language)
+1. CREATE TYPE app_role AS ENUM ('teacher', 'student')
+2. CREATE TABLE user_roles (id, user_id, role, created_at)
+3. Enable RLS on user_roles
+4. CREATE FUNCTION has_role() - security definer
+5. RLS policies: select own, insert own
+6. UPDATE handle_new_user() to also insert default 'student' role
+7. Backfill: INSERT INTO user_roles for all existing users as 'student'
 ```
 
-### Header cleanup (before/after)
+## User Experience Flow
 
-Before (mobile):
 ```text
-[Back to Video] [beginner] [Video: c5c4bc7b-6ecc-...] [20 Custom Exercises - Intense]
-```
+New user visits /auth
+  -> Clicks "Register"
+  -> Sees role selection: [Teacher] [Student]
+  -> Fills email + password
+  -> Signs up
+  -> Role saved to user_roles table
+  -> Redirected based on role:
+     - Student -> /app (existing dashboard)
+     - Teacher -> /teacher (new placeholder)
 
-After (mobile):
-```text
-[Back to Video]
-Exercises
-[beginner]
+Existing users:
+  -> Auto-assigned 'student' role via backfill
+  -> Login works exactly as before
+  -> Redirected to /app as usual
 ```
 
