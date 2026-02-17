@@ -217,6 +217,41 @@ export type Database = {
         }
         Relationships: []
       }
+      lesson_exercises: {
+        Row: {
+          content: Json
+          created_at: string
+          exercise_type: string
+          id: string
+          lesson_id: string
+          order_index: number
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          exercise_type: string
+          id?: string
+          lesson_id: string
+          order_index?: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          exercise_type?: string
+          id?: string
+          lesson_id?: string
+          order_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_exercises_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           content: string
@@ -638,6 +673,48 @@ export type Database = {
           tier?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      teacher_lessons: {
+        Row: {
+          cefr_level: string
+          created_at: string
+          description: string | null
+          exercise_types: string[]
+          id: string
+          status: string
+          student_email: string | null
+          teacher_id: string
+          title: string
+          topic: string | null
+          updated_at: string
+        }
+        Insert: {
+          cefr_level?: string
+          created_at?: string
+          description?: string | null
+          exercise_types?: string[]
+          id?: string
+          status?: string
+          student_email?: string | null
+          teacher_id: string
+          title: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cefr_level?: string
+          created_at?: string
+          description?: string | null
+          exercise_types?: string[]
+          id?: string
+          status?: string
+          student_email?: string | null
+          teacher_id?: string
+          title?: string
+          topic?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
