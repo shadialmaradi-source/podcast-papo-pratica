@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -7,12 +7,29 @@ import { useNavigate } from "react-router-dom";
 import { BookOpen, LogOut, Plus, X } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { LessonList } from "@/components/teacher/LessonList";
+import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function TeacherDashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { role, loading: roleLoading } = useUserRole();
   const [showForm, setShowForm] = useState(false);
   const [refresh, setRefresh] = useState(0);
+
+  // Auto-correct: if user is on teacher dashboard but has student role,
+  // they selected teacher during signup but the insert failed silently
+  useEffect(() => {
+    if (!roleLoading && role === "student" && user?.id) {
+      supabase
+        .from("user_roles" as any)
+        .upsert({ user_id: user.id, role: "teacher" } as any, { onConflict: "user_id" })
+        .then(() => {
+          // Role corrected — reload to pick up new role
+          window.location.reload();
+        });
+    }
+  }, [role, roleLoading, user?.id]);
 
   const handleSignOut = async () => {
     await signOut();
