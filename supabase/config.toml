@@ -93,3 +93,6 @@ verify_jwt = false
 
 [functions.suggest-transcript-words]
 verify_jwt = false
+
+[functions.generate-lesson-exercises]
+verify_jwt = true
