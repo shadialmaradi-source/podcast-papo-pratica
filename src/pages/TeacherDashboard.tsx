@@ -1,16 +1,27 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, LogOut, Plus } from "lucide-react";
+import { BookOpen, LogOut, Plus, X } from "lucide-react";
+import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
+import { LessonList } from "@/components/teacher/LessonList";
 
 export default function TeacherDashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [showForm, setShowForm] = useState(false);
+  const [refresh, setRefresh] = useState(0);
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
+  };
+
+  const handleCreated = () => {
+    setShowForm(false);
+    setRefresh((r) => r + 1);
   };
 
   return (
@@ -23,35 +34,56 @@ export default function TeacherDashboard() {
           </div>
           <Button variant="ghost" size="sm" onClick={handleSignOut}>
             <LogOut className="mr-2 h-4 w-4" />
-            Esci
+            Sign Out
           </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+      <main className="container mx-auto px-4 py-8 max-w-2xl">
+        <div className="mb-6">
           <h2 className="text-2xl font-bold text-foreground">
-            Benvenuto, {user?.email?.split("@")[0]}!
+            Welcome, {user?.email?.split("@")[0]}!
           </h2>
           <p className="text-muted-foreground mt-1">
-            Gestisci le tue lezioni interattive da qui.
+            Manage your interactive lessons from here.
           </p>
         </div>
 
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle className="text-lg">Le tue Lezioni</CardTitle>
+        {/* Create Lesson Card */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">
+                {showForm ? "New Lesson" : "Your Lessons"}
+              </CardTitle>
+              {!showForm ? (
+                <Button size="sm" onClick={() => setShowForm(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Lesson
+                </Button>
+              ) : (
+                <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm mb-4">
-              Non hai ancora creato nessuna lezione. Inizia creandone una!
-            </p>
-            <Button variant="learning" disabled>
-              <Plus className="mr-2 h-4 w-4" />
-              Crea Lezione (prossimamente)
-            </Button>
-          </CardContent>
+
+          {showForm && (
+            <>
+              <Separator />
+              <CardContent className="pt-5">
+                <CreateLessonForm
+                  onCreated={handleCreated}
+                  onCancel={() => setShowForm(false)}
+                />
+              </CardContent>
+            </>
+          )}
         </Card>
+
+        {/* Lesson List */}
+        {!showForm && <LessonList refresh={refresh} />}
       </main>
     </div>
   );
