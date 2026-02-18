@@ -97,12 +97,11 @@ export default function AuthPage() {
           },
         });
 
-        // If teacher was selected and signup succeeded, update role
+        // If teacher was selected and signup succeeded, upsert role
         if (!error && signUpData.user && selectedRole === "teacher") {
           await supabase
             .from("user_roles" as any)
-            .update({ role: "teacher" } as any)
-            .eq("user_id", signUpData.user.id);
+            .upsert({ user_id: signUpData.user.id, role: "teacher" } as any, { onConflict: "user_id" });
         }
 
         if (error) {
