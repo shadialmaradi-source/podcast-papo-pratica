@@ -1,113 +1,90 @@
 
+# Fix: Assign Teacher Role to Teacher Accounts
 
-# Day 1: Add Teacher/Student Roles to ListenFlow
+## Root Cause
 
-## What This Does
+The `user_roles` table currently stores `student` for every user because:
+- The backfill migration set all existing users to `student`
+- The new-user trigger defaults to `student`
+- There is no mechanism to set or change a role to `teacher` after the fact
 
-When users sign up, they will choose whether they are a **Teacher** or a **Student**. This role determines which dashboard and features they see after login. Existing users will default to the "student" role (preserving current behavior).
+The RLS INSERT policy on `teacher_lessons` requires `has_role(auth.uid(), 'teacher')`, which fails for anyone only having the `student` role.
 
-## Database Changes
+## The Fix (2 parts)
 
-### 1. Create role enum and `user_roles` table
+### Part 1 - Database: Allow upsert of role during signup
 
-Following security best practices, roles are stored in a **separate table** (not on the profiles table) to prevent privilege escalation.
+Right now, a user signing up who selects "Teacher" tries to INSERT a `teacher` row into `user_roles`. But if they already have a `student` row (from the backfill or trigger), the unique constraint blocks a second INSERT. We need to add a migration that:
 
-```text
-- New enum: app_role ('teacher', 'student')
-- New table: user_roles (id, user_id, role)
-  - Foreign key to auth.users with CASCADE delete
-  - Unique constraint on (user_id, role)
-  - RLS enabled
+1. Adds an `ON CONFLICT (user_id, role) DO NOTHING` style upsert path for the client-side insert
+2. More importantly: allows the signup flow to **replace** the default `student` role with `teacher` for users who selected Teacher during registration
+
+The cleanest approach: change the trigger to insert based on `raw_user_meta_data->>'role'` if present, and add a policy + migration that allows the role to be **updated** for the user's own record (limited to only switching between valid enum values, and only once — or simply allow UPDATE on `user_roles` for own row).
+
+Alternatively, since users are already in `user_roles` with `student`, the signup role-insert in `AuthPage.tsx` is failing silently. We need the auth page to **upsert** (update if exists) rather than insert.
+
+### Part 2 - Frontend: Change INSERT to UPSERT in AuthPage
+
+In `src/components/auth/AuthPage.tsx`, after signup, the code does:
+```ts
+supabase.from("user_roles").insert({ user_id, role })
+```
+This fails if the user already has a row (from the trigger default). Change it to an **upsert**:
+```ts
+supabase.from("user_roles").upsert({ user_id, role }, { onConflict: 'user_id' })
+```
+Wait — the unique constraint is on `(user_id, role)`, not just `user_id`, since a user could theoretically have multiple roles. But in our app, each user has exactly one role. We should add a unique constraint on just `user_id` or handle the upsert differently.
+
+### Simplest Correct Fix
+
+The cleanest approach for this app (1 role per user):
+
+**Database migration:**
+- Drop the current unique constraint `(user_id, role)` 
+- Add a unique constraint on `user_id` alone (one row per user)
+- Add an UPDATE policy so users can update their own role row
+
+**Frontend fix:**
+- In `AuthPage.tsx` change the role insert to an upsert using `onConflict: 'user_id'`
+
+This way:
+- New users: trigger inserts `student`, then signup code upserts to `teacher` if selected
+- Existing users who registered as teacher but got `student` from backfill: their role gets corrected on next login/signup attempt
+
+### Also: Immediate Fix for Existing Teacher Accounts
+
+Add a small SQL migration that manually updates the role to `teacher` for any user who is currently on the `/teacher` route (i.e., users who went through the teacher signup flow). We can identify them by checking which users have logged in and are on the teacher dashboard.
+
+Since we can't identify them automatically, we'll add a **self-service role correction**: if a logged-in user is on `/teacher` but their role is `student`, the dashboard will show an "activate teacher account" button that upserts their role.
+
+Actually, the simplest immediate fix is:
+1. Migration: change unique constraint to `user_id` only + add UPDATE policy
+2. Frontend `AuthPage.tsx`: change insert to upsert
+3. `TeacherDashboard.tsx`: on mount, if `useUserRole()` returns `student`, auto-upsert to `teacher` (since they're on the teacher page, they chose teacher during signup — the insert just failed silently)
+
+## Technical Details
+
+### Migration SQL
+```sql
+-- 1. Drop old unique constraint
+ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_user_id_role_key;
+
+-- 2. Add unique on user_id only (1 role per user)
+ALTER TABLE user_roles ADD CONSTRAINT user_roles_user_id_key UNIQUE (user_id);
+
+-- 3. Add UPDATE policy so users can update their own role
+CREATE POLICY "Users can update own role"
+  ON public.user_roles
+  FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 ```
 
-### 2. Security definer function: `has_role()`
+### Files to Modify
 
-A `SECURITY DEFINER` function to safely check roles from RLS policies without recursion:
+| File | Change |
+|------|--------|
+| `src/components/auth/AuthPage.tsx` | Change role insert → upsert with `onConflict: 'user_id'` |
+| `src/pages/TeacherDashboard.tsx` | On mount, if role is `student`, upsert role to `teacher` (auto-correct for existing teacher signups) |
 
-```text
-has_role(user_id uuid, role app_role) -> boolean
-```
-
-### 3. RLS policies on `user_roles`
-
-- Users can **read** their own roles
-- Users can **insert** their own role (only during signup)
-- No update/delete from client (role changes require admin)
-
-### 4. Auto-assign default role
-
-Update the `handle_new_user()` trigger function to insert a default 'student' role into `user_roles` when a new user signs up. This ensures existing auth flow still works.
-
-## Frontend Changes
-
-### 1. Role selection during signup (`src/components/auth/AuthPage.tsx`)
-
-- Add a **Teacher / Student** toggle that appears only during registration (not login)
-- Two cards: "I'm a Teacher" (with icon) and "I'm a Student" (with icon)
-- Store the selected role and pass it to the signup metadata
-- After signup, insert the role into `user_roles`
-
-### 2. Role-aware routing (`src/App.tsx`)
-
-- After login, check the user's role from `user_roles`
-- Students go to `/app` (current behavior, unchanged)
-- Teachers go to `/teacher` (new dashboard, placeholder for now)
-
-### 3. Teacher Dashboard placeholder (`src/pages/TeacherDashboard.tsx`)
-
-- New page at `/teacher` route
-- Simple placeholder with: welcome message, "Create Lesson" button (non-functional yet), and a sign-out button
-- This will be fleshed out in Days 2-3
-
-### 4. Role hook (`src/hooks/useUserRole.tsx`)
-
-- New hook: `useUserRole()` returns `{ role: 'teacher' | 'student' | null, loading: boolean }`
-- Queries `user_roles` table for the current authenticated user
-- Used by the router and dashboards to determine which UI to show
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/hooks/useUserRole.tsx` | Hook to fetch user role |
-| `src/pages/TeacherDashboard.tsx` | Placeholder teacher dashboard |
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/auth/AuthPage.tsx` | Add role selection cards during signup, insert role after registration |
-| `src/App.tsx` | Add `/teacher` route, update post-login redirect logic |
-| `src/hooks/useAuth.tsx` | No changes needed (role is separate) |
-
-## Migration SQL (1 migration)
-
-```text
-1. CREATE TYPE app_role AS ENUM ('teacher', 'student')
-2. CREATE TABLE user_roles (id, user_id, role, created_at)
-3. Enable RLS on user_roles
-4. CREATE FUNCTION has_role() - security definer
-5. RLS policies: select own, insert own
-6. UPDATE handle_new_user() to also insert default 'student' role
-7. Backfill: INSERT INTO user_roles for all existing users as 'student'
-```
-
-## User Experience Flow
-
-```text
-New user visits /auth
-  -> Clicks "Register"
-  -> Sees role selection: [Teacher] [Student]
-  -> Fills email + password
-  -> Signs up
-  -> Role saved to user_roles table
-  -> Redirected based on role:
-     - Student -> /app (existing dashboard)
-     - Teacher -> /teacher (new placeholder)
-
-Existing users:
-  -> Auto-assigned 'student' role via backfill
-  -> Login works exactly as before
-  -> Redirected to /app as usual
-```
-
+No new files needed. This is a targeted 2-file fix + 1 migration.
