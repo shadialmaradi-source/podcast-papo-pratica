@@ -22,6 +22,7 @@ import AuthCallback from "./pages/AuthCallback";
 import WeekDetail from "./pages/WeekDetail";
 import WeekVideo from "./pages/WeekVideo";
 import TeacherDashboard from "./pages/TeacherDashboard";
+import TeacherLesson from "./pages/TeacherLesson";
 
 const queryClient = new QueryClient();
 
@@ -109,11 +110,19 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <TeacherDashboard />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* Protected app routes */}
+            </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/lesson/:id"
+            element={
+              <ProtectedRoute>
+                <TeacherLesson />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected app routes */}
             <Route 
               path="/app" 
               element={
