@@ -252,6 +252,48 @@ export type Database = {
           },
         ]
       }
+      lesson_responses: {
+        Row: {
+          exercise_id: string
+          id: string
+          lesson_id: string
+          response: string | null
+          submitted_at: string
+          user_id: string
+        }
+        Insert: {
+          exercise_id: string
+          id?: string
+          lesson_id: string
+          response?: string | null
+          submitted_at?: string
+          user_id: string
+        }
+        Update: {
+          exercise_id?: string
+          id?: string
+          lesson_id?: string
+          response?: string | null
+          submitted_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_responses_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_responses_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           content: string

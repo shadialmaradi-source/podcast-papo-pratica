@@ -23,6 +23,7 @@ import WeekDetail from "./pages/WeekDetail";
 import WeekVideo from "./pages/WeekVideo";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherLesson from "./pages/TeacherLesson";
+import StudentLesson from "./pages/StudentLesson";
 
 const queryClient = new QueryClient();
 
@@ -170,6 +171,14 @@ const App = () => {
                   <ProfilePageWrapper />
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/lesson/student/:id"
+              element={
+                <ProtectedRoute>
+                  <StudentLesson />
+                </ProtectedRoute>
+              }
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
