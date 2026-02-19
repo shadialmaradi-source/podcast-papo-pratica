@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { BookOpen, User, Sparkles, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { BookOpen, User, Sparkles, Loader2, ChevronDown, ChevronUp, Play } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 interface Exercise {
@@ -120,6 +121,7 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
 
 export function LessonList({ refresh }: LessonListProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -274,6 +276,18 @@ export function LessonList({ refresh }: LessonListProps) {
                   )}
                   {lesson.status === "ready" ? "Regenerate" : "Generate"}
                 </Button>
+
+                {(lesson.status === "ready" || lesson.status === "active") && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => navigate(`/teacher/lesson/${lesson.id}`)}
+                    className="text-xs"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    {lesson.status === "active" ? "Resume" : "Start"}
+                  </Button>
+                )}
 
                 {lesson.status === "ready" && (
                   <Button
