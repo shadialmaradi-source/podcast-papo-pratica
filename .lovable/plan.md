@@ -1,90 +1,90 @@
 
-# Fix: Assign Teacher Role to Teacher Accounts
+# Updated Roadmap: Interactive 1-on-1 Teaching Platform
 
-## Root Cause
+## What's Already Done
 
-The `user_roles` table currently stores `student` for every user because:
-- The backfill migration set all existing users to `student`
-- The new-user trigger defaults to `student`
-- There is no mechanism to set or change a role to `teacher` after the fact
+### Day 1 - Foundation (Complete)
+- Database schema: `teacher_lessons` and `lesson_exercises` tables with RLS policies
+- Teacher role system: `user_roles` table, signup upsert fix, auto-correction on dashboard
+- Teacher authentication and role-based routing
 
-The RLS INSERT policy on `teacher_lessons` requires `has_role(auth.uid(), 'teacher')`, which fails for anyone only having the `student` role.
+### Day 2 - Lesson Configuration (Complete)
+- `CreateLessonForm`: title, student email, topic, CEFR level, exercise type selection
+- `LessonList`: shows all lessons with status badges
+- Lessons saved to DB as `draft` status
 
-## The Fix (2 parts)
+### Day 3 - AI Exercise Generation (Complete)
+- `generate-lesson-exercises` edge function: calls AI for all 5 exercise types
+- Generate / Regenerate button in lesson list
+- Inline preview of generated exercises (ExerciseCard component)
+- Lesson status transitions: `draft` → `ready`
 
-### Part 1 - Database: Allow upsert of role during signup
+---
 
-Right now, a user signing up who selects "Teacher" tries to INSERT a `teacher` row into `user_roles`. But if they already have a `student` row (from the backfill or trigger), the unique constraint blocks a second INSERT. We need to add a migration that:
+## What's Still Missing
 
-1. Adds an `ON CONFLICT (user_id, role) DO NOTHING` style upsert path for the client-side insert
-2. More importantly: allows the signup flow to **replace** the default `student` role with `teacher` for users who selected Teacher during registration
+The current flow stops at **"I created a lesson draft"** because:
+1. The Generate button calls the edge function but the RLS bug prevented teachers from even creating lessons — now fixed
+2. There is no way to "run" a lesson live with a student
+3. Students have no view to see or interact with their assigned lessons
 
-The cleanest approach: change the trigger to insert based on `raw_user_meta_data->>'role'` if present, and add a policy + migration that allows the role to be **updated** for the user's own record (limited to only switching between valid enum values, and only once — or simply allow UPDATE on `user_roles` for own row).
+---
 
-Alternatively, since users are already in `user_roles` with `student`, the signup role-insert in `AuthPage.tsx` is failing silently. We need the auth page to **upsert** (update if exists) rather than insert.
+## Remaining Roadmap
 
-### Part 2 - Frontend: Change INSERT to UPSERT in AuthPage
+### Day 4 - Live Lesson Canvas (Teacher side)
+This is the core real-time feature. When a teacher clicks "Start Lesson" on a `ready` lesson, they enter a **shared canvas** where exercises are presented one at a time.
 
-In `src/components/auth/AuthPage.tsx`, after signup, the code does:
-```ts
-supabase.from("user_roles").insert({ user_id, role })
-```
-This fails if the user already has a row (from the trigger default). Change it to an **upsert**:
-```ts
-supabase.from("user_roles").upsert({ user_id, role }, { onConflict: 'user_id' })
-```
-Wait — the unique constraint is on `(user_id, role)`, not just `user_id`, since a user could theoretically have multiple roles. But in our app, each user has exactly one role. We should add a unique constraint on just `user_id` or handle the upsert differently.
+What to build:
+- "Start Lesson" button on ready lessons → transitions status to `active`
+- New page: `/teacher/lesson/:id` — the live lesson view
+- Exercise presenter: shows one exercise at a time (fill-in-blank, quiz, etc.) with "Next" to advance
+- Teacher controls: reveal answer, add notes, mark complete
+- No real-time sync yet — teacher-only view first
 
-### Simplest Correct Fix
+Files to create/modify:
+- `src/pages/TeacherLesson.tsx` (new)
+- `src/components/teacher/ExercisePresenter.tsx` (new)
+- `src/components/teacher/LessonList.tsx` (add "Start" button)
+- Router: add `/teacher/lesson/:id`
 
-The cleanest approach for this app (1 role per user):
+### Day 5 - Student Lesson View
+Students need to see lessons assigned to their email and interact with exercises.
 
-**Database migration:**
-- Drop the current unique constraint `(user_id, role)` 
-- Add a unique constraint on `user_id` alone (one row per user)
-- Add an UPDATE policy so users can update their own role row
+What to build:
+- New page: `/lesson/:id` — student-facing lesson view
+- Fetch lesson by ID where `student_email` matches auth user's email
+- Show exercises in sequence (student answers, teacher sees)
+- Simple answer submission (stored in a new `lesson_responses` table)
 
-**Frontend fix:**
-- In `AuthPage.tsx` change the role insert to an upsert using `onConflict: 'user_id'`
+Files to create/modify:
+- `src/pages/StudentLesson.tsx` (new)
+- `supabase/migrations/...` — `lesson_responses` table
+- Router: add `/lesson/:id`
+- `src/pages/AppHome.tsx` — surface assigned lessons to students
 
-This way:
-- New users: trigger inserts `student`, then signup code upserts to `teacher` if selected
-- Existing users who registered as teacher but got `student` from backfill: their role gets corrected on next login/signup attempt
+### Day 6 - Real-time Shared Canvas
+The teacher and student see the same exercise at the same time. Teacher can advance to next exercise and the student's view updates live.
 
-### Also: Immediate Fix for Existing Teacher Accounts
+What to build:
+- Supabase Realtime subscription on `teacher_lessons.current_exercise_index` (new column)
+- Teacher advances → DB update → student's view reacts instantly
+- Visual "waiting for teacher" state on student side
 
-Add a small SQL migration that manually updates the role to `teacher` for any user who is currently on the `/teacher` route (i.e., users who went through the teacher signup flow). We can identify them by checking which users have logged in and are on the teacher dashboard.
+Files to create/modify:
+- Migration: add `current_exercise_index` column to `teacher_lessons`
+- `src/pages/TeacherLesson.tsx` — broadcast updates
+- `src/pages/StudentLesson.tsx` — subscribe to updates
 
-Since we can't identify them automatically, we'll add a **self-service role correction**: if a logged-in user is on `/teacher` but their role is `student`, the dashboard will show an "activate teacher account" button that upserts their role.
+### Day 7 - Lesson Completion & History
+- Teacher marks lesson as `completed`
+- Summary screen showing all exercises answered
+- Student can review past lessons from their home screen
 
-Actually, the simplest immediate fix is:
-1. Migration: change unique constraint to `user_id` only + add UPDATE policy
-2. Frontend `AuthPage.tsx`: change insert to upsert
-3. `TeacherDashboard.tsx`: on mount, if `useUserRole()` returns `student`, auto-upsert to `teacher` (since they're on the teacher page, they chose teacher during signup — the insert just failed silently)
+---
 
-## Technical Details
+## Immediate Next Step (Day 4)
 
-### Migration SQL
-```sql
--- 1. Drop old unique constraint
-ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_user_id_role_key;
+The most impactful next step is fixing the current dead-end: after generating exercises, teachers have no way to actually run the lesson. Day 4 delivers the live lesson presenter — a single-page teacher view where they step through exercises one by one.
 
--- 2. Add unique on user_id only (1 role per user)
-ALTER TABLE user_roles ADD CONSTRAINT user_roles_user_id_key UNIQUE (user_id);
-
--- 3. Add UPDATE policy so users can update their own role
-CREATE POLICY "Users can update own role"
-  ON public.user_roles
-  FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-```
-
-### Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/auth/AuthPage.tsx` | Change role insert → upsert with `onConflict: 'user_id'` |
-| `src/pages/TeacherDashboard.tsx` | On mount, if role is `student`, upsert role to `teacher` (auto-correct for existing teacher signups) |
-
-No new files needed. This is a targeted 2-file fix + 1 migration.
+This is one focused credit: 1 new page, 1 new component, 1 route, 1 button added to the existing list.
