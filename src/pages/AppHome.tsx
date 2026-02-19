@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, Link2, Flame, Star } from "lucide-react";
+import { BookOpen, Link2, Flame, Star, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getUploadQuotaStatus, canUserUploadVideo } from "@/services/subscriptionService";
+import { getUploadQuotaStatus } from "@/services/subscriptionService";
 import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 
@@ -29,6 +30,14 @@ interface UserProfile {
   selected_language: string;
 }
 
+interface AssignedLesson {
+  id: string;
+  title: string;
+  cefr_level: string;
+  topic: string | null;
+  status: string;
+}
+
 export default function AppHome() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -37,6 +46,7 @@ export default function AppHome() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [importing, setImporting] = useState(false);
+  const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   
   // Upload quota state
   const [uploadQuota, setUploadQuota] = useState<{
@@ -53,8 +63,20 @@ export default function AppHome() {
     if (user) {
       fetchProfile();
       fetchUploadQuota();
+      fetchAssignedLessons();
     }
   }, [user]);
+
+  const fetchAssignedLessons = async () => {
+    if (!user?.email) return;
+    const { data } = await supabase
+      .from("teacher_lessons")
+      .select("id, title, cefr_level, topic, status")
+      .eq("student_email", user.email)
+      .in("status", ["ready", "active", "completed"])
+      .order("created_at", { ascending: false });
+    if (data) setAssignedLessons(data as AssignedLesson[]);
+  };
 
   const fetchUploadQuota = async () => {
     if (!user) return;
@@ -244,8 +266,8 @@ export default function AppHome() {
           {/* Stats */}
           <div className="flex items-center justify-center gap-6 pt-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-                <Flame className="w-4 h-4 text-orange-500" />
+              <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+                <Flame className="w-4 h-4 text-accent-foreground" />
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">{profile?.current_streak || 0}</p>
@@ -254,8 +276,8 @@ export default function AppHome() {
             </div>
             <div className="w-px h-8 bg-border" />
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
-                <Star className="w-4 h-4 text-yellow-500" />
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <Star className="w-4 h-4 text-muted-foreground" />
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">{profile?.total_xp || 0}</p>
@@ -263,6 +285,43 @@ export default function AppHome() {
               </div>
             </div>
           </div>
+
+          {/* Assigned Lessons from Teacher */}
+          {assignedLessons.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Your Lessons</h3>
+              </div>
+              <div className="space-y-2">
+                {assignedLessons.map((lesson) => (
+                  <Card
+                    key={lesson.id}
+                    className="cursor-pointer border border-border hover:border-primary/50 transition-colors"
+                    onClick={() => navigate(`/lesson/student/${lesson.id}`)}
+                  >
+                    <CardContent className="px-4 py-3 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground text-sm truncate">{lesson.title}</p>
+                        {lesson.topic && (
+                          <p className="text-xs text-muted-foreground truncate">{lesson.topic}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" className="text-xs">{lesson.cefr_level}</Badge>
+                        <Badge
+                          variant={lesson.status === "completed" ? "outline" : "default"}
+                          className="text-xs capitalize"
+                        >
+                          {lesson.status === "completed" ? "Done" : "Open"}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </motion.div>
       </main>
 
