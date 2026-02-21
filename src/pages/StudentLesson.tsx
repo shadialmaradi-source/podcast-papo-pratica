@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User, Radio } from "lucide-react";
 import { toast } from "sonner";
 
 interface Lesson {
@@ -223,6 +223,7 @@ export default function StudentLesson() {
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(true);
   const [done, setDone] = useState(false);
+  const [teacherIndex, setTeacherIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -233,7 +234,7 @@ export default function StudentLesson() {
       const [lessonRes, exercisesRes, responsesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status")
+          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index")
           .eq("id", id)
           .single(),
         supabase
@@ -248,7 +249,14 @@ export default function StudentLesson() {
           .eq("user_id", user.id),
       ]);
 
-      if (lessonRes.data) setLesson(lessonRes.data as Lesson);
+      if (lessonRes.data) {
+        const data = lessonRes.data as any;
+        setLesson(data as Lesson);
+        if (typeof data.current_exercise_index === "number") {
+          setTeacherIndex(data.current_exercise_index);
+          setCurrent(data.current_exercise_index);
+        }
+      }
       if (exercisesRes.data) setExercises(exercisesRes.data as Exercise[]);
 
       // Restore previous responses
@@ -268,6 +276,39 @@ export default function StudentLesson() {
 
     load();
   }, [id, user]);
+
+  // Real-time sync: follow teacher's current exercise
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`lesson-sync-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "teacher_lessons",
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          const newIndex = (payload.new as any).current_exercise_index;
+          if (typeof newIndex === "number") {
+            setTeacherIndex(newIndex);
+            setCurrent(newIndex);
+          }
+          const newStatus = (payload.new as any).status;
+          if (newStatus === "completed") {
+            setDone(true);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
 
   const handleSubmit = async () => {
     const exercise = exercises[current];
@@ -392,7 +433,15 @@ export default function StudentLesson() {
             <div className="space-y-1">
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>Exercise {current + 1} of {exercises.length}</span>
-                <span>{exercises.filter((e) => submitted[e.id]).length} answered</span>
+                <div className="flex items-center gap-3">
+                  {teacherIndex !== null && (
+                    <span className="flex items-center gap-1 text-xs text-primary font-medium">
+                      <Radio className="h-3 w-3 animate-pulse" />
+                      Live
+                    </span>
+                  )}
+                  <span>{exercises.filter((e) => submitted[e.id]).length} answered</span>
+                </div>
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <div

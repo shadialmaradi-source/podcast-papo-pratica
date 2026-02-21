@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -168,10 +169,11 @@ function ExerciseContent({ exercise, revealed }: { exercise: Exercise; revealed:
 interface ExercisePresenterProps {
   exercises: Exercise[];
   lessonTitle: string;
+  lessonId: string;
   onComplete: () => void;
 }
 
-export function ExercisePresenter({ exercises, lessonTitle, onComplete }: ExercisePresenterProps) {
+export function ExercisePresenter({ exercises, lessonTitle, lessonId, onComplete }: ExercisePresenterProps) {
   const [current, setCurrent] = useState(0);
   const [revealed, setRevealed] = useState(false);
 
@@ -179,14 +181,22 @@ export function ExercisePresenter({ exercises, lessonTitle, onComplete }: Exerci
   const isFirst = current === 0;
   const isLast = current === exercises.length - 1;
 
+  const syncIndex = (index: number) => {
+    supabase.from("teacher_lessons").update({ current_exercise_index: index } as any).eq("id", lessonId).then();
+  };
+
   const handleNext = () => {
     setRevealed(false);
-    setCurrent((c) => c + 1);
+    const next = current + 1;
+    setCurrent(next);
+    syncIndex(next);
   };
 
   const handlePrev = () => {
     setRevealed(false);
-    setCurrent((c) => c - 1);
+    const prev = current - 1;
+    setCurrent(prev);
+    syncIndex(prev);
   };
 
   if (!exercise) return null;

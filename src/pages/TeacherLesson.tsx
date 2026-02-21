@@ -170,6 +170,7 @@ export default function TeacherLesson() {
           <ExercisePresenter
             exercises={exercises}
             lessonTitle={lesson.title}
+            lessonId={lesson.id}
             onComplete={handleComplete}
           />
         )}
