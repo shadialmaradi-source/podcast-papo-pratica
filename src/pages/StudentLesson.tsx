@@ -17,6 +17,19 @@ interface Lesson {
   cefr_level: string;
   topic: string | null;
   status: string;
+  youtube_url: string | null;
+}
+
+function extractYouTubeVideoId(url: string): string | null {
+  let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  return null;
 }
 
 interface Exercise {
@@ -234,7 +247,7 @@ export default function StudentLesson() {
       const [lessonRes, exercisesRes, responsesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index")
+          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url")
           .eq("id", id)
           .single(),
         supabase
@@ -429,6 +442,22 @@ export default function StudentLesson() {
           </div>
         ) : (
           <>
+            {/* YouTube video */}
+            {lesson.youtube_url && (() => {
+              const vid = extractYouTubeVideoId(lesson.youtube_url!);
+              return vid ? (
+                <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${vid}`}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title="Lesson video"
+                  />
+                </div>
+              ) : null;
+            })()}
+
             {/* Progress */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-sm text-muted-foreground">

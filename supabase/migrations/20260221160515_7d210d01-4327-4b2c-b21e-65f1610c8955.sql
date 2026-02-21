@@ -1,0 +1,1 @@
+ALTER TABLE public.teacher_lessons ADD COLUMN youtube_url text DEFAULT NULL;

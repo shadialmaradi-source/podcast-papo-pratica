@@ -732,6 +732,7 @@ export type Database = {
           title: string
           topic: string | null
           updated_at: string
+          youtube_url: string | null
         }
         Insert: {
           cefr_level?: string
@@ -746,6 +747,7 @@ export type Database = {
           title: string
           topic?: string | null
           updated_at?: string
+          youtube_url?: string | null
         }
         Update: {
           cefr_level?: string
@@ -760,6 +762,7 @@ export type Database = {
           title?: string
           topic?: string | null
           updated_at?: string
+          youtube_url?: string | null
         }
         Relationships: []
       }

@@ -36,9 +36,10 @@ export default function TeacherDashboard() {
     navigate("/auth");
   };
 
-  const handleCreated = () => {
+  const handleCreated = (lessonId: string) => {
     setShowForm(false);
     setRefresh((r) => r + 1);
+    navigate(`/teacher/lesson/${lessonId}`);
   };
 
   return (
