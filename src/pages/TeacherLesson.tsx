@@ -16,6 +16,7 @@ interface Lesson {
   cefr_level: string;
   topic: string | null;
   status: string;
+  youtube_url: string | null;
 }
 
 interface Exercise {
@@ -46,7 +47,7 @@ export default function TeacherLesson() {
       const [lessonRes, exercisesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status")
+          .select("id, title, student_email, cefr_level, topic, status, youtube_url")
           .eq("id", id)
           .eq("teacher_id", user.id)
           .single(),
@@ -57,7 +58,7 @@ export default function TeacherLesson() {
           .order("order_index"),
       ]);
 
-      if (lessonRes.data) setLesson(lessonRes.data as Lesson);
+      if (lessonRes.data) setLesson(lessonRes.data as any as Lesson);
       if (exercisesRes.data) setExercises(exercisesRes.data as Exercise[]);
       setLoading(false);
 
@@ -171,6 +172,7 @@ export default function TeacherLesson() {
             exercises={exercises}
             lessonTitle={lesson.title}
             lessonId={lesson.id}
+            youtubeUrl={lesson.youtube_url}
             onComplete={handleComplete}
           />
         )}

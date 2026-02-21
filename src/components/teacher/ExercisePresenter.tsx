@@ -1,5 +1,17 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+function extractYouTubeVideoId(url: string): string | null {
+  let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  return null;
+}
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -170,12 +182,16 @@ interface ExercisePresenterProps {
   exercises: Exercise[];
   lessonTitle: string;
   lessonId: string;
+  youtubeUrl?: string | null;
   onComplete: () => void;
 }
 
-export function ExercisePresenter({ exercises, lessonTitle, lessonId, onComplete }: ExercisePresenterProps) {
+export function ExercisePresenter({ exercises, lessonTitle, lessonId, youtubeUrl, onComplete }: ExercisePresenterProps) {
   const [current, setCurrent] = useState(0);
   const [revealed, setRevealed] = useState(false);
+
+  // Extract YouTube video ID for embedding
+  const youtubeVideoId = youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null;
 
   const exercise = exercises[current];
   const isFirst = current === 0;
@@ -206,6 +222,19 @@ export function ExercisePresenter({ exercises, lessonTitle, lessonId, onComplete
 
   return (
     <div className="space-y-4">
+      {/* YouTube video */}
+      {youtubeVideoId && (
+        <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
+          <iframe
+            src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title="Lesson video"
+          />
+        </div>
+      )}
+
       {/* Progress bar */}
       <div className="flex items-center justify-between text-sm text-muted-foreground mb-1">
         <span>Exercise {current + 1} of {exercises.length}</span>

@@ -35,10 +35,31 @@ const EXERCISE_TYPES = [
   { id: "spot_the_mistake", label: "Spot the Mistake" },
 ] as const;
 
+function extractYouTubeId(url: string): string | null {
+  if (!url) return null;
+  // Standard: youtube.com/watch?v=ID
+  let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  // Short: youtu.be/ID
+  match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  // Shorts: youtube.com/shorts/ID
+  match = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  // Embed: youtube.com/embed/ID
+  match = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  return null;
+}
+
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   student_email: z.string().email("Enter a valid student email"),
   topic: z.string().optional(),
+  youtube_url: z.string().optional().refine(
+    (val) => !val || extractYouTubeId(val) !== null,
+    "Enter a valid YouTube URL (videos, shorts, or embeds)"
+  ),
   cefr_level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
   exercise_types: z.array(z.string()).min(1, "Select at least one exercise type"),
 });
@@ -46,7 +67,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface CreateLessonFormProps {
-  onCreated: () => void;
+  onCreated: (lessonId: string) => void;
   onCancel: () => void;
 }
 
@@ -61,6 +82,7 @@ export function CreateLessonForm({ onCreated, onCancel }: CreateLessonFormProps)
       title: "",
       student_email: "",
       topic: "",
+      youtube_url: "",
       cefr_level: "A1",
       exercise_types: [],
     },
@@ -70,20 +92,21 @@ export function CreateLessonForm({ onCreated, onCancel }: CreateLessonFormProps)
     if (!user) return;
     setLoading(true);
     try {
-      const { error } = await supabase.from("teacher_lessons").insert({
+      const { data, error } = await supabase.from("teacher_lessons").insert({
         teacher_id: user.id,
         title: values.title,
         student_email: values.student_email,
         topic: values.topic || null,
+        youtube_url: values.youtube_url || null,
         cefr_level: values.cefr_level,
         exercise_types: values.exercise_types,
         status: "draft",
-      });
+      } as any).select("id").single();
 
       if (error) throw error;
 
       toast({ title: "Lesson created!", description: "Your lesson draft has been saved." });
-      onCreated();
+      onCreated(data.id);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -133,6 +156,21 @@ export function CreateLessonForm({ onCreated, onCancel }: CreateLessonFormProps)
               <FormLabel>Topic <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
               <FormControl>
                 <Input placeholder="e.g. Ordering food at a restaurant" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* YouTube URL (optional) */}
+        <FormField
+          control={form.control}
+          name="youtube_url"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>YouTube Video <span className="text-muted-foreground text-xs">(optional — videos & shorts)</span></FormLabel>
+              <FormControl>
+                <Input placeholder="https://youtube.com/watch?v=... or youtube.com/shorts/..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
