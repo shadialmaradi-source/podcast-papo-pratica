@@ -32,49 +32,23 @@ The current flow stops at **"I created a lesson draft"** because:
 
 ## Remaining Roadmap
 
-### Day 4 - Live Lesson Canvas (Teacher side)
-This is the core real-time feature. When a teacher clicks "Start Lesson" on a `ready` lesson, they enter a **shared canvas** where exercises are presented one at a time.
+### Day 4 - Live Lesson Canvas (Complete)
+- "Start Lesson" / "Resume" button on ready/active lessons
+- `/teacher/lesson/:id` page with ExercisePresenter (Next/Prev/Reveal Answer)
+- Lesson status transitions: `ready` → `active` → `completed`
 
-What to build:
-- "Start Lesson" button on ready lessons → transitions status to `active`
-- New page: `/teacher/lesson/:id` — the live lesson view
-- Exercise presenter: shows one exercise at a time (fill-in-blank, quiz, etc.) with "Next" to advance
-- Teacher controls: reveal answer, add notes, mark complete
-- No real-time sync yet — teacher-only view first
+### Day 5 - Student Lesson View (Complete)
+- `/lesson/student/:id` page for students assigned by email
+- `lesson_responses` table with RLS policies
+- Students see exercises, submit answers, view progress
+- Assigned lessons surfaced on AppHome
 
-Files to create/modify:
-- `src/pages/TeacherLesson.tsx` (new)
-- `src/components/teacher/ExercisePresenter.tsx` (new)
-- `src/components/teacher/LessonList.tsx` (add "Start" button)
-- Router: add `/teacher/lesson/:id`
-
-### Day 5 - Student Lesson View
-Students need to see lessons assigned to their email and interact with exercises.
-
-What to build:
-- New page: `/lesson/:id` — student-facing lesson view
-- Fetch lesson by ID where `student_email` matches auth user's email
-- Show exercises in sequence (student answers, teacher sees)
-- Simple answer submission (stored in a new `lesson_responses` table)
-
-Files to create/modify:
-- `src/pages/StudentLesson.tsx` (new)
-- `supabase/migrations/...` — `lesson_responses` table
-- Router: add `/lesson/:id`
-- `src/pages/AppHome.tsx` — surface assigned lessons to students
-
-### Day 6 - Real-time Shared Canvas
-The teacher and student see the same exercise at the same time. Teacher can advance to next exercise and the student's view updates live.
-
-What to build:
-- Supabase Realtime subscription on `teacher_lessons.current_exercise_index` (new column)
-- Teacher advances → DB update → student's view reacts instantly
-- Visual "waiting for teacher" state on student side
-
-Files to create/modify:
-- Migration: add `current_exercise_index` column to `teacher_lessons`
-- `src/pages/TeacherLesson.tsx` — broadcast updates
-- `src/pages/StudentLesson.tsx` — subscribe to updates
+### Day 6 - Real-time Shared Canvas (Complete)
+- `current_exercise_index` column on `teacher_lessons`
+- Teacher navigation syncs index to DB
+- Student subscribes via Supabase Realtime — auto-follows teacher's position
+- Live indicator on student view
+- Lesson completion status synced in real-time
 
 ### Day 7 - Lesson Completion & History
 - Teacher marks lesson as `completed`

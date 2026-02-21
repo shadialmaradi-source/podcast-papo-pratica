@@ -722,6 +722,7 @@ export type Database = {
         Row: {
           cefr_level: string
           created_at: string
+          current_exercise_index: number
           description: string | null
           exercise_types: string[]
           id: string
@@ -735,6 +736,7 @@ export type Database = {
         Insert: {
           cefr_level?: string
           created_at?: string
+          current_exercise_index?: number
           description?: string | null
           exercise_types?: string[]
           id?: string
@@ -748,6 +750,7 @@ export type Database = {
         Update: {
           cefr_level?: string
           created_at?: string
+          current_exercise_index?: number
           description?: string | null
           exercise_types?: string[]
           id?: string
