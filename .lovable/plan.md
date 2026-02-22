@@ -1,46 +1,84 @@
 
 
-# Fix: Learning Path Videos Not Showing Transcript/Exercises
+# Add Interactive Transcript and Exercises to Learning Path Videos
 
-## The Problem
+## What's Missing Today
 
-You added a transcript for this video, but the page still shows the simple fallback view (video + vocabulary + complete button). This happens because:
+The hybrid mode (transcript exists but no `linked_video_id`) currently shows the transcript as **plain text** in a scrollable box. It's missing:
 
-1. The `linked_video_id` column on `week_videos` is `NULL` for this video
-2. The current code only shows the full lesson flow (transcript, exercises, speaking, flashcards) when `linked_video_id` points to a `youtube_videos` record
-3. There is no `youtube_videos` record for this YouTube video (`O_xXC26Nm7Y`)
+1. **Interactive transcript** -- word highlighting, text selection to create flashcards, AI-suggested vocabulary, word explorer panel
+2. **Exercise flow** -- no "Start Exercises" button, no speaking practice, no flashcards step
 
-## The Fix
+## The Solution
 
-Instead of requiring the full `youtube_videos` pipeline, modify `WeekVideo.tsx` to support a **hybrid mode**: show the full lesson flow using data directly from `week_videos` when `linked_video_id` is not set but transcript data exists.
+Replace the plain-text transcript with the full **TranscriptViewer** component, and add exercise generation + lesson flow using the transcript from `week_videos.transcript`.
 
-### Changes
+### Step 1: Use TranscriptViewer in Hybrid Mode
 
-**`src/pages/WeekVideo.tsx`** -- Update the lesson flow logic:
+In `src/pages/WeekVideo.tsx`, replace the plain `<p>` transcript display with the `TranscriptViewer` component for premium users:
 
-- Remove the `hasLinkedVideo` gate that currently decides between full flow vs. simple fallback
-- When `linked_video_id` exists: use `YouTubeVideoExercises` component as today (fetches from `youtube_videos`)
-- When `linked_video_id` is NULL but `video.transcript` exists: show an inline video player with the transcript rendered directly below it, using `week_videos.transcript` text
-- The "video" step shows the YouTube embed plus transcript (from `week_videos.transcript`)
-- The "exercises" step still uses `YouTubeExercises` but only if `linked_video_id` is set; otherwise skip to speaking or complete
-- Steps that require `linked_video_id` (exercises, speaking, flashcards) are conditionally skipped when there is no linked video -- the flow becomes: video+transcript then complete
+```
+<TranscriptViewer
+  videoId={video.id}         // week_video ID (used for flashcard/suggestion storage)
+  transcript={video.transcript}
+  videoTitle={video.title}
+  language={week.language || "english"}
+  isPremium={isPremium}
+  onUpgradeClick={() => navigate("/premium")}
+/>
+```
 
-**`src/pages/WeekVideo.tsx`** -- Add inline transcript display:
+The `TranscriptViewer` accepts the transcript as a string prop, so it works directly with `week_videos.transcript`. The `videoId` is used for saving flashcards and loading suggestions -- using `video.id` (the week_video UUID) keeps these scoped correctly.
 
-- When `video.transcript` is available and no `linked_video_id`, render the transcript text below the video player in a scrollable card
-- Use the existing premium gating: free users see a truncated/locked version, premium users see the full text
-- After watching, user can "Mark as Complete" to earn XP
+### Step 2: Add "Start Exercises" Button to Hybrid Mode
 
-### What This Means For You
+Below the transcript, add a "Start Exercises" button that transitions into the exercise flow. This will:
 
-- **Right now**: Add the transcript text directly to the `week_videos.transcript` column for each video in your Supabase dashboard. The video page will immediately show the transcript below the video.
-- **Later**: When you process videos through the full pipeline and set `linked_video_id`, the page will automatically upgrade to the full experience with exercises, speaking, and flashcards.
-- No need to create `youtube_videos` records manually for transcripts to work.
+- Call the `generate-exercises-from-transcript` edge function with `video.transcript` to generate exercises on the fly
+- Store them in `youtube_exercises` keyed by `video.id` (the week_video UUID)
+- Then transition to the exercises step using `YouTubeExercises` with `videoId={video.id}`
 
-### Technical Details
+Since `YouTubeExercises` fetches exercises from `youtube_exercises` by `video_id`, and the generate function inserts them there, this will work if we use the week_video's UUID as the `video_id`.
 
-Files to modify:
-- `src/pages/WeekVideo.tsx` -- Add a new "inline transcript" branch when `linked_video_id` is null but `transcript` exists. Render video embed + transcript text + complete button. Keep existing full-flow logic for when `linked_video_id` is set.
+### Step 3: Enable Full Lesson Flow in Hybrid Mode
 
-The transcript column already exists on `week_videos` -- no database migration needed.
+Change the hybrid mode from "video + transcript + complete" to the full step flow:
+
+**Video + Interactive Transcript** --> **Exercises** --> **Speaking** --> **Flashcards** --> **Complete**
+
+- The "video" step shows the YouTube embed plus `TranscriptViewer` with a "Start Exercises" button
+- Clicking "Start Exercises" generates exercises from the transcript (if not already generated) and moves to the exercises step
+- Speaking and flashcards steps use the same components, passing `video.id` as the videoId
+
+### Step 4: Handle Exercise Generation for Week Videos
+
+Add a generate-exercises flow in the hybrid video step:
+- Before starting exercises, check if exercises exist in `youtube_exercises` for this `video.id`
+- If not, call the `generate-exercises-from-transcript` edge function with the transcript text
+- Show a loading spinner while generating
+- Once ready, transition to the exercises step
+
+## Technical Details
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/pages/WeekVideo.tsx` | Replace plain transcript with `TranscriptViewer`. Add exercise generation logic. Enable full lesson step flow (video, exercises, speaking, flashcards, complete) in hybrid mode. Add "Start Exercises" button with generate-on-demand. |
+
+### How Exercise Generation Works
+
+The existing `generate-exercises-from-transcript` edge function accepts a transcript string and returns exercises. We reuse this:
+
+1. User clicks "Start Exercises"
+2. Check `youtube_exercises` table for existing exercises with `video_id = week_video.id`
+3. If none exist, call the edge function with `video.transcript`
+4. Insert returned exercises into `youtube_exercises` with `video_id = week_video.id`
+5. Transition to `YouTubeExercises` component
+
+### No Database Changes Needed
+
+- `TranscriptViewer` works with any UUID as `videoId` -- flashcards and suggestions will be stored against the `week_video.id`
+- Exercises will be stored in `youtube_exercises` using `week_video.id` as `video_id`
+- No new tables or columns required
 
