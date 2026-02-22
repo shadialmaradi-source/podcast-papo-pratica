@@ -1,84 +1,86 @@
+# Fix: Show "Start Exercises" Button and Add A1-A2 Exercise Types
 
+## Problem
 
-# Add Interactive Transcript and Exercises to Learning Path Videos
+The "Start Exercises" button is missing because it's hidden when either:
 
-## What's Missing Today
+- The user is not premium (`isPremium` check)
+- The video is already completed (`!isCompleted` check)
 
-The hybrid mode (transcript exists but no `linked_video_id`) currently shows the transcript as **plain text** in a scrollable box. It's missing:
+Since you already completed this video, the button disappears. Also, the exercise generation prompt needs updating for A1-A2 learning path content. . Even if the video is completed the exercise should appear, moreover i double check with a non premium and there is no button
 
-1. **Interactive transcript** -- word highlighting, text selection to create flashcards, AI-suggested vocabulary, word explorer panel
-2. **Exercise flow** -- no "Start Exercises" button, no speaking practice, no flashcards step
+## Changes
 
-## The Solution
+### 1. Always Show "Start Exercises" Button (`src/pages/WeekVideo.tsx`)
 
-Replace the plain-text transcript with the full **TranscriptViewer** component, and add exercise generation + lesson flow using the transcript from `week_videos.transcript`.
+- Remove the `isPremium && !isCompleted` gate on the "Start Exercises" button
+- Show the button for all authenticated users, even after completion (so they can redo exercises)
+- Keep the "Already completed" card but add the exercises button above it
 
-### Step 1: Use TranscriptViewer in Hybrid Mode
+### 2. Update Exercise Generation for A1-A2 Content (`supabase/functions/setup-week-video-exercises/index.ts`)
 
-In `src/pages/WeekVideo.tsx`, replace the plain `<p>` transcript display with the `TranscriptViewer` component for premium users:
+Update the AI prompt to generate the 3 specific exercise types you described:
 
-```
-<TranscriptViewer
-  videoId={video.id}         // week_video ID (used for flashcard/suggestion storage)
-  transcript={video.transcript}
-  videoTitle={video.title}
-  language={week.language || "english"}
-  isPremium={isPremium}
-  onUpgradeClick={() => navigate("/premium")}
-/>
-```
+-  **Vocabulary Matching** (5 items): Match words from the video to descriptions/definitions. Uses basic nouns, colors, numbers, common verbs.
+- **Listen and Repeat** (5 items): Single words or short phrases with phonetic pronunciation guides. Words taken directly from the video.
+- **Audio Flashcards** (5 cards): Word on front, translation + pronunciation on back. Concrete nouns from the video.
 
-The `TranscriptViewer` accepts the transcript as a string prop, so it works directly with `week_videos.transcript`. The `videoId` is used for saving flashcards and loading suggestions -- using `video.id` (the week_video UUID) keeps these scoped correctly.
+it should take a similar and consistent pattern to the community structure video but instead of the questions is going ot be  vocabulary matching
 
-### Step 2: Add "Start Exercises" Button to Hybrid Mode
+The prompt will be tailored specifically for A1-A2 beginner learners rather than generating exercises for all levels (A1 through B2). Only beginner-level exercises will be generated since this is the learning path module.
 
-Below the transcript, add a "Start Exercises" button that transitions into the exercise flow. This will:
+### 3. Reduce Exercise Generation Scope
 
-- Call the `generate-exercises-from-transcript` edge function with `video.transcript` to generate exercises on the fly
-- Store them in `youtube_exercises` keyed by `video.id` (the week_video UUID)
-- Then transition to the exercises step using `YouTubeExercises` with `videoId={video.id}`
-
-Since `YouTubeExercises` fetches exercises from `youtube_exercises` by `video_id`, and the generate function inserts them there, this will work if we use the week_video's UUID as the `video_id`.
-
-### Step 3: Enable Full Lesson Flow in Hybrid Mode
-
-Change the hybrid mode from "video + transcript + complete" to the full step flow:
-
-**Video + Interactive Transcript** --> **Exercises** --> **Speaking** --> **Flashcards** --> **Complete**
-
-- The "video" step shows the YouTube embed plus `TranscriptViewer` with a "Start Exercises" button
-- Clicking "Start Exercises" generates exercises from the transcript (if not already generated) and moves to the exercises step
-- Speaking and flashcards steps use the same components, passing `video.id` as the videoId
-
-### Step 4: Handle Exercise Generation for Week Videos
-
-Add a generate-exercises flow in the hybrid video step:
-- Before starting exercises, check if exercises exist in `youtube_exercises` for this `video.id`
-- If not, call the `generate-exercises-from-transcript` edge function with the transcript text
-- Show a loading spinner while generating
-- Once ready, transition to the exercises step
+Currently the edge function generates exercises for 4 difficulty levels x 2 intensities = 8 AI calls per video. For learning path videos (which are A1-A2), reduce to a single AI call with the 15 exercises (5 matching + 5 listen-and-repeat + 5 flashcards).
 
 ## Technical Details
 
-### Files to Modify
+### File: `src/pages/WeekVideo.tsx`
 
-| File | Change |
-|------|--------|
-| `src/pages/WeekVideo.tsx` | Replace plain transcript with `TranscriptViewer`. Add exercise generation logic. Enable full lesson step flow (video, exercises, speaking, flashcards, complete) in hybrid mode. Add "Start Exercises" button with generate-on-demand. |
+Change line 418 from:
 
-### How Exercise Generation Works
+```
+{isPremium && !isCompleted && (
+```
 
-The existing `generate-exercises-from-transcript` edge function accepts a transcript string and returns exercises. We reuse this:
+to:
 
-1. User clicks "Start Exercises"
-2. Check `youtube_exercises` table for existing exercises with `video_id = week_video.id`
-3. If none exist, call the edge function with `video.transcript`
-4. Insert returned exercises into `youtube_exercises` with `video_id = week_video.id`
-5. Transition to `YouTubeExercises` component
+```
+{user && (
+```
 
-### No Database Changes Needed
+This makes the button visible for all logged-in users regardless of premium status or completion state.
 
-- `TranscriptViewer` works with any UUID as `videoId` -- flashcards and suggestions will be stored against the `week_video.id`
-- Exercises will be stored in `youtube_exercises` using `week_video.id` as `video_id`
-- No new tables or columns required
+### File: `supabase/functions/setup-week-video-exercises/index.ts`
 
+Replace the `generateExercises` function's AI prompt to request:
+
+```
+Create an English learning lesson based on this transcript for A1-A2 beginners:
+
+1. Visual Vocabulary Matching (5 items):
+   - Match simple words from the video to pictures/definitions
+   - Use basic nouns, colors, numbers, or common verbs
+
+2. Listen and Repeat Exercises (5 items):
+   - Single words or very short phrases
+   - Each with phonetic pronunciation guide
+   - Use words from the video
+
+3. Audio Flashcards (5 cards):
+   - Word on front
+   - Translation + pronunciation on back
+   - Simple, concrete nouns from the video
+```
+
+The exercise types stored will be:
+
+- `visual_vocabulary_matching`
+- `listen_and_repeat`
+- `audio_flashcard`
+
+Generate only for difficulty `A1` and intensity `intense` (single batch of 15 exercises instead of 8 batches).
+
+### Deployment
+
+The `setup-week-video-exercises` edge function will need to be redeployed after updating.
