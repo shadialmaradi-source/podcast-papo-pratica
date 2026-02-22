@@ -46,6 +46,7 @@ export interface WeekVideoRow {
   created_at: string;
   linked_video_id: string | null;
   is_free: boolean;
+  transcript: string | null;
 }
 
 export interface VideoProgress {

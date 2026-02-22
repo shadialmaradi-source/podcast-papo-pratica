@@ -8,6 +8,7 @@ import {
   Loader2,
   Trophy,
   Crown,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,8 @@ import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
 import VideoFlashcards from "@/components/VideoFlashcards";
 import LessonCompleteScreen from "@/components/lesson/LessonCompleteScreen";
 import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { LockedTranscript } from "@/components/transcript/LockedTranscript";
 import {
   completeVideo,
   formatDuration,
@@ -180,6 +183,9 @@ export default function WeekVideo() {
   const week = video.learning_weeks;
   const linkedVideoId = video.linked_video_id;
   const hasLinkedVideo = !!linkedVideoId;
+  const hasTranscript = !!video.transcript;
+  const isCompleted = progress?.status === "completed";
+  const vocabTags = video.vocabulary_tags || [];
 
   // Step-based lesson flow when linked_video_id is available
   if (hasLinkedVideo) {
@@ -243,9 +249,121 @@ export default function WeekVideo() {
     );
   }
 
-  // Fallback: simple video view (no linked_video_id yet)
-  const isCompleted = progress?.status === "completed";
-  const vocabTags = video.vocabulary_tags || [];
+  // Hybrid mode: transcript exists but no linked_video_id
+  if (hasTranscript) {
+    const transcriptPreview = video.transcript!.slice(0, 150) + "…";
+
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
+          <div className="container mx-auto px-4 py-3 flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(`/learn/week/${video.week_id}`)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-0">
+              <h1 className="text-sm font-semibold text-foreground truncate">
+                Week {week.week_number}: {week.title}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Video {video.order_in_week} of {totalInWeek}
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <main className="container mx-auto px-4 py-6 space-y-6 max-w-2xl">
+          {/* Video embed */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative aspect-video rounded-xl overflow-hidden bg-muted border shadow-sm"
+          >
+            <iframe
+              src={`https://www.youtube.com/embed/${video.youtube_id}?rel=0&modestbranding=1`}
+              title={video.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 w-full h-full"
+            />
+          </motion.div>
+
+          {/* Transcript section */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            {isPremium ? (
+              <Card>
+                <CardContent className="p-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <FileText className="w-4 h-4" /> Transcript
+                  </h3>
+                  <ScrollArea className="max-h-72">
+                    <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+                      {video.transcript}
+                    </p>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            ) : (
+              <LockedTranscript
+                previewText={transcriptPreview}
+                onUpgradeClick={() => navigate("/premium")}
+              />
+            )}
+          </motion.div>
+
+          {/* Vocabulary tags */}
+          {vocabTags.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+              <Card>
+                <CardContent className="p-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">📝 Key Vocabulary</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {vocabTags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs font-normal">{tag}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Complete button */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="pb-8">
+            {isCompleted ? (
+              <Card className="border-primary/30">
+                <CardContent className="p-5 text-center space-y-3">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
+                    <CheckCircle2 className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Already completed</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">{progress?.xp_earned || video.xp_reward} XP earned</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/learn/week/${video.week_id}`)}>
+                    Back to Week {week.week_number}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Button
+                className="w-full h-14 text-base font-semibold gap-2"
+                variant="learning"
+                onClick={handleComplete}
+                disabled={completing || !user}
+              >
+                {completing ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Completing...</>
+                ) : (
+                  <><Trophy className="w-5 h-5" /> Mark as Complete • {video.xp_reward} XP</>
+                )}
+              </Button>
+            )}
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
+
+
 
   return (
     <div className="min-h-screen bg-background">
