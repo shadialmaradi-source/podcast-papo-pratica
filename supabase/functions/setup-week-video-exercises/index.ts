@@ -256,7 +256,7 @@ Return a JSON array with exactly 15 exercises.`;
         options: ex.options ? JSON.stringify(ex.options) : null,
         correct_answer: ex.correctAnswer,
         explanation: ex.explanation || '',
-        difficulty: 'A1',
+        difficulty: 'beginner',
         intensity: 'intense',
         xp_reward: 5,
         order_index: i
@@ -272,7 +272,7 @@ Return a JSON array with exactly 15 exercises.`;
 function generateBasicExercises(transcript: string, videoId: string): any[] {
   const exercises: any[] = [];
   const sentences = transcript.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
-  const difficulties = ['A1', 'A2', 'B1', 'B2'];
+  const difficulties = ['beginner'];
 
   for (const difficulty of difficulties) {
     for (const intensity of ['light', 'intense']) {
