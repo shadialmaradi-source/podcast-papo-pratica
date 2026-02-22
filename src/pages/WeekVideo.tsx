@@ -9,6 +9,7 @@ import {
   Trophy,
   Crown,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,7 @@ import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
 import VideoFlashcards from "@/components/VideoFlashcards";
 import LessonCompleteScreen from "@/components/lesson/LessonCompleteScreen";
 import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { LockedTranscript } from "@/components/transcript/LockedTranscript";
 import {
   completeVideo,
@@ -34,6 +35,7 @@ import {
 } from "@/services/learningPathService";
 
 type LessonStep = "video" | "exercises" | "speaking" | "flashcards" | "complete";
+type HybridStep = "video" | "generating" | "exercises" | "speaking" | "flashcards" | "complete";
 
 interface WeekVideoData extends WeekVideoRow {
   learning_weeks: LearningWeek;
@@ -52,6 +54,9 @@ export default function WeekVideo() {
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [lessonStep, setLessonStep] = useState<LessonStep>("video");
+  const [hybridStep, setHybridStep] = useState<HybridStep>("video");
+  const [generatingExercises, setGeneratingExercises] = useState(false);
+  const [linkedVideoIdState, setLinkedVideoIdState] = useState<string | null>(null);
 
   useEffect(() => {
     if (!weekVideoId) return;
@@ -250,9 +255,103 @@ export default function WeekVideo() {
   }
 
   // Hybrid mode: transcript exists but no linked_video_id
+  // Full lesson flow: video+transcript -> exercises -> speaking -> flashcards -> complete
   if (hasTranscript) {
-    const transcriptPreview = video.transcript!.slice(0, 150) + "…";
+    const handleStartExercises = async () => {
+      if (!user || !video) return;
+      setGeneratingExercises(true);
 
+      try {
+        const { data, error } = await supabase.functions.invoke('setup-week-video-exercises', {
+          body: { weekVideoId: video.id },
+        });
+
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || 'Failed to generate exercises');
+
+        setLinkedVideoIdState(data.linkedVideoId);
+        setHybridStep("exercises");
+
+        toast({
+          title: "Exercises Ready! 🎯",
+          description: "AI-generated exercises are ready for you.",
+        });
+      } catch (error: any) {
+        console.error('Error generating exercises:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to generate exercises. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setGeneratingExercises(false);
+      }
+    };
+
+    const effectiveLinkedId = linkedVideoIdState || video.linked_video_id;
+
+    // If exercises have been generated and we have a linked video, show the full lesson flow
+    if (effectiveLinkedId && hybridStep !== "video") {
+      return (
+        <div className="min-h-screen bg-background">
+          {hybridStep === "generating" && (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Generating exercises from transcript...</p>
+            </div>
+          )}
+
+          {hybridStep === "exercises" && (
+            <YouTubeExercises
+              videoId={effectiveLinkedId}
+              level="beginner"
+              intensity="intense"
+              onBack={() => setHybridStep("video")}
+              onComplete={() => setHybridStep("speaking")}
+              onContinueToSpeaking={() => setHybridStep("speaking")}
+              onTryNextLevel={() => setHybridStep("speaking")}
+              onSkipToFlashcards={() => setHybridStep("flashcards")}
+            />
+          )}
+
+          {hybridStep === "speaking" && (
+            <YouTubeSpeaking
+              videoId={effectiveLinkedId}
+              level="beginner"
+              onComplete={() => setHybridStep("flashcards")}
+              onBack={() => setHybridStep("exercises")}
+            />
+          )}
+
+          {hybridStep === "flashcards" && (
+            <VideoFlashcards
+              videoId={effectiveLinkedId}
+              level="beginner"
+              onComplete={() => {
+                handleComplete();
+                setHybridStep("complete");
+              }}
+              onBack={() => setHybridStep("speaking")}
+            />
+          )}
+
+          {hybridStep === "complete" && (
+            <LessonCompleteScreen
+              exerciseScore={0}
+              totalExercises={10}
+              exerciseAccuracy={0}
+              flashcardsCount={5}
+              onNextVideo={() => navigate(`/learn/week/${video.week_id}`)}
+              onViewProgress={() => navigate("/profile")}
+              onRetry={() => setHybridStep("video")}
+              onBackToLibrary={() => navigate(`/learn/week/${video.week_id}`)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // Default hybrid video step: video + interactive transcript + start exercises button
     return (
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
@@ -287,27 +386,16 @@ export default function WeekVideo() {
             />
           </motion.div>
 
-          {/* Transcript section */}
+          {/* Interactive Transcript */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-            {isPremium ? (
-              <Card>
-                <CardContent className="p-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                    <FileText className="w-4 h-4" /> Transcript
-                  </h3>
-                  <ScrollArea className="max-h-72">
-                    <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-                      {video.transcript}
-                    </p>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            ) : (
-              <LockedTranscript
-                previewText={transcriptPreview}
-                onUpgradeClick={() => navigate("/premium")}
-              />
-            )}
+            <TranscriptViewer
+              videoId={video.id}
+              transcript={video.transcript!}
+              videoTitle={video.title}
+              language={week.language || "english"}
+              isPremium={isPremium}
+              onUpgradeClick={() => navigate("/premium")}
+            />
           </motion.div>
 
           {/* Vocabulary tags */}
@@ -326,8 +414,26 @@ export default function WeekVideo() {
             </motion.div>
           )}
 
+          {/* Start Exercises button */}
+          {isPremium && !isCompleted && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <Button
+                className="w-full h-14 text-base font-semibold gap-2"
+                variant="learning"
+                onClick={handleStartExercises}
+                disabled={generatingExercises || !user}
+              >
+                {generatingExercises ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Generating Exercises...</>
+                ) : (
+                  <><Sparkles className="w-5 h-5" /> Start Exercises</>
+                )}
+              </Button>
+            </motion.div>
+          )}
+
           {/* Complete button */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="pb-8">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="pb-8">
             {isCompleted ? (
               <Card className="border-primary/30">
                 <CardContent className="p-5 text-center space-y-3">
@@ -345,15 +451,15 @@ export default function WeekVideo() {
               </Card>
             ) : (
               <Button
-                className="w-full h-14 text-base font-semibold gap-2"
-                variant="learning"
+                className="w-full h-12 text-sm font-medium gap-2"
+                variant="outline"
                 onClick={handleComplete}
                 disabled={completing || !user}
               >
                 {completing ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" /> Completing...</>
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Completing...</>
                 ) : (
-                  <><Trophy className="w-5 h-5" /> Mark as Complete • {video.xp_reward} XP</>
+                  <><Trophy className="w-4 h-4" /> Mark as Complete • {video.xp_reward} XP</>
                 )}
               </Button>
             )}
