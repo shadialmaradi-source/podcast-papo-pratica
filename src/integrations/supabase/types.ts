@@ -1310,6 +1310,7 @@ export type Database = {
           source: string
           thumbnail_url: string | null
           title: string
+          transcript: string | null
           vocabulary_tags: string[] | null
           week_id: string
           xp_reward: number
@@ -1327,6 +1328,7 @@ export type Database = {
           source?: string
           thumbnail_url?: string | null
           title: string
+          transcript?: string | null
           vocabulary_tags?: string[] | null
           week_id: string
           xp_reward?: number
@@ -1344,6 +1346,7 @@ export type Database = {
           source?: string
           thumbnail_url?: string | null
           title?: string
+          transcript?: string | null
           vocabulary_tags?: string[] | null
           week_id?: string
           xp_reward?: number
