@@ -415,7 +415,7 @@ export default function WeekVideo() {
           )}
 
           {/* Start Exercises button */}
-          {isPremium && !isCompleted && (
+          {user && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
               <Button
                 className="w-full h-14 text-base font-semibold gap-2"

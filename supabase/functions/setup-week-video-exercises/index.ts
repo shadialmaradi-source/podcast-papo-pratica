@@ -181,89 +181,92 @@ async function generateExercises(transcript: string, videoId: string, language: 
     return generateBasicExercises(transcript, videoId);
   }
 
-  const allExercises: any[] = [];
   const truncatedTranscript = transcript.substring(0, 3000);
-  const difficulties = ['A1', 'A2', 'B1', 'B2'];
-  const intensities = ['light', 'intense'];
 
-  for (const difficulty of difficulties) {
-    for (const intensity of intensities) {
-      const exerciseCount = intensity === 'light' ? 5 : 10;
-
-      try {
-        const prompt = `You are a language learning expert. Based on this video transcript, create ${exerciseCount} exercises for ${difficulty} level learners (intensity: ${intensity}).
+  const prompt = `You are a language learning expert. Based on this video transcript, create exactly 15 exercises for A1-A2 beginner learners.
 
 TRANSCRIPT:
 ${truncatedTranscript}
 
 Generate exercises in JSON format. Return ONLY a valid JSON array, no markdown or explanations.
 
-Each exercise should have:
+Create these 3 types of exercises:
+
+1. VOCABULARY MATCHING (5 items, exercise_type: "vocabulary_matching"):
+   - Match simple words from the video to their definitions/descriptions
+   - Use basic nouns, colors, numbers, or common verbs from the transcript
+   - Each exercise has a "question" (the word), "options" (4 possible definitions), and "correctAnswer" (the right definition)
+   - Include "explanation" with a simple sentence using the word
+
+2. LISTEN AND REPEAT (5 items, exercise_type: "listen_and_repeat"):
+   - Single words or very short phrases (max 3 words) taken directly from the video
+   - "question" is the word/phrase to repeat
+   - "correctAnswer" is the same word/phrase
+   - "explanation" contains the phonetic pronunciation guide (e.g., "Pronounced: BEH-ar")
+   - "options" should be null
+
+3. AUDIO FLASHCARDS (5 items, exercise_type: "audio_flashcard"):
+   - Simple, concrete nouns from the video
+   - "question" is the word in ${language}
+   - "correctAnswer" is the translation
+   - "explanation" contains pronunciation guide
+   - "options" should be null
+
+Each exercise object must have:
 {
-  "type": "multiple_choice" | "true_false" | "gap_fill",
-  "question": "the question text",
-  "options": ["option1", "option2", "option3", "option4"],
-  "correctAnswer": "the correct answer exactly as it appears in options",
-  "explanation": "brief explanation"
+  "type": "vocabulary_matching" | "listen_and_repeat" | "audio_flashcard",
+  "question": "the word or phrase",
+  "options": ["opt1", "opt2", "opt3", "opt4"] or null,
+  "correctAnswer": "the correct answer",
+  "explanation": "brief explanation or pronunciation guide"
 }
 
-For ${difficulty} level:
-- A1/A2: Simple vocabulary, short sentences, common words
-- B1/B2: Moderate complexity, idiomatic expressions
+Order: first 5 vocabulary_matching, then 5 listen_and_repeat, then 5 audio_flashcard.
+Return a JSON array with exactly 15 exercises.`;
 
-Return a JSON array with exactly ${exerciseCount} exercises.`;
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 3000
+      })
+    });
 
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 2000
-          })
-        });
-
-        if (!response.ok) {
-          console.error('AI API error:', response.status);
-          continue;
-        }
-
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || '';
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-
-        if (jsonMatch) {
-          const exercises = JSON.parse(jsonMatch[0]);
-          for (let i = 0; i < exercises.length; i++) {
-            const ex = exercises[i];
-            allExercises.push({
-              video_id: videoId,
-              question: ex.question,
-              exercise_type: ex.type || 'multiple_choice',
-              options: ex.options ? JSON.stringify(ex.options) : null,
-              correct_answer: ex.correctAnswer,
-              explanation: ex.explanation || '',
-              difficulty,
-              intensity,
-              xp_reward: getXp(difficulty),
-              order_index: i
-            });
-          }
-        }
-      } catch (error) {
-        console.error(`Error generating ${difficulty}/${intensity}:`, error);
-      }
+    if (!response.ok) {
+      console.error('AI API error:', response.status);
+      return generateBasicExercises(transcript, videoId);
     }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+
+    if (jsonMatch) {
+      const exercises = JSON.parse(jsonMatch[0]);
+      return exercises.map((ex: any, i: number) => ({
+        video_id: videoId,
+        question: ex.question,
+        exercise_type: ex.type || 'vocabulary_matching',
+        options: ex.options ? JSON.stringify(ex.options) : null,
+        correct_answer: ex.correctAnswer,
+        explanation: ex.explanation || '',
+        difficulty: 'A1',
+        intensity: 'intense',
+        xp_reward: 5,
+        order_index: i
+      }));
+    }
+  } catch (error) {
+    console.error('Error generating A1-A2 exercises:', error);
   }
 
-  if (allExercises.length === 0) {
-    return generateBasicExercises(transcript, videoId);
-  }
-
-  return allExercises;
+  return generateBasicExercises(transcript, videoId);
 }
 
 function generateBasicExercises(transcript: string, videoId: string): any[] {
