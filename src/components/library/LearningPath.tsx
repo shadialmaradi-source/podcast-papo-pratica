@@ -5,7 +5,6 @@ import { Progress } from "@/components/ui/progress";
 import { WeekCard } from "./WeekCard";
 import {
   fetchWeeksForLevel,
-  initializeWeek1Progress,
   getEffectiveWeekState,
   type WeekWithProgress,
 } from "@/services/learningPathService";
@@ -37,20 +36,6 @@ export function LearningPath({ level, language }: LearningPathProps) {
     setLoading(true);
     try {
       const data = await fetchWeeksForLevel(level, language, user?.id);
-
-      // Auto-unlock week 1 if user has no progress yet
-      if (user && data.length > 0) {
-        const week1 = data.find((w) => !w.is_locked_by_default);
-        if (week1 && !week1.progress) {
-          await initializeWeek1Progress(user.id, week1.id);
-          // Refetch to get updated progress
-          const refreshed = await fetchWeeksForLevel(level, language, user.id);
-          setWeeks(refreshed);
-          setLoading(false);
-          return;
-        }
-      }
-
       setWeeks(data);
     } catch (error) {
       console.error("Error loading learning path:", error);
@@ -131,11 +116,7 @@ export function LearningPath({ level, language }: LearningPathProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <WeekCard
-                week={week}
-                state={state}
-                previousWeekNumber={index > 0 ? weeks[index - 1].week_number : undefined}
-              />
+              <WeekCard week={week} state={state} />
             </motion.div>
           );
         })}

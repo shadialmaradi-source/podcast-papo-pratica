@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, PlayCircle, Lock } from "lucide-react";
+import { CheckCircle2, PlayCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -7,11 +7,11 @@ import type { WeekWithProgress } from "@/services/learningPathService";
 
 interface WeekCardProps {
   week: WeekWithProgress;
-  state: "completed" | "in_progress" | "locked";
+  state: "completed" | "in_progress";
   previousWeekNumber?: number;
 }
 
-export function WeekCard({ week, state, previousWeekNumber }: WeekCardProps) {
+export function WeekCard({ week, state }: WeekCardProps) {
   const navigate = useNavigate();
 
   const videosCompleted = week.progress?.videos_completed || 0;
@@ -21,33 +21,22 @@ export function WeekCard({ week, state, previousWeekNumber }: WeekCardProps) {
       : 0;
 
   const handleClick = () => {
-    if (state === "locked") return;
     navigate(`/learn/week/${week.id}`);
   };
 
   return (
     <Card
       onClick={handleClick}
-      className={cn(
-        "transition-all duration-200",
-        state === "locked"
-          ? "opacity-50 cursor-not-allowed"
-          : "cursor-pointer hover:shadow-md hover:border-primary/30"
-      )}
+      className="cursor-pointer hover:shadow-md hover:border-primary/30 transition-all duration-200"
     >
       <CardContent className="p-4 flex items-center gap-4">
         {/* Status Icon */}
         <div
           className={cn(
-            "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
-            state === "completed" && "bg-primary/10 text-primary",
-            state === "in_progress" && "bg-primary/10 text-primary",
-            state === "locked" && "bg-muted text-muted-foreground"
+            "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-primary/10 text-primary",
           )}
         >
-          {state === "completed" && <CheckCircle2 className="w-5 h-5" />}
-          {state === "in_progress" && <PlayCircle className="w-5 h-5" />}
-          {state === "locked" && <Lock className="w-4 h-4" />}
+          {state === "completed" ? <CheckCircle2 className="w-5 h-5" /> : <PlayCircle className="w-5 h-5" />}
         </div>
 
         {/* Content */}
@@ -61,30 +50,22 @@ export function WeekCard({ week, state, previousWeekNumber }: WeekCardProps) {
             {week.title}
           </h3>
 
-          {state === "locked" ? (
-            <p className="text-xs text-muted-foreground">
-              Complete Week {previousWeekNumber || week.week_number - 1} to unlock
-            </p>
-          ) : (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  {videosCompleted}/{week.total_videos} videos
-                  {week.xp_earned > 0 && ` • ${week.xp_earned} XP`}
-                </span>
-                <span>{progressPercent}%</span>
-              </div>
-              <Progress value={progressPercent} className="h-1.5" />
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {videosCompleted}/{week.total_videos} videos
+                {week.xp_earned > 0 && ` • ${week.xp_earned} XP`}
+              </span>
+              <span>{progressPercent}%</span>
             </div>
-          )}
+            <Progress value={progressPercent} className="h-1.5" />
+          </div>
         </div>
 
         {/* Action hint */}
-        {state !== "locked" && (
-          <span className="text-xs font-medium text-primary flex-shrink-0">
-            {state === "completed" ? "View" : "Continue"} →
-          </span>
-        )}
+        <span className="text-xs font-medium text-primary flex-shrink-0">
+          {state === "completed" ? "View" : "Continue"} →
+        </span>
       </CardContent>
     </Card>
   );
