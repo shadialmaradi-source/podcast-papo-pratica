@@ -165,15 +165,7 @@ export type Database = {
           vocabulary_words?: Json | null
           xp_reward?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "exercises_episode_id_fkey"
-            columns: ["episode_id"]
-            isOneToOne: false
-            referencedRelation: "podcast_episodes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       learning_weeks: {
         Row: {
@@ -327,152 +319,6 @@ export type Database = {
           title?: string
           type?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      podcast_episodes: {
-        Row: {
-          audio_url: string | null
-          created_at: string
-          description: string | null
-          duration: number | null
-          episode_number: number | null
-          episode_url: string
-          id: string
-          podcast_source_id: string
-          publish_date: string | null
-          title: string
-          transcript: string | null
-          transcript_language: string | null
-          updated_at: string
-        }
-        Insert: {
-          audio_url?: string | null
-          created_at?: string
-          description?: string | null
-          duration?: number | null
-          episode_number?: number | null
-          episode_url: string
-          id?: string
-          podcast_source_id: string
-          publish_date?: string | null
-          title: string
-          transcript?: string | null
-          transcript_language?: string | null
-          updated_at?: string
-        }
-        Update: {
-          audio_url?: string | null
-          created_at?: string
-          description?: string | null
-          duration?: number | null
-          episode_number?: number | null
-          episode_url?: string
-          id?: string
-          podcast_source_id?: string
-          publish_date?: string | null
-          title?: string
-          transcript?: string | null
-          transcript_language?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "podcast_episodes_podcast_source_id_fkey"
-            columns: ["podcast_source_id"]
-            isOneToOne: false
-            referencedRelation: "podcast_sources"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      podcast_sources: {
-        Row: {
-          category: string | null
-          created_at: string
-          description: string | null
-          difficulty_level: string
-          id: string
-          is_public: boolean | null
-          language: string
-          rss_url: string
-          spotify_chart_rank: number | null
-          thumbnail_url: string | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          difficulty_level: string
-          id?: string
-          is_public?: boolean | null
-          language: string
-          rss_url: string
-          spotify_chart_rank?: number | null
-          thumbnail_url?: string | null
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          difficulty_level?: string
-          id?: string
-          is_public?: boolean | null
-          language?: string
-          rss_url?: string
-          spotify_chart_rank?: number | null
-          thumbnail_url?: string | null
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      podcasts: {
-        Row: {
-          audio_url: string | null
-          category: string | null
-          created_at: string | null
-          description: string | null
-          difficulty_level: string
-          duration: number | null
-          id: string
-          language: string
-          rating: number | null
-          script_text: string | null
-          thumbnail_url: string | null
-          title: string
-        }
-        Insert: {
-          audio_url?: string | null
-          category?: string | null
-          created_at?: string | null
-          description?: string | null
-          difficulty_level: string
-          duration?: number | null
-          id?: string
-          language: string
-          rating?: number | null
-          script_text?: string | null
-          thumbnail_url?: string | null
-          title: string
-        }
-        Update: {
-          audio_url?: string | null
-          category?: string | null
-          created_at?: string | null
-          description?: string | null
-          difficulty_level?: string
-          duration?: number | null
-          id?: string
-          language?: string
-          rating?: number | null
-          script_text?: string | null
-          thumbnail_url?: string | null
-          title?: string
         }
         Relationships: []
       }
@@ -998,15 +844,7 @@ export type Database = {
           progress_percentage?: number | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_episode_progress_episode_id_fkey"
-            columns: ["episode_id"]
-            isOneToOne: false
-            referencedRelation: "podcast_episodes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_exercise_results: {
         Row: {
@@ -1043,13 +881,6 @@ export type Database = {
           xp_earned?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "user_exercise_results_episode_id_fkey"
-            columns: ["episode_id"]
-            isOneToOne: false
-            referencedRelation: "podcast_episodes"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "user_exercise_results_exercise_id_fkey"
             columns: ["exercise_id"]
@@ -1318,13 +1149,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "user_vocabulary_progress_episode_id_fkey"
-            columns: ["episode_id"]
-            isOneToOne: false
-            referencedRelation: "podcast_episodes"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "user_vocabulary_progress_word_id_fkey"
             columns: ["word_id"]
             isOneToOne: false
@@ -1480,6 +1304,8 @@ export type Database = {
           duration_seconds: number
           grammar_focus: string
           id: string
+          is_free: boolean
+          linked_video_id: string | null
           order_in_week: number
           source: string
           thumbnail_url: string | null
@@ -1495,6 +1321,8 @@ export type Database = {
           duration_seconds?: number
           grammar_focus?: string
           id?: string
+          is_free?: boolean
+          linked_video_id?: string | null
           order_in_week?: number
           source?: string
           thumbnail_url?: string | null
@@ -1510,6 +1338,8 @@ export type Database = {
           duration_seconds?: number
           grammar_focus?: string
           id?: string
+          is_free?: boolean
+          linked_video_id?: string | null
           order_in_week?: number
           source?: string
           thumbnail_url?: string | null
@@ -1521,6 +1351,13 @@ export type Database = {
           youtube_url?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "week_videos_linked_video_id_fkey"
+            columns: ["linked_video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "week_videos_week_id_fkey"
             columns: ["week_id"]

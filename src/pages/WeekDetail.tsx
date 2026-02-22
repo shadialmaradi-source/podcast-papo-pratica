@@ -5,7 +5,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   PlayCircle,
-  Lock,
+  Crown,
   Clock,
   Loader2,
 } from "lucide-react";
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
 import {
   fetchWeekById,
   fetchWeekVideos,
@@ -27,6 +28,7 @@ export default function WeekDetail() {
   const { weekId } = useParams<{ weekId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isPremium } = useSubscription();
 
   const [week, setWeek] = useState<LearningWeek | null>(null);
   const [videos, setVideos] = useState<WeekVideoWithProgress[]>([]);
@@ -133,8 +135,7 @@ export default function WeekDetail() {
         <div className="space-y-3">
           {videos.map((video, index) => {
             const isCompleted = video.progress?.status === "completed";
-            const isLocked = !video.is_unlocked;
-            const isCurrent = !isCompleted && video.is_unlocked;
+            const isPremiumLocked = !video.is_free && !isPremium;
 
             return (
               <motion.div
@@ -145,15 +146,15 @@ export default function WeekDetail() {
               >
                 <Card
                   onClick={() => {
-                    if (isLocked) return;
+                    if (isPremiumLocked) {
+                      navigate("/premium");
+                      return;
+                    }
                     navigate(`/learn/video/${video.id}`);
                   }}
                   className={cn(
-                    "transition-all duration-200",
-                    isLocked
-                      ? "opacity-50 cursor-not-allowed"
-                      : "cursor-pointer hover:shadow-md hover:border-primary/30",
-                    isCurrent && "border-primary/40 shadow-sm"
+                    "transition-all duration-200 cursor-pointer hover:shadow-md hover:border-primary/30",
+                    isPremiumLocked && "opacity-60",
                   )}
                 >
                   <CardContent className="p-4 flex items-start gap-3">
@@ -162,14 +163,14 @@ export default function WeekDetail() {
                       className={cn(
                         "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mt-0.5",
                         isCompleted && "bg-primary/10 text-primary",
-                        isCurrent && "bg-primary text-primary-foreground",
-                        isLocked && "bg-muted text-muted-foreground"
+                        !isCompleted && !isPremiumLocked && "bg-primary text-primary-foreground",
+                        isPremiumLocked && "bg-accent text-accent-foreground"
                       )}
                     >
                       {isCompleted ? (
                         <CheckCircle2 className="w-4 h-4" />
-                      ) : isLocked ? (
-                        <Lock className="w-3.5 h-3.5" />
+                      ) : isPremiumLocked ? (
+                        <Crown className="w-3.5 h-3.5" />
                       ) : (
                         <PlayCircle className="w-4 h-4" />
                       )}
@@ -179,10 +180,7 @@ export default function WeekDetail() {
                     <div className="flex-1 min-w-0 space-y-1">
                       <h3
                         className={cn(
-                          "font-medium text-sm",
-                          isLocked
-                            ? "text-muted-foreground"
-                            : "text-foreground"
+                          "font-medium text-sm text-foreground",
                         )}
                       >
                         {video.order_in_week}. {video.title}
@@ -196,7 +194,7 @@ export default function WeekDetail() {
                         </span>
                       </div>
 
-                      {video.grammar_focus && !isLocked && (
+                      {video.grammar_focus && (
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                           {video.grammar_focus}
                         </Badge>
@@ -208,19 +206,17 @@ export default function WeekDetail() {
                         </p>
                       )}
 
-                      {isLocked && (
-                        <p className="text-xs text-muted-foreground">
-                          Complete previous video to unlock
+                      {isPremiumLocked && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Crown className="w-3 h-3" /> Premium
                         </p>
                       )}
                     </div>
 
                     {/* Action */}
-                    {!isLocked && (
-                      <span className="text-xs font-medium text-primary flex-shrink-0 mt-1">
-                        {isCompleted ? "Watch Again" : "Start →"}
-                      </span>
-                    )}
+                    <span className="text-xs font-medium text-primary flex-shrink-0 mt-1">
+                      {isPremiumLocked ? "Upgrade →" : isCompleted ? "Watch Again" : "Start →"}
+                    </span>
                   </CardContent>
                 </Card>
               </motion.div>

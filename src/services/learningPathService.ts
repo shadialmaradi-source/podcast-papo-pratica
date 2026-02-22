@@ -44,6 +44,8 @@ export interface WeekVideoRow {
   vocabulary_tags: string[] | null;
   xp_reward: number;
   created_at: string;
+  linked_video_id: string | null;
+  is_free: boolean;
 }
 
 export interface VideoProgress {
@@ -68,7 +70,6 @@ export async function fetchWeeksForLevel(
   language: string,
   userId: string | undefined
 ): Promise<WeekWithProgress[]> {
-  // Fetch weeks
   const { data: weeks, error: weeksError } = await supabase
     .from("learning_weeks")
     .select("*")
@@ -79,7 +80,6 @@ export async function fetchWeeksForLevel(
   if (weeksError) throw weeksError;
   if (!weeks || weeks.length === 0) return [];
 
-  // Fetch user progress if logged in
   let progressMap: Record<string, WeekProgress> = {};
   if (userId) {
     const weekIds = weeks.map((w) => w.id);
@@ -94,17 +94,16 @@ export async function fetchWeeksForLevel(
     }
   }
 
-  // Compute XP earned per week and merge progress
   const result: WeekWithProgress[] = weeks.map((week) => {
     const prog = progressMap[week.id] || null;
     return {
       ...week,
       progress: prog,
-      xp_earned: 0, // will be computed below if needed
+      xp_earned: 0,
     };
   });
 
-  // For weeks with progress, compute XP from completed videos
+  // Compute XP from completed videos
   if (userId) {
     const weeksWithProgress = result.filter((w) => w.progress && w.progress.videos_completed > 0);
     if (weeksWithProgress.length > 0) {
@@ -115,7 +114,6 @@ export async function fetchWeeksForLevel(
         .eq("status", "completed");
 
       if (videoProgress) {
-        // Get all week_video ids to map them to weeks
         const { data: weekVideos } = await supabase
           .from("week_videos")
           .select("id, week_id, xp_reward")
@@ -146,51 +144,19 @@ export async function fetchWeeksForLevel(
 }
 
 /**
- * Initialize user progress for week 1 (auto-unlock).
- */
-export async function initializeWeek1Progress(userId: string, weekId: string): Promise<void> {
-  const { error } = await supabase
-    .from("user_week_progress")
-    .upsert(
-      {
-        user_id: userId,
-        week_id: weekId,
-        is_unlocked: true,
-        unlocked_at: new Date().toISOString(),
-        videos_completed: 0,
-        is_completed: false,
-      },
-      { onConflict: "user_id,week_id" }
-    );
-
-  if (error) {
-    console.error("Error initializing week 1 progress:", error);
-  }
-}
-
-/**
- * Determine the effective unlock state for each week.
- * Week 1 is always unlocked. Subsequent weeks depend on user_week_progress.
+ * All weeks are now open. State is either completed or in_progress.
  */
 export function getEffectiveWeekState(
   week: WeekWithProgress,
-  allWeeks: WeekWithProgress[]
-): "completed" | "in_progress" | "locked" {
-  // Week 1 (not locked by default) is always at least in_progress
-  if (!week.is_locked_by_default) {
-    if (week.progress?.is_completed) return "completed";
-    return "in_progress";
-  }
-
-  // For locked-by-default weeks, check if unlocked in user_week_progress
+  _allWeeks: WeekWithProgress[]
+): "completed" | "in_progress" {
   if (week.progress?.is_completed) return "completed";
-  if (week.progress?.is_unlocked) return "in_progress";
-
-  return "locked";
+  return "in_progress";
 }
 
 /**
  * Fetch videos for a specific week with user progress.
+ * All videos are visible; is_free controls premium gating.
  */
 export async function fetchWeekVideos(
   weekId: string,
@@ -219,25 +185,13 @@ export async function fetchWeekVideos(
     }
   }
 
-  // Determine unlock state for each video (sequential)
-  return videos.map((video, index) => {
+  // All videos are accessible (no sequential unlock), premium gating is via is_free
+  return videos.map((video) => {
     const prog = progressMap[video.id] || null;
-    let is_unlocked = false;
-
-    if (index === 0) {
-      // First video is always unlocked if the week is unlocked
-      is_unlocked = true;
-    } else {
-      // Subsequent videos require the previous video to be completed
-      const prevVideo = videos[index - 1];
-      const prevProgress = progressMap[prevVideo.id];
-      is_unlocked = prevProgress?.status === "completed";
-    }
-
     return {
       ...video,
       progress: prog,
-      is_unlocked,
+      is_unlocked: true, // all videos accessible
     };
   });
 }
@@ -260,7 +214,7 @@ export async function fetchWeekById(weekId: string): Promise<LearningWeek | null
 }
 
 /**
- * Complete a video: update progress, XP, streak, and potentially unlock next week.
+ * Complete a video: update progress, XP, streak, and week progress.
  */
 export async function completeVideo(
   userId: string,
@@ -330,34 +284,7 @@ export async function completeVideo(
 
   if (weekError) throw weekError;
 
-  // 5. If week completed, unlock next week
-  if (weekCompleted) {
-    const { data: nextWeek } = await supabase
-      .from("learning_weeks")
-      .select("id")
-      .eq("level", week.level)
-      .eq("language", week.language)
-      .eq("week_number", week.week_number + 1)
-      .single();
-
-    if (nextWeek) {
-      await supabase
-        .from("user_week_progress")
-        .upsert(
-          {
-            user_id: userId,
-            week_id: nextWeek.id,
-            is_unlocked: true,
-            unlocked_at: new Date().toISOString(),
-            videos_completed: 0,
-            is_completed: false,
-          },
-          { onConflict: "user_id,week_id" }
-        );
-    }
-  }
-
-  // 6. Add XP to profile
+  // 5. Add XP to profile
   const { data: profile } = await supabase
     .from("profiles")
     .select("total_xp")
@@ -371,7 +298,7 @@ export async function completeVideo(
       .eq("user_id", userId);
   }
 
-  // 7. Update streak
+  // 6. Update streak
   const today = new Date().toISOString().split("T")[0];
   const { data: streakData } = await supabase
     .from("user_streak_data")
@@ -405,7 +332,7 @@ export async function completeVideo(
       .eq("user_id", userId);
   }
 
-  // 8. Log activity
+  // 7. Log activity
   await supabase.from("user_activity_history").insert({
     user_id: userId,
     activity_type: "learning_path_video",

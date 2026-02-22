@@ -7,7 +7,7 @@ import {
   BookOpen,
   Loader2,
   Trophy,
-  Sparkles,
+  Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
+import { YouTubeExercises } from "@/components/YouTubeExercises";
+import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
+import VideoFlashcards from "@/components/VideoFlashcards";
+import LessonCompleteScreen from "@/components/lesson/LessonCompleteScreen";
+import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
 import {
   completeVideo,
   formatDuration,
@@ -23,6 +29,8 @@ import {
   type VideoProgress,
   type LearningWeek,
 } from "@/services/learningPathService";
+
+type LessonStep = "video" | "exercises" | "speaking" | "flashcards" | "complete";
 
 interface WeekVideoData extends WeekVideoRow {
   learning_weeks: LearningWeek;
@@ -33,13 +41,14 @@ export default function WeekVideo() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isPremium } = useSubscription();
 
   const [video, setVideo] = useState<WeekVideoData | null>(null);
   const [progress, setProgress] = useState<VideoProgress | null>(null);
   const [totalInWeek, setTotalInWeek] = useState(0);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
-  const [justCompleted, setJustCompleted] = useState(false);
+  const [lessonStep, setLessonStep] = useState<LessonStep>("video");
 
   useEffect(() => {
     if (!weekVideoId) return;
@@ -49,7 +58,6 @@ export default function WeekVideo() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Fetch video with its week info
       const { data: videoData, error: videoError } = await supabase
         .from("week_videos")
         .select("*, learning_weeks(*)")
@@ -60,7 +68,6 @@ export default function WeekVideo() {
 
       setVideo(videoData as unknown as WeekVideoData);
 
-      // Fetch total videos in week
       const { count } = await supabase
         .from("week_videos")
         .select("id", { count: "exact", head: true })
@@ -68,7 +75,6 @@ export default function WeekVideo() {
 
       setTotalInWeek(count || 0);
 
-      // Fetch user progress
       if (user) {
         const { data: prog } = await supabase
           .from("user_video_progress")
@@ -93,7 +99,6 @@ export default function WeekVideo() {
     try {
       const result = await completeVideo(user.id, weekVideoId);
 
-      setJustCompleted(true);
       setProgress({
         id: "",
         user_id: user.id,
@@ -106,16 +111,9 @@ export default function WeekVideo() {
       toast({
         title: `+${result.xpEarned} XP earned! 🎉`,
         description: result.weekCompleted
-          ? `Week completed! Next week is now unlocked! 🔓`
+          ? `Week completed! 🔓`
           : `Video marked as complete.`,
       });
-
-      // If week completed, navigate back after a moment
-      if (result.weekCompleted) {
-        setTimeout(() => {
-          navigate(`/learn/week/${video.week_id}`);
-        }, 2500);
-      }
     } catch (error) {
       console.error("Error completing video:", error);
       toast({
@@ -147,20 +145,113 @@ export default function WeekVideo() {
     );
   }
 
+  // Premium gate for non-free videos
+  if (!video.is_free && !isPremium) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
+          <div className="container mx-auto px-4 py-3 flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(`/learn/week/${video.week_id}`)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h1 className="text-sm font-semibold text-foreground truncate">{video.title}</h1>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-12 max-w-lg">
+          <Card className="border-primary/30">
+            <CardContent className="p-8 text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent">
+                <Crown className="w-7 h-7 text-accent-foreground" />
+              </div>
+              <h3 className="font-semibold text-lg text-foreground">Premium Video</h3>
+              <p className="text-sm text-muted-foreground">
+                Upgrade to Premium to unlock all videos in the learning path, full transcripts, and unlimited exercises.
+              </p>
+              <Button variant="learning" onClick={() => navigate("/premium")}>
+                Upgrade to Premium
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   const week = video.learning_weeks;
+  const linkedVideoId = video.linked_video_id;
+  const hasLinkedVideo = !!linkedVideoId;
+
+  // Step-based lesson flow when linked_video_id is available
+  if (hasLinkedVideo) {
+    return (
+      <div className="min-h-screen bg-background">
+        {lessonStep === "video" && (
+          <YouTubeVideoExercises
+            videoId={linkedVideoId!}
+            onBack={() => navigate(`/learn/week/${video.week_id}`)}
+            onStartExercises={() => setLessonStep("exercises")}
+          />
+        )}
+
+        {lessonStep === "exercises" && (
+          <YouTubeExercises
+            videoId={linkedVideoId!}
+            level="beginner"
+            intensity="intense"
+            onBack={() => setLessonStep("video")}
+            onComplete={() => setLessonStep("speaking")}
+            onContinueToSpeaking={() => setLessonStep("speaking")}
+            onTryNextLevel={() => setLessonStep("speaking")}
+            onSkipToFlashcards={() => setLessonStep("flashcards")}
+          />
+        )}
+
+        {lessonStep === "speaking" && (
+          <YouTubeSpeaking
+            videoId={linkedVideoId!}
+            level="beginner"
+            onComplete={() => setLessonStep("flashcards")}
+            onBack={() => setLessonStep("exercises")}
+          />
+        )}
+
+        {lessonStep === "flashcards" && (
+          <VideoFlashcards
+            videoId={linkedVideoId!}
+            level="beginner"
+            onComplete={() => {
+              handleComplete();
+              setLessonStep("complete");
+            }}
+            onBack={() => setLessonStep("speaking")}
+          />
+        )}
+
+        {lessonStep === "complete" && (
+          <LessonCompleteScreen
+            exerciseScore={0}
+            totalExercises={10}
+            exerciseAccuracy={0}
+            flashcardsCount={5}
+            onNextVideo={() => navigate(`/learn/week/${video.week_id}`)}
+            onViewProgress={() => navigate("/profile")}
+            onRetry={() => setLessonStep("video")}
+            onBackToLibrary={() => navigate(`/learn/week/${video.week_id}`)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Fallback: simple video view (no linked_video_id yet)
   const isCompleted = progress?.status === "completed";
   const vocabTags = video.vocabulary_tags || [];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container mx-auto px-4 py-3 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(`/learn/week/${video.week_id}`)}
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/learn/week/${video.week_id}`)}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="min-w-0">
@@ -175,11 +266,7 @@ export default function WeekVideo() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6 max-w-2xl">
-        {/* Video Title */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <h2 className="text-xl font-bold text-foreground">{video.title}</h2>
           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
             <span>{video.source}</span>
@@ -194,7 +281,6 @@ export default function WeekVideo() {
           )}
         </motion.div>
 
-        {/* YouTube Embed */}
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -210,27 +296,14 @@ export default function WeekVideo() {
           />
         </motion.div>
 
-        {/* Key Vocabulary */}
         {vocabTags.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card>
               <CardContent className="p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  📝 Key Vocabulary
-                </h3>
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">📝 Key Vocabulary</h3>
                 <div className="flex flex-wrap gap-2">
                   {vocabTags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="outline"
-                      className="text-xs font-normal"
-                    >
-                      {tag}
-                    </Badge>
+                    <Badge key={tag} variant="outline" className="text-xs font-normal">{tag}</Badge>
                   ))}
                 </div>
               </CardContent>
@@ -238,36 +311,18 @@ export default function WeekVideo() {
           </motion.div>
         )}
 
-        {/* Completion Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="pb-8"
-        >
-          {isCompleted || justCompleted ? (
-            <Card className={cn("border-primary/30", justCompleted && "celebration")}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="pb-8">
+          {isCompleted ? (
+            <Card className="border-primary/30">
               <CardContent className="p-5 text-center space-y-3">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
-                  {justCompleted ? (
-                    <Sparkles className="w-6 h-6 text-primary" />
-                  ) : (
-                    <CheckCircle2 className="w-6 h-6 text-primary" />
-                  )}
+                  <CheckCircle2 className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">
-                    {justCompleted ? "Well done!" : "Already completed"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {progress?.xp_earned || video.xp_reward} XP earned
-                  </p>
+                  <h3 className="font-semibold text-foreground">Already completed</h3>
+                  <p className="text-sm text-muted-foreground mt-0.5">{progress?.xp_earned || video.xp_reward} XP earned</p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/learn/week/${video.week_id}`)}
-                >
+                <Button variant="outline" size="sm" onClick={() => navigate(`/learn/week/${video.week_id}`)}>
                   Back to Week {week.week_number}
                 </Button>
               </CardContent>
@@ -280,15 +335,9 @@ export default function WeekVideo() {
               disabled={completing || !user}
             >
               {completing ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Completing...
-                </>
+                <><Loader2 className="w-5 h-5 animate-spin" /> Completing...</>
               ) : (
-                <>
-                  <Trophy className="w-5 h-5" />
-                  Mark as Complete • {video.xp_reward} XP
-                </>
+                <><Trophy className="w-5 h-5" /> Mark as Complete • {video.xp_reward} XP</>
               )}
             </Button>
           )}
