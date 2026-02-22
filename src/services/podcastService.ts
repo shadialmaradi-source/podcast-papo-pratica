@@ -30,17 +30,18 @@ export interface PodcastEpisode {
   season_number: number;
   created_at: string;
   updated_at: string;
-  // Include source information for easier access
   podcast_source?: PodcastSource;
 }
+
+// Helper to query untyped tables (podcast tables not in generated types)
+const fromUntyped = (table: string) => (supabase as any).from(table);
 
 // Get podcasts by language and difficulty
 export const getPodcastsByLanguage = async (
   language: string,
   difficulty?: string
 ): Promise<PodcastSource[]> => {
-  let query = supabase
-    .from('podcast_sources')
+  let query = fromUntyped('podcast_sources')
     .select('*')
     .eq('language', language)
     .eq('is_public', true)
@@ -65,8 +66,7 @@ export const getPodcastEpisodes = async (
   podcastSourceId: string,
   limit: number = 10
 ): Promise<PodcastEpisode[]> => {
-  const { data, error } = await supabase
-    .from('podcast_episodes')
+  const { data, error } = await fromUntyped('podcast_episodes')
     .select(`
       *,
       podcast_source:podcast_sources(*)
@@ -85,8 +85,7 @@ export const getPodcastEpisodes = async (
 
 // Get single episode with source details
 export const getEpisodeById = async (episodeId: string): Promise<PodcastEpisode | null> => {
-  const { data, error } = await supabase
-    .from('podcast_episodes')
+  const { data, error } = await fromUntyped('podcast_episodes')
     .select(`
       *,
       podcast_source:podcast_sources(*)
@@ -107,8 +106,7 @@ export const searchPodcasts = async (
   query: string,
   language?: string
 ): Promise<PodcastSource[]> => {
-  let searchQuery = supabase
-    .from('podcast_sources')
+  let searchQuery = fromUntyped('podcast_sources')
     .select('*')
     .eq('is_public', true)
     .or(`title.ilike.%${query}%, description.ilike.%${query}%`)
