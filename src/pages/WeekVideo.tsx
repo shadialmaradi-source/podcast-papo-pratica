@@ -154,7 +154,7 @@ export default function WeekVideo() {
   }
 
   // Premium gate for non-free videos
-  if (!video.is_free && !isPremium) {
+  if (video.order_in_week > 4 && !isPremium) {
     return (
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">

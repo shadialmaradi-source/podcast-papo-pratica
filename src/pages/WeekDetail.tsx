@@ -135,7 +135,7 @@ export default function WeekDetail() {
         <div className="space-y-3">
           {videos.map((video, index) => {
             const isCompleted = video.progress?.status === "completed";
-            const isPremiumLocked = !video.is_free && !isPremium;
+            const isPremiumLocked = video.order_in_week > 4 && !isPremium;
 
             return (
               <motion.div
