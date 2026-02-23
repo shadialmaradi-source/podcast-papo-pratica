@@ -54,7 +54,7 @@ function AuthRedirector() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (location.pathname === "/auth/callback") return;
+    if (location.pathname === "/auth/callback" || location.pathname === "/reset-password") return;
 
     const hashParams = new URLSearchParams((location.hash || "").replace(/^#/, ""));
     const searchParams = new URLSearchParams(location.search || "");
