@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Headphones, ArrowRight, ArrowLeft, Check, Sprout, BookOpen, Zap, Award } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/hooks/useTranslation";
+import { supabase } from "@/integrations/supabase/client";
 
 const targetLanguages = [
   { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: true },
@@ -81,11 +82,21 @@ export default function Onboarding() {
     else if (step === 'level') setStep('native');
   };
 
-  const handleFinalContinue = () => {
+  const handleFinalContinue = async () => {
     if (!selectedLanguage || !selectedLevel || !selectedNativeLanguage) return;
     localStorage.setItem('onboarding_language', selectedLanguage);
     localStorage.setItem('onboarding_level', selectedLevel);
     localStorage.setItem('onboarding_native_language', selectedNativeLanguage);
+
+    // Save to Supabase profile if user is logged in
+    if (user) {
+      await supabase.from('profiles').update({
+        selected_language: selectedLanguage,
+        native_language: selectedNativeLanguage,
+        current_level: selectedLevel,
+      }).eq('user_id', user.id);
+    }
+
     navigate('/lesson/first');
   };
 
