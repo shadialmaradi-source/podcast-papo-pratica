@@ -24,6 +24,7 @@ import WeekVideo from "./pages/WeekVideo";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherLesson from "./pages/TeacherLesson";
 import StudentLesson from "./pages/StudentLesson";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -101,6 +102,7 @@ const App = () => {
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             
             <Route path="/lesson/first" element={<FirstLesson />} />
             <Route path="/premium" element={<Premium />} />

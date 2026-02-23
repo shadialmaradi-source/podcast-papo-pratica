@@ -27,10 +27,20 @@ export default function Auth() {
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated, check onboarding status
   useEffect(() => {
     if (user) {
-      navigate("/app");
+      supabase.from('profiles')
+        .select('native_language')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (!data?.native_language) {
+            navigate("/onboarding");
+          } else {
+            navigate("/app");
+          }
+        });
     }
   }, [user, navigate]);
 
@@ -124,7 +134,7 @@ export default function Auth() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
-        redirectTo: `${window.location.origin}/`
+        redirectTo: `${window.location.origin}/reset-password`
       });
 
       if (error) {

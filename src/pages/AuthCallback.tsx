@@ -27,6 +27,30 @@ export default function AuthCallback() {
       const accessToken = hashParams.get("access_token");
       const refreshToken = hashParams.get("refresh_token");
 
+      // Helper: check profile and redirect accordingly
+      const redirectBasedOnProfile = async () => {
+        // Check for recovery flow
+        const hp = new URLSearchParams(window.location.hash.substring(1));
+        if (hp.get("type") === "recovery") {
+          navigate("/reset-password" + window.location.hash, { replace: true });
+          return;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { navigate("/auth", { replace: true }); return; }
+
+        const { data: profile } = await supabase.from('profiles')
+          .select('native_language')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!profile?.native_language) {
+          navigate("/onboarding", { replace: true });
+        } else {
+          navigate("/app", { replace: true });
+        }
+      };
+
       if (accessToken && refreshToken) {
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -39,7 +63,7 @@ export default function AuthCallback() {
           return;
         }
 
-        navigate("/app", { replace: true });
+        await redirectBasedOnProfile();
         return;
       }
 
@@ -56,14 +80,14 @@ export default function AuthCallback() {
           return;
         }
 
-        navigate("/app", { replace: true });
+        await redirectBasedOnProfile();
         return;
       }
 
       // Check if already authenticated
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/app", { replace: true });
+        await redirectBasedOnProfile();
         return;
       }
 
