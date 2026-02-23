@@ -1,38 +1,108 @@
 
+# Fix: Post-Login Onboarding + Password Reset Flow
 
-# Fix: Use "beginner" Difficulty Consistently
+## Two Problems
 
-## Problem
+### 1. No Onboarding After Sign-Up from Login Page
+When a user registers via the Auth page (`/auth`), they're redirected straight to `/app` without going through onboarding. This means their profile never gets:
+- Target language (`selected_language`)
+- Native language (`native_language`)  
+- Proficiency level (`current_level`)
 
-The exercises are stored with `difficulty: 'A1'` but the UI queries for `difficulty: 'beginner'`. Instead of changing the UI, we change the edge function to store exercises with `difficulty: 'beginner'`.
+The onboarding page only stores these in `localStorage` and never saves them to the Supabase `profiles` table either.
 
-## Changes
+### 2. Password Reset Doesn't Show Reset Form
+The "Forgot Password" flow sends a reset email that redirects to `/` (the landing page). Supabase includes a `type=recovery` parameter in the URL, but no page handles it. The user gets auto-logged in without ever being asked to set a new password.
 
-### 1. `supabase/functions/setup-week-video-exercises/index.ts`
+---
 
-In the `generateExercises` function, change the difficulty value from `'A1'` to `'beginner'` when mapping AI-generated exercises to database rows (around line 178):
+## Solution
+
+### Part 1: Redirect New Users to Onboarding
+
+**File: `src/pages/Auth.tsx`** (lines 30-35)
+
+Change the redirect logic when a user is already authenticated. Instead of always going to `/app`, check if their profile has `selected_language` set (or still has the default `'portuguese'`). If the profile looks incomplete, redirect to `/onboarding`.
 
 ```
-difficulty: 'A1',
+useEffect(() => {
+  if (user) {
+    // Check if user has completed onboarding
+    supabase.from('profiles')
+      .select('selected_language, native_language')
+      .eq('user_id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (!data?.native_language) {
+          navigate("/onboarding");
+        } else {
+          navigate("/app");
+        }
+      });
+  }
+}, [user, navigate]);
 ```
-becomes:
+
+**File: `src/pages/AuthCallback.tsx`** (lines 42, 59)
+
+Apply the same check after OAuth/PKCE callbacks. Instead of `navigate("/app")`, check the profile first and redirect to `/onboarding` if incomplete.
+
+**File: `src/pages/Onboarding.tsx`** (line 84-89)
+
+After the onboarding is complete, save the selections to the Supabase `profiles` table (not just localStorage):
+
+```typescript
+await supabase.from('profiles').update({
+  selected_language: selectedLanguage,
+  native_language: selectedNativeLanguage,
+  current_level: selectedLevel,
+}).eq('user_id', user.id);
 ```
-difficulty: 'beginner',
+
+Then navigate to `/app` (or `/lesson/first` as it does now).
+
+### Part 2: Password Reset Page
+
+**New file: `src/pages/ResetPassword.tsx`**
+
+Create a dedicated page that:
+- Checks for `type=recovery` in the URL hash
+- Shows a form to enter a new password (with confirmation)
+- Calls `supabase.auth.updateUser({ password: newPassword })` to update it
+- On success, redirects to `/app`
+
+**File: `src/App.tsx`**
+
+Add a new public route:
+```
+<Route path="/reset-password" element={<ResetPassword />} />
 ```
 
-Also update the `generateBasicExercises` fallback function to use `'beginner'` instead of the `['A1', 'A2', 'B1', 'B2']` array -- replace with `['beginner']` so fallback exercises also match.
+**File: `src/pages/Auth.tsx`** (line 127)
 
-### 2. Fix the Authentication Fallback in `src/components/YouTubeExercises.tsx`
+Change the forgot password redirect from:
+```
+redirectTo: `${window.location.origin}/`
+```
+to:
+```
+redirectTo: `${window.location.origin}/reset-password`
+```
 
-Add a fallback in the `loadExercises` function: if the RPC call `get_youtube_exercises_with_answers` fails with "Authentication required", query the `youtube_exercises` table directly. This ensures exercises load even when the auth token is not forwarded to the RPC function.
+**File: `src/pages/AuthCallback.tsx`**
 
-### 3. Delete Old Exercises
+Add detection for `type=recovery` in the URL hash. If found, redirect to `/reset-password` instead of `/app`.
 
-Since exercises were already generated with `difficulty: 'A1'` for this video, those old rows will not match the `'beginner'` query. You will need to either:
-- Delete the old exercises from the Supabase dashboard (table `youtube_exercises`, filter by the video ID)
-- Or click "Start Exercises" on a video that has not yet had exercises generated
+---
 
-### Deployment
+## Technical Summary
 
-The `setup-week-video-exercises` edge function will need to be redeployed after the change.
+| File | Change |
+|------|--------|
+| `src/pages/Auth.tsx` | Check profile completeness on redirect; update forgot password redirectTo to `/reset-password` |
+| `src/pages/AuthCallback.tsx` | Check profile completeness after OAuth; detect recovery type and redirect to `/reset-password` |
+| `src/pages/Onboarding.tsx` | Save selections to Supabase `profiles` table (not just localStorage) |
+| `src/pages/ResetPassword.tsx` | **New file** -- password reset form with `updateUser()` |
+| `src/App.tsx` | Add `/reset-password` route |
 
+No database changes needed -- the `profiles` table already has `selected_language`, `native_language`, and `current_level` columns.
