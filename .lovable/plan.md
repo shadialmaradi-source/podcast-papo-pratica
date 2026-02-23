@@ -1,28 +1,29 @@
 
+# Fix: Password Reset Link Being Intercepted
 
-# Make First 4 Videos Free Per Module
+## Root Cause
 
-## Current Behavior
+In `src/App.tsx`, the `AuthRedirector` component (lines 52-83) watches for any URL containing `access_token` or `refresh_token` in the hash, and redirects it to `/auth/callback`. 
 
-Premium gating is controlled by the `is_free` column on the `week_videos` table. Each video is individually flagged as free or not. The UI in `WeekDetail.tsx` checks `!video.is_free && !isPremium` to decide if a video is locked.
-
-## Change
-
-Instead of relying on the `is_free` database column, determine accessibility by the video's position in the module: videos with `order_in_week <= 4` are free, the rest require premium.
-
-### File: `src/pages/WeekDetail.tsx` (line 138)
-
-Change:
-```typescript
-const isPremiumLocked = !video.is_free && !isPremium;
+When Supabase sends the recovery email, it links to:
 ```
-to:
-```typescript
-const isPremiumLocked = video.order_in_week > 4 && !isPremium;
+/reset-password#access_token=...&type=recovery&...
 ```
 
-### File: `src/pages/WeekVideo.tsx`
+The `AuthRedirector` sees `access_token` in the hash and immediately redirects to `/auth/callback`, which logs the user in and sends them to `/app` -- the reset password page is never shown.
 
-Find where `is_free` is checked to gate access to the video player page. Apply the same logic: if `video.order_in_week > 4` and the user is not premium, redirect to `/premium`.
+## Fix
 
-That is the only change needed -- no database migration, no edge function updates.
+### File: `src/App.tsx` (line 57)
+
+Add `/reset-password` to the early return check, so the redirector skips that route:
+
+```typescript
+// Before
+if (location.pathname === "/auth/callback") return;
+
+// After
+if (location.pathname === "/auth/callback" || location.pathname === "/reset-password") return;
+```
+
+This is a one-line change. The `/reset-password` page already has its own logic to detect the recovery token and call `supabase.auth.updateUser()`.
