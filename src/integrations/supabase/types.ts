@@ -1683,6 +1683,7 @@ export type Database = {
         }[]
       }
       generate_random_username: { Args: never; Returns: string }
+      get_auth_user_email: { Args: never; Returns: string }
       get_episode_exercises:
         | {
             Args: { episode_id_param: string }
