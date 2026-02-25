@@ -24,6 +24,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<string>("english");
+  const [nativeLanguage, setNativeLanguage] = useState<string>("english");
 
   useEffect(() => {
     const fetchFlashcards = async () => {
@@ -53,6 +54,18 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
           throw new Error('Please log in to view flashcards');
         }
 
+        // Fetch user's native language
+        let userNativeLanguage = localStorage.getItem('onboarding_native_language') || 'english';
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('native_language')
+          .eq('user_id', session.user.id)
+          .single();
+        if (profile?.native_language) {
+          userNativeLanguage = profile.native_language;
+        }
+        setNativeLanguage(userNativeLanguage);
+
         // Call the edge function to generate/fetch flashcards
         const { data, error: fnError } = await supabase.functions.invoke('generate-flashcards', {
           body: {
@@ -60,6 +73,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
             transcript: transcriptData.transcript,
             language: transcriptData.language || 'portuguese',
             level: level || 'beginner',
+            nativeLanguage: userNativeLanguage,
           },
         });
 
@@ -151,7 +165,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
     );
   }
 
-  return <LessonFlashcards flashcards={flashcards} onComplete={onComplete} language={language} />;
+  return <LessonFlashcards flashcards={flashcards} onComplete={onComplete} language={language} nativeLanguage={nativeLanguage} />;
 }
 
 export default VideoFlashcards;

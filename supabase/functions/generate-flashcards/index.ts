@@ -11,6 +11,7 @@ interface FlashcardInput {
   transcript: string;
   language: string;
   level: string;
+  nativeLanguage?: string;
 }
 
 interface Flashcard {
@@ -55,7 +56,7 @@ serve(async (req) => {
       );
     }
 
-    const { videoId, transcript, language, level } = await req.json() as FlashcardInput;
+    const { videoId, transcript, language, level, nativeLanguage } = await req.json() as FlashcardInput;
 
     if (!videoId || !transcript) {
       return new Response(
@@ -94,6 +95,8 @@ serve(async (req) => {
     // Generate flashcards using AI
     const targetLevel = level || 'beginner';
     const targetLanguage = language || 'portuguese';
+    const translationLanguage = nativeLanguage || 'english';
+    const translationLangDisplay = translationLanguage.charAt(0).toUpperCase() + translationLanguage.slice(1);
 
     const systemPrompt = `You are a language learning expert specializing in ${targetLanguage}. Your task is to extract exactly 5 key vocabulary items or phrases from a video transcript that would be most valuable for a ${targetLevel} learner.
 
@@ -103,7 +106,7 @@ RULES:
 3. For intermediate: include useful expressions, common verb forms, and practical phrases
 4. For advanced: include idioms, nuanced expressions, and complex structures
 5. Each item should have a clear, practical explanation of why it's useful
-6. Return phrases in ${targetLanguage} with English translations
+6. Return phrases in ${targetLanguage} with ${translationLangDisplay} translations
 7. Make sure the "why" explanation is concise (1-2 sentences) and learner-focused
 
 RESPONSE FORMAT (strict JSON):
@@ -111,7 +114,7 @@ RESPONSE FORMAT (strict JSON):
   "flashcards": [
     {
       "phrase": "phrase in ${targetLanguage}",
-      "translation": "English translation",
+      "translation": "${translationLangDisplay} translation",
       "why": "Why this is useful for learners (1-2 sentences)"
     }
   ]
