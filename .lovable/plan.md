@@ -1,68 +1,54 @@
 
 
-# Fix Language Logic for Learning Path
+# Fix: "permission denied for table users"
 
-## Current State Analysis
+## Root Cause
 
-The app currently stores **`selected_language`** in the `profiles` table during onboarding, which represents the **learning/target language** (e.g. "spanish"). This value is then used to filter videos in Library (`Library.tsx` line 78: `.eq("language", userLanguage)`) and in `LearningPath` to fetch weeks.
+The RLS policies on `teacher_lessons` and `lesson_exercises` contain direct subqueries against `auth.users`:
 
-The core issue is that `selected_language` is being used correctly for video filtering (content in the learning language), but it's labeled ambiguously and there are gaps:
+```sql
+student_email = (SELECT users.email FROM auth.users WHERE users.id = auth.uid())
+```
 
-1. **Library defaults `userLanguage` to `'english'`** (line 42) — so before the profile loads, English videos show even if the user is learning Spanish
-2. **Flashcard edge function (`generate-flashcards`)** hardcodes translations to **English** (line 106: `"Return phrases in ${targetLanguage} with English translations"`) — ignoring the user's actual native language
-3. **Exercise generation (`generate-level-exercises`)** already accepts `nativeLanguage` and uses it for `questionTranslation` — this is working correctly
-4. **`VideoFlashcards.tsx`** never passes `nativeLanguage` to the edge function — it only sends `language` and `level`
-5. **`LessonFlashcards.tsx`** (first lesson) already handles native language correctly after the previous fix
+The `authenticated` Postgres role does not have SELECT permission on `auth.users`. When the teacher inserts a lesson and the `.select("id")` triggers a SELECT evaluation, Postgres tries to evaluate ALL SELECT policies — including the student one that queries `auth.users` — and fails with "permission denied for table users".
 
-## Changes Required
+## Fix
 
-### 1. Fix `generate-flashcards` edge function to use native language
+1. **Create a `SECURITY DEFINER` function** `get_auth_user_email()` that safely returns the current user's email. Since it runs as the function owner (who has access to `auth.users`), it bypasses the permission issue.
 
-**File: `supabase/functions/generate-flashcards/index.ts`**
+2. **Update 3 RLS policies** that reference `auth.users` to use the new function instead:
+   - `teacher_lessons` → "Students can view assigned lessons"
+   - `lesson_exercises` → "Students can view assigned lesson exercises"
+   - `lesson_responses` → "Teachers can read responses for own lessons" (this one references `teacher_lessons` which itself triggers the student policy)
 
-- Accept `nativeLanguage` in the request body
-- Change the AI prompt from hardcoded "English translations" to translations in the user's native language
-- Update the system prompt line 106: `"Return phrases in ${targetLanguage} with ${nativeLanguageDisplay} translations"`
+### Migration SQL
 
-### 2. Pass `nativeLanguage` from `VideoFlashcards.tsx`
+```sql
+-- 1. Helper function
+CREATE OR REPLACE FUNCTION public.get_auth_user_email()
+RETURNS text
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT email::text FROM auth.users WHERE id = auth.uid()
+$$;
 
-**File: `src/components/VideoFlashcards.tsx`**
+-- 2. Drop and recreate affected policies
+DROP POLICY IF EXISTS "Students can view assigned lessons" ON public.teacher_lessons;
+CREATE POLICY "Students can view assigned lessons"
+  ON public.teacher_lessons FOR SELECT
+  USING (student_email = public.get_auth_user_email());
 
-- Fetch user's `native_language` from the profile (or localStorage fallback)
-- Include `nativeLanguage` in the edge function call body
-- Pass it to `LessonFlashcards` as prop
+DROP POLICY IF EXISTS "Students can view assigned lesson exercises" ON public.lesson_exercises;
+CREATE POLICY "Students can view assigned lesson exercises"
+  ON public.lesson_exercises FOR SELECT
+  USING (EXISTS (
+    SELECT 1 FROM teacher_lessons tl
+    WHERE tl.id = lesson_exercises.lesson_id
+      AND tl.student_email = public.get_auth_user_email()
+  ));
+```
 
-### 3. Fix Library default language
-
-**File: `src/pages/Library.tsx`**
-
-- Change the default `userLanguage` from `'english'` to read from localStorage first: `localStorage.getItem('onboarding_language') || 'english'`
-- This prevents showing English videos briefly before profile loads for users learning Spanish
-
-### 4. Fix exercise count in `generate-level-exercises`
-
-**File: `supabase/functions/generate-level-exercises/index.ts`**
-
-- Line 132: Change `"Generate EXACTLY 10 exercises"` to `"Generate EXACTLY 5 exercises"`
-- Update the distribution: 3 multiple_choice, 1 fill_blank, 1 sequencing (drop matching to keep 5)
-- This aligns with the first-lesson fix that already uses 5 exercises
-
-### 5. Pass `nativeLanguage` to `LessonFlashcards` in `WeekVideo.tsx`
-
-**File: `src/pages/WeekVideo.tsx`**
-
-- Fetch user's `native_language` from profile
-- Pass it as `nativeLanguage` prop when rendering `VideoFlashcards` and `LessonFlashcards`
-
-## Summary
-
-| File | Change |
-|------|--------|
-| `supabase/functions/generate-flashcards/index.ts` | Accept & use `nativeLanguage` for translations instead of hardcoded English |
-| `src/components/VideoFlashcards.tsx` | Fetch native language, pass to edge function & `LessonFlashcards` |
-| `src/pages/Library.tsx` | Default `userLanguage` from localStorage instead of hardcoded `'english'` |
-| `supabase/functions/generate-level-exercises/index.ts` | Reduce from 10 to 5 exercises |
-| `src/pages/WeekVideo.tsx` | Pass `nativeLanguage` through to flashcard components |
-
-No database schema changes needed — `profiles.native_language` and `profiles.selected_language` already exist and are populated during onboarding.
+No frontend code changes needed — this is purely a database permissions fix.
 
