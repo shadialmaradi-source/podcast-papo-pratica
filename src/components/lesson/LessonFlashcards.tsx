@@ -16,9 +16,17 @@ interface LessonFlashcardsProps {
   flashcards: Flashcard[];
   onComplete: () => void;
   language?: string;
+  nativeLanguage?: string;
 }
 
-const LessonFlashcards = ({ flashcards, onComplete, language = "english" }: LessonFlashcardsProps) => {
+const getNativeLanguageFlag = (code: string): string => {
+  const flags: Record<string, string> = {
+    en: '🇬🇧', es: '🇪🇸', pt: '🇧🇷', fr: '🇫🇷', it: '🇮🇹',
+  };
+  return flags[code] || '🌐';
+};
+
+const LessonFlashcards = ({ flashcards, onComplete, language = "english", nativeLanguage = "en" }: LessonFlashcardsProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [learned, setLearned] = useState<Record<number, boolean>>({});
@@ -134,7 +142,7 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english" }: Less
                         style={{ transform: 'rotateY(180deg)' }}
                       >
                         <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">🇺🇸</span>
+                          <span className="text-2xl">{getNativeLanguageFlag(nativeLanguage)}</span>
                         </div>
                         <p className="text-2xl md:text-3xl font-bold text-foreground">
                           {currentCard.translation}
