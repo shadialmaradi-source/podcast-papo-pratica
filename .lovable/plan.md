@@ -1,89 +1,68 @@
 
 
-# Fix Onboarding & Language Issues — Plan
+# Fix Language Logic for Learning Path
 
-## Analysis
+## Current State Analysis
 
-After reviewing the code, here is how the first lesson flow works:
+The app currently stores **`selected_language`** in the `profiles` table during onboarding, which represents the **learning/target language** (e.g. "spanish"). This value is then used to filter videos in Library (`Library.tsx` line 78: `.eq("language", userLanguage)`) and in `LearningPath` to fetch weeks.
 
-1. **Onboarding** (`src/pages/Onboarding.tsx`) saves three values:
-   - `onboarding_language` = target language (e.g. `"english"`) — what user wants to learn
-   - `onboarding_native_language` = native language code (e.g. `"es"`) — what user already speaks
-   - `onboarding_level` = proficiency level
+The core issue is that `selected_language` is being used correctly for video filtering (content in the learning language), but it's labeled ambiguously and there are gaps:
 
-2. **FirstLesson** (`src/pages/FirstLesson.tsx`) reads `onboarding_language` to pick content from `allLessonContent`, which contains hardcoded exercises, speaking phrases, and flashcards.
+1. **Library defaults `userLanguage` to `'english'`** (line 42) — so before the profile loads, English videos show even if the user is learning Spanish
+2. **Flashcard edge function (`generate-flashcards`)** hardcodes translations to **English** (line 106: `"Return phrases in ${targetLanguage} with English translations"`) — ignoring the user's actual native language
+3. **Exercise generation (`generate-level-exercises`)** already accepts `nativeLanguage` and uses it for `questionTranslation` — this is working correctly
+4. **`VideoFlashcards.tsx`** never passes `nativeLanguage` to the edge function — it only sends `language` and `level`
+5. **`LessonFlashcards.tsx`** (first lesson) already handles native language correctly after the previous fix
 
-3. **The content** (`src/data/firstLessonContent.ts`) has:
-   - **English content**: questions in English (correct), but all translations hardcoded in **Spanish** (e.g. `"Puedo pedir un café por favor?"`)
-   - **Spanish content**: questions in Spanish, translations hardcoded in English
-   - Every level has **10 exercises** hardcoded
+## Changes Required
 
-4. **Speaking step** (`src/components/lesson/LessonSpeaking.tsx`): individual phrases can be skipped, but the summary mode for intermediate/advanced has no skip for the entire step. Users must record or hit the limit.
+### 1. Fix `generate-flashcards` edge function to use native language
 
-5. **Flashcards** (`src/components/lesson/LessonFlashcards.tsx`): shows `currentCard.translation` with a hardcoded `🇺🇸` flag on the back — always assumes English is the translation language.
+**File: `supabase/functions/generate-flashcards/index.ts`**
 
----
+- Accept `nativeLanguage` in the request body
+- Change the AI prompt from hardcoded "English translations" to translations in the user's native language
+- Update the system prompt line 106: `"Return phrases in ${targetLanguage} with ${nativeLanguageDisplay} translations"`
 
-## Issue 1 & 4: Translations Not in User's Native Language
+### 2. Pass `nativeLanguage` from `VideoFlashcards.tsx`
 
-**Root cause**: `firstLessonContent.ts` hardcodes translations in a single language (Spanish for English content, English for Spanish content). The user's actual native language is ignored.
+**File: `src/components/VideoFlashcards.tsx`**
 
-**Fix**: Add multi-language translations to the static content, keyed by native language code (`en`, `es`, `pt`, `fr`, `it`). Then pass the native language through the component chain so the correct translation is displayed.
+- Fetch user's `native_language` from the profile (or localStorage fallback)
+- Include `nativeLanguage` in the edge function call body
+- Pass it to `LessonFlashcards` as prop
 
-### Changes:
+### 3. Fix Library default language
 
-**`src/data/firstLessonContent.ts`**:
-- Change `translation: string` to `translations: Record<string, string>` on `SpeakingPhrase`, `Flashcard`, and add `questionTranslations` on `Exercise`
-- Add a helper `getLocalizedContent(content, nativeLanguage)` that resolves translations to the right language
-- For each entry, provide translations in `en`, `es`, `pt` (the three most common native languages); fall back to `en` for missing codes
+**File: `src/pages/Library.tsx`**
 
-**`src/pages/FirstLesson.tsx`**:
-- Read `onboarding_native_language` from localStorage
-- Call `getLocalizedContent(content, nativeLanguage)` to resolve all translations before passing to child components
+- Change the default `userLanguage` from `'english'` to read from localStorage first: `localStorage.getItem('onboarding_language') || 'english'`
+- This prevents showing English videos briefly before profile loads for users learning Spanish
 
-**`src/components/lesson/LessonFlashcards.tsx`**:
-- Accept a `nativeLanguage` prop
-- Replace the hardcoded `🇺🇸` flag with the correct flag for the user's native language using `getLanguageFlag()`
+### 4. Fix exercise count in `generate-level-exercises`
 
-**`src/components/lesson/LessonSpeaking.tsx`**:
-- The `translation` shown under each phrase will already be resolved by the parent
+**File: `supabase/functions/generate-level-exercises/index.ts`**
 
----
+- Line 132: Change `"Generate EXACTLY 10 exercises"` to `"Generate EXACTLY 5 exercises"`
+- Update the distribution: 3 multiple_choice, 1 fill_blank, 1 sequencing (drop matching to keep 5)
+- This aligns with the first-lesson fix that already uses 5 exercises
 
-## Issue 2: Too Many Questions (10 Instead of 5)
+### 5. Pass `nativeLanguage` to `LessonFlashcards` in `WeekVideo.tsx`
 
-**Root cause**: Each level in `firstLessonContent.ts` has 10 hardcoded exercises.
+**File: `src/pages/WeekVideo.tsx`**
 
-**Fix**:
+- Fetch user's `native_language` from profile
+- Pass it as `nativeLanguage` prop when rendering `VideoFlashcards` and `LessonFlashcards`
 
-**`src/data/firstLessonContent.ts`**:
-- Trim each exercises array to 5 items (keep the first 5 which cover the most important question types)
+## Summary
 
-**`src/pages/FirstLesson.tsx`**:
-- Update `totalExercises` default from `10` to `5`
+| File | Change |
+|------|--------|
+| `supabase/functions/generate-flashcards/index.ts` | Accept & use `nativeLanguage` for translations instead of hardcoded English |
+| `src/components/VideoFlashcards.tsx` | Fetch native language, pass to edge function & `LessonFlashcards` |
+| `src/pages/Library.tsx` | Default `userLanguage` from localStorage instead of hardcoded `'english'` |
+| `supabase/functions/generate-level-exercises/index.ts` | Reduce from 10 to 5 exercises |
+| `src/pages/WeekVideo.tsx` | Pass `nativeLanguage` through to flashcard components |
 
----
-
-## Issue 3: No Skip Button on Speaking/Vocal Summary
-
-**Root cause**: `LessonSpeaking` for intermediate/advanced (summary mode) only shows Continue after recording + analysis. No way to skip entirely.
-
-**Fix**:
-
-**`src/components/lesson/LessonSpeaking.tsx`**:
-- Add a "Skip Speaking" button visible at all times (both in summary mode and phrase mode) that calls `onComplete()` directly
-- Place it as a subtle link/ghost button below the main content area so it doesn't distract but is always accessible
-
----
-
-## Summary of Files to Change
-
-| File | Changes |
-|------|---------|
-| `src/data/firstLessonContent.ts` | Multi-lang translations on flashcards, speaking phrases, exercise hints; trim to 5 exercises per level |
-| `src/pages/FirstLesson.tsx` | Read native language, resolve translations, pass to children |
-| `src/components/lesson/LessonFlashcards.tsx` | Accept `nativeLanguage` prop, show correct flag |
-| `src/components/lesson/LessonSpeaking.tsx` | Add "Skip Speaking" button |
-
-No database changes or edge function changes are needed — this is entirely static first-lesson content and UI.
+No database schema changes needed — `profiles.native_language` and `profiles.selected_language` already exist and are populated during onboarding.
 
