@@ -97,7 +97,7 @@ export function EngagementFeatures({ userId }: EngagementFeaturesProps) {
 
     if (challenges) {
       // Get user progress for these challenges
-      const challengeIds = challenges.map(c => c.id);
+      const challengeIds = challenges.map((c) => c.id);
       const { data: userProgress } = await supabase
         .from('user_challenge_progress')
         .select('*')
@@ -105,8 +105,8 @@ export function EngagementFeatures({ userId }: EngagementFeaturesProps) {
         .in('challenge_id', challengeIds);
 
       // Merge challenges with user progress
-      const challengesWithProgress = challenges.map(challenge => {
-        const progress = userProgress?.find(p => p.challenge_id === challenge.id);
+      const challengesWithProgress = challenges.map((challenge) => {
+        const progress = userProgress?.find((p) => p.challenge_id === challenge.id);
         return {
           ...challenge,
           current_progress: progress?.current_progress || 0,
@@ -125,10 +125,10 @@ export function EngagementFeatures({ userId }: EngagementFeaturesProps) {
       .from('user_streak_data')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (data) {
-      setStreakData(data);
+      setStreakData(data as StreakData);
     } else {
       // Create initial streak data
       const { data: newStreakData } = await supabase
@@ -143,7 +143,7 @@ export function EngagementFeatures({ userId }: EngagementFeaturesProps) {
         .single();
 
       if (newStreakData) {
-        setStreakData(newStreakData);
+        setStreakData(newStreakData as StreakData);
       }
     }
   };
@@ -157,7 +157,7 @@ export function EngagementFeatures({ userId }: EngagementFeaturesProps) {
       .limit(20);
 
     if (data) {
-      setActivityHistory(data);
+      setActivityHistory(data as ActivityHistory[]);
     }
   };
 
