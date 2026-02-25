@@ -129,15 +129,14 @@ Pedagogical principles to follow strictly:
     };
 
     const formatInstructions = `
-Generate EXACTLY 10 exercises with this EXACT distribution:
-- 6 exercises where "type" = "multiple_choice"
-- 2 exercises where "type" = "fill_blank"
+Generate EXACTLY 5 exercises with this EXACT distribution:
+- 3 exercises where "type" = "multiple_choice"
+- 1 exercise where "type" = "fill_blank"
 - 1 exercise where "type" = "sequencing"
-- 1 exercise where "type" = "matching"
 
 EXERCISE FORMATS (return JSON array):
 
-For multiple_choice (6 total):
+For multiple_choice (3 total):
 {
   "type": "multiple_choice",
   "question": "Question in ${languageDisplay}",
@@ -148,7 +147,7 @@ For multiple_choice (6 total):
 }
 Rules: 3-4 options, only one correct, plausible wrong options, RANDOMIZE correct answer position across questions
 
-For fill_blank (2 total):
+For fill_blank (1 total):
 {
   "type": "fill_blank",
   "question": "Sentence with _____ for the blank",
@@ -169,17 +168,6 @@ For sequencing (1 total):
   "questionTranslation": "Translation of the question in ${nativeLangDisplay}"
 }
 Rules: 3-5 key events from transcript, options are shuffled events, correctAnswer is comma-separated indices for correct order
-
-For matching (1 total):
-{
-  "type": "matching",
-  "question": "Abbina i termini alle definizioni.",
-  "options": ["Term A", "Term B", "Term C", "Term D", "Def 1", "Def 2", "Def 3", "Def 4"],
-  "correctAnswer": "Term A->Def 1|||Term B->Def 2|||Term C->Def 3|||Term D->Def 4",
-  "explanation": "Explanation in ${languageDisplay}",
-  "questionTranslation": "Translation of the question in ${nativeLangDisplay}"
-}
-Rules: Match 4 items to meanings/roles (person<->action, place<->event, phrase<->meaning)
 
 CRITICAL QUALITY CONSTRAINTS:
 1. Do not reuse the same correct answer text in more than 2 questions

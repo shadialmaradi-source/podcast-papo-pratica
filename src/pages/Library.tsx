@@ -41,7 +41,7 @@ export default function Library() {
   const [selectedLength, setSelectedLength] = useState<string | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userLanguage, setUserLanguage] = useState<string>('english');
+  const [userLanguage, setUserLanguage] = useState<string>(localStorage.getItem('onboarding_language') || 'english');
 
   // Fetch user's language preference
   useEffect(() => {
