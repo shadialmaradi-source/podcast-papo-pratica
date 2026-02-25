@@ -6,7 +6,7 @@ import LessonExercises from "@/components/lesson/LessonExercises";
 import LessonSpeaking from "@/components/lesson/LessonSpeaking";
 import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import LessonComplete from "@/components/lesson/LessonComplete";
-import { allLessonContent } from "@/data/firstLessonContent";
+import { allLessonContent, getLocalizedContent } from "@/data/firstLessonContent";
 
 type LessonStep = 'intro' | 'video' | 'exercises' | 'speaking' | 'flashcards' | 'complete';
 
@@ -14,17 +14,21 @@ const FirstLesson = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<LessonStep>('intro');
   const [exerciseScore, setExerciseScore] = useState(0);
-  const [totalExercises, setTotalExercises] = useState(10);
+  const [totalExercises, setTotalExercises] = useState(5);
   const [phrasesLearned, setPhrasesLearned] = useState(0);
   const [flashcardsLearned, setFlashcardsLearned] = useState(0);
 
   // Get user's selections from localStorage
   const userLevel = localStorage.getItem('onboarding_level') || 'absolute_beginner';
   const targetLanguage = localStorage.getItem('onboarding_language') || 'spanish';
+  const nativeLanguage = localStorage.getItem('onboarding_native_language') || 'en';
 
   // Get content for the selected language and level
   const languageContent = allLessonContent[targetLanguage] || allLessonContent.spanish;
-  const content = languageContent[userLevel] || languageContent.absolute_beginner;
+  const rawContent = languageContent[userLevel] || languageContent.absolute_beginner;
+  
+  // Resolve translations to user's native language
+  const content = getLocalizedContent(rawContent, nativeLanguage);
 
   useEffect(() => {
     localStorage.setItem('lesson_step', step);
@@ -69,7 +73,7 @@ const FirstLesson = () => {
       );
     
     case 'flashcards':
-      return <LessonFlashcards flashcards={content.flashcards} onComplete={handleFlashcardsComplete} />;
+      return <LessonFlashcards flashcards={content.flashcards} onComplete={handleFlashcardsComplete} nativeLanguage={nativeLanguage} />;
     
     case 'complete':
       return (
