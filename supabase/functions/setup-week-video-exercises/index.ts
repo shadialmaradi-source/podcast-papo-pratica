@@ -118,16 +118,26 @@ serve(async (req) => {
       console.log('Saved transcript for video:', youtubeVideoId);
     }
 
-    // Step 3: Check if exercises already exist
+    // Step 3: For curated source, delete existing beginner exercises to force regeneration
     const { data: existingExercises } = await supabase
       .from('youtube_exercises')
       .select('id')
       .eq('video_id', youtubeVideoId)
       .limit(1);
 
-    if (existingExercises && existingExercises.length > 0) {
-      console.log('Exercises already exist, skipping generation');
-    } else {
+    const shouldGenerate = !existingExercises || existingExercises.length === 0;
+    
+    if (!shouldGenerate) {
+      // Delete existing beginner exercises for curated to force fresh generation
+      console.log('Curated source: deleting existing beginner exercises to regenerate');
+      await supabase
+        .from('youtube_exercises')
+        .delete()
+        .eq('video_id', youtubeVideoId)
+        .eq('difficulty', 'beginner');
+    }
+
+    {
       // Step 4: Generate exercises via generate-level-exercises edge function with source='curated'
       const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
