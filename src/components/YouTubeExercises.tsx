@@ -26,6 +26,12 @@ import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Exercise } from "@/services/exerciseGeneratorService";
+import { 
+  WordRecognitionExercise, 
+  EmojiMatchExercise, 
+  ComprehensionCheckExercise, 
+  SequenceRecallExercise 
+} from "@/components/exercises/BeginnerExercises";
 import { DragDropExercises } from "./DragDropExercises";
 import { TranslationHint } from "./exercises/TranslationHint";
 import { trackEvent } from "@/lib/analytics";
@@ -37,6 +43,8 @@ interface YouTubeExercisesProps {
   videoId: string;
   level: string;
   intensity: string;
+  source?: string;
+  language?: string;
   onBack: () => void;
   onComplete: () => void;
   onContinueToSpeaking?: (videoId: string, level: string) => void;
@@ -77,6 +85,10 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
     case "SpotError":
     case "multiple_choice":
     case "fill_blank":
+    case "word_recognition":
+    case "emoji_match":
+    case "comprehension_check":
+    case "sequence_recall":
       return userAnswer.toLowerCase().trim() === exercise.correctAnswer.toLowerCase().trim();
     
     case "Matching":
@@ -84,7 +96,6 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
       try {
         const correctPairs = JSON.parse(exercise.correctAnswer);
         const userPairs = userAnswer.split(',').filter(Boolean);
-        // Compare actual pairs, not just count
         if (userPairs.length !== correctPairs.length) return false;
         return userPairs.every((pair, idx) => pair === correctPairs[idx]);
       } catch {
@@ -96,7 +107,6 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
       try {
         const correctSequence = JSON.parse(exercise.correctAnswer);
         const userSequence = userAnswer.split(',').map(i => parseInt(i)).filter(i => !isNaN(i));
-        // Compare actual sequence values, not just length
         if (userSequence.length !== correctSequence.length) return false;
         return userSequence.every((val, idx) => val === correctSequence[idx]);
       } catch {
@@ -108,7 +118,7 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
   }
 };
 
-export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete, onContinueToSpeaking, onTryNextLevel, onSkipToFlashcards }: YouTubeExercisesProps) {
+export function YouTubeExercises({ videoId, level, intensity, source, language, onBack, onComplete, onContinueToSpeaking, onTryNextLevel, onSkipToFlashcards }: YouTubeExercisesProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -263,7 +273,8 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
                   difficulty: ex.difficulty,
                   level: level,
                   mode: 'intense' as Exercise['mode'],
-                  questionTranslation: ex.question_translation || null
+                  questionTranslation: ex.question_translation || null,
+                  contextSentence: ex.context_sentence || null
                 }));
                 setRegularExercises(formattedExercises);
                 setExercises(formattedExercises);
@@ -294,7 +305,8 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
               difficulty: ex.difficulty,
               level: level,
               mode: 'intense' as Exercise['mode'],
-              questionTranslation: (ex as any).question_translation || null
+              questionTranslation: (ex as any).question_translation || null,
+              contextSentence: (ex as any).context_sentence || null
             }));
 
             setRegularExercises(formattedExercises);
@@ -343,6 +355,12 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
         return 'Matching';
       case 'sequencing':
         return 'Sequencing';
+      // Beginner types pass through as-is
+      case 'word_recognition':
+      case 'emoji_match':
+      case 'comprehension_check':
+      case 'sequence_recall':
+        return dbType;
       default:
         return 'MCQ';
     }
@@ -377,10 +395,14 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
       [currentExercise.id]: value
     }));
     
-    // For MCQ/TF, show immediate feedback
+    // For MCQ/TF and all beginner types, show immediate feedback
     if (currentExercise.type === "MCQ" || 
         currentExercise.type === "TF" || 
-        currentExercise.type === "multiple_choice") {
+        currentExercise.type === "multiple_choice" ||
+        currentExercise.type === "word_recognition" ||
+        currentExercise.type === "emoji_match" ||
+        currentExercise.type === "comprehension_check" ||
+        currentExercise.type === "sequence_recall") {
       const isCorrect = checkAnswerCorrectness(currentExercise, value);
       setCurrentAnswerCorrect(isCorrect);
       setShowFeedback(true);
@@ -596,6 +618,53 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
               ))}
             </RadioGroup>
           </div>
+        );
+
+      // ── Beginner exercise types (curated learning path only) ──
+      case "word_recognition":
+        return (
+          <WordRecognitionExercise
+            exercise={{ ...currentExercise, contextSentence: currentExercise.contextSentence }}
+            language={language}
+            onAnswer={handleAnswerChange}
+            showFeedback={showFeedback}
+            isCorrect={currentAnswerCorrect}
+            onNext={handleNext}
+          />
+        );
+
+      case "emoji_match":
+        return (
+          <EmojiMatchExercise
+            exercise={{ ...currentExercise, contextSentence: currentExercise.contextSentence }}
+            language={language}
+            onAnswer={handleAnswerChange}
+            showFeedback={showFeedback}
+            isCorrect={currentAnswerCorrect}
+            onNext={handleNext}
+          />
+        );
+
+      case "comprehension_check":
+        return (
+          <ComprehensionCheckExercise
+            exercise={currentExercise}
+            onAnswer={handleAnswerChange}
+            showFeedback={showFeedback}
+            isCorrect={currentAnswerCorrect}
+            onNext={handleNext}
+          />
+        );
+
+      case "sequence_recall":
+        return (
+          <SequenceRecallExercise
+            exercise={currentExercise}
+            onAnswer={handleAnswerChange}
+            showFeedback={showFeedback}
+            isCorrect={currentAnswerCorrect}
+            onNext={handleNext}
+          />
         );
 
       default:
@@ -876,107 +945,122 @@ export function YouTubeExercises({ videoId, level, intensity, onBack, onComplete
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div>
-            <h3 className="font-medium mb-4 text-lg leading-relaxed">{currentExercise.question}</h3>
-            <TranslationHint translation={(currentExercise as any).questionTranslation} />
-            {renderExercise()}
-          </div>
-          
-          {(currentExercise.type === "Matching" || currentExercise.type === "Sequencing" || 
-            currentExercise.type === "matching" || currentExercise.type === "sequencing") && !showFeedback && (
-            <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-              <p><strong>Tip:</strong> {currentExercise.type === "Matching" || currentExercise.type === "matching" 
-                ? "Click pairs to match terms with definitions." 
-                : "Click statements in the order they appear in the video."}</p>
-            </div>
-          )}
-
-          {/* Immediate Feedback */}
-          {showFeedback && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`p-4 rounded-xl ${
-                currentAnswerCorrect 
-                  ? 'bg-green-500/10 border border-green-500/20' 
-                  : 'bg-red-500/10 border border-red-500/20'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  currentAnswerCorrect ? 'bg-green-500' : 'bg-red-500'
-                }`}>
-                  {currentAnswerCorrect ? (
-                    <CheckCircle className="w-5 h-5 text-white" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-white" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className={`font-medium ${currentAnswerCorrect ? 'text-green-600' : 'text-red-600'}`}>
-                    {currentAnswerCorrect ? 'Correct!' : 'Not quite'}
-                  </p>
-                  {!currentAnswerCorrect && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Correct answer: {currentExercise.correctAnswer}
-                    </p>
-                  )}
-                  {currentExercise.explanation && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {currentExercise.explanation}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Check Answer button for non-MCQ exercises */}
-          {!showFeedback && 
-           (currentExercise.type === "Cloze" || 
-            currentExercise.type === "fill_blank" ||
-            currentExercise.type === "Sequencing" ||
-            currentExercise.type === "sequencing" ||
-            currentExercise.type === "Matching" ||
-            currentExercise.type === "matching" ||
-            currentExercise.type === "SpotError") && 
-           answers[currentExercise.id]?.trim() && (
-            <Button 
-              onClick={handleCheckAnswer}
-              className="w-full bg-primary hover:bg-primary/90"
-            >
-              Check Answer
-            </Button>
-          )}
-          
-          <div className="flex justify-between">
-            <Button
-              variant="outline"
-              disabled={currentExerciseIndex === 0}
-              onClick={() => {
-                setShowFeedback(false);
-                setCurrentExerciseIndex(currentExerciseIndex - 1);
-              }}
-            >
-              Previous
-            </Button>
+          {(() => {
+            const isBeginnerType = ['word_recognition', 'emoji_match', 'comprehension_check', 'sequence_recall'].includes(currentExercise.type);
             
-            {showFeedback ? (
-              <Button 
-                onClick={handleNext}
-                className="bg-primary hover:bg-primary/90"
-              >
-                {currentExerciseIndex === exercises.length - 1 ? "See Results" : "Next"}
-              </Button>
-            ) : (
-              // For MCQ types, don't show Next until feedback is shown
-              (currentExercise.type !== "MCQ" && 
-               currentExercise.type !== "TF" && 
-               currentExercise.type !== "multiple_choice") && (
-                <div /> // Placeholder to maintain flex layout
-              )
-            )}
-          </div>
+            return (
+              <>
+                <div>
+                  {/* Hide standard question for beginner types — they render their own */}
+                  {!isBeginnerType && (
+                    <>
+                      <h3 className="font-medium mb-4 text-lg leading-relaxed">{currentExercise.question}</h3>
+                      <TranslationHint translation={(currentExercise as any).questionTranslation} />
+                    </>
+                  )}
+                  {renderExercise()}
+                </div>
+                
+                {!isBeginnerType && (currentExercise.type === "Matching" || currentExercise.type === "Sequencing" || 
+                  currentExercise.type === "matching" || currentExercise.type === "sequencing") && !showFeedback && (
+                  <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+                    <p><strong>Tip:</strong> {currentExercise.type === "Matching" || currentExercise.type === "matching" 
+                      ? "Click pairs to match terms with definitions." 
+                      : "Click statements in the order they appear in the video."}</p>
+                  </div>
+                )}
+
+                {/* Immediate Feedback — hidden for beginner types (they have their own) */}
+                {!isBeginnerType && showFeedback && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-xl ${
+                      currentAnswerCorrect 
+                        ? 'bg-green-500/10 border border-green-500/20' 
+                        : 'bg-red-500/10 border border-red-500/20'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        currentAnswerCorrect ? 'bg-green-500' : 'bg-red-500'
+                      }`}>
+                        {currentAnswerCorrect ? (
+                          <CheckCircle className="w-5 h-5 text-white" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-white" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-medium ${currentAnswerCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                          {currentAnswerCorrect ? 'Correct!' : 'Not quite'}
+                        </p>
+                        {!currentAnswerCorrect && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Correct answer: {currentExercise.correctAnswer}
+                          </p>
+                        )}
+                        {currentExercise.explanation && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {currentExercise.explanation}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Check Answer button for non-MCQ exercises */}
+                {!isBeginnerType && !showFeedback && 
+                 (currentExercise.type === "Cloze" || 
+                  currentExercise.type === "fill_blank" ||
+                  currentExercise.type === "Sequencing" ||
+                  currentExercise.type === "sequencing" ||
+                  currentExercise.type === "Matching" ||
+                  currentExercise.type === "matching" ||
+                  currentExercise.type === "SpotError") && 
+                 answers[currentExercise.id]?.trim() && (
+                  <Button 
+                    onClick={handleCheckAnswer}
+                    className="w-full bg-primary hover:bg-primary/90"
+                  >
+                    Check Answer
+                  </Button>
+                )}
+                
+                {/* Nav buttons — hidden for beginner types (they have their own Next) */}
+                {!isBeginnerType && (
+                  <div className="flex justify-between">
+                    <Button
+                      variant="outline"
+                      disabled={currentExerciseIndex === 0}
+                      onClick={() => {
+                        setShowFeedback(false);
+                        setCurrentExerciseIndex(currentExerciseIndex - 1);
+                      }}
+                    >
+                      Previous
+                    </Button>
+                    
+                    {showFeedback ? (
+                      <Button 
+                        onClick={handleNext}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        {currentExerciseIndex === exercises.length - 1 ? "See Results" : "Next"}
+                      </Button>
+                    ) : (
+                      (currentExercise.type !== "MCQ" && 
+                       currentExercise.type !== "TF" && 
+                       currentExercise.type !== "multiple_choice") && (
+                        <div />
+                      )
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>

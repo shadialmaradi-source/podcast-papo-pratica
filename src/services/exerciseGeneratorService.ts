@@ -2,7 +2,7 @@ import { extractVocabulary, getContextualSentences } from './youtubeService';
 
 export interface Exercise {
   id: string;
-  type: "MCQ" | "TF" | "Matching" | "Sequencing" | "Cloze" | "SpotError" | "DragDropMatching" | "DragDropSequencing" | "DragDropCategorization" | "DragDropWordOrder" | "SentenceBuilding" | "TimelineOrdering" | "VisualErrorCorrection" | "MultiCategorization" | "fill_blank" | "multiple_choice" | "sequencing" | "matching";
+  type: "MCQ" | "TF" | "Matching" | "Sequencing" | "Cloze" | "SpotError" | "DragDropMatching" | "DragDropSequencing" | "DragDropCategorization" | "DragDropWordOrder" | "SentenceBuilding" | "TimelineOrdering" | "VisualErrorCorrection" | "MultiCategorization" | "fill_blank" | "multiple_choice" | "sequencing" | "matching" | "word_recognition" | "emoji_match" | "comprehension_check" | "sequence_recall";
   question: string;
   options: string[];
   targets?: string[];
@@ -20,6 +20,7 @@ export interface Exercise {
   hints?: string[];
   timeLimit?: number;
   questionTranslation?: string | null;
+  contextSentence?: string | null;
 }
 
 // Generate exercises based on actual transcript content

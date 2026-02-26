@@ -18,14 +18,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { videoId, level, transcript, language, nativeLanguage } = await req.json();
+    const { videoId, level, transcript, language, nativeLanguage, source } = await req.json();
 
     if (!videoId || !level) {
       throw new Error('videoId and level are required');
     }
 
     console.log(`[generate-level-exercises] Starting for video ${videoId}`);
-    console.log(`[generate-level-exercises] Level: ${level}, Language: ${language || 'not specified'}, NativeLanguage: ${nativeLanguage || 'not specified'}`);
+    console.log(`[generate-level-exercises] Level: ${level}, Language: ${language || 'not specified'}, NativeLanguage: ${nativeLanguage || 'not specified'}, Source: ${source || 'community'}`);
 
     // Normalize level to lowercase
     const normalizedLevel = level.toLowerCase();
@@ -177,7 +177,88 @@ CRITICAL QUALITY CONSTRAINTS:
 5. The "questionTranslation" field MUST be a natural translation of the question into ${nativeLangDisplay}
 6. Return ONLY the JSON array, no markdown or code blocks`;
 
-    const userPrompt = `${levelPrompts[normalizedLevel] || levelPrompts.beginner}
+    // Use special beginner prompt for curated learning path
+    const isCuratedBeginner = source === 'curated' && normalizedLevel === 'beginner';
+
+    const curatedBeginnerFormat = `
+Generate EXACTLY 5 exercises with this EXACT distribution:
+- 2 exercises where "type" = "word_recognition"
+- 1 exercise where "type" = "emoji_match"
+- 1 exercise where "type" = "comprehension_check"
+- 1 exercise where "type" = "sequence_recall"
+
+EXERCISE FORMATS (return JSON array):
+
+For word_recognition (2 total):
+{
+  "type": "word_recognition",
+  "question": "Was this word in the video?",
+  "targetWord": "the key word in ${languageDisplay}",
+  "options": ["Yes", "No"],
+  "correctAnswer": "Yes" or "No",
+  "explanation": "Brief explanation in ${nativeLangDisplay}",
+  "questionTranslation": "Translation of the question in ${nativeLangDisplay}"
+}
+Rules: Pick important nouns or verbs from transcript. One should be TRUE (word is in video), one FALSE (word is NOT in video but plausible).
+
+For emoji_match (1 total):
+{
+  "type": "emoji_match",
+  "question": "Which emoji matches this word?",
+  "targetWord": "word in ${languageDisplay}",
+  "options": ["🦷", "🍴", "😴", "👕"],
+  "correctAnswer": "🦷",
+  "explanation": "Brief explanation in ${nativeLangDisplay}",
+  "questionTranslation": "Translation in ${nativeLangDisplay}"
+}
+Rules: Pick a concrete noun from the transcript. Provide exactly 4 emoji options. One must clearly match the word. Others should be unrelated but common.
+
+For comprehension_check (1 total):
+{
+  "type": "comprehension_check",
+  "question": "Simple yes/no question about the video in ${languageDisplay}",
+  "options": ["Yes", "No"],
+  "correctAnswer": "Yes" or "No",
+  "explanation": "Brief explanation in ${nativeLangDisplay}",
+  "questionTranslation": "Translation of the question in ${nativeLangDisplay}"
+}
+Rules: Ask about a clear, obvious fact from the video. Keep the question very short and simple.
+
+For sequence_recall (1 total):
+{
+  "type": "sequence_recall",
+  "question": "What happened FIRST? / What did [person] do first?",
+  "options": ["Action A", "Action B", "Action C"],
+  "correctAnswer": "Action A",
+  "explanation": "Brief explanation in ${nativeLangDisplay}",
+  "questionTranslation": "Translation of the question in ${nativeLangDisplay}"
+}
+Rules: Use 3 clear actions/events from the video. Ask which came first. Keep options very short (2-4 words each).
+
+CRITICAL CONSTRAINTS:
+1. Keep ALL text extremely simple — A1 absolute beginner level
+2. Use only concrete, common words (no abstract concepts)
+3. ALL questions and options in ${languageDisplay}, explanations in ${nativeLangDisplay}
+4. "questionTranslation" MUST be in ${nativeLangDisplay}
+5. Return ONLY the JSON array, no markdown or code blocks
+6. The "targetWord" field is required for word_recognition and emoji_match types`;
+
+    const curatedBeginnerLevel = `SUPER BEGINNER (A1) Level — Curated Learning Path:
+- These are absolute beginners who may have NEVER studied ${languageDisplay} before
+- Use only the most basic, concrete words from the transcript
+- Focus on recognition, not production
+- No grammar knowledge required
+- No reading comprehension of sentences
+- Only single words or very short phrases (2-3 words max)`;
+
+    const userPrompt = isCuratedBeginner 
+      ? `${curatedBeginnerLevel}
+
+TRANSCRIPT:
+${truncatedTranscript}
+
+${curatedBeginnerFormat}`
+      : `${levelPrompts[normalizedLevel] || levelPrompts.beginner}
 
 TRANSCRIPT:
 ${truncatedTranscript}
@@ -247,19 +328,25 @@ ${formatInstructions}`;
       console.log(`[generate-level-exercises] Parsed ${exercises.length} exercises`);
 
       // Format exercises for database
-      const formattedExercises = exercises.map((exercise: any, index: number) => ({
-        video_id: videoId,
-        question: exercise.question,
-        exercise_type: exercise.type || 'multiple_choice',
-        options: exercise.options,
-        correct_answer: exercise.correctAnswer,
-        explanation: exercise.explanation || '',
-        question_translation: exercise.questionTranslation || null,
-        difficulty: normalizedLevel,
-        intensity: 'intense',
-        xp_reward: xpReward,
-        order_index: index
-      }));
+      const formattedExercises = exercises.map((exercise: any, index: number) => {
+        // For curated beginner types, store targetWord in context_sentence field
+        const contextSentence = exercise.targetWord || exercise.context_sentence || null;
+        
+        return {
+          video_id: videoId,
+          question: exercise.question,
+          exercise_type: exercise.type || 'multiple_choice',
+          options: exercise.options,
+          correct_answer: exercise.correctAnswer,
+          explanation: exercise.explanation || '',
+          question_translation: exercise.questionTranslation || null,
+          context_sentence: contextSentence,
+          difficulty: normalizedLevel,
+          intensity: 'intense',
+          xp_reward: xpReward,
+          order_index: index
+        };
+      });
 
       // Save exercises to database
       const { error: insertError } = await supabase

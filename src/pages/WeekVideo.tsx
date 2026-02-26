@@ -199,6 +199,7 @@ export default function WeekVideo() {
         {lessonStep === "video" && (
           <YouTubeVideoExercises
             videoId={linkedVideoId!}
+            source="curated"
             onBack={() => navigate(`/learn/week/${video.week_id}`)}
             onStartExercises={() => setLessonStep("exercises")}
           />
@@ -209,6 +210,8 @@ export default function WeekVideo() {
             videoId={linkedVideoId!}
             level="beginner"
             intensity="intense"
+            source="curated"
+            language={week.language || "italian"}
             onBack={() => setLessonStep("video")}
             onComplete={() => setLessonStep("speaking")}
             onContinueToSpeaking={() => setLessonStep("speaking")}
@@ -306,6 +309,8 @@ export default function WeekVideo() {
               videoId={effectiveLinkedId}
               level="beginner"
               intensity="intense"
+              source="curated"
+              language={week.language || "italian"}
               onBack={() => setHybridStep("video")}
               onComplete={() => setHybridStep("speaking")}
               onContinueToSpeaking={() => setHybridStep("speaking")}
