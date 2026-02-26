@@ -1,54 +1,70 @@
 
 
-# Fix: "permission denied for table users"
+# A1 Beginner Exercises — Curated Learning Path Only
 
-## Root Cause
+## Scope Constraint
+New simplified exercise types apply **only** when exercises are triggered from the **Curated learning path** (WeekVideo.tsx). The Community video section (`YouTubeVideoExercises.tsx`) remains completely unchanged.
 
-The RLS policies on `teacher_lessons` and `lesson_exercises` contain direct subqueries against `auth.users`:
+## How to distinguish curated vs community
 
-```sql
-student_email = (SELECT users.email FROM auth.users WHERE users.id = auth.uid())
-```
+The curated path flows through `WeekVideo.tsx`, which calls either:
+- `setup-week-video-exercises` (hybrid mode) → then `YouTubeExercises`
+- `YouTubeVideoExercises` → then `YouTubeExercises`
 
-The `authenticated` Postgres role does not have SELECT permission on `auth.users`. When the teacher inserts a lesson and the `.select("id")` triggers a SELECT evaluation, Postgres tries to evaluate ALL SELECT policies — including the student one that queries `auth.users` — and fails with "permission denied for table users".
+Both pass `level="beginner"` hardcoded. We add a `source: 'curated'` flag that propagates through the chain.
 
-## Fix
+## Changes
 
-1. **Create a `SECURITY DEFINER` function** `get_auth_user_email()` that safely returns the current user's email. Since it runs as the function owner (who has access to `auth.users`), it bypasses the permission issue.
+### 1. Edge function: beginner-specific prompt for curated source
+**File: `supabase/functions/generate-level-exercises/index.ts`**
 
-2. **Update 3 RLS policies** that reference `auth.users` to use the new function instead:
-   - `teacher_lessons` → "Students can view assigned lessons"
-   - `lesson_exercises` → "Students can view assigned lesson exercises"
-   - `lesson_responses` → "Teachers can read responses for own lessons" (this one references `teacher_lessons` which itself triggers the student policy)
+- Accept new `source` parameter from request body
+- When `source === 'curated'` AND `normalizedLevel === 'beginner'`, use a completely different prompt that generates these 5 exercise types:
+  - **2x `word_recognition`** — "Was this word in the video?" YES/NO, with the target word displayed large and a TTS button
+  - **1x `emoji_match`** — "Which emoji matches this word?" with 4 emoji options
+  - **1x `comprehension_check`** — Simple YES/NO question about video content
+  - **1x `sequence_recall`** — "What happened FIRST?" with 3 simple text options (stored as `multiple_choice` type with 3 options)
+- All other combinations (community, intermediate, advanced) use the existing prompt unchanged
 
-### Migration SQL
+### 2. New UI component for beginner exercise types
+**New file: `src/components/exercises/BeginnerExercises.tsx`**
 
-```sql
--- 1. Helper function
-CREATE OR REPLACE FUNCTION public.get_auth_user_email()
-RETURNS text
-LANGUAGE sql
-STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT email::text FROM auth.users WHERE id = auth.uid()
-$$;
+Exports individual renderer components for each new type:
+- **`WordRecognitionExercise`**: Large word display + "Hear it" button (browser `SpeechSynthesis`) + Skip button + YES/NO buttons
+- **`EmojiMatchExercise`**: Word displayed + grid of 4 large emoji buttons (80x80px)
+- **`ComprehensionCheckExercise`**: Question text + YES/NO buttons
+- All include immediate feedback (green/red) and "Next" button
+- Browser TTS via `window.speechSynthesis` for pronunciation (free, no audio files needed)
 
--- 2. Drop and recreate affected policies
-DROP POLICY IF EXISTS "Students can view assigned lessons" ON public.teacher_lessons;
-CREATE POLICY "Students can view assigned lessons"
-  ON public.teacher_lessons FOR SELECT
-  USING (student_email = public.get_auth_user_email());
+### 3. Wire new types into YouTubeExercises.tsx
+**File: `src/components/YouTubeExercises.tsx`**
 
-DROP POLICY IF EXISTS "Students can view assigned lesson exercises" ON public.lesson_exercises;
-CREATE POLICY "Students can view assigned lesson exercises"
-  ON public.lesson_exercises FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM teacher_lessons tl
-    WHERE tl.id = lesson_exercises.lesson_id
-      AND tl.student_email = public.get_auth_user_email()
-  ));
-```
+- In `mapDbTypeToExerciseType()`: pass through `word_recognition`, `emoji_match`, `comprehension_check` as-is
+- In `checkAnswerCorrectness()`: add cases for new types (simple string comparison, "Yes"/"No" matching)
+- In `renderExercise()`: add case branches that render the components from `BeginnerExercises.tsx`
 
-No frontend code changes needed — this is purely a database permissions fix.
+### 4. Pass `source` flag from WeekVideo.tsx
+**File: `src/pages/WeekVideo.tsx`**
+
+- When calling `YouTubeVideoExercises` or `YouTubeExercises` from the curated path, pass a new prop `source="curated"`
+- `YouTubeVideoExercises` forwards `source` to the edge function call body
+- `YouTubeExercises` receives it for potential UI adjustments (e.g., hiding "Try Next Level" for curated)
+
+### 5. Forward source in YouTubeVideoExercises
+**File: `src/components/YouTubeVideoExercises.tsx`**
+
+- Accept optional `source` prop
+- Include `source` in the `generate-level-exercises` edge function call body
+- No other changes to community flow (source will be undefined, edge function uses standard prompt)
+
+### 6. Update setup-week-video-exercises edge function
+**File: `supabase/functions/setup-week-video-exercises/index.ts`**
+
+- When this function calls `generate-level-exercises` internally, include `source: 'curated'` in the request body so hybrid-mode exercises also get the beginner treatment
+
+## What stays unchanged
+- Community tab exercise generation (no `source` prop → standard exercises)
+- Community tab UI and level selection
+- Intermediate and advanced exercises everywhere
+- Database schema (new types fit existing `exercise_type` text column)
 
