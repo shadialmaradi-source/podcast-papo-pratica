@@ -11,6 +11,7 @@ import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 
 interface YouTubeVideoExercisesProps {
   videoId: string;
+  source?: string;
   onBack: () => void;
   onStartExercises: (level: string) => void;
 }
@@ -48,7 +49,7 @@ const mapDifficultyLevel = (level: string): string => {
   }
 };
 
-const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, onBack, onStartExercises }) => {
+const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, source, onBack, onStartExercises }) => {
   const { isPremium } = useSubscription();
   const [videoData, setVideoData] = useState<VideoData | null>(null);
   const [transcript, setTranscript] = useState<string>('');
@@ -206,7 +207,8 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
           level: dbLevel, 
           transcript: transcriptData.transcript,
           language: videoData.language || 'italian',
-          nativeLanguage: userNativeLanguage
+          nativeLanguage: userNativeLanguage,
+          source: source || undefined
         }
       });
 

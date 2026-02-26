@@ -128,18 +128,32 @@ serve(async (req) => {
     if (existingExercises && existingExercises.length > 0) {
       console.log('Exercises already exist, skipping generation');
     } else {
-      // Step 4: Generate exercises using AI
-      const exercises = await generateExercises(transcript, youtubeVideoId, language);
-      if (exercises.length > 0) {
-        const { error: insertError } = await supabase
-          .from('youtube_exercises')
-          .insert(exercises);
+      // Step 4: Generate exercises via generate-level-exercises edge function with source='curated'
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+      
+      const genResponse = await fetch(`${supabaseUrl}/functions/v1/generate-level-exercises`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader!,
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
+        },
+        body: JSON.stringify({
+          videoId: youtubeVideoId,
+          level: 'beginner',
+          transcript: transcript,
+          language: language,
+          source: 'curated'
+        })
+      });
 
-        if (insertError) {
-          console.error('Error inserting exercises:', insertError);
-          throw new Error('Failed to save exercises');
-        }
-        console.log('Generated', exercises.length, 'exercises');
+      const genData = await genResponse.json();
+      if (!genResponse.ok || genData.error) {
+        console.error('Error generating exercises via edge function:', genData.error);
+        // Non-fatal: we still link the video even if exercise generation fails
+      } else {
+        console.log('Generated exercises via edge function:', genData.count);
       }
     }
 
