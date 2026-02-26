@@ -60,9 +60,19 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  const curatedAutoStarted = useRef(false);
+
   useEffect(() => {
     loadVideoData();
   }, [videoId]);
+
+  // Auto-start beginner exercises for curated path
+  useEffect(() => {
+    if (source === 'curated' && videoData && !curatedAutoStarted.current && !isGenerating) {
+      curatedAutoStarted.current = true;
+      handleStartExercises('beginner');
+    }
+  }, [source, videoData]);
 
   const loadVideoData = async () => {
     try {
@@ -349,63 +359,78 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
           {/* Exercise Selection Panel */}
           <div className="lg:col-span-1">
-            <Card className="sticky top-6">
-              <CardHeader>
-                <CardTitle>Practice Exercises</CardTitle>
-                <CardDescription>
-                  Choose your learning level to start practicing
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <div className="text-sm text-muted-foreground space-y-2">
-                    <p className="font-medium">What you'll practice:</p>
-                    <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li>Video vocabulary</li>
-                      <li>Listening comprehension</li>
-                      <li>Grammar and sentence structure</li>
-                      <li>Context-based exercises</li>
-                    </ul>
-                  </div>
+            {source === 'curated' ? (
+              <Card className="sticky top-6">
+                <CardHeader>
+                  <CardTitle>Beginner Exercises</CardTitle>
+                  <CardDescription>
+                    Preparing your A1 exercises...
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                  <p className="text-sm text-muted-foreground">Generating exercises from the video...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="sticky top-6">
+                <CardHeader>
+                  <CardTitle>Practice Exercises</CardTitle>
+                  <CardDescription>
+                    Choose your learning level to start practicing
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="text-sm text-muted-foreground space-y-2">
+                      <p className="font-medium">What you'll practice:</p>
+                      <ul className="list-disc list-inside space-y-1 text-xs">
+                        <li>Video vocabulary</li>
+                        <li>Listening comprehension</li>
+                        <li>Grammar and sentence structure</li>
+                        <li>Context-based exercises</li>
+                      </ul>
+                    </div>
 
-                  <div className="text-sm font-medium mb-2">Choose difficulty level:</div>
-                  
-                  <div className="space-y-3">
-                    {['beginner', 'intermediate', 'advanced'].map((level) => {
-                      const levelConfig = {
-                        beginner: { label: 'Beginner (A1-A2)', desc: '10 exercises • Basic vocabulary', color: 'green' },
-                        intermediate: { label: 'Intermediate (B1-B2)', desc: '10 exercises • Complex grammar', color: 'orange' },
-                        advanced: { label: 'Advanced (C1-C2)', desc: '10 exercises • Abstract concepts', color: 'red' }
-                      }[level]!;
-                      
-                      const isLevelGenerating = isGenerating && generatingLevel === level;
-                      
-                      return (
-                        <Button 
-                          key={level}
-                          className={`w-full justify-start h-auto p-3 bg-${levelConfig.color}-500/10 border-${levelConfig.color}-500/30 hover:bg-${levelConfig.color}-500/20 text-foreground`}
-                          variant="outline"
-                          onClick={() => handleStartExercises(level)}
-                          disabled={isGenerating}
-                        >
-                        {isLevelGenerating ? (
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              <span>Generating...</span>
-                            </div>
-                          ) : (
-                            <div className="text-left">
-                              <div className="font-medium">{levelConfig.label}</div>
-                              <div className="text-xs text-muted-foreground">{levelConfig.desc}</div>
-                            </div>
-                          )}
-                        </Button>
-                      );
-                    })}
+                    <div className="text-sm font-medium mb-2">Choose difficulty level:</div>
+                    
+                    <div className="space-y-3">
+                      {['beginner', 'intermediate', 'advanced'].map((level) => {
+                        const levelConfig = {
+                          beginner: { label: 'Beginner (A1-A2)', desc: '10 exercises • Basic vocabulary', color: 'green' },
+                          intermediate: { label: 'Intermediate (B1-B2)', desc: '10 exercises • Complex grammar', color: 'orange' },
+                          advanced: { label: 'Advanced (C1-C2)', desc: '10 exercises • Abstract concepts', color: 'red' }
+                        }[level]!;
+                        
+                        const isLevelGenerating = isGenerating && generatingLevel === level;
+                        
+                        return (
+                          <Button 
+                            key={level}
+                            className={`w-full justify-start h-auto p-3 bg-${levelConfig.color}-500/10 border-${levelConfig.color}-500/30 hover:bg-${levelConfig.color}-500/20 text-foreground`}
+                            variant="outline"
+                            onClick={() => handleStartExercises(level)}
+                            disabled={isGenerating}
+                          >
+                          {isLevelGenerating ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Generating...</span>
+                              </div>
+                            ) : (
+                              <div className="text-left">
+                                <div className="font-medium">{levelConfig.label}</div>
+                                <div className="text-xs text-muted-foreground">{levelConfig.desc}</div>
+                              </div>
+                            )}
+                          </Button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
