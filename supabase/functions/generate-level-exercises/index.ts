@@ -30,12 +30,13 @@ serve(async (req) => {
     // Normalize level to lowercase
     const normalizedLevel = level.toLowerCase();
 
-    // Check if exercises already exist for this level
+    // Check if exercises already exist for this level + native language
     const { count: existingCount } = await supabase
       .from('youtube_exercises')
       .select('id', { count: 'exact', head: true })
       .eq('video_id', videoId)
-      .eq('difficulty', normalizedLevel);
+      .eq('difficulty', normalizedLevel)
+      .eq('native_language', nativeLangName);
 
     if (existingCount && existingCount > 0) {
       console.log(`[generate-level-exercises] Exercises already exist for ${normalizedLevel} level: ${existingCount}`);
@@ -344,7 +345,8 @@ ${formatInstructions}`;
           difficulty: normalizedLevel,
           intensity: 'intense',
           xp_reward: xpReward,
-          order_index: index
+          order_index: index,
+          native_language: nativeLangName
         };
       });
 

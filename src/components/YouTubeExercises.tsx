@@ -218,6 +218,29 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
       setError("");
       
       try {
+        // Resolve the user's native language for filtering
+        let userNativeLanguage = '';
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('native_language')
+            .eq('user_id', authUser.id)
+            .single();
+          if (profile?.native_language) {
+            userNativeLanguage = profile.native_language;
+          }
+        }
+        if (!userNativeLanguage) {
+          const stored = localStorage.getItem('onboarding_native_language');
+          if (stored) userNativeLanguage = stored;
+        }
+        if (!userNativeLanguage) {
+          const browserLang = navigator.language.split('-')[0].toLowerCase();
+          const langMap: Record<string, string> = { en: 'english', it: 'italian', es: 'spanish', pt: 'portuguese', fr: 'french' };
+          userNativeLanguage = langMap[browserLang] || 'english';
+        }
+
         // First, try to get video by YouTube video_id
         let { data: videoData } = await supabase
           .from('youtube_videos')
@@ -242,7 +265,8 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
           const { data: dbExercises, error: dbError } = await supabase
             .rpc('get_youtube_exercises_with_answers', { 
               video_id_param: videoData.id,
-              difficulty_param: dbDifficulty
+              difficulty_param: dbDifficulty,
+              native_language_param: userNativeLanguage
             });
 
           if (dbError) {
@@ -256,6 +280,7 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
                 .select('*')
                 .eq('video_id', videoData.id)
                 .eq('difficulty', dbDifficulty)
+                .eq('native_language', userNativeLanguage)
                 .order('order_index');
               
               if (fallbackExercises && fallbackExercises.length > 0) {
