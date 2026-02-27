@@ -60,19 +60,9 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const curatedAutoStarted = useRef(false);
-
   useEffect(() => {
     loadVideoData();
   }, [videoId]);
-
-  // Auto-start beginner exercises for curated path
-  useEffect(() => {
-    if (source === 'curated' && videoData && !curatedAutoStarted.current && !isGenerating) {
-      curatedAutoStarted.current = true;
-      handleStartExercises('beginner');
-    }
-  }, [source, videoData]);
 
   const loadVideoData = async () => {
     try {
@@ -364,12 +354,31 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                 <CardHeader>
                   <CardTitle>Beginner Exercises</CardTitle>
                   <CardDescription>
-                    Preparing your A1 exercises...
+                    Watch the video and read the transcript, then practice what you learned!
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                  <p className="text-sm text-muted-foreground">Generating exercises from the video...</p>
+                <CardContent className="space-y-4">
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <p className="font-medium">What you'll practice:</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li>Video vocabulary</li>
+                      <li>Listening comprehension</li>
+                      <li>Grammar and sentence structure</li>
+                    </ul>
+                  </div>
+                  <Button
+                    variant="learning"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => handleStartExercises('beginner')}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
+                    ) : (
+                      'Practice with Exercises'
+                    )}
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
