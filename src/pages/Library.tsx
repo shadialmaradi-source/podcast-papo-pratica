@@ -42,6 +42,16 @@ export default function Library() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLanguage, setUserLanguage] = useState<string>(localStorage.getItem('onboarding_language') || 'english');
+  const [curatedVideoIds, setCuratedVideoIds] = useState<Set<string>>(new Set());
+
+  // Fetch curated video IDs (linked from week_videos)
+  useEffect(() => {
+    supabase.from("week_videos").select("linked_video_id")
+      .not("linked_video_id", "is", null)
+      .then(({ data }) => {
+        setCuratedVideoIds(new Set(data?.map(r => r.linked_video_id).filter(Boolean) as string[] || []));
+      });
+  }, []);
 
   // Fetch user's language preference
   useEffect(() => {
@@ -105,6 +115,11 @@ export default function Library() {
       
       // Filter by curated/community
       const tabMatch = activeTab === 'curated' ? video.is_curated : !video.is_curated;
+
+      // Exclude curated-linked videos from community tab
+      if (activeTab === 'community' && curatedVideoIds.has(video.id)) {
+        return false;
+      }
       
       // Filter by topic (check if video has the selected topic)
       let topicMatch = true;
@@ -131,7 +146,7 @@ export default function Library() {
 
       return levelMatch && tabMatch && topicMatch && lengthMatch;
     });
-  }, [videos, selectedLevel, activeTab, selectedTopic, selectedLength]);
+  }, [videos, selectedLevel, activeTab, selectedTopic, selectedLength, curatedVideoIds]);
 
   // Get featured videos (first 4-6 from filtered)
   const featuredVideos = filteredVideos.slice(0, 6);
