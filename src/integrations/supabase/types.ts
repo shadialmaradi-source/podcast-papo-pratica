@@ -1481,6 +1481,7 @@ export type Database = {
           created_at: string
           difficulty: string
           id: string
+          native_language: string | null
           order_index: number
           phrase: string
           translation: string
@@ -1491,6 +1492,7 @@ export type Database = {
           created_at?: string
           difficulty?: string
           id?: string
+          native_language?: string | null
           order_index?: number
           phrase: string
           translation: string
@@ -1501,6 +1503,7 @@ export type Database = {
           created_at?: string
           difficulty?: string
           id?: string
+          native_language?: string | null
           order_index?: number
           phrase?: string
           translation?: string

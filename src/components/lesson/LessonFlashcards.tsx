@@ -22,8 +22,9 @@ interface LessonFlashcardsProps {
 const getNativeLanguageFlag = (code: string): string => {
   const flags: Record<string, string> = {
     en: '🇬🇧', es: '🇪🇸', pt: '🇧🇷', fr: '🇫🇷', it: '🇮🇹',
+    english: '🇬🇧', spanish: '🇪🇸', portuguese: '🇧🇷', french: '🇫🇷', italian: '🇮🇹',
   };
-  return flags[code] || '🌐';
+  return flags[code?.toLowerCase()] || '🌐';
 };
 
 const LessonFlashcards = ({ flashcards, onComplete, language = "english", nativeLanguage = "en" }: LessonFlashcardsProps) => {

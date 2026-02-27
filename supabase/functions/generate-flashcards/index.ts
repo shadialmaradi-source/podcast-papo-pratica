@@ -65,12 +65,15 @@ serve(async (req) => {
       );
     }
 
-    // Check if flashcards already exist for this video and level
+    const effectiveNativeLang = nativeLanguage || 'en';
+
+    // Check if flashcards already exist for this video, level, and native language
     const { data: existingFlashcards, error: fetchError } = await supabaseClient
       .from('youtube_flashcards')
       .select('*')
       .eq('video_id', videoId)
       .eq('difficulty', level || 'beginner')
+      .eq('native_language', effectiveNativeLang)
       .order('order_index');
 
     if (fetchError) {
@@ -197,6 +200,7 @@ ${transcript.slice(0, 4000)}`;
       why: f.why,
       order_index: index,
       difficulty: targetLevel,
+      native_language: effectiveNativeLang,
     }));
 
     const { error: insertError } = await supabaseClient

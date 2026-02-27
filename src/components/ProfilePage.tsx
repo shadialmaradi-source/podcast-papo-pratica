@@ -28,8 +28,10 @@ import {
   X,
   CreditCard,
   Loader2,
-  GraduationCap
+  GraduationCap,
+  Globe
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { FlashcardRepository } from "./FlashcardRepository";
 import { getFlashcardCount, getUserCreatedFlashcardCount } from "@/services/flashcardService";
@@ -47,6 +49,7 @@ interface UserProfile {
   full_name: string;
   avatar_url: string;
   selected_language: string;
+  native_language: string | null;
   current_level: string;
   total_xp: number;
   current_streak: number;
@@ -887,16 +890,42 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                 <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180" />
               </div>
               
-              {/* Account */}
-              <div 
-                className="flex items-center justify-between py-2 cursor-pointer hover:bg-muted/50 -mx-3 px-3 rounded-lg transition-colors"
-                onClick={() => toast.info("Account settings coming soon!")}
-              >
+              {/* Native Language */}
+              <div className="flex items-center justify-between py-2 -mx-3 px-3 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span>Account</span>
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                  <span>Native Language</span>
                 </div>
-                <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180" />
+                <Select
+                  value={profile?.native_language || 'en'}
+                  onValueChange={async (value) => {
+                    if (!user) return;
+                    try {
+                      const { error } = await supabase
+                        .from('profiles')
+                        .update({ native_language: value })
+                        .eq('user_id', user.id);
+                      if (error) throw error;
+                      setProfile(prev => prev ? { ...prev, native_language: value } : null);
+                      localStorage.setItem('onboarding_native_language', value);
+                      toast.success('Native language updated!');
+                    } catch (err) {
+                      console.error('Error updating native language:', err);
+                      toast.error('Failed to update native language');
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">🇬🇧 English</SelectItem>
+                    <SelectItem value="es">🇪🇸 Español</SelectItem>
+                    <SelectItem value="pt">🇧🇷 Português</SelectItem>
+                    <SelectItem value="fr">🇫🇷 Français</SelectItem>
+                    <SelectItem value="it">🇮🇹 Italiano</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               {/* Logout */}
