@@ -162,7 +162,7 @@ Rules: Use high-value chunks from transcript, 1 blank per question, meaningful w
 For sequencing (1 total):
 {
   "type": "sequencing",
-  "question": "Ordina gli eventi in ordine cronologico.",
+  "question": "Put the events in chronological order (in ${languageDisplay})",
   "options": ["Event 1", "Event 2", "Event 3", "Event 4"],
   "correctAnswer": "0,1,2,3",
   "explanation": "Explanation in ${languageDisplay}",
