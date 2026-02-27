@@ -1,35 +1,33 @@
 
 
-# Fix Curated Learning Path: Skip Level Picker & Force Beginner Exercises
+# Fix Flashcard Translation Language + Add Native Language Setting
 
-## Issues
+## Two Issues
 
-1. **3-level picker shown in curated path** — `YouTubeVideoExercises` renders beginner/intermediate/advanced buttons even when `source="curated"`. For the curated learning path, the level is always beginner and should auto-start.
-2. **Old exercises persist** — `setup-week-video-exercises` skips exercise generation if any exercises already exist for that video. Since exercises were generated before the beginner types were added, old standard exercises are shown instead of the new simplified ones.
+1. **Flashcards ignore native language**: The `youtube_flashcards` table caches by `video_id` + `difficulty` only — no `native_language` column. So flashcards generated with English translations are served to Italian speakers. The screenshot confirms: "despertar" shows Spanish (not Italian), likely because the flashcard was generated/cached without considering the user's native language.
+
+2. **No way to change native language in profile settings**: The "Account" setting just shows a "coming soon" toast.
 
 ## Changes
 
-### 1. Auto-start exercises when `source="curated"`
-**File: `src/components/YouTubeVideoExercises.tsx`**
+### 1. Add `native_language` column to `youtube_flashcards`
+**Migration**: Add a `native_language TEXT DEFAULT 'en'` column. Update the existing rows to `'en'`.
 
-When `source === "curated"`, skip the level selection panel entirely. After loading video data, automatically call `handleStartExercises("beginner")` — which deletes existing exercises and regenerates them with the curated beginner prompt.
+### 2. Update `generate-flashcards` edge function
+**File: `supabase/functions/generate-flashcards/index.ts`**
+- Cache lookup: add `.eq('native_language', nativeLanguage)` to the existing query (line ~70)
+- Insert: include `native_language` in each flashcard row (line ~170)
+- This means each video gets separate flashcard sets per native language
 
-Replace the exercise selection panel (lines 350-409) with a conditional: if `source === "curated"`, show a simple "Start Exercises" button that auto-triggers beginner generation, or auto-trigger it on mount after video data loads.
+### 3. Add native language selector in Profile Settings
+**File: `src/components/ProfilePage.tsx`**
+- Load `native_language` from profile data (it's already fetched but not in the `UserProfile` interface)
+- Add `native_language` to the `UserProfile` interface
+- Replace the "Account" placeholder with a native language picker using a `Select` dropdown
+- Options: English 🇬🇧, Spanish 🇪🇸, Portuguese 🇧🇷, French 🇫🇷, Italian 🇮🇹
+- On change: update `profiles.native_language` in Supabase + update localStorage `onboarding_native_language` + show toast
 
-### 2. Force regeneration for curated source in `setup-week-video-exercises`
-**File: `supabase/functions/setup-week-video-exercises/index.ts`**
-
-When calling `generate-level-exercises` with `source: 'curated'`, delete existing beginner exercises first before generating new ones. Change the "exercises already exist" check to only skip for non-curated sources — or simply always regenerate for curated.
-
-### 3. Auto-trigger on curated flow
-**File: `src/components/YouTubeVideoExercises.tsx`**
-
-Add a `useEffect` that, when `source === "curated"` and `videoData` is loaded, automatically calls `handleStartExercises("beginner")` so the user never sees the level picker. Show only the video, transcript, and a loading spinner while generating.
-
-## Summary
-
-| File | Change |
-|------|--------|
-| `src/components/YouTubeVideoExercises.tsx` | Auto-start beginner exercises when `source="curated"`, hide level picker |
-| `supabase/functions/setup-week-video-exercises/index.ts` | Delete existing beginner exercises before regenerating for curated source |
+### 4. Fix `LessonFlashcards` flag display
+**File: `src/components/lesson/LessonFlashcards.tsx`**
+- The `getNativeLanguageFlag` function uses 2-letter codes (`it`, `en`) but it's possible the value passed is a full word (`italian`). Add mappings for both formats to ensure the correct flag shows.
 
