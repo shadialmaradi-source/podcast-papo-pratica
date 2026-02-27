@@ -1,35 +1,28 @@
 
 
-# Exclude Curated Videos from Community Tab
+# Fix Exercise Translations to Match User's Native Language
 
 ## Problem
-Videos that are part of the curated learning path (linked via `week_videos.linked_video_id`) also appear in the Community tab, creating duplicates.
+Same caching issue as flashcards: `youtube_exercises` table has no `native_language` column. Exercises are cached by `video_id` + `difficulty` only. Once generated for one user (e.g., with English translations), all subsequent users get the same translations regardless of their native language setting.
 
-## Change
+## Changes
 
-**File: `src/pages/Library.tsx`**
+### 1. Database Migration
+Add `native_language TEXT DEFAULT 'en'` column to `youtube_exercises` table. Set existing rows to `'en'`.
 
-1. Fetch all `linked_video_id` values from `week_videos` table alongside the existing video fetch
-2. In the `filteredVideos` memo, when `activeTab === 'community'`, exclude any video whose `id` is in the set of curated linked video IDs
+### 2. Edge Function: `generate-level-exercises/index.ts`
+- **Cache check** (line 34-38): Add `.eq('native_language', nativeLangName)` so exercises are cached per native language
+- **Insert** (line 335-348): Include `native_language: nativeLangName` in each formatted exercise row
 
-```typescript
-// New state
-const [curatedVideoIds, setCuratedVideoIds] = useState<Set<string>>(new Set());
+### 3. Client: Exercise fetching in `YouTubeExercises.tsx`
+- The `get_youtube_exercises_with_answers` RPC function needs a `native_language_param` parameter, OR the client query needs to filter by native language
+- Update the RPC call (line 242-245) to pass the user's native language so the correct translation set is returned
 
-// Fetch curated video IDs
-useEffect(() => {
-  supabase.from("week_videos").select("linked_video_id")
-    .not("linked_video_id", "is", null)
-    .then(({ data }) => {
-      setCuratedVideoIds(new Set(data?.map(r => r.linked_video_id) || []));
-    });
-}, []);
+### 4. Update RPC function `get_youtube_exercises_with_answers`
+- Add `native_language_param` parameter (default `'en'`)
+- Add `WHERE native_language = native_language_param` filter
 
-// In filteredVideos filter, add:
-if (activeTab === 'community') {
-  return levelMatch && topicMatch && lengthMatch && !curatedVideoIds.has(video.id);
-}
-```
-
-This ensures any video linked to a learning week is hidden from the Community tab while still appearing in the Curated learning path.
+### 5. Update Supabase types
+- Add `native_language` field to `youtube_exercises` Row/Insert/Update types
+- Update RPC function args type
 
