@@ -1,33 +1,20 @@
 
 
-# Fix Flashcard Translation Language + Add Native Language Setting
+# Fix: Let Users Watch Video Before Starting Exercises in Curated Path
 
-## Two Issues
+## Problem
+The `useEffect` on line 70-75 of `YouTubeVideoExercises.tsx` auto-triggers `handleStartExercises('beginner')` as soon as video data loads for curated sources. This skips the video player and transcript, jumping straight to exercise generation.
 
-1. **Flashcards ignore native language**: The `youtube_flashcards` table caches by `video_id` + `difficulty` only — no `native_language` column. So flashcards generated with English translations are served to Italian speakers. The screenshot confirms: "despertar" shows Spanish (not Italian), likely because the flashcard was generated/cached without considering the user's native language.
+## Change
 
-2. **No way to change native language in profile settings**: The "Account" setting just shows a "coming soon" toast.
+**File: `src/components/YouTubeVideoExercises.tsx`**
 
-## Changes
+1. **Remove the auto-start `useEffect`** (lines 69-75) — delete the curated auto-start logic and the `curatedAutoStarted` ref (line 63).
 
-### 1. Add `native_language` column to `youtube_flashcards`
-**Migration**: Add a `native_language TEXT DEFAULT 'en'` column. Update the existing rows to `'en'`.
+2. **Replace the level picker section for curated source** — instead of showing 3 level buttons OR auto-starting, show the video + transcript normally with a single prominent "Start Exercises" button below. When `source === 'curated'`, render:
+   - The video player and transcript (already rendered above)
+   - A single large button: "Practice with Exercises" that calls `handleStartExercises('beginner')`
+   - Hide the 3-level picker entirely
 
-### 2. Update `generate-flashcards` edge function
-**File: `supabase/functions/generate-flashcards/index.ts`**
-- Cache lookup: add `.eq('native_language', nativeLanguage)` to the existing query (line ~70)
-- Insert: include `native_language` in each flashcard row (line ~170)
-- This means each video gets separate flashcard sets per native language
-
-### 3. Add native language selector in Profile Settings
-**File: `src/components/ProfilePage.tsx`**
-- Load `native_language` from profile data (it's already fetched but not in the `UserProfile` interface)
-- Add `native_language` to the `UserProfile` interface
-- Replace the "Account" placeholder with a native language picker using a `Select` dropdown
-- Options: English 🇬🇧, Spanish 🇪🇸, Portuguese 🇧🇷, French 🇫🇷, Italian 🇮🇹
-- On change: update `profiles.native_language` in Supabase + update localStorage `onboarding_native_language` + show toast
-
-### 4. Fix `LessonFlashcards` flag display
-**File: `src/components/lesson/LessonFlashcards.tsx`**
-- The `getNativeLanguageFlag` function uses 2-letter codes (`it`, `en`) but it's possible the value passed is a full word (`italian`). Add mappings for both formats to ensure the correct flag shows.
+This way users arrive at the video page, watch the video, read the transcript, and only start exercises when they explicitly tap the button.
 
