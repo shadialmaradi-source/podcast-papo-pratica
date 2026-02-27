@@ -1,20 +1,35 @@
 
 
-# Fix: Let Users Watch Video Before Starting Exercises in Curated Path
+# Exclude Curated Videos from Community Tab
 
 ## Problem
-The `useEffect` on line 70-75 of `YouTubeVideoExercises.tsx` auto-triggers `handleStartExercises('beginner')` as soon as video data loads for curated sources. This skips the video player and transcript, jumping straight to exercise generation.
+Videos that are part of the curated learning path (linked via `week_videos.linked_video_id`) also appear in the Community tab, creating duplicates.
 
 ## Change
 
-**File: `src/components/YouTubeVideoExercises.tsx`**
+**File: `src/pages/Library.tsx`**
 
-1. **Remove the auto-start `useEffect`** (lines 69-75) — delete the curated auto-start logic and the `curatedAutoStarted` ref (line 63).
+1. Fetch all `linked_video_id` values from `week_videos` table alongside the existing video fetch
+2. In the `filteredVideos` memo, when `activeTab === 'community'`, exclude any video whose `id` is in the set of curated linked video IDs
 
-2. **Replace the level picker section for curated source** — instead of showing 3 level buttons OR auto-starting, show the video + transcript normally with a single prominent "Start Exercises" button below. When `source === 'curated'`, render:
-   - The video player and transcript (already rendered above)
-   - A single large button: "Practice with Exercises" that calls `handleStartExercises('beginner')`
-   - Hide the 3-level picker entirely
+```typescript
+// New state
+const [curatedVideoIds, setCuratedVideoIds] = useState<Set<string>>(new Set());
 
-This way users arrive at the video page, watch the video, read the transcript, and only start exercises when they explicitly tap the button.
+// Fetch curated video IDs
+useEffect(() => {
+  supabase.from("week_videos").select("linked_video_id")
+    .not("linked_video_id", "is", null)
+    .then(({ data }) => {
+      setCuratedVideoIds(new Set(data?.map(r => r.linked_video_id) || []));
+    });
+}, []);
+
+// In filteredVideos filter, add:
+if (activeTab === 'community') {
+  return levelMatch && topicMatch && lengthMatch && !curatedVideoIds.has(video.id);
+}
+```
+
+This ensures any video linked to a learning week is hidden from the Community tab while still appearing in the Curated learning path.
 
