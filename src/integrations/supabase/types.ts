@@ -572,6 +572,10 @@ export type Database = {
           description: string | null
           exercise_types: string[]
           id: string
+          lesson_type: string
+          paragraph_content: string | null
+          paragraph_prompt: string | null
+          share_token: string | null
           status: string
           student_email: string | null
           teacher_id: string
@@ -587,6 +591,10 @@ export type Database = {
           description?: string | null
           exercise_types?: string[]
           id?: string
+          lesson_type?: string
+          paragraph_content?: string | null
+          paragraph_prompt?: string | null
+          share_token?: string | null
           status?: string
           student_email?: string | null
           teacher_id: string
@@ -602,6 +610,10 @@ export type Database = {
           description?: string | null
           exercise_types?: string[]
           id?: string
+          lesson_type?: string
+          paragraph_content?: string | null
+          paragraph_prompt?: string | null
+          share_token?: string | null
           status?: string
           student_email?: string | null
           teacher_id?: string

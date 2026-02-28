@@ -99,3 +99,6 @@ verify_jwt = true
 
 [functions.setup-week-video-exercises]
 verify_jwt = false
+
+[functions.generate-lesson-paragraph]
+verify_jwt = false
