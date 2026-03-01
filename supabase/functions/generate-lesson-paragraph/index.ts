@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, cefrLevel, language } = await req.json();
+    const { prompt, cefrLevel, language, paragraphLength } = await req.json();
 
     if (!prompt || !cefrLevel) {
       return new Response(JSON.stringify({ error: "prompt and cefrLevel are required" }), {
@@ -22,6 +22,12 @@ serve(async (req) => {
     }
 
     const targetLanguage = language || "italian";
+    const lengthRanges: Record<string, string> = {
+      short: "50-80",
+      medium: "80-150",
+      long: "150-250",
+    };
+    const wordRange = lengthRanges[paragraphLength] || lengthRanges["medium"];
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not set");
@@ -37,7 +43,7 @@ serve(async (req) => {
 
     const levelDesc = levelDescriptions[cefrLevel] || levelDescriptions["A1"];
 
-    const systemPrompt = `You are a language-learning content creator. Generate a short paragraph (80-150 words) in ${targetLanguage} suitable for language learners at CEFR level ${cefrLevel} (${levelDesc}).
+    const systemPrompt = `You are a language-learning content creator. Generate a short paragraph (${wordRange} words) in ${targetLanguage} suitable for language learners at CEFR level ${cefrLevel} (${levelDesc}).
 
 The paragraph MUST be written entirely in ${targetLanguage}. It should be engaging, tell a small story or describe a situation, and be useful for language exercises.
 
