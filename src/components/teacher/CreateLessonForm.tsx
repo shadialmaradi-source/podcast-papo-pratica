@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,10 +26,25 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Copy, Check } from "lucide-react";
+import { useTextSelection } from "@/hooks/useTextSelection";
+import { TextSelectionPopover } from "@/components/transcript/TextSelectionPopover";
+import { WordExplorerPanel } from "@/components/transcript/WordExplorerPanel";
+import { FlashcardCreatorModal } from "@/components/transcript/FlashcardCreatorModal";
+import { analyzeWord, type WordAnalysis } from "@/services/wordAnalysisService";
 
 type LessonType = "paragraph" | "youtube";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+
+const LANGUAGES = [
+  { value: "italian", label: "Italian" },
+  { value: "spanish", label: "Spanish" },
+  { value: "french", label: "French" },
+  { value: "portuguese", label: "Portuguese" },
+  { value: "german", label: "German" },
+  { value: "dutch", label: "Dutch" },
+  { value: "english", label: "English" },
+] as const;
 
 const EXERCISE_TYPES_PARAGRAPH = [
   { id: "multiple_choice", label: "Multiple Choice (Quiz)" },
@@ -67,6 +82,7 @@ const baseSchema = {
 const paragraphSchema = z.object({
   ...baseSchema,
   paragraph_prompt: z.string().min(10, "Describe the paragraph in at least 10 characters"),
+  language: z.string().min(1, "Select a language"),
 });
 
 const youtubeSchema = z.object({
@@ -93,6 +109,17 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Word explorer state
+  const paragraphRef = useRef<HTMLDivElement>(null);
+  const { selection, clearSelection } = useTextSelection(paragraphRef);
+  const [wordExplorerOpen, setWordExplorerOpen] = useState(false);
+  const [wordAnalysis, setWordAnalysis] = useState<WordAnalysis | null>(null);
+  const [wordLoading, setWordLoading] = useState(false);
+  const [exploredWord, setExploredWord] = useState("");
+  const [flashcardModalOpen, setFlashcardModalOpen] = useState(false);
+  const [flashcardText, setFlashcardText] = useState("");
+  const [flashcardSentence, setFlashcardSentence] = useState("");
+
   const isParagraph = lessonType === "paragraph";
   const schema = isParagraph ? paragraphSchema : youtubeSchema;
   const exerciseTypes = isParagraph ? EXERCISE_TYPES_PARAGRAPH : EXERCISE_TYPES_YOUTUBE;
@@ -105,7 +132,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
       cefr_level: "A1",
       exercise_types: [],
       ...(isParagraph
-        ? { paragraph_prompt: "" }
+        ? { paragraph_prompt: "", language: "italian" }
         : { topic: "", youtube_url: "" }),
     },
   });
@@ -113,6 +140,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
   const handleGenerateParagraph = async () => {
     const prompt = form.getValues("paragraph_prompt");
     const cefrLevel = form.getValues("cefr_level");
+    const language = form.getValues("language");
     if (!prompt || prompt.length < 10) {
       toast({ title: "Prompt too short", description: "Describe the paragraph in at least 10 characters.", variant: "destructive" });
       return;
@@ -120,7 +148,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
     setGeneratingParagraph(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-lesson-paragraph", {
-        body: { prompt, cefrLevel },
+        body: { prompt, cefrLevel, language },
       });
       if (error) throw error;
       setParagraphContent(data.paragraph);
@@ -133,6 +161,39 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
     } finally {
       setGeneratingParagraph(false);
     }
+  };
+
+  const handleExploreWord = async () => {
+    if (!selection) return;
+    const language = form.getValues("language") || "italian";
+    setExploredWord(selection.text);
+    setWordExplorerOpen(true);
+    setWordLoading(true);
+    setWordAnalysis(null);
+    clearSelection();
+    try {
+      const analysis = await analyzeWord(selection.text, language, selection.fullSentence);
+      setWordAnalysis(analysis);
+    } catch (err) {
+      console.error("Word analysis failed:", err);
+    } finally {
+      setWordLoading(false);
+    }
+  };
+
+  const handleCreateFlashcard = () => {
+    if (!selection) return;
+    setFlashcardText(selection.text);
+    setFlashcardSentence(selection.fullSentence);
+    setFlashcardModalOpen(true);
+    clearSelection();
+  };
+
+  const handleSaveFlashcardFromExplorer = () => {
+    setFlashcardText(exploredWord);
+    setFlashcardSentence(wordAnalysis?.exampleSentence || "");
+    setWordExplorerOpen(false);
+    setFlashcardModalOpen(true);
   };
 
   const onSubmit = async (values: any) => {
@@ -190,208 +251,315 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
     }
   };
 
+  const currentLanguage = form.watch("language") || "italian";
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-        {/* Paragraph-specific fields */}
-        {isParagraph && (
-          <>
-            <FormField
-              control={form.control}
-              name="paragraph_prompt"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Describe the paragraph you want to generate</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="e.g. Giuseppe arrives in Rio de Janeiro and checks into a hostel for the first time"
-                      rows={3}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          {/* Paragraph-specific fields — reordered: Prompt → CEFR → Language → Generate */}
+          {isParagraph && (
+            <>
+              {/* 1. Describe the paragraph */}
+              <FormField
+                control={form.control}
+                name="paragraph_prompt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Describe the paragraph you want to generate</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="e.g. Giuseppe arrives in Rio de Janeiro and checks into a hostel for the first time"
+                        rows={3}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGenerateParagraph}
-              disabled={generatingParagraph}
-            >
-              {generatingParagraph ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Generate Paragraph
-            </Button>
+              {/* 2. CEFR Level */}
+              <FormField
+                control={form.control}
+                name="cefr_level"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CEFR Level</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select level" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {CEFR_LEVELS.map((level) => (
+                          <SelectItem key={level} value={level}>{level}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {paragraphContent && (
-              <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="pt-4">
-                  <FormLabel className="mb-2 block">Generated Paragraph</FormLabel>
-                  <Textarea
-                    value={paragraphContent}
-                    onChange={(e) => setParagraphContent(e.target.value)}
-                    rows={6}
-                    className="bg-background"
-                  />
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
+              {/* 3. Language */}
+              <FormField
+                control={form.control}
+                name="language"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Language</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {LANGUAGES.map((lang) => (
+                          <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-        {/* YouTube-specific fields */}
-        {!isParagraph && (
-          <>
-            <FormField
-              control={form.control}
-              name="youtube_url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>YouTube Video URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://youtube.com/watch?v=... or youtube.com/shorts/..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="topic"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Topic <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Ordering food at a restaurant" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        )}
-
-        {/* Title */}
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Lesson Title</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Present Tense Practice" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Student Email */}
-        <FormField
-          control={form.control}
-          name="student_email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Student Email</FormLabel>
-              <FormControl>
-                <Input placeholder="student@example.com" type="email" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* CEFR Level */}
-        <FormField
-          control={form.control}
-          name="cefr_level"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>CEFR Level</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select level" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {CEFR_LEVELS.map((level) => (
-                    <SelectItem key={level} value={level}>{level}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Exercise Types */}
-        <FormField
-          control={form.control}
-          name="exercise_types"
-          render={() => (
-            <FormItem>
-              <FormLabel>Exercise Types</FormLabel>
-              <div className="grid grid-cols-1 gap-2 mt-1">
-                {exerciseTypes.map((type) => (
-                  <FormField
-                    key={type.id}
-                    control={form.control}
-                    name="exercise_types"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value?.includes(type.id)}
-                            onCheckedChange={(checked) => {
-                              const current = field.value || [];
-                              field.onChange(
-                                checked
-                                  ? [...current, type.id]
-                                  : current.filter((v: string) => v !== type.id)
-                              );
-                            }}
-                          />
-                        </FormControl>
-                        <FormLabel className="font-normal cursor-pointer">{type.label}</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                ))}
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Actions */}
-        <div className="flex gap-3 pt-2">
-          <Button type="submit" disabled={loading} className="flex-1">
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create Lesson
-          </Button>
-          <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-            Cancel
-          </Button>
-        </div>
-
-        {/* Share Link (shown after creation) */}
-        {shareLink && (
-          <Card className="border-primary/30">
-            <CardContent className="pt-4 flex items-center gap-2">
-              <Input value={shareLink} readOnly className="flex-1 text-sm" />
-              <Button type="button" size="sm" variant="outline" onClick={handleCopyLink}>
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {/* 4. Generate button */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateParagraph}
+                disabled={generatingParagraph}
+              >
+                {generatingParagraph ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                Generate Paragraph
               </Button>
-            </CardContent>
-          </Card>
-        )}
-      </form>
-    </Form>
+
+              {/* 5. Generated Paragraph with text selection */}
+              {paragraphContent && (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="pt-4">
+                    <FormLabel className="mb-2 block">Generated Paragraph</FormLabel>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Select any word or phrase to explore it or save as a flashcard.
+                    </p>
+                    <div
+                      ref={paragraphRef}
+                      className="bg-background rounded-md p-4 text-foreground leading-relaxed whitespace-pre-wrap cursor-text select-text border"
+                    >
+                      {paragraphContent}
+                    </div>
+                    <Textarea
+                      value={paragraphContent}
+                      onChange={(e) => setParagraphContent(e.target.value)}
+                      rows={4}
+                      className="bg-background mt-3"
+                      placeholder="Edit the paragraph if needed..."
+                    />
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
+
+          {/* YouTube-specific fields */}
+          {!isParagraph && (
+            <>
+              <FormField
+                control={form.control}
+                name="youtube_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>YouTube Video URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://youtube.com/watch?v=... or youtube.com/shorts/..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="topic"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Topic <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Ordering food at a restaurant" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* CEFR Level for YouTube (original position) */}
+              <FormField
+                control={form.control}
+                name="cefr_level"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CEFR Level</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select level" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {CEFR_LEVELS.map((level) => (
+                          <SelectItem key={level} value={level}>{level}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
+          )}
+
+          {/* 6. Title */}
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Lesson Title</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Present Tense Practice" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* 7. Student Email */}
+          <FormField
+            control={form.control}
+            name="student_email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Student Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="student@example.com" type="email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* 8. Exercise Types */}
+          <FormField
+            control={form.control}
+            name="exercise_types"
+            render={() => (
+              <FormItem>
+                <FormLabel>Exercise Types</FormLabel>
+                <div className="grid grid-cols-1 gap-2 mt-1">
+                  {exerciseTypes.map((type) => (
+                    <FormField
+                      key={type.id}
+                      control={form.control}
+                      name="exercise_types"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(type.id)}
+                              onCheckedChange={(checked) => {
+                                const current = field.value || [];
+                                field.onChange(
+                                  checked
+                                    ? [...current, type.id]
+                                    : current.filter((v: string) => v !== type.id)
+                                );
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal cursor-pointer">{type.label}</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* 9. Actions */}
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Lesson
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+              Cancel
+            </Button>
+          </div>
+
+          {/* Share Link (shown after creation) */}
+          {shareLink && (
+            <Card className="border-primary/30">
+              <CardContent className="pt-4 flex items-center gap-2">
+                <Input value={shareLink} readOnly className="flex-1 text-sm" />
+                <Button type="button" size="sm" variant="outline" onClick={handleCopyLink}>
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </form>
+      </Form>
+
+      {/* Text Selection Popover */}
+      {selection && (
+        <TextSelectionPopover
+          selectedText={selection.text}
+          position={selection.position}
+          onCreateFlashcard={handleCreateFlashcard}
+          onExploreWord={handleExploreWord}
+          onDismiss={clearSelection}
+        />
+      )}
+
+      {/* Word Explorer Panel */}
+      <WordExplorerPanel
+        open={wordExplorerOpen}
+        onOpenChange={setWordExplorerOpen}
+        word={exploredWord}
+        language={currentLanguage}
+        analysis={wordAnalysis}
+        loading={wordLoading}
+        onSaveFlashcard={handleSaveFlashcardFromExplorer}
+      />
+
+      {/* Flashcard Creator Modal */}
+      <FlashcardCreatorModal
+        open={flashcardModalOpen}
+        onOpenChange={setFlashcardModalOpen}
+        selectedText={flashcardText}
+        fullSentence={flashcardSentence}
+        timestamp=""
+        videoId=""
+        videoTitle=""
+        language={currentLanguage}
+        onSuccess={() => {
+          toast({ title: "Flashcard saved! ✨" });
+        }}
+        preloadedAnalysis={
+          wordAnalysis
+            ? { translation: wordAnalysis.translation, partOfSpeech: wordAnalysis.partOfSpeech }
+            : null
+        }
+      />
+    </>
   );
 }

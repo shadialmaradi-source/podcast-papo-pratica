@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, cefrLevel } = await req.json();
+    const { prompt, cefrLevel, language } = await req.json();
 
     if (!prompt || !cefrLevel) {
       return new Response(JSON.stringify({ error: "prompt and cefrLevel are required" }), {
@@ -20,6 +20,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const targetLanguage = language || "italian";
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not set");
@@ -35,19 +37,19 @@ serve(async (req) => {
 
     const levelDesc = levelDescriptions[cefrLevel] || levelDescriptions["A1"];
 
-    const systemPrompt = `You are a language-learning content creator. Generate a short paragraph (80-150 words) suitable for language learners at CEFR level ${cefrLevel} (${levelDesc}).
+    const systemPrompt = `You are a language-learning content creator. Generate a short paragraph (80-150 words) in ${targetLanguage} suitable for language learners at CEFR level ${cefrLevel} (${levelDesc}).
 
-The paragraph should be engaging, tell a small story or describe a situation, and be useful for language exercises.
+The paragraph MUST be written entirely in ${targetLanguage}. It should be engaging, tell a small story or describe a situation, and be useful for language exercises.
 
-Also suggest a short lesson title (max 6 words) based on the paragraph's theme.
+Also suggest a short lesson title (max 6 words, in English) based on the paragraph's theme.
 
 Respond ONLY with valid JSON in this exact format:
 {
-  "paragraph": "The generated paragraph text here...",
+  "paragraph": "The generated paragraph text here in ${targetLanguage}...",
   "suggestedTitle": "Short Lesson Title"
 }`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -73,7 +75,9 @@ Respond ONLY with valid JSON in this exact format:
 
     if (!content) throw new Error("No content returned from AI");
 
-    const parsed = JSON.parse(content);
+    // Clean potential markdown code fences
+    const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    const parsed = JSON.parse(cleaned);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
