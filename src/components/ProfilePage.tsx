@@ -99,6 +99,15 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     totalVideosCompleted: number;
     totalVideos: number;
   } | null>(null);
+  const [myLessons, setMyLessons] = useState<{
+    id: string;
+    title: string;
+    cefr_level: string;
+    topic: string | null;
+    status: string;
+    lesson_type: string;
+    share_token: string | null;
+  }[]>([]);
 
   // Load profile data on mount
   useEffect(() => {
@@ -108,10 +117,46 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
       loadSubscriptionData();
       loadWeeklyStats();
       loadLearningPathData();
+      loadMyLessons();
     } else {
       setLoading(false);
     }
   }, [user]);
+
+  const loadMyLessons = async () => {
+    if (!user?.email) return;
+    try {
+      // Lessons assigned by email
+      const { data: byEmail } = await supabase
+        .from("teacher_lessons")
+        .select("id, title, cefr_level, topic, status, lesson_type, share_token")
+        .eq("student_email", user.email)
+        .order("created_at", { ascending: false });
+
+      // Lessons accessed via share_token (from lesson_responses)
+      const { data: responses } = await supabase
+        .from("lesson_responses")
+        .select("lesson_id")
+        .eq("user_id", user.id);
+
+      const respondedIds = [...new Set(responses?.map(r => r.lesson_id) || [])];
+      const emailIds = new Set((byEmail || []).map(l => l.id));
+      const extraIds = respondedIds.filter(id => !emailIds.has(id));
+
+      let extraLessons: typeof byEmail = [];
+      if (extraIds.length > 0) {
+        const { data } = await supabase
+          .from("teacher_lessons")
+          .select("id, title, cefr_level, topic, status, lesson_type, share_token")
+          .in("id", extraIds);
+        extraLessons = data || [];
+      }
+
+      setMyLessons([...(byEmail || []), ...extraLessons]);
+    } catch (error) {
+      console.error("Error loading my lessons:", error);
+    }
+  };
 
   const loadLearningPathData = async () => {
     if (!user) return;
@@ -656,6 +701,53 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                     )}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* My Lessons from Teachers */}
+        {myLessons.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.13 }}
+            className="mb-6"
+          >
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <GraduationCap className="h-5 w-5 text-primary" />
+                  My Lessons
+                </CardTitle>
+                <CardDescription>
+                  Lessons assigned by your teacher
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {myLessons.map((lesson) => (
+                  <div
+                    key={lesson.id}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/40 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/lesson/student/${lesson.share_token || lesson.id}`)}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-foreground truncate">{lesson.title}</p>
+                      {lesson.topic && (
+                        <p className="text-xs text-muted-foreground truncate">{lesson.topic}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="outline" className="text-xs">{lesson.cefr_level}</Badge>
+                      <Badge
+                        variant={lesson.status === "completed" ? "outline" : "default"}
+                        className="text-xs capitalize"
+                      >
+                        {lesson.status === "completed" ? "Done" : "Open"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </motion.div>
