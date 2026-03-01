@@ -322,6 +322,42 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_videos: {
+        Row: {
+          created_at: string
+          duration: number
+          id: string
+          language: string
+          level: string
+          start_time: number
+          suggested_speed: number
+          transcript: string | null
+          youtube_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration?: number
+          id?: string
+          language: string
+          level: string
+          start_time?: number
+          suggested_speed?: number
+          transcript?: string | null
+          youtube_id: string
+        }
+        Update: {
+          created_at?: string
+          duration?: number
+          id?: string
+          language?: string
+          level?: string
+          start_time?: number
+          suggested_speed?: number
+          transcript?: string | null
+          youtube_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

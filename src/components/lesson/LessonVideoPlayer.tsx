@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +23,24 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [canContinue, setCanContinue] = useState(false);
   const [progress, setProgress] = useState(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Send postMessage to YouTube iframe to change playback rate
+  const sendPlaybackRate = useCallback((rate: number) => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'setPlaybackRate', args: [rate] }),
+        '*'
+      );
+    }
+  }, []);
+
+  // Apply speed when it changes
+  useEffect(() => {
+    if (isPlaying) {
+      sendPlaybackRate(parseFloat(speed));
+    }
+  }, [speed, isPlaying, sendPlaybackRate]);
 
   // Auto-enable continue after video duration
   useEffect(() => {
@@ -31,7 +49,6 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
         setCanContinue(true);
       }, video.duration * 1000);
       
-      // Progress updates
       const progressInterval = setInterval(() => {
         setProgress(prev => Math.min(prev + (100 / video.duration), 100));
       }, 1000);
@@ -43,7 +60,13 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
     }
   }, [isPlaying, video.duration]);
 
-  const embedUrl = `https://www.youtube.com/embed/${video.youtubeId}?start=${video.startTime}&end=${video.startTime + video.duration}&autoplay=${isPlaying ? 1 : 0}&cc_load_policy=${showSubtitles ? 1 : 0}&rel=0&modestbranding=1`;
+  // Apply initial speed once iframe loads
+  const handleIframeLoad = () => {
+    // Small delay to let YouTube player initialize
+    setTimeout(() => sendPlaybackRate(parseFloat(speed)), 1500);
+  };
+
+  const embedUrl = `https://www.youtube.com/embed/${video.youtubeId}?start=${video.startTime}&end=${video.startTime + video.duration}&autoplay=${isPlaying ? 1 : 0}&cc_load_policy=${showSubtitles ? 1 : 0}&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}`;
 
   return (
     <motion.div
@@ -74,11 +97,13 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
               </div>
             ) : (
               <iframe
+                ref={iframeRef}
                 src={embedUrl}
                 className="w-full h-full"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 title="Lesson Video"
+                onLoad={handleIframeLoad}
               />
             )}
           </div>
