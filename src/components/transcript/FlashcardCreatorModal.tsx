@@ -30,9 +30,9 @@ interface FlashcardCreatorModalProps {
   onOpenChange: (open: boolean) => void;
   selectedText: string;
   fullSentence: string;
-  timestamp: string;
-  videoId: string;
-  videoTitle: string;
+  timestamp?: string;
+  videoId?: string;
+  videoTitle?: string;
   language: string;
   onSuccess: () => void;
   /** Pre-loaded AI data (from suggested words) to skip the API call */
@@ -60,9 +60,9 @@ export function FlashcardCreatorModal({
   onOpenChange,
   selectedText,
   fullSentence,
-  timestamp,
-  videoId,
-  videoTitle,
+  timestamp = '',
+  videoId = '',
+  videoTitle = '',
   language,
   onSuccess,
   preloadedAnalysis,
@@ -132,13 +132,13 @@ export function FlashcardCreatorModal({
     setSaving(true);
 
     try {
-      const result = await createFlashcardFromTranscript(user.id, videoId, {
+      const result = await createFlashcardFromTranscript(user.id, videoId || 'paragraph', {
         phrase: phrase.trim(),
         translation: translation.trim() || undefined,
         partOfSpeech: partOfSpeech || undefined,
         exampleSentence: exampleSentence.trim() || undefined,
         notes: notes.trim() || undefined,
-        sourceTimestamp: timestamp,
+        sourceTimestamp: timestamp || undefined,
       });
 
       if (result.success) {
@@ -248,17 +248,21 @@ export function FlashcardCreatorModal({
             />
           </div>
 
-          {/* Source info */}
-          <div className="flex flex-col gap-1 text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <Video className="w-4 h-4" />
-              <span className="truncate">{videoTitle}</span>
+          {/* Source info — only show when there's a video context */}
+          {videoTitle && (
+            <div className="flex flex-col gap-1 text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Video className="w-4 h-4" />
+                <span className="truncate">{videoTitle}</span>
+              </div>
+              {timestamp && (
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  <span>Timestamp: {timestamp}</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>Timestamp: {timestamp}</span>
-            </div>
-          </div>
+          )}
         </div>
 
         <DialogFooter>
