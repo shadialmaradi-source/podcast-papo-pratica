@@ -18,6 +18,8 @@ interface Lesson {
   topic: string | null;
   status: string;
   youtube_url: string | null;
+  lesson_type: string;
+  paragraph_content: string | null;
 }
 
 function extractYouTubeVideoId(url: string): string | null {
@@ -244,21 +246,45 @@ export default function StudentLesson() {
     const load = async () => {
       setLoading(true);
 
-      const [lessonRes, exercisesRes, responsesRes] = await Promise.all([
-        supabase
-          .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url")
-          .eq("id", id)
-          .single(),
+      // Try loading by share_token first, then by ID
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id!);
+      
+      let lessonQuery = supabase
+        .from("teacher_lessons")
+        .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content");
+      
+      if (isUuid) {
+        // Could be lesson ID or share_token (both are UUIDs)
+        // Try share_token first
+        const { data: byToken } = await lessonQuery.eq("share_token", id).maybeSingle();
+        if (byToken) {
+          lessonQuery = supabase
+            .from("teacher_lessons")
+            .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content")
+            .eq("id", byToken.id);
+        } else {
+          lessonQuery = supabase
+            .from("teacher_lessons")
+            .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content")
+            .eq("id", id);
+        }
+      } else {
+        lessonQuery = lessonQuery.eq("share_token", id);
+      }
+
+      const lessonRes = await lessonQuery.single();
+      const lessonId = lessonRes.data?.id;
+
+      const [exercisesRes, responsesRes] = await Promise.all([
         supabase
           .from("lesson_exercises")
           .select("id, exercise_type, content, order_index")
-          .eq("lesson_id", id)
+          .eq("lesson_id", lessonId ?? id)
           .order("order_index"),
         supabase
           .from("lesson_responses")
           .select("exercise_id, response")
-          .eq("lesson_id", id)
+          .eq("lesson_id", lessonId ?? id)
           .eq("user_id", user.id),
       ]);
 
@@ -292,17 +318,17 @@ export default function StudentLesson() {
 
   // Real-time sync: follow teacher's current exercise
   useEffect(() => {
-    if (!id) return;
+    if (!lesson) return;
 
     const channel = supabase
-      .channel(`lesson-sync-${id}`)
+      .channel(`lesson-sync-${lesson.id}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "teacher_lessons",
-          filter: `id=eq.${id}`,
+          filter: `id=eq.${lesson.id}`,
         },
         (payload) => {
           const newIndex = (payload.new as any).current_exercise_index;
@@ -321,18 +347,18 @@ export default function StudentLesson() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id]);
+  }, [lesson?.id]);
 
   const handleSubmit = async () => {
     const exercise = exercises[current];
-    if (!exercise || !user || !id) return;
+    if (!exercise || !user || !lesson) return;
     const response = responses[exercise.id] ?? "";
 
     const { error } = await supabase
       .from("lesson_responses")
       .upsert(
         {
-          lesson_id: id,
+          lesson_id: lesson.id,
           exercise_id: exercise.id,
           user_id: user.id,
           response,
@@ -457,6 +483,16 @@ export default function StudentLesson() {
                 </div>
               ) : null;
             })()}
+
+            {/* Paragraph content */}
+            {lesson.lesson_type === "paragraph" && lesson.paragraph_content && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="pt-5 pb-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Reading</p>
+                  <p className="text-foreground leading-relaxed whitespace-pre-wrap">{lesson.paragraph_content}</p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Progress */}
             <div className="space-y-1">
