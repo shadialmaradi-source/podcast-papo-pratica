@@ -1,68 +1,46 @@
 
 
-# Teacher Dashboard Redesign + Lesson Type Selection
+# Reorder Create Lesson Form + Add Word Explorer to Generated Paragraph
 
 ## Overview
-Redesign the Teacher Dashboard to show two main action cards ("Create a Lesson" and "My Students"), and introduce a lesson type selector (Custom Paragraph vs YouTube/Video Link) before entering the creation form. The existing lesson list moves below the action cards.
+Two changes: (1) reorder the paragraph creation form fields so the teacher fills prompt → CEFR level → language → Generate, then title/email/exercises after; (2) add text selection with "Explore Word" and "Save Flashcard" popover to the generated paragraph, reusing the existing transcript components.
 
 ## Changes
 
-### 1. Database Migration
-Add columns to `teacher_lessons`:
-- `lesson_type TEXT DEFAULT 'exercise_only'` — values: `'paragraph'`, `'youtube'`, `'exercise_only'`
-- `paragraph_prompt TEXT` — the teacher's paragraph description
-- `paragraph_content TEXT` — the AI-generated paragraph
-- `share_token TEXT UNIQUE` — for shareable lesson links
+### 1. Reorder `CreateLessonForm.tsx` (paragraph flow)
+Current order: Prompt → Generate → Paragraph → Title → Email → CEFR → Exercises
 
-### 2. Redesign `src/pages/TeacherDashboard.tsx`
-Replace the current single-card layout with:
-- Two hero cards side by side: "Create a Lesson" (BookOpen icon) and "My Students" (Users icon)
-- "My Students" card is a placeholder for now (shows "Coming soon")
-- Clicking "Create a Lesson" enters a multi-step flow inline (or navigates to a new route)
-- Below the cards, show the existing `LessonList` component
+New order:
+1. **Describe the paragraph** (textarea prompt)
+2. **CEFR Level** (moved up, before generation)
+3. **Language** (new Select field — Italian, Spanish, French, Portuguese, German, etc.)
+4. **Generate Paragraph** button
+5. **Generated Paragraph** (editable, with text selection features)
+6. **Lesson Title** (auto-suggested after generation)
+7. **Student Email**
+8. **Exercise Types**
+9. **Create Lesson** / Cancel
 
-### 3. New Component: `src/components/teacher/LessonTypeSelector.tsx`
-Step 1 of creation — two selectable cards:
-- "Custom Paragraph" — description: "Generate a paragraph with AI and create exercises from it"
-- "YouTube / Video Link" — description: "Use an existing video to build exercises"
+Add `language` to the form schema and pass it to the edge function.
 
-Selecting one sets `lessonType` state and proceeds to step 2.
+### 2. Add language field to form schema
+Add `language: z.string().min(1)` to `paragraphSchema` with a default (e.g. "italian"). Add a `<Select>` with common language options.
 
-### 4. Update `src/components/teacher/CreateLessonForm.tsx`
-Accept a new `lessonType` prop (`'paragraph' | 'youtube'`).
+### 3. Update `generate-lesson-paragraph` edge function
+Accept `language` parameter and include it in the system prompt so the paragraph is generated in the chosen language.
 
-**When `lessonType === 'paragraph'`**:
-- Show level selector (Beginner/Intermediate/Advanced mapped to CEFR)
-- Show textarea: "Describe the paragraph you want to generate"
-- Show "Generate Paragraph" button — calls a new edge function `generate-lesson-paragraph`
-- Display generated paragraph in an editable card
-- Show exercise type checkboxes (Multiple Choice, Flashcards only)
-- Title field (auto-suggested)
-- Student email field
-- Save inserts with `lesson_type: 'paragraph'`, `paragraph_prompt`, `paragraph_content`
+### 4. Add text selection + Word Explorer to generated paragraph
+Wrap the generated paragraph display area with a `ref` and use `useTextSelection` hook. When the teacher selects text:
+- Show `TextSelectionPopover` with "Save Flashcard" and "Explore" buttons
+- "Explore" opens `WordExplorerPanel` (calls `analyze-word` edge function)
+- "Save Flashcard" opens `FlashcardCreatorModal` (adapted — no video context, use paragraph as source)
 
-**When `lessonType === 'youtube'`**:
-- Keep existing YouTube URL field
-- Add "Choose from Community Videos" button (opens existing library picker — future step)
-- Keep existing CEFR level, exercise types, student email, title fields
-- Save inserts with `lesson_type: 'youtube'`
-
-### 5. New Edge Function: `supabase/functions/generate-lesson-paragraph/index.ts`
-- Accepts: `{ prompt, cefrLevel, topic? }`
-- Uses `LOVABLE_API_KEY` to call `ai.gateway.lovable.dev`
-- Generates a language-learning paragraph based on the prompt and level
-- Returns `{ paragraph, suggestedTitle }`
-
-### 6. Generate share_token on lesson creation
-- In `CreateLessonForm.onSubmit`, generate a random UUID as `share_token` and insert it with the lesson
-- After creation, show the shareable link: `{siteUrl}/lesson/student/{share_token}`
+The `FlashcardCreatorModal` requires `videoId` and `videoTitle` — we'll pass empty/placeholder values or make those props optional for paragraph-based flashcards.
 
 ### File Summary
 | File | Action |
 |------|--------|
-| Migration SQL | Add `lesson_type`, `paragraph_prompt`, `paragraph_content`, `share_token` columns |
-| `src/pages/TeacherDashboard.tsx` | Redesign with two hero cards + step flow |
-| `src/components/teacher/LessonTypeSelector.tsx` | New — two card selector |
-| `src/components/teacher/CreateLessonForm.tsx` | Refactor to accept `lessonType` prop, conditional fields |
-| `supabase/functions/generate-lesson-paragraph/index.ts` | New edge function for AI paragraph generation |
+| `src/components/teacher/CreateLessonForm.tsx` | Reorder fields, add language selector, integrate text selection + word explorer on generated paragraph |
+| `supabase/functions/generate-lesson-paragraph/index.ts` | Accept `language` param, generate paragraph in chosen language |
+| `src/components/transcript/FlashcardCreatorModal.tsx` | Make `videoId`/`videoTitle`/`timestamp` optional for paragraph-based usage |
 
