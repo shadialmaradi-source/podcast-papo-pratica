@@ -46,6 +46,12 @@ const LANGUAGES = [
   { value: "english", label: "English" },
 ] as const;
 
+const PARAGRAPH_LENGTHS = [
+  { value: "short", label: "Short (~50-80 words)" },
+  { value: "medium", label: "Medium (~80-150 words)" },
+  { value: "long", label: "Long (~150-250 words)" },
+] as const;
+
 const EXERCISE_TYPES_PARAGRAPH = [
   { id: "multiple_choice", label: "Multiple Choice (Quiz)" },
   { id: "flashcards", label: "Flashcards" },
@@ -83,6 +89,7 @@ const paragraphSchema = z.object({
   ...baseSchema,
   paragraph_prompt: z.string().min(10, "Describe the paragraph in at least 10 characters"),
   language: z.string().min(1, "Select a language"),
+  paragraph_length: z.string().min(1, "Select a length"),
 });
 
 const youtubeSchema = z.object({
@@ -132,7 +139,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
       cefr_level: "A1",
       exercise_types: [],
       ...(isParagraph
-        ? { paragraph_prompt: "", language: "italian" }
+        ? { paragraph_prompt: "", language: "italian", paragraph_length: "medium" }
         : { topic: "", youtube_url: "" }),
     },
   });
@@ -141,6 +148,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
     const prompt = form.getValues("paragraph_prompt");
     const cefrLevel = form.getValues("cefr_level");
     const language = form.getValues("language");
+    const paragraphLength = form.getValues("paragraph_length");
     if (!prompt || prompt.length < 10) {
       toast({ title: "Prompt too short", description: "Describe the paragraph in at least 10 characters.", variant: "destructive" });
       return;
@@ -148,7 +156,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
     setGeneratingParagraph(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-lesson-paragraph", {
-        body: { prompt, cefrLevel, language },
+        body: { prompt, cefrLevel, language, paragraphLength },
       });
       if (error) throw error;
       setParagraphContent(data.paragraph);
@@ -327,7 +335,31 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                 )}
               />
 
-              {/* 4. Generate button */}
+              {/* 4. Paragraph Length */}
+              <FormField
+                control={form.control}
+                name="paragraph_length"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Paragraph Length</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select length" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PARAGRAPH_LENGTHS.map((len) => (
+                          <SelectItem key={len.value} value={len.value}>{len.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* 5. Generate button */}
               <Button
                 type="button"
                 variant="outline"
@@ -342,9 +374,9 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                 Generate Paragraph
               </Button>
 
-              {/* 5. Generated Paragraph with text selection */}
+              {/* 6. Generated Paragraph with text selection */}
               {paragraphContent && (
-                <Card className="border-primary/30 bg-primary/5">
+                <Card className="border-primary/30 bg-primary/5 relative">
                   <CardContent className="pt-4">
                     <FormLabel className="mb-2 block">Generated Paragraph</FormLabel>
                     <p className="text-sm text-muted-foreground mb-2">
@@ -356,13 +388,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                     >
                       {paragraphContent}
                     </div>
-                    <Textarea
-                      value={paragraphContent}
-                      onChange={(e) => setParagraphContent(e.target.value)}
-                      rows={4}
-                      className="bg-background mt-3"
-                      placeholder="Edit the paragraph if needed..."
-                    />
                   </CardContent>
                 </Card>
               )}
