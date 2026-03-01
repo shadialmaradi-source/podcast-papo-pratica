@@ -1,46 +1,32 @@
 
 
-# Reorder Create Lesson Form + Add Word Explorer to Generated Paragraph
+# Fix Duplicate Paragraph, Add Length Selector, and Improve Share Link
 
-## Overview
-Two changes: (1) reorder the paragraph creation form fields so the teacher fills prompt → CEFR level → language → Generate, then title/email/exercises after; (2) add text selection with "Explore Word" and "Save Flashcard" popover to the generated paragraph, reusing the existing transcript components.
+## Issues Identified
+
+1. **Duplicate paragraph**: The generated paragraph is shown twice -- once as a read-only `div` (for text selection) and again as an editable `Textarea` below it. Remove the `Textarea` and make the `div` the only display, with a small "Edit" toggle if the teacher wants to tweak the text.
+
+2. **Missing paragraph length option**: Add a "Paragraph Length" selector (Short / Medium / Long) between Language and the Generate button. Pass this to the edge function to adjust word count.
+
+3. **Text selection popover already works**: The code already has `useTextSelection`, `TextSelectionPopover`, `WordExplorerPanel`, and `FlashcardCreatorModal` integrated. If it's not appearing, it may be a z-index or event issue -- will verify and fix.
+
+4. **Share link after creation**: The share link card already exists (lines 508-518) but only shows after successful creation. This is correct behavior -- will ensure it's prominent and visible.
 
 ## Changes
 
-### 1. Reorder `CreateLessonForm.tsx` (paragraph flow)
-Current order: Prompt → Generate → Paragraph → Title → Email → CEFR → Exercises
+### 1. `CreateLessonForm.tsx`
+- **Remove duplicate Textarea** (lines 359-365) -- keep only the interactive `div` with `ref={paragraphRef}` for text selection
+- **Add paragraph length selector** with options: Short (~50-80 words), Medium (~80-150 words), Long (~150-250 words) as a radio group or Select, placed after Language and before Generate
+- **Add `paragraph_length` to form schema** with default "medium"
+- **Pass `paragraphLength` to the edge function** in `handleGenerateParagraph`
 
-New order:
-1. **Describe the paragraph** (textarea prompt)
-2. **CEFR Level** (moved up, before generation)
-3. **Language** (new Select field — Italian, Spanish, French, Portuguese, German, etc.)
-4. **Generate Paragraph** button
-5. **Generated Paragraph** (editable, with text selection features)
-6. **Lesson Title** (auto-suggested after generation)
-7. **Student Email**
-8. **Exercise Types**
-9. **Create Lesson** / Cancel
+### 2. `generate-lesson-paragraph/index.ts`
+- Accept `paragraphLength` parameter
+- Adjust word count range in the system prompt based on length:
+  - short: 50-80 words
+  - medium: 80-150 words
+  - long: 150-250 words
 
-Add `language` to the form schema and pass it to the edge function.
-
-### 2. Add language field to form schema
-Add `language: z.string().min(1)` to `paragraphSchema` with a default (e.g. "italian"). Add a `<Select>` with common language options.
-
-### 3. Update `generate-lesson-paragraph` edge function
-Accept `language` parameter and include it in the system prompt so the paragraph is generated in the chosen language.
-
-### 4. Add text selection + Word Explorer to generated paragraph
-Wrap the generated paragraph display area with a `ref` and use `useTextSelection` hook. When the teacher selects text:
-- Show `TextSelectionPopover` with "Save Flashcard" and "Explore" buttons
-- "Explore" opens `WordExplorerPanel` (calls `analyze-word` edge function)
-- "Save Flashcard" opens `FlashcardCreatorModal` (adapted — no video context, use paragraph as source)
-
-The `FlashcardCreatorModal` requires `videoId` and `videoTitle` — we'll pass empty/placeholder values or make those props optional for paragraph-based flashcards.
-
-### File Summary
-| File | Action |
-|------|--------|
-| `src/components/teacher/CreateLessonForm.tsx` | Reorder fields, add language selector, integrate text selection + word explorer on generated paragraph |
-| `supabase/functions/generate-lesson-paragraph/index.ts` | Accept `language` param, generate paragraph in chosen language |
-| `src/components/transcript/FlashcardCreatorModal.tsx` | Make `videoId`/`videoTitle`/`timestamp` optional for paragraph-based usage |
+### 3. Verify text selection popover works
+- The components are already wired up (lines 522-562). If the popover isn't appearing on the generated paragraph, it may be because the `paragraphRef` div needs `user-select: text` and proper positioning context. Will ensure the card has `position: relative` for correct popover placement.
 
