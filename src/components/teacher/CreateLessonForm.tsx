@@ -317,132 +317,173 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
   // If lesson was created, show the inline result
   if (createdLessonId) {
     return (
-      <div className="space-y-6">
-        {/* Share Link */}
-        {shareLink && (
-          <Card className="border-primary/30 bg-primary/5">
-            <CardContent className="pt-4 space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Share2 className="h-4 w-4 text-primary" />
-                Share this lesson with your student
-              </div>
-              <div className="flex items-center gap-2">
-                <Input value={shareLink} readOnly className="flex-1 text-sm" />
-                <Button type="button" size="sm" variant="outline" onClick={handleCopyLink}>
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      <>
+        <div className="space-y-6">
+          {/* Share Link */}
+          {shareLink && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Share2 className="h-4 w-4 text-primary" />
+                  Share this lesson with your student
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input value={shareLink} readOnly className="flex-1 text-sm" />
+                  <Button type="button" size="sm" variant="outline" onClick={handleCopyLink}>
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-        {generatingExercises ? (
-          <div className="flex flex-col items-center gap-3 py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Generating exercises…</p>
-          </div>
-        ) : (
-          <Tabs defaultValue="paragraph" className="w-full">
-            <TabsList className="w-full">
-              {isParagraph && <TabsTrigger value="paragraph" className="flex-1">📖 Paragraph</TabsTrigger>}
-              <TabsTrigger value="exercises" className="flex-1">📝 Exercises ({mcExercises.length})</TabsTrigger>
-            </TabsList>
+          {generatingExercises ? (
+            <div className="flex flex-col items-center gap-3 py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Generating exercises…</p>
+            </div>
+          ) : (
+            <Tabs defaultValue="paragraph" className="w-full">
+              <TabsList className="w-full">
+                {isParagraph && <TabsTrigger value="paragraph" className="flex-1">📖 Paragraph</TabsTrigger>}
+                <TabsTrigger value="exercises" className="flex-1">📝 Exercises ({mcExercises.length})</TabsTrigger>
+              </TabsList>
 
-            {isParagraph && (
-              <TabsContent value="paragraph">
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Select any word or phrase to explore it or save as a flashcard.
-                    </p>
-                    <div
-                      ref={paragraphRef}
-                      className="bg-background rounded-md p-4 text-foreground leading-relaxed whitespace-pre-wrap cursor-text select-text border"
-                    >
-                      {paragraphContent}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            )}
-
-            <TabsContent value="exercises">
-              {mcExercises.length === 0 ? (
-                <Card>
-                  <CardContent className="pt-4 text-center text-muted-foreground">
-                    No quiz exercises were generated.
-                  </CardContent>
-                </Card>
-              ) : currentEx ? (
-                <Card>
-                  <CardContent className="pt-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-muted-foreground">
-                        Question {currentQuestion + 1} of {mcExercises.length}
-                      </span>
-                    </div>
-                    <p className="text-lg font-medium text-foreground">
-                      {(currentEx.content as any)?.question}
-                    </p>
-                    <div className="grid gap-2">
-                      {((currentEx.content as any)?.options || []).map((option: string, idx: number) => {
-                        const letter = String.fromCharCode(65 + idx);
-                        const isSelected = selectedAnswer === letter;
-                        const isCorrect = answerRevealed && letter === (currentEx.content as any)?.correct;
-                        const isWrong = answerRevealed && isSelected && letter !== (currentEx.content as any)?.correct;
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => handleSelectOption(letter)}
-                            className={`text-left p-3 rounded-md border transition-all ${
-                              isCorrect
-                                ? "border-green-500 bg-green-500/10 text-foreground"
-                                : isWrong
-                                ? "border-destructive bg-destructive/10 text-foreground"
-                                : isSelected
-                                ? "border-primary bg-primary/10 text-foreground"
-                                : "border-border hover:border-primary/50 text-foreground"
-                            }`}
-                          >
-                            <span className="font-medium mr-2">{letter}.</span>
-                            {option}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {selectedAnswer && !answerRevealed && (
-                      <Button onClick={handleRevealAnswer} className="w-full">
-                        Check Answer
-                      </Button>
-                    )}
-                    {answerRevealed && (
-                      <div className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                          {(currentEx.content as any)?.explanation}
-                        </p>
-                        {currentQuestion < mcExercises.length - 1 ? (
-                          <Button onClick={handleNextQuestion} className="w-full">
-                            Next Question →
-                          </Button>
-                        ) : (
-                          <p className="text-center text-sm font-medium text-primary">
-                            🎉 Quiz complete!
-                          </p>
-                        )}
+              {isParagraph && (
+                <TabsContent value="paragraph">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Select any word or phrase to explore it or save as a flashcard.
+                      </p>
+                      <div
+                        ref={paragraphRef}
+                        className="bg-background rounded-md p-4 text-foreground leading-relaxed whitespace-pre-wrap cursor-text select-text border"
+                      >
+                        {paragraphContent}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : null}
-            </TabsContent>
-          </Tabs>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
+
+              <TabsContent value="exercises">
+                {mcExercises.length === 0 ? (
+                  <Card>
+                    <CardContent className="pt-4 text-center text-muted-foreground">
+                      No quiz exercises were generated.
+                    </CardContent>
+                  </Card>
+                ) : currentEx ? (
+                  <Card>
+                    <CardContent className="pt-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-muted-foreground">
+                          Question {currentQuestion + 1} of {mcExercises.length}
+                        </span>
+                      </div>
+                      <p className="text-lg font-medium text-foreground">
+                        {(currentEx.content as any)?.question}
+                      </p>
+                      <div className="grid gap-2">
+                        {((currentEx.content as any)?.options || []).map((option: string, idx: number) => {
+                          const letter = String.fromCharCode(65 + idx);
+                          const isSelected = selectedAnswer === letter;
+                          const isCorrect = answerRevealed && letter === (currentEx.content as any)?.correct;
+                          const isWrong = answerRevealed && isSelected && letter !== (currentEx.content as any)?.correct;
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => handleSelectOption(letter)}
+                              className={`text-left p-3 rounded-md border transition-all ${
+                                isCorrect
+                                  ? "border-green-500 bg-green-500/10 text-foreground"
+                                  : isWrong
+                                  ? "border-destructive bg-destructive/10 text-foreground"
+                                  : isSelected
+                                  ? "border-primary bg-primary/10 text-foreground"
+                                  : "border-border hover:border-primary/50 text-foreground"
+                              }`}
+                            >
+                              <span className="font-medium mr-2">{letter}.</span>
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedAnswer && !answerRevealed && (
+                        <Button onClick={handleRevealAnswer} className="w-full">
+                          Check Answer
+                        </Button>
+                      )}
+                      {answerRevealed && (
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            {(currentEx.content as any)?.explanation}
+                          </p>
+                          {currentQuestion < mcExercises.length - 1 ? (
+                            <Button onClick={handleNextQuestion} className="w-full">
+                              Next Question →
+                            </Button>
+                          ) : (
+                            <p className="text-center text-sm font-medium text-primary">
+                              🎉 Quiz complete!
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : null}
+              </TabsContent>
+            </Tabs>
+          )}
+
+          <Button variant="outline" onClick={onCancel} className="w-full">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
+        </div>
+
+        {selection && (
+          <TextSelectionPopover
+            selectedText={selection.text}
+            position={selection.position}
+            onCreateFlashcard={handleCreateFlashcard}
+            onExploreWord={handleExploreWord}
+            onDismiss={clearSelection}
+          />
         )}
 
-        <Button variant="outline" onClick={onCancel} className="w-full">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
-        </Button>
-      </div>
+        <WordExplorerPanel
+          open={wordExplorerOpen}
+          onOpenChange={setWordExplorerOpen}
+          word={exploredWord}
+          language={currentLanguage}
+          analysis={wordAnalysis}
+          loading={wordLoading}
+          onSaveFlashcard={handleSaveFlashcardFromExplorer}
+        />
+
+        <FlashcardCreatorModal
+          open={flashcardModalOpen}
+          onOpenChange={setFlashcardModalOpen}
+          selectedText={flashcardText}
+          fullSentence={flashcardSentence}
+          timestamp=""
+          videoId=""
+          videoTitle=""
+          language={currentLanguage}
+          onSuccess={() => {
+            toast({ title: "Flashcard saved! ✨" });
+          }}
+          preloadedAnalysis={
+            wordAnalysis
+              ? { translation: wordAnalysis.translation, partOfSpeech: wordAnalysis.partOfSpeech }
+              : null
+          }
+        />
+      </>
     );
   }
 
