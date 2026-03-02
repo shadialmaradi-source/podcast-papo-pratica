@@ -39,10 +39,9 @@ export default function TeacherDashboard() {
     navigate("/auth");
   };
 
-  const handleCreated = (lessonId: string) => {
-    setStep("home");
+  const handleCreated = (_lessonId: string) => {
+    // Stay on the form page — the inline result is shown in CreateLessonForm
     setRefresh((r) => r + 1);
-    navigate(`/teacher/lesson/${lessonId}`);
   };
 
   const handleSelectType = (type: LessonType) => {

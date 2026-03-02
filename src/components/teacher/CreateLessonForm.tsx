@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Form,
   FormControl,
@@ -25,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Copy, Check } from "lucide-react";
+import { Loader2, Sparkles, Copy, Check, ArrowLeft, Share2 } from "lucide-react";
 import { useTextSelection } from "@/hooks/useTextSelection";
 import { TextSelectionPopover } from "@/components/transcript/TextSelectionPopover";
 import { WordExplorerPanel } from "@/components/transcript/WordExplorerPanel";
@@ -115,6 +116,14 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
   const [paragraphContent, setParagraphContent] = useState("");
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Inline result state
+  const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
+  const [generatingExercises, setGeneratingExercises] = useState(false);
+  const [exercises, setExercises] = useState<any[]>([]);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [answerRevealed, setAnswerRevealed] = useState(false);
 
   // Word explorer state
   const paragraphRef = useRef<HTMLDivElement>(null);
@@ -242,8 +251,33 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
 
       const link = `${window.location.origin}/lesson/student/${shareToken}`;
       setShareLink(link);
-      toast({ title: "Lesson created!", description: "Your lesson draft has been saved." });
+      setCreatedLessonId(data.id);
+      toast({ title: "Lesson created!", description: "Generating exercises…" });
       onCreated(data.id);
+
+      // Auto-trigger exercise generation
+      setGeneratingExercises(true);
+      try {
+        const { data: exData, error: exError } = await supabase.functions.invoke(
+          "generate-lesson-exercises",
+          { body: { lessonId: data.id } }
+        );
+        if (exError) throw exError;
+
+        // Fetch generated exercises
+        const { data: fetchedExercises } = await supabase
+          .from("lesson_exercises")
+          .select("*")
+          .eq("lesson_id", data.id)
+          .order("order_index");
+
+        setExercises(fetchedExercises || []);
+        toast({ title: "Exercises ready!", description: `${fetchedExercises?.length || 0} exercises generated.` });
+      } catch (exErr: any) {
+        toast({ title: "Exercise generation failed", description: exErr.message, variant: "destructive" });
+      } finally {
+        setGeneratingExercises(false);
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -261,14 +295,163 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
 
   const currentLanguage = form.watch("language") || "italian";
 
+  // Quiz helpers
+  const mcExercises = exercises.filter((e: any) => e.exercise_type === "multiple_choice");
+  const currentEx = mcExercises[currentQuestion];
+
+  const handleSelectOption = (option: string) => {
+    if (answerRevealed) return;
+    setSelectedAnswer(option);
+  };
+
+  const handleRevealAnswer = () => {
+    setAnswerRevealed(true);
+  };
+
+  const handleNextQuestion = () => {
+    setSelectedAnswer(null);
+    setAnswerRevealed(false);
+    setCurrentQuestion((prev) => Math.min(prev + 1, mcExercises.length - 1));
+  };
+
+  // If lesson was created, show the inline result
+  if (createdLessonId) {
+    return (
+      <div className="space-y-6">
+        {/* Share Link */}
+        {shareLink && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="pt-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Share2 className="h-4 w-4 text-primary" />
+                Share this lesson with your student
+              </div>
+              <div className="flex items-center gap-2">
+                <Input value={shareLink} readOnly className="flex-1 text-sm" />
+                <Button type="button" size="sm" variant="outline" onClick={handleCopyLink}>
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {generatingExercises ? (
+          <div className="flex flex-col items-center gap-3 py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Generating exercises…</p>
+          </div>
+        ) : (
+          <Tabs defaultValue="paragraph" className="w-full">
+            <TabsList className="w-full">
+              {isParagraph && <TabsTrigger value="paragraph" className="flex-1">📖 Paragraph</TabsTrigger>}
+              <TabsTrigger value="exercises" className="flex-1">📝 Exercises ({mcExercises.length})</TabsTrigger>
+            </TabsList>
+
+            {isParagraph && (
+              <TabsContent value="paragraph">
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Select any word or phrase to explore it or save as a flashcard.
+                    </p>
+                    <div
+                      ref={paragraphRef}
+                      className="bg-background rounded-md p-4 text-foreground leading-relaxed whitespace-pre-wrap cursor-text select-text border"
+                    >
+                      {paragraphContent}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            <TabsContent value="exercises">
+              {mcExercises.length === 0 ? (
+                <Card>
+                  <CardContent className="pt-4 text-center text-muted-foreground">
+                    No quiz exercises were generated.
+                  </CardContent>
+                </Card>
+              ) : currentEx ? (
+                <Card>
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Question {currentQuestion + 1} of {mcExercises.length}
+                      </span>
+                    </div>
+                    <p className="text-lg font-medium text-foreground">
+                      {(currentEx.content as any)?.question}
+                    </p>
+                    <div className="grid gap-2">
+                      {((currentEx.content as any)?.options || []).map((option: string, idx: number) => {
+                        const letter = String.fromCharCode(65 + idx);
+                        const isSelected = selectedAnswer === letter;
+                        const isCorrect = answerRevealed && letter === (currentEx.content as any)?.correct;
+                        const isWrong = answerRevealed && isSelected && letter !== (currentEx.content as any)?.correct;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleSelectOption(letter)}
+                            className={`text-left p-3 rounded-md border transition-all ${
+                              isCorrect
+                                ? "border-green-500 bg-green-500/10 text-foreground"
+                                : isWrong
+                                ? "border-destructive bg-destructive/10 text-foreground"
+                                : isSelected
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border hover:border-primary/50 text-foreground"
+                            }`}
+                          >
+                            <span className="font-medium mr-2">{letter}.</span>
+                            {option}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedAnswer && !answerRevealed && (
+                      <Button onClick={handleRevealAnswer} className="w-full">
+                        Check Answer
+                      </Button>
+                    )}
+                    {answerRevealed && (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          {(currentEx.content as any)?.explanation}
+                        </p>
+                        {currentQuestion < mcExercises.length - 1 ? (
+                          <Button onClick={handleNextQuestion} className="w-full">
+                            Next Question →
+                          </Button>
+                        ) : (
+                          <p className="text-center text-sm font-medium text-primary">
+                            🎉 Quiz complete!
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : null}
+            </TabsContent>
+          </Tabs>
+        )}
+
+        <Button variant="outline" onClick={onCancel} className="w-full">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Dashboard
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-          {/* Paragraph-specific fields — reordered: Prompt → CEFR → Language → Generate */}
           {isParagraph && (
             <>
-              {/* 1. Describe the paragraph */}
               <FormField
                 control={form.control}
                 name="paragraph_prompt"
@@ -286,8 +469,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                   </FormItem>
                 )}
               />
-
-              {/* 2. CEFR Level */}
               <FormField
                 control={form.control}
                 name="cefr_level"
@@ -310,8 +491,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                   </FormItem>
                 )}
               />
-
-              {/* 3. Language */}
               <FormField
                 control={form.control}
                 name="language"
@@ -334,8 +513,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                   </FormItem>
                 )}
               />
-
-              {/* 4. Paragraph Length */}
               <FormField
                 control={form.control}
                 name="paragraph_length"
@@ -358,8 +535,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                   </FormItem>
                 )}
               />
-
-              {/* 5. Generate button */}
               <Button
                 type="button"
                 variant="outline"
@@ -373,8 +548,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                 )}
                 Generate Paragraph
               </Button>
-
-              {/* 6. Generated Paragraph with text selection */}
               {paragraphContent && (
                 <Card className="border-primary/30 bg-primary/5 relative">
                   <CardContent className="pt-4">
@@ -394,7 +567,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
             </>
           )}
 
-          {/* YouTube-specific fields */}
           {!isParagraph && (
             <>
               <FormField
@@ -423,8 +595,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                   </FormItem>
                 )}
               />
-
-              {/* CEFR Level for YouTube (original position) */}
               <FormField
                 control={form.control}
                 name="cefr_level"
@@ -450,7 +620,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
             </>
           )}
 
-          {/* 6. Title */}
           <FormField
             control={form.control}
             name="title"
@@ -464,8 +633,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
               </FormItem>
             )}
           />
-
-          {/* 7. Student Email */}
           <FormField
             control={form.control}
             name="student_email"
@@ -479,8 +646,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
               </FormItem>
             )}
           />
-
-          {/* 8. Exercise Types */}
           <FormField
             control={form.control}
             name="exercise_types"
@@ -519,7 +684,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
             )}
           />
 
-          {/* 9. Actions */}
           <div className="flex gap-3 pt-2">
             <Button type="submit" disabled={loading} className="flex-1">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -529,22 +693,9 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
               Cancel
             </Button>
           </div>
-
-          {/* Share Link (shown after creation) */}
-          {shareLink && (
-            <Card className="border-primary/30">
-              <CardContent className="pt-4 flex items-center gap-2">
-                <Input value={shareLink} readOnly className="flex-1 text-sm" />
-                <Button type="button" size="sm" variant="outline" onClick={handleCopyLink}>
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
         </form>
       </Form>
 
-      {/* Text Selection Popover */}
       {selection && (
         <TextSelectionPopover
           selectedText={selection.text}
@@ -555,7 +706,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
         />
       )}
 
-      {/* Word Explorer Panel */}
       <WordExplorerPanel
         open={wordExplorerOpen}
         onOpenChange={setWordExplorerOpen}
@@ -566,7 +716,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
         onSaveFlashcard={handleSaveFlashcardFromExplorer}
       />
 
-      {/* Flashcard Creator Modal */}
       <FlashcardCreatorModal
         open={flashcardModalOpen}
         onOpenChange={setFlashcardModalOpen}

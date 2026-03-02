@@ -56,65 +56,72 @@ serve(async (req) => {
 
     const exerciseTypes: string[] = lesson.exercise_types || [];
     const generatedExercises: any[] = [];
+    let orderIndex = 0;
 
     for (let i = 0; i < exerciseTypes.length; i++) {
       const type = exerciseTypes[i];
       const typePrompt = EXERCISE_PROMPTS[type];
       if (!typePrompt) continue;
 
-      const systemPrompt = `You are an expert language teacher creating exercises for a 1-on-1 tutoring session.
+      // Generate 5 questions for multiple_choice, 1 for others
+      const count = type === "multiple_choice" ? 5 : 1;
+
+      for (let q = 0; q < count; q++) {
+        const systemPrompt = `You are an expert language teacher creating exercises for a 1-on-1 tutoring session.
 Language: ${lesson.cefr_level} level learner.
 Topic: ${lesson.topic || "general conversation"}.
 Exercise format: ${type}.
+${type === "multiple_choice" && q > 0 ? `This is question ${q + 1} of ${count}. Make it DIFFERENT from previous questions — vary the topic, grammar point, or vocabulary tested.` : ""}
 Return ONLY valid JSON, no markdown, no explanation.`;
 
-      const userPrompt = `${typePrompt}
-Make it appropriate for a ${lesson.cefr_level} level student studying: ${lesson.topic || "general conversation"}.`;
+        const userPrompt = `${typePrompt}
+Make it appropriate for a ${lesson.cefr_level} level student studying: ${lesson.topic || "general conversation"}.${
+          lesson.paragraph_content ? `\n\nBase the question on this text:\n${lesson.paragraph_content}` : ""
+        }`;
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          max_tokens: 800,
-        }),
-      });
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            max_tokens: 800,
+          }),
+        });
 
-      if (!response.ok) {
-        const status = response.status;
-        if (status === 429) throw new Error("Rate limit exceeded. Please try again later.");
-        if (status === 402) throw new Error("AI credits exhausted. Please add funds.");
-        console.error(`AI error for type ${type}:`, status);
-        continue;
+        if (!response.ok) {
+          const status = response.status;
+          if (status === 429) throw new Error("Rate limit exceeded. Please try again later.");
+          if (status === 402) throw new Error("AI credits exhausted. Please add funds.");
+          console.error(`AI error for type ${type} q${q}:`, status);
+          continue;
+        }
+
+        const aiData = await response.json();
+        const raw = aiData.choices?.[0]?.message?.content || "";
+        const cleaned = raw.replace(/^```json?\s*/i, "").replace(/```\s*$/i, "").trim();
+
+        let content: any;
+        try {
+          content = JSON.parse(cleaned);
+        } catch {
+          console.error(`Failed to parse JSON for type ${type} q${q}:`, cleaned);
+          continue;
+        }
+
+        generatedExercises.push({
+          lesson_id: lessonId,
+          exercise_type: type,
+          content,
+          order_index: orderIndex++,
+        });
       }
-
-      const aiData = await response.json();
-      const raw = aiData.choices?.[0]?.message?.content || "";
-
-      // Strip markdown code fences if present
-      const cleaned = raw.replace(/^```json?\s*/i, "").replace(/```\s*$/i, "").trim();
-
-      let content: any;
-      try {
-        content = JSON.parse(cleaned);
-      } catch {
-        console.error(`Failed to parse JSON for type ${type}:`, cleaned);
-        continue;
-      }
-
-      generatedExercises.push({
-        lesson_id: lessonId,
-        exercise_type: type,
-        content,
-        order_index: i,
-      });
     }
 
     if (generatedExercises.length === 0) {
