@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, Play, Subtitles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Play, Subtitles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 interface VideoData {
@@ -48,6 +49,7 @@ const loadYouTubeAPI = (): Promise<void> => {
 };
 
 const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
+  const navigate = useNavigate();
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(video.suggestedSpeed.toString());
   const [showSubtitles, setShowSubtitles] = useState(true);
@@ -144,13 +146,24 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
       className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
     >
       <div className="max-w-3xl mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            Watch & Listen
-          </h1>
-          <p className="text-muted-foreground">
-            Focus on understanding the main ideas
-          </p>
+        <div className="space-y-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/onboarding')}
+            className="gap-1 text-muted-foreground hover:text-foreground -ml-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Change level
+          </Button>
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Watch & Listen
+            </h1>
+            <p className="text-muted-foreground">
+              Focus on understanding the main ideas
+            </p>
+          </div>
         </div>
 
         <Card className="shadow-xl rounded-2xl border-0 overflow-hidden">
