@@ -17,88 +17,119 @@ interface LessonVideoPlayerProps {
   onComplete: () => void;
 }
 
+// Extend window for YouTube IFrame API
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: (() => void) | undefined;
+  }
+}
+
+// Load YouTube IFrame API script once
+const loadYouTubeAPI = (): Promise<void> => {
+  return new Promise((resolve) => {
+    if (window.YT?.Player) {
+      resolve();
+      return;
+    }
+    const existing = document.getElementById('yt-iframe-api');
+    if (!existing) {
+      const script = document.createElement('script');
+      script.id = 'yt-iframe-api';
+      script.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(script);
+    }
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      prev?.();
+      resolve();
+    };
+  });
+};
+
 const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(video.suggestedSpeed.toString());
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [canContinue, setCanContinue] = useState(false);
   const [progress, setProgress] = useState(0);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerRef = useRef<any>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const containerIdRef = useRef(`yt-player-${Date.now()}`);
 
-  // Send postMessage to YouTube iframe to change playback rate
-  const sendPlaybackRate = useCallback((rate: number) => {
-    if (iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: 'setPlaybackRate', args: [rate] }),
-        '*'
-      );
-    }
-  }, []);
-
-  // Apply speed when it changes
+  // Apply speed changes to player
   useEffect(() => {
-    if (isPlaying) {
-      sendPlaybackRate(parseFloat(speed));
+    if (playerRef.current?.setPlaybackRate) {
+      playerRef.current.setPlaybackRate(parseFloat(speed));
     }
-  }, [speed, isPlaying, sendPlaybackRate]);
+  }, [speed]);
 
-  // Listen for YouTube IFrame API messages (video ended, current time)
+  // Initialize YT.Player when user clicks play
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (typeof event.data !== 'string') return;
-      try {
-        const data = JSON.parse(event.data);
-        // YouTube IFrame API posts onStateChange with info.playerState
-        if (data.event === 'onStateChange' || data.info?.playerState !== undefined) {
-          const playerState = data.info?.playerState ?? data.playerState;
-          // 0 = ended
-          if (playerState === 0) {
-            setCanContinue(true);
-            setProgress(100);
-          }
-        }
-        // Update progress from currentTime if available
-        if (data.info?.currentTime !== undefined && video.duration > 0) {
-          const pct = Math.min((data.info.currentTime / video.duration) * 100, 100);
+    if (!isPlaying) return;
+
+    let destroyed = false;
+
+    const initPlayer = async () => {
+      await loadYouTubeAPI();
+      if (destroyed) return;
+
+      playerRef.current = new window.YT.Player(containerIdRef.current, {
+        videoId: video.youtubeId,
+        playerVars: {
+          start: video.startTime,
+          end: video.startTime + video.duration,
+          autoplay: 1,
+          cc_load_policy: showSubtitles ? 1 : 0,
+          rel: 0,
+          modestbranding: 1,
+        },
+        events: {
+          onReady: (event: any) => {
+            event.target.setPlaybackRate(parseFloat(speed));
+          },
+          onStateChange: (event: any) => {
+            // 0 = ENDED
+            if (event.data === 0) {
+              setCanContinue(true);
+              setProgress(100);
+            }
+          },
+        },
+      });
+
+      // Poll getCurrentTime every 500ms for progress
+      pollRef.current = setInterval(() => {
+        const p = playerRef.current;
+        if (!p?.getCurrentTime || !p?.getDuration) return;
+        const current = p.getCurrentTime();
+        const duration = p.getDuration();
+        if (duration > 0) {
+          const startOffset = video.startTime;
+          const effectiveDuration = Math.min(video.duration, duration - startOffset);
+          const elapsed = current - startOffset;
+          const pct = Math.min(Math.max((elapsed / effectiveDuration) * 100, 0), 100);
           setProgress(prev => Math.max(prev, pct));
         }
-      } catch {
-        // not a JSON message, ignore
-      }
+      }, 500);
     };
 
-    if (isPlaying) {
-      window.addEventListener('message', handleMessage);
-    }
-    return () => window.removeEventListener('message', handleMessage);
-  }, [isPlaying, video.duration]);
+    initPlayer();
 
-  // Fallback timer in case YouTube messages don't fire
-  useEffect(() => {
-    if (isPlaying) {
-      const fallbackTimer = setTimeout(() => {
-        setCanContinue(true);
-        setProgress(100);
-      }, (video.duration + 5) * 1000);
+    // 30s fallback
+    const fallback = setTimeout(() => {
+      setCanContinue(true);
+      setProgress(100);
+    }, 30000);
 
-      const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + (100 / video.duration), 100));
-      }, 1000);
-
-      return () => {
-        clearTimeout(fallbackTimer);
-        clearInterval(progressInterval);
-      };
-    }
-  }, [isPlaying, video.duration]);
-
-  // Apply initial speed once iframe loads
-  const handleIframeLoad = () => {
-    // Small delay to let YouTube player initialize
-    setTimeout(() => sendPlaybackRate(parseFloat(speed)), 1500);
-  };
-
-  const embedUrl = `https://www.youtube.com/embed/${video.youtubeId}?start=${video.startTime}&end=${video.startTime + video.duration}&autoplay=${isPlaying ? 1 : 0}&cc_load_policy=${showSubtitles ? 1 : 0}&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}`;
+    return () => {
+      destroyed = true;
+      clearTimeout(fallback);
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (playerRef.current?.destroy) playerRef.current.destroy();
+      playerRef.current = null;
+    };
+  }, [isPlaying]); // intentionally minimal deps — player created once
 
   return (
     <motion.div
@@ -128,15 +159,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
                 </div>
               </div>
             ) : (
-              <iframe
-                ref={iframeRef}
-                src={embedUrl}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title="Lesson Video"
-                onLoad={handleIframeLoad}
-              />
+              <div id={containerIdRef.current} className="w-full h-full" />
             )}
           </div>
           
@@ -144,7 +167,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
           {isPlaying && (
             <div className="h-1 bg-muted">
               <div 
-                className="h-full bg-primary transition-all duration-1000"
+                className="h-full bg-primary transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
