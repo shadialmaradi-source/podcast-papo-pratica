@@ -1,0 +1,6 @@
+INSERT INTO public.onboarding_videos (language, level, youtube_id, duration, start_time, suggested_speed, is_short, transcript)
+VALUES 
+  ('english', 'absolute_beginner', 'qHb8dJ9XmDk', 43, 0, 0.8, true, null),
+  ('english', 'beginner', 'ileoFbDsd8M', 60, 0, 1.0, true, null),
+  ('english', 'intermediate', 'Q42YLweHhWA', 52, 0, 1.0, true, null),
+  ('english', 'advanced', 'fC76H7GyIM4', 60, 0, 1.2, true, 'I don''t know, can''t confirm nor deny. This BBC journalist got a shock when he looked out of his window and saw the wall of his garden had been spray painted, by vandals he assumed. Then someone told him to take a few steps back. When I went further I saw the whole picture and I realised I was in front of a masterpiece of art. Then everything changed when Banksy confirmed it was his work. Since then, he''s had crowds outside his garden. They''ve come to have a look, say hi and ask him if he saw anything. Everybody wants to talk to me and to come to my window and take pictures. So for me, it''s a great experience because it''s like being an immigrant like me. This kind of thing makes me feel like I really belong to this community. The local authorities have even put up barriers after the mural was defaced. Still, the people come to London''s latest tourist attraction.');

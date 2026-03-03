@@ -11,6 +11,7 @@ interface VideoData {
   startTime: number;
   duration: number;
   suggestedSpeed: number;
+  isShort?: boolean;
 }
 
 interface LessonVideoPlayerProps {
@@ -80,7 +81,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
         videoId: video.youtubeId,
         playerVars: {
           start: video.startTime,
-          end: video.startTime + video.duration,
+          ...(video.isShort ? {} : { end: video.startTime + video.duration }),
           autoplay: 1,
           cc_load_policy: showSubtitles ? 1 : 0,
           rel: 0,
@@ -167,7 +168,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
         </div>
 
         <Card className="shadow-xl rounded-2xl border-0 overflow-hidden">
-          <div className="aspect-video bg-black relative">
+          <div className={`${video.isShort ? 'aspect-[9/16] max-h-[70vh] mx-auto max-w-[400px]' : 'aspect-video'} bg-black relative`}>
             {!isPlaying ? (
               <div 
                 className="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer"

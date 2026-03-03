@@ -327,6 +327,7 @@ export type Database = {
           created_at: string
           duration: number
           id: string
+          is_short: boolean
           language: string
           level: string
           start_time: number
@@ -338,6 +339,7 @@ export type Database = {
           created_at?: string
           duration?: number
           id?: string
+          is_short?: boolean
           language: string
           level: string
           start_time?: number
@@ -349,6 +351,7 @@ export type Database = {
           created_at?: string
           duration?: number
           id?: string
+          is_short?: boolean
           language?: string
           level?: string
           start_time?: number
