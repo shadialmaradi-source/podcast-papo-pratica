@@ -83,6 +83,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
           cc_load_policy: showSubtitles ? 1 : 0,
           rel: 0,
           modestbranding: 1,
+          origin: window.location.origin,
         },
         events: {
           onReady: (event: any) => {
@@ -94,6 +95,11 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
               setCanContinue(true);
               setProgress(100);
             }
+          },
+          onError: () => {
+            // If video fails to load (e.g. Shorts), unlock continue
+            setCanContinue(true);
+            setProgress(100);
           },
         },
       });
