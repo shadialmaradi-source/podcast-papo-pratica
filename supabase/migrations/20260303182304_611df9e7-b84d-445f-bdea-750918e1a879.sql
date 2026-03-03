@@ -1,0 +1,1 @@
+ALTER TABLE public.onboarding_videos ADD COLUMN is_short boolean NOT NULL DEFAULT false;

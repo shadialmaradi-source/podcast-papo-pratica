@@ -17,6 +17,7 @@ interface OnboardingVideo {
   duration: number;
   suggested_speed: number;
   transcript: string | null;
+  is_short: boolean;
 }
 
 const FirstLesson = () => {
@@ -43,7 +44,7 @@ const FirstLesson = () => {
     const fetchVideo = async () => {
       const { data } = await supabase
         .from('onboarding_videos')
-        .select('youtube_id, start_time, duration, suggested_speed, transcript')
+        .select('youtube_id, start_time, duration, suggested_speed, transcript, is_short')
         .eq('language', targetLanguage)
         .eq('level', userLevel)
         .maybeSingle();
@@ -66,6 +67,7 @@ const FirstLesson = () => {
         startTime: onboardingVideo.start_time,
         duration: onboardingVideo.duration,
         suggestedSpeed: onboardingVideo.suggested_speed,
+        isShort: onboardingVideo.is_short,
       }
     : content.video;
 
