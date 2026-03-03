@@ -42,19 +42,51 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
     }
   }, [speed, isPlaying, sendPlaybackRate]);
 
-  // Auto-enable continue after video duration
+  // Listen for YouTube IFrame API messages (video ended, current time)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (typeof event.data !== 'string') return;
+      try {
+        const data = JSON.parse(event.data);
+        // YouTube IFrame API posts onStateChange with info.playerState
+        if (data.event === 'onStateChange' || data.info?.playerState !== undefined) {
+          const playerState = data.info?.playerState ?? data.playerState;
+          // 0 = ended
+          if (playerState === 0) {
+            setCanContinue(true);
+            setProgress(100);
+          }
+        }
+        // Update progress from currentTime if available
+        if (data.info?.currentTime !== undefined && video.duration > 0) {
+          const pct = Math.min((data.info.currentTime / video.duration) * 100, 100);
+          setProgress(prev => Math.max(prev, pct));
+        }
+      } catch {
+        // not a JSON message, ignore
+      }
+    };
+
+    if (isPlaying) {
+      window.addEventListener('message', handleMessage);
+    }
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isPlaying, video.duration]);
+
+  // Fallback timer in case YouTube messages don't fire
   useEffect(() => {
     if (isPlaying) {
-      const timer = setTimeout(() => {
+      const fallbackTimer = setTimeout(() => {
         setCanContinue(true);
-      }, video.duration * 1000);
-      
+        setProgress(100);
+      }, (video.duration + 5) * 1000);
+
       const progressInterval = setInterval(() => {
         setProgress(prev => Math.min(prev + (100 / video.duration), 100));
       }, 1000);
 
       return () => {
-        clearTimeout(timer);
+        clearTimeout(fallbackTimer);
         clearInterval(progressInterval);
       };
     }
