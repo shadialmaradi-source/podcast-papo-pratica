@@ -1,18 +1,22 @@
 
 
-# Fix: Word Explorer in Inline Results + Verify Share Link
+# Fix: Unlock "Continue" Button Based on Actual YouTube Playback State
 
-## Bug
-In `CreateLessonForm.tsx`, when `createdLessonId` is set, the component returns early (line 318-446). The `TextSelectionPopover`, `WordExplorerPanel`, and `FlashcardCreatorModal` are rendered after line 699 — outside the early return. So text selection features don't work in the inline result paragraph.
+## Problem
+The "Continue to Exercises" button currently unlocks after a hardcoded `video.duration * 1000` ms timer. If the actual YouTube video is shorter than the `duration` value stored in the database (e.g., 42s video vs 60s timer), the user is stuck waiting. The progress bar also doesn't reflect reality.
 
-## Fix
+## Solution
+Listen to YouTube IFrame API `onStateChange` events via `window.addEventListener('message', ...)`. YouTube posts messages when the player state changes — state `0` means the video has **ended**. When we receive that event, immediately unlock the button and set progress to 100%.
 
-### `src/components/teacher/CreateLessonForm.tsx`
-Move the three overlay components (`TextSelectionPopover`, `WordExplorerPanel`, `FlashcardCreatorModal`) into the inline result view as well. Wrap the early-return block in a fragment that includes these components, so word exploration works on the paragraph tab after lesson creation.
+Also keep the timer as a fallback (in case the message event doesn't fire), but set it to `video.duration + 5` seconds as a safety net rather than the primary unlock mechanism.
 
-Specifically:
-- Wrap the `createdLessonId` return block (lines 319-446) in a `<>...</>` fragment
-- Add the same three components (`TextSelectionPopover`, `WordExplorerPanel`, `FlashcardCreatorModal`) inside that fragment, identical to lines 699-736
+## Changes
 
-This is a single-file change of ~40 lines.
+### `src/components/lesson/LessonVideoPlayer.tsx`
+- Add a `window.addEventListener('message', handler)` that listens for YouTube's `onStateChange` events
+- When `event.data` contains `info.playerState === 0` (ended), set `canContinue = true` and `progress = 100`
+- Keep the existing timer as a fallback but extend it slightly beyond the video duration
+- Update progress bar to also respond to actual playback time from YouTube messages (YouTube posts `info.currentTime` in `onStateChange` events)
+
+Single file change, ~20 lines added.
 
