@@ -1,23 +1,33 @@
 
 
-# Fix: Sync Progress Bar with YouTube and Use Proper IFrame API
+# Fix: English Onboarding Videos Not Working
 
-## Problem
-The YouTube postMessage approach is unreliable — YouTube embedded iframes don't consistently send `onStateChange` or `currentTime` messages via `postMessage`. The screenshot confirms: YouTube's red progress line is at 100% but our green bar lags behind and the button stays disabled.
+## Root Cause
+The English onboarding videos stored in the `onboarding_videos` table are YouTube **Shorts** (vertical, < 60s videos). YouTube Shorts have unreliable embedding behavior with the standard IFrame Player API -- they often show a blank player or fail to fire state change events.
 
-## Solution
-Replace the iframe-based approach with the **official YouTube IFrame Player API** (`YT.Player`). This gives us reliable access to `onStateChange` events and `getCurrentTime()` polling. Fallback: unlock after 30 seconds.
+Confirmed:
+- `qHb8dJ9XmDk` — YouTube Short, 43s (taxi conversation)
+- `Q42YLweHhWA` — YouTube Short, 52s (children's story, wrong content)
+- `ileoFbDsd8M`, `fC76H7GyIM4` — could not verify, likely also Shorts
 
-## Changes — `src/components/lesson/LessonVideoPlayer.tsx`
+Additionally, the `duration` column is set to 60 for all levels, which doesn't match actual video lengths.
 
-1. **Load YouTube IFrame API script** — dynamically inject `https://www.youtube.com/iframe_api` script tag if not already present
-2. **Replace `<iframe>` with a `<div id>` container** — use `new YT.Player(divId, { ... })` to create the player programmatically with `events.onStateChange` and `events.onReady`
-3. **onStateChange handler** — when `event.data === YT.PlayerState.ENDED` (0), set `canContinue = true` and `progress = 100`
-4. **Poll `getCurrentTime()`** — use a `setInterval` every 500ms that calls `player.getCurrentTime()` and `player.getDuration()` to compute real progress percentage. This handles speed changes and seeking automatically
-5. **onReady handler** — apply initial playback rate via `player.setPlaybackRate(speed)` 
-6. **Speed changes** — call `player.setPlaybackRate()` directly instead of postMessage
-7. **Fallback** — reduce from `duration + 5s` to **30 seconds** as the absolute safety net
-8. **Remove** the postMessage listener and the old progress interval — no longer needed
+## Fix
 
-Single file change. The key difference is using `YT.Player` programmatically instead of an `<iframe>` tag, which gives us full API access.
+### 1. Add `origin` parameter to YT.Player (`LessonVideoPlayer.tsx`)
+Add `origin: window.location.origin` to `playerVars`. This is required for the IFrame API to work correctly in embedded contexts and helps with Shorts embedding. Also add an `onError` handler that triggers the fallback immediately if the video fails to load.
+
+### 2. Add error recovery to player
+In the `events` config, add an `onError` callback that sets `canContinue = true` so users aren't permanently stuck if a video can't be embedded.
+
+### 3. Update English video IDs in the database
+Replace the YouTube Shorts with regular embeddable English learning videos. Update `youtube_id` and `duration` to match actual video lengths. This requires a SQL migration to update the 4 English rows in `onboarding_videos`.
+
+## Technical Details
+
+**`src/components/lesson/LessonVideoPlayer.tsx`** (~5 lines changed):
+- Add `origin: window.location.origin` to `playerVars`
+- Add `onError` event handler that calls `setCanContinue(true)` and `setProgress(100)` so users can skip broken videos
+
+**SQL migration** — update `onboarding_videos` rows for English with working regular (non-Shorts) video IDs. The user will need to provide replacement video IDs, or we can fall back to the hardcoded `W1fKGyrmVKU` from `firstLessonContent.ts` by clearing the DB rows.
 
