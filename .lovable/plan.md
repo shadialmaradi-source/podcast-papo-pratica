@@ -1,33 +1,38 @@
 
 
-# Fix: English Onboarding Videos Not Working
+# Plan: Re-populate English Onboarding Videos + Support YouTube Shorts
 
-## Root Cause
-The English onboarding videos stored in the `onboarding_videos` table are YouTube **Shorts** (vertical, < 60s videos). YouTube Shorts have unreliable embedding behavior with the standard IFrame Player API -- they often show a blank player or fail to fire state change events.
+## What happened
+The previous migration deleted all English rows from `onboarding_videos`. The user wants them restored with the original Shorts video IDs, and the player must visually adapt for vertical (9:16) Shorts.
 
-Confirmed:
-- `qHb8dJ9XmDk` — YouTube Short, 43s (taxi conversation)
-- `Q42YLweHhWA` — YouTube Short, 52s (children's story, wrong content)
-- `ileoFbDsd8M`, `fC76H7GyIM4` — could not verify, likely also Shorts
+## Changes
 
-Additionally, the `duration` column is set to 60 for all levels, which doesn't match actual video lengths.
+### 1. Re-insert English onboarding videos into database
+Insert 4 rows into `onboarding_videos` with an additional `is_short` boolean column to flag vertical videos:
 
-## Fix
+| Level | youtube_id | duration | suggested_speed | is_short |
+|-------|-----------|----------|-----------------|----------|
+| absolute_beginner | qHb8dJ9XmDk | 43 | 0.8 | true |
+| beginner | ileoFbDsd8M | 60 | 1.0 | true |
+| intermediate | Q42YLweHhWA | 52 | 1.0 | true |
+| advanced | fC76H7GyIM4 | 60 | 1.2 | true |
 
-### 1. Add `origin` parameter to YT.Player (`LessonVideoPlayer.tsx`)
-Add `origin: window.location.origin` to `playerVars`. This is required for the IFrame API to work correctly in embedded contexts and helps with Shorts embedding. Also add an `onError` handler that triggers the fallback immediately if the video fails to load.
+The advanced level row will include the transcript the user provided.
 
-### 2. Add error recovery to player
-In the `events` config, add an `onError` callback that sets `canContinue = true` so users aren't permanently stuck if a video can't be embedded.
+### 2. Add `is_short` column to `onboarding_videos` table
+A new boolean column `is_short` (default `false`) so the frontend knows to render a vertical player.
 
-### 3. Update English video IDs in the database
-Replace the YouTube Shorts with regular embeddable English learning videos. Update `youtube_id` and `duration` to match actual video lengths. This requires a SQL migration to update the 4 English rows in `onboarding_videos`.
+### 3. Adapt `LessonVideoPlayer.tsx` for Shorts
+- Add `isShort` optional prop to `VideoData` interface
+- When `isShort` is true, change the container from `aspect-video` (16:9) to a centered portrait container (9:16 aspect ratio, max height ~70vh)
+- The YouTube IFrame API embeds Shorts fine using the regular `/embed/VIDEO_ID` URL — the previous failure was likely due to the `end` parameter cutting off the video or the `origin` issue (now fixed)
 
-## Technical Details
+### 4. Pass `isShort` from `FirstLesson.tsx`
+When fetching from `onboarding_videos`, read the `is_short` column and pass it through to the video player.
 
-**`src/components/lesson/LessonVideoPlayer.tsx`** (~5 lines changed):
-- Add `origin: window.location.origin` to `playerVars`
-- Add `onError` event handler that calls `setCanContinue(true)` and `setProgress(100)` so users can skip broken videos
-
-**SQL migration** — update `onboarding_videos` rows for English with working regular (non-Shorts) video IDs. The user will need to provide replacement video IDs, or we can fall back to the hardcoded `W1fKGyrmVKU` from `firstLessonContent.ts` by clearing the DB rows.
+## Files changed
+- **SQL migration**: Add `is_short` column + insert 4 English rows
+- **`src/components/lesson/LessonVideoPlayer.tsx`**: Add `isShort` to interface, conditionally render portrait layout
+- **`src/pages/FirstLesson.tsx`**: Pass `isShort` from DB data to player
+- **`src/integrations/supabase/types.ts`**: Will auto-update with new column
 
