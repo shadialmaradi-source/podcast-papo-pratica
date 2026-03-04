@@ -8,9 +8,14 @@ import { trackEvent } from "@/lib/analytics";
 
 interface Flashcard {
   phrase: string;
-  translation: string;
-  why: string;
+  translation: string | Record<string, string>;
+  why: string | Record<string, string>;
 }
+
+const getLocalizedText = (field: string | Record<string, string>, lang: string): string => {
+  if (typeof field === 'string') return field;
+  return field[lang] || field['en'] || Object.values(field)[0] || '';
+};
 
 interface LessonFlashcardsProps {
   flashcards: Flashcard[];
@@ -145,15 +150,15 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
                         <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
                           <span className="text-2xl">{getNativeLanguageFlag(nativeLanguage)}</span>
                         </div>
-                        <p className="text-2xl md:text-3xl font-bold text-foreground">
-                          {currentCard.translation}
-                        </p>
-                        <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
-                          <p className="text-sm text-muted-foreground">
-                            <span className="text-primary font-medium">Why this matters:</span><br />
-                            {currentCard.why}
-                          </p>
-                        </div>
+                         <p className="text-2xl md:text-3xl font-bold text-foreground">
+                           {getLocalizedText(currentCard.translation, nativeLanguage)}
+                         </p>
+                         <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
+                           <p className="text-sm text-muted-foreground">
+                             <span className="text-primary font-medium">Why this matters:</span><br />
+                             {getLocalizedText(currentCard.why, nativeLanguage)}
+                           </p>
+                         </div>
                       </motion.div>
                     )}
                   </motion.div>
