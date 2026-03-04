@@ -18,6 +18,9 @@ interface OnboardingVideo {
   suggested_speed: number;
   transcript: string | null;
   is_short: boolean;
+  exercises: any[] | null;
+  speaking_phrases: any[] | null;
+  flashcards: any[] | null;
 }
 
 const FirstLesson = () => {
@@ -44,13 +47,13 @@ const FirstLesson = () => {
     const fetchVideo = async () => {
       const { data } = await supabase
         .from('onboarding_videos')
-        .select('youtube_id, start_time, duration, suggested_speed, transcript, is_short')
+        .select('youtube_id, start_time, duration, suggested_speed, transcript, is_short, exercises, speaking_phrases, flashcards')
         .eq('language', targetLanguage)
         .eq('level', userLevel)
         .maybeSingle();
       
       if (data) {
-        setOnboardingVideo(data);
+        setOnboardingVideo(data as unknown as OnboardingVideo);
       }
     };
     fetchVideo();
@@ -77,13 +80,18 @@ const FirstLesson = () => {
     setStep('speaking');
   };
 
+  // Use DB content when available, fallback to hardcoded
+  const activeExercises = onboardingVideo?.exercises || content.exercises;
+  const activeSpeakingPhrases = onboardingVideo?.speaking_phrases || content.speakingPhrases;
+  const activeFlashcards = onboardingVideo?.flashcards || content.flashcards;
+
   const handleSpeakingComplete = () => {
-    setPhrasesLearned(content.speakingPhrases.length);
+    setPhrasesLearned(activeSpeakingPhrases.length);
     setStep('flashcards');
   };
 
   const handleFlashcardsComplete = () => {
-    setFlashcardsLearned(content.flashcards.length);
+    setFlashcardsLearned(activeFlashcards.length);
     localStorage.removeItem('lesson_step');
     setStep('complete');
   };
@@ -96,13 +104,13 @@ const FirstLesson = () => {
       return <LessonVideoPlayer video={videoData} onComplete={() => setStep('exercises')} />;
     
     case 'exercises':
-      return <LessonExercises exercises={content.exercises} onComplete={handleExercisesComplete} />;
+      return <LessonExercises exercises={activeExercises} onComplete={handleExercisesComplete} />;
     
     case 'speaking':
       return (
         <LessonSpeaking 
           level={userLevel} 
-          phrases={content.speakingPhrases}
+          phrases={activeSpeakingPhrases}
           videoTranscript={onboardingVideo?.transcript || content.video.transcript}
           language={targetLanguage}
           onComplete={handleSpeakingComplete} 
@@ -110,7 +118,7 @@ const FirstLesson = () => {
       );
     
     case 'flashcards':
-      return <LessonFlashcards flashcards={content.flashcards} onComplete={handleFlashcardsComplete} nativeLanguage={nativeLanguage} />;
+      return <LessonFlashcards flashcards={activeFlashcards} onComplete={handleFlashcardsComplete} nativeLanguage={nativeLanguage} />;
     
     case 'complete':
       return (
