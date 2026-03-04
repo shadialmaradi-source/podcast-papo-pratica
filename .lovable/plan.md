@@ -1,52 +1,29 @@
 
 
-# Plan: Translate Flashcards Based on Native Language
+# Plan: Add First-Visit Onboarding Hints to AppHome
 
-## Problem
-The flashcards in `onboarding_videos` store translations only in English. When a user selects Spanish (or any other language) as their native language, the back of the flashcard still shows English text. The screenshot confirms: the Spanish flag is correct, but the translation text is in English.
+## What
+Show animated tooltip hints on the AppHome page for first-time users, explaining what each card does. The hints appear once and are dismissed by clicking either card.
 
-## Solution
-Update the flashcard data in the database to include translations for multiple native languages, and update the frontend to select the correct one.
+## How
 
-### 1. Update flashcard JSONB structure in the database
-Change each flashcard's `translation` field from a plain string to a map keyed by native language code:
+### 1. Track first visit with localStorage
+Use a `has_seen_home_hints` key in localStorage. If absent, show the hints overlay. Set it when the user interacts with either card.
 
-```json
-{
-  "phrase": "luggage",
-  "translation": {
-    "en": "Bags and suitcases you travel with",
-    "es": "Bolsas y maletas con las que viajas",
-    "pt": "Malas e bolsas com as quais você viaja",
-    "fr": "Sacs et valises avec lesquels vous voyagez",
-    "it": "Borse e valigie con cui viaggi"
-  },
-  "why": { 
-    "en": "Essential travel vocabulary",
-    "es": "Vocabulario esencial de viaje",
-    "pt": "Vocabulário essencial de viagem",
-    "fr": "Vocabulaire de voyage essentiel",
-    "it": "Vocabolario essenziale di viaggio"
-  }
-}
-```
+### 2. Add hint tooltips to both cards
+When hints are active, render small speech-bubble-style labels below/above each card:
 
-One SQL migration will update all 4 English level rows (20 flashcards total) with translations in all 5 supported native languages (en, es, pt, fr, it).
+- **Learn from Library card**: "Follow a structured learning path with videos curated by ListenFlow and the community"
+- **Your Own Video card**: "Paste any YouTube link to create a personalized lesson from your own video"
 
-### 2. Update `LessonFlashcards.tsx` to resolve the correct translation
-When rendering the back of a flashcard, use `nativeLanguage` (already passed as a prop) to pick the right translation string from the map. Fall back to English if the native language key is missing, and fall back to the raw string if the value is not a map (backward compatibility with old format).
+Each hint will be a small animated badge/callout with a pulsing dot or subtle bounce animation using framer-motion. A semi-transparent overlay or subtle highlight draws attention.
 
-```typescript
-const getLocalizedText = (field: string | Record<string, string>, lang: string): string => {
-  if (typeof field === 'string') return field; // backward compat
-  return field[lang] || field['en'] || Object.values(field)[0] || '';
-};
-```
+### 3. Auto-dismiss behavior
+- Clicking either card dismisses hints and sets `has_seen_home_hints = true`
+- A small "Got it" dismiss button also available
 
-### 3. Files changed
-- **SQL migration**: Update all 20 flashcards across 4 English rows with multi-language translations and "why" fields
-- **`src/components/lesson/LessonFlashcards.tsx`**: Add `getLocalizedText` helper, use it for `translation` and `why` display
+## Files changed
+- **`src/pages/AppHome.tsx`**: Add `showHints` state (driven by localStorage), render hint callouts beneath each card with framer-motion animations, dismiss on card click
 
-### Note
-The same pattern should eventually apply to `exercises` and `speaking_phrases`, but this change focuses on the flashcards as reported.
+No database changes needed.
 
