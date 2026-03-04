@@ -1,38 +1,44 @@
 
 
-# Plan: Re-populate English Onboarding Videos + Support YouTube Shorts
+# Fix: Onboarding Exercises Must Match the Actual Video
 
-## What happened
-The previous migration deleted all English rows from `onboarding_videos`. The user wants them restored with the original Shorts video IDs, and the player must visually adapt for vertical (9:16) Shorts.
+## Problem
+When English is selected, the video comes from `onboarding_videos` (YouTube Shorts), but the exercises always come from hardcoded fallback content in `firstLessonContent.ts` -- which describes restaurant scenarios unrelated to the Shorts videos.
 
-## Changes
+The `FirstLesson.tsx` component only overrides `videoData` from the DB; exercises, speaking phrases, and flashcards always come from the hardcoded `content` object.
 
-### 1. Re-insert English onboarding videos into database
-Insert 4 rows into `onboarding_videos` with an additional `is_short` boolean column to flag vertical videos:
+## Solution
+Store exercises, speaking phrases, and flashcards alongside each onboarding video in the database, so all lesson content is tied to the actual video transcript.
 
-| Level | youtube_id | duration | suggested_speed | is_short |
-|-------|-----------|----------|-----------------|----------|
-| absolute_beginner | qHb8dJ9XmDk | 43 | 0.8 | true |
-| beginner | ileoFbDsd8M | 60 | 1.0 | true |
-| intermediate | Q42YLweHhWA | 52 | 1.0 | true |
-| advanced | fC76H7GyIM4 | 60 | 1.2 | true |
+### 1. Add content columns to `onboarding_videos` table
+Add three JSONB columns:
+- `exercises` — array of exercise objects
+- `speaking_phrases` — array of speaking phrase objects  
+- `flashcards` — array of flashcard objects
 
-The advanced level row will include the transcript the user provided.
+### 2. Populate all 4 English rows with transcript-based content
+For each video, write exercises that directly reference what happens in the Short:
 
-### 2. Add `is_short` column to `onboarding_videos` table
-A new boolean column `is_short` (default `false`) so the frontend knows to render a vertical player.
+- **absolute_beginner** (`qHb8dJ9XmDk`) — needs transcript (will use video topic to write exercises)
+- **beginner** (`ileoFbDsd8M`) — needs transcript
+- **intermediate** (`Q42YLweHhWA`) — needs transcript
+- **advanced** (`fC76H7GyIM4`) — transcript provided by user (Banksy mural story)
 
-### 3. Adapt `LessonVideoPlayer.tsx` for Shorts
-- Add `isShort` optional prop to `VideoData` interface
-- When `isShort` is true, change the container from `aspect-video` (16:9) to a centered portrait container (9:16 aspect ratio, max height ~70vh)
-- The YouTube IFrame API embeds Shorts fine using the regular `/embed/VIDEO_ID` URL — the previous failure was likely due to the `end` parameter cutting off the video or the `origin` issue (now fixed)
+Since we only have the advanced transcript, I will write content for the advanced level based on the provided transcript, and for the other 3 levels I will write placeholder content noting we need actual transcripts. Alternatively, we can generate them via AI at migration time.
 
-### 4. Pass `isShort` from `FirstLesson.tsx`
-When fetching from `onboarding_videos`, read the `is_short` column and pass it through to the video player.
+**Practical approach**: Store the advanced exercises now using the provided transcript. For the other 3 levels, update the migration to also store transcripts (which the user can provide later), and update `FirstLesson.tsx` to prefer DB content over hardcoded when available.
+
+### 3. Update `FirstLesson.tsx` to use DB content
+When an `onboarding_video` row is fetched and has `exercises`/`speaking_phrases`/`flashcards` populated, use those instead of the hardcoded fallback. The fallback in `firstLessonContent.ts` remains for when no DB data exists.
+
+### 4. Update Supabase types
+The `onboarding_videos` table type will gain the three new JSONB columns.
 
 ## Files changed
-- **SQL migration**: Add `is_short` column + insert 4 English rows
-- **`src/components/lesson/LessonVideoPlayer.tsx`**: Add `isShort` to interface, conditionally render portrait layout
-- **`src/pages/FirstLesson.tsx`**: Pass `isShort` from DB data to player
-- **`src/integrations/supabase/types.ts`**: Will auto-update with new column
+- **SQL migration**: Add `exercises`, `speaking_phrases`, `flashcards` JSONB columns + update the advanced English row with content based on the Banksy transcript
+- **`src/pages/FirstLesson.tsx`**: When DB row has `exercises`/`speaking_phrases`/`flashcards`, use them instead of hardcoded content
+- **`src/integrations/supabase/types.ts`**: Auto-updated with new columns
+
+## Content for Advanced Level (Banksy transcript)
+5 exercises, 3 speaking phrases, 5 flashcards -- all derived from the BBC journalist / Banksy mural story.
 
