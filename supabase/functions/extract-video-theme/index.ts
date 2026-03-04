@@ -3,23 +3,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const THEMES = [
-  'Cultura',
-  'Viaggi', 
-  'Sport',
-  'Cucina',
-  'Musica',
-  'Scienza',
-  'Storia',
-  'Grammatica',
-  'Conversazione',
-  'Business',
-  'Tecnologia',
-  'Arte',
-  'Lifestyle'
+  'Cultura', 'Viaggi', 'Sport', 'Cucina', 'Musica', 'Scienza',
+  'Storia', 'Grammatica', 'Conversazione', 'Business', 'Tecnologia', 'Arte', 'Lifestyle'
 ];
 
 serve(async (req) => {
@@ -28,6 +17,17 @@ serve(async (req) => {
   }
 
   try {
+    // Auth check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const authSupabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+    const { data: claimsData, error: claimsError } = await authSupabase.auth.getClaims(authHeader.replace('Bearer ', ''));
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const { transcript, videoId } = await req.json();
     
     if (!transcript || !videoId) {
@@ -44,8 +44,6 @@ serve(async (req) => {
     }
 
     console.log('Extracting theme for video:', videoId);
-    
-    // Use first 2000 chars for theme extraction
     const truncatedTranscript = transcript.substring(0, 2000);
 
     const prompt = `Analizza questo transcript di un video e assegna UNO dei seguenti temi:
@@ -64,9 +62,7 @@ Rispondi SOLO con il nome del tema, una singola parola dalla lista sopra. Nient'
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'user', content: prompt }
-        ]
+        messages: [{ role: 'user', content: prompt }]
       })
     });
 
@@ -79,28 +75,14 @@ Rispondi SOLO con il nome del tema, una singola parola dalla lista sopra. Nient'
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content?.trim() || '';
-    
-    // Find matching theme from our list
-    const matchedTheme = THEMES.find(t => 
-      content.toLowerCase().includes(t.toLowerCase())
-    ) || 'Cultura';
+    const matchedTheme = THEMES.find(t => content.toLowerCase().includes(t.toLowerCase())) || 'Cultura';
 
     console.log('Extracted theme:', matchedTheme, 'from response:', content);
 
-    // Update video with theme
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { error: updateError } = await supabase
-      .from('youtube_videos')
-      .update({ category: matchedTheme })
-      .eq('id', videoId);
-
-    if (updateError) {
-      console.error('Error updating video theme:', updateError);
-    }
+    // Use service role for DB write
+    const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    const { error: updateError } = await supabase.from('youtube_videos').update({ category: matchedTheme }).eq('id', videoId);
+    if (updateError) console.error('Error updating video theme:', updateError);
 
     return new Response(JSON.stringify({ theme: matchedTheme }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -108,11 +90,8 @@ Rispondi SOLO con il nome del tema, una singola parola dalla lista sopra. Nient'
 
   } catch (error) {
     console.error('Error extracting theme:', error);
-    return new Response(JSON.stringify({ 
-      theme: 'Cultura',
-      error: error.message 
-    }), {
-      status: 200, // Return 200 with default theme
+    return new Response(JSON.stringify({ theme: 'Cultura', error: error.message }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
