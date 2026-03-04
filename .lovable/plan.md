@@ -1,44 +1,52 @@
 
 
-# Fix: Onboarding Exercises Must Match the Actual Video
+# Plan: Translate Flashcards Based on Native Language
 
 ## Problem
-When English is selected, the video comes from `onboarding_videos` (YouTube Shorts), but the exercises always come from hardcoded fallback content in `firstLessonContent.ts` -- which describes restaurant scenarios unrelated to the Shorts videos.
-
-The `FirstLesson.tsx` component only overrides `videoData` from the DB; exercises, speaking phrases, and flashcards always come from the hardcoded `content` object.
+The flashcards in `onboarding_videos` store translations only in English. When a user selects Spanish (or any other language) as their native language, the back of the flashcard still shows English text. The screenshot confirms: the Spanish flag is correct, but the translation text is in English.
 
 ## Solution
-Store exercises, speaking phrases, and flashcards alongside each onboarding video in the database, so all lesson content is tied to the actual video transcript.
+Update the flashcard data in the database to include translations for multiple native languages, and update the frontend to select the correct one.
 
-### 1. Add content columns to `onboarding_videos` table
-Add three JSONB columns:
-- `exercises` — array of exercise objects
-- `speaking_phrases` — array of speaking phrase objects  
-- `flashcards` — array of flashcard objects
+### 1. Update flashcard JSONB structure in the database
+Change each flashcard's `translation` field from a plain string to a map keyed by native language code:
 
-### 2. Populate all 4 English rows with transcript-based content
-For each video, write exercises that directly reference what happens in the Short:
+```json
+{
+  "phrase": "luggage",
+  "translation": {
+    "en": "Bags and suitcases you travel with",
+    "es": "Bolsas y maletas con las que viajas",
+    "pt": "Malas e bolsas com as quais você viaja",
+    "fr": "Sacs et valises avec lesquels vous voyagez",
+    "it": "Borse e valigie con cui viaggi"
+  },
+  "why": { 
+    "en": "Essential travel vocabulary",
+    "es": "Vocabulario esencial de viaje",
+    "pt": "Vocabulário essencial de viagem",
+    "fr": "Vocabulaire de voyage essentiel",
+    "it": "Vocabolario essenziale di viaggio"
+  }
+}
+```
 
-- **absolute_beginner** (`qHb8dJ9XmDk`) — needs transcript (will use video topic to write exercises)
-- **beginner** (`ileoFbDsd8M`) — needs transcript
-- **intermediate** (`Q42YLweHhWA`) — needs transcript
-- **advanced** (`fC76H7GyIM4`) — transcript provided by user (Banksy mural story)
+One SQL migration will update all 4 English level rows (20 flashcards total) with translations in all 5 supported native languages (en, es, pt, fr, it).
 
-Since we only have the advanced transcript, I will write content for the advanced level based on the provided transcript, and for the other 3 levels I will write placeholder content noting we need actual transcripts. Alternatively, we can generate them via AI at migration time.
+### 2. Update `LessonFlashcards.tsx` to resolve the correct translation
+When rendering the back of a flashcard, use `nativeLanguage` (already passed as a prop) to pick the right translation string from the map. Fall back to English if the native language key is missing, and fall back to the raw string if the value is not a map (backward compatibility with old format).
 
-**Practical approach**: Store the advanced exercises now using the provided transcript. For the other 3 levels, update the migration to also store transcripts (which the user can provide later), and update `FirstLesson.tsx` to prefer DB content over hardcoded when available.
+```typescript
+const getLocalizedText = (field: string | Record<string, string>, lang: string): string => {
+  if (typeof field === 'string') return field; // backward compat
+  return field[lang] || field['en'] || Object.values(field)[0] || '';
+};
+```
 
-### 3. Update `FirstLesson.tsx` to use DB content
-When an `onboarding_video` row is fetched and has `exercises`/`speaking_phrases`/`flashcards` populated, use those instead of the hardcoded fallback. The fallback in `firstLessonContent.ts` remains for when no DB data exists.
+### 3. Files changed
+- **SQL migration**: Update all 20 flashcards across 4 English rows with multi-language translations and "why" fields
+- **`src/components/lesson/LessonFlashcards.tsx`**: Add `getLocalizedText` helper, use it for `translation` and `why` display
 
-### 4. Update Supabase types
-The `onboarding_videos` table type will gain the three new JSONB columns.
-
-## Files changed
-- **SQL migration**: Add `exercises`, `speaking_phrases`, `flashcards` JSONB columns + update the advanced English row with content based on the Banksy transcript
-- **`src/pages/FirstLesson.tsx`**: When DB row has `exercises`/`speaking_phrases`/`flashcards`, use them instead of hardcoded content
-- **`src/integrations/supabase/types.ts`**: Auto-updated with new columns
-
-## Content for Advanced Level (Banksy transcript)
-5 exercises, 3 speaking phrases, 5 flashcards -- all derived from the BBC journalist / Banksy mural story.
+### Note
+The same pattern should eventually apply to `exercises` and `speaking_phrases`, but this change focuses on the flashcards as reported.
 
