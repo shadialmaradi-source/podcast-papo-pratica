@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { BookOpen, Link2, Flame, Star, GraduationCap } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { BookOpen, Link2, Flame, Star, GraduationCap, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,7 @@ export default function AppHome() {
   const [videoUrl, setVideoUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
+  const [showHints, setShowHints] = useState(() => !localStorage.getItem("has_seen_home_hints"));
   
   // Upload quota state
   const [uploadQuota, setUploadQuota] = useState<{
@@ -103,6 +104,16 @@ export default function AppHome() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const dismissHints = () => {
+    localStorage.setItem("has_seen_home_hints", "true");
+    setShowHints(false);
+  };
+
+  const handleCardClick = (action: () => void) => {
+    if (showHints) dismissHints();
+    action();
   };
 
   const handleImportVideo = async () => {
@@ -220,10 +231,11 @@ export default function AppHome() {
             <motion.div
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              className="relative"
             >
               <Card
                 className="cursor-pointer border-2 border-primary bg-primary/5 hover:bg-primary/10 transition-colors h-full"
-                onClick={() => navigate("/library")}
+                onClick={() => handleCardClick(() => navigate("/library"))}
               >
                 <CardContent className="p-6 flex flex-col items-center text-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
@@ -237,16 +249,34 @@ export default function AppHome() {
                   </div>
                 </CardContent>
               </Card>
+              <AnimatePresence>
+                {showHints && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ delay: 0.3, duration: 0.4 }}
+                    className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-56 z-10"
+                  >
+                    <div className="relative bg-popover border border-border rounded-lg px-3 py-2 shadow-lg text-xs text-popover-foreground text-center">
+                      <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-popover border-l border-t border-border" />
+                      <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse mr-1.5 align-middle" />
+                      Follow a structured path with videos curated by ListenFlow and the community
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
 
             {/* Your Own Video */}
             <motion.div
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              className="relative"
             >
               <Card
                 className="cursor-pointer border-2 hover:border-primary/50 transition-colors h-full"
-                onClick={() => setImportDialogOpen(true)}
+                onClick={() => handleCardClick(() => setImportDialogOpen(true))}
               >
                 <CardContent className="p-6 flex flex-col items-center text-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
@@ -260,8 +290,48 @@ export default function AppHome() {
                   </div>
                 </CardContent>
               </Card>
+              <AnimatePresence>
+                {showHints && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ delay: 0.5, duration: 0.4 }}
+                    className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-56 z-10"
+                  >
+                    <div className="relative bg-popover border border-border rounded-lg px-3 py-2 shadow-lg text-xs text-popover-foreground text-center">
+                      <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-popover border-l border-t border-border" />
+                      <span className="inline-block w-2 h-2 rounded-full bg-accent animate-pulse mr-1.5 align-middle" />
+                      Paste any YouTube link to create a personalized lesson from your own video
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </div>
+
+          {/* Got it dismiss button */}
+          <AnimatePresence>
+            {showHints && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ delay: 0.7 }}
+                className="flex justify-center pt-16"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={dismissHints}
+                  className="text-xs text-muted-foreground gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  Got it
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Stats */}
           <div className="flex items-center justify-center gap-6 pt-4">
