@@ -326,10 +326,13 @@ export type Database = {
         Row: {
           created_at: string
           duration: number
+          exercises: Json | null
+          flashcards: Json | null
           id: string
           is_short: boolean
           language: string
           level: string
+          speaking_phrases: Json | null
           start_time: number
           suggested_speed: number
           transcript: string | null
@@ -338,10 +341,13 @@ export type Database = {
         Insert: {
           created_at?: string
           duration?: number
+          exercises?: Json | null
+          flashcards?: Json | null
           id?: string
           is_short?: boolean
           language: string
           level: string
+          speaking_phrases?: Json | null
           start_time?: number
           suggested_speed?: number
           transcript?: string | null
@@ -350,10 +356,13 @@ export type Database = {
         Update: {
           created_at?: string
           duration?: number
+          exercises?: Json | null
+          flashcards?: Json | null
           id?: string
           is_short?: boolean
           language?: string
           level?: string
+          speaking_phrases?: Json | null
           start_time?: number
           suggested_speed?: number
           transcript?: string | null
