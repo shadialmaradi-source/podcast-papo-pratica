@@ -13,6 +13,17 @@ serve(async (req) => {
   }
 
   try {
+    // Auth check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const authSupabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
+    const { data: claimsData, error: claimsError } = await authSupabase.auth.getClaims(authHeader.replace('Bearer ', ''));
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const { videoId, transcript, language, difficulty } = await req.json();
 
     if (!videoId || !transcript || !language) {
@@ -48,7 +59,6 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Truncate transcript if too long (keep first ~4000 chars)
     const truncatedTranscript = transcript.length > 4000
       ? transcript.substring(0, 4000) + "..."
       : transcript;
@@ -91,22 +101,10 @@ IMPORTANT: Include at least 2 of your suggestions from the first 3 transcript se
                     items: {
                       type: "object",
                       properties: {
-                        phrase: {
-                          type: "string",
-                          description: `The word or phrase in ${language} exactly as it appears in the transcript`,
-                        },
-                        translation: {
-                          type: "string",
-                          description: "English translation",
-                        },
-                        partOfSpeech: {
-                          type: "string",
-                          enum: ["noun", "verb", "adjective", "adverb", "phrase", "expression", "other"],
-                        },
-                        why: {
-                          type: "string",
-                          description: "Brief reason why this is valuable to learn (max 15 words)",
-                        },
+                        phrase: { type: "string", description: `The word or phrase in ${language} exactly as it appears in the transcript` },
+                        translation: { type: "string", description: "English translation" },
+                        partOfSpeech: { type: "string", enum: ["noun", "verb", "adjective", "adverb", "phrase", "expression", "other"] },
+                        why: { type: "string", description: "Brief reason why this is valuable to learn (max 15 words)" },
                       },
                       required: ["phrase", "translation", "partOfSpeech", "why"],
                       additionalProperties: false,
@@ -125,16 +123,10 @@ IMPORTANT: Include at least 2 of your suggestions from the first 3 transcript se
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
@@ -149,7 +141,6 @@ IMPORTANT: Include at least 2 of your suggestions from the first 3 transcript se
 
     const { suggestions } = JSON.parse(toolCall.function.arguments);
 
-    // Find segment indices for each suggestion by matching in the transcript
     const lines = transcript.split("\n");
     const enrichedSuggestions = suggestions.map((s: any) => {
       let segmentIndex = 0;
@@ -163,7 +154,6 @@ IMPORTANT: Include at least 2 of your suggestions from the first 3 transcript se
       return { ...s, segmentIndex };
     });
 
-    // Cache in database
     const records = enrichedSuggestions.map((s: any) => ({
       video_id: videoId,
       difficulty: difficultyLevel,
@@ -174,14 +164,8 @@ IMPORTANT: Include at least 2 of your suggestions from the first 3 transcript se
       segment_index: s.segmentIndex,
     }));
 
-    const { error: insertError } = await supabase
-      .from("transcript_word_suggestions")
-      .insert(records);
-
-    if (insertError) {
-      console.error("Error caching suggestions:", insertError);
-      // Don't fail - still return the suggestions
-    }
+    const { error: insertError } = await supabase.from("transcript_word_suggestions").insert(records);
+    if (insertError) console.error("Error caching suggestions:", insertError);
 
     return new Response(
       JSON.stringify({ suggestions: enrichedSuggestions, fromCache: false }),

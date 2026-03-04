@@ -9,7 +9,7 @@ import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { LessonList } from "@/components/teacher/LessonList";
 import { useUserRole } from "@/hooks/useUserRole";
-import { supabase } from "@/integrations/supabase/client";
+
 
 type FlowStep = "home" | "choose_type" | "form";
 type LessonType = "paragraph" | "youtube";
@@ -22,17 +22,12 @@ export default function TeacherDashboard() {
   const [lessonType, setLessonType] = useState<LessonType>("paragraph");
   const [refresh, setRefresh] = useState(0);
 
-  // Auto-correct: if user is on teacher dashboard but has student role
+  // Redirect non-teachers away from this dashboard
   useEffect(() => {
-    if (!roleLoading && role === "student" && user?.id) {
-      supabase
-        .from("user_roles" as any)
-        .upsert({ user_id: user.id, role: "teacher" } as any, { onConflict: "user_id" })
-        .then(() => {
-          window.location.reload();
-        });
+    if (!roleLoading && role !== "teacher") {
+      navigate("/app");
     }
-  }, [role, roleLoading, user?.id]);
+  }, [role, roleLoading, navigate]);
 
   const handleSignOut = async () => {
     await signOut();

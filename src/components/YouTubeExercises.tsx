@@ -272,42 +272,9 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
           if (dbError) {
             console.error('Error fetching exercises:', dbError);
             
-            // Fallback: if auth error, query table directly
+            // Auth error - direct table fallback removed for security
             if (dbError.message?.includes('Authentication required')) {
-              console.log('Auth error on RPC, falling back to direct query');
-              const { data: fallbackExercises } = await supabase
-                .from('youtube_exercises')
-                .select('*')
-                .eq('video_id', videoData.id)
-                .eq('difficulty', dbDifficulty)
-                .eq('native_language', userNativeLanguage)
-                .order('order_index');
-              
-              if (fallbackExercises && fallbackExercises.length > 0) {
-                console.log(`Loaded ${fallbackExercises.length} exercises via fallback`);
-                const shuffled = [...fallbackExercises].sort(() => Math.random() - 0.5);
-                const selected = shuffled.slice(0, 10);
-                const formattedExercises: Exercise[] = selected.map((ex) => ({
-                  id: ex.id,
-                  type: mapDbTypeToExerciseType(ex.exercise_type) as Exercise['type'],
-                  question: ex.question,
-                  options: parseOptions(ex.options),
-                  correctAnswer: ex.correct_answer,
-                  explanation: ex.explanation || '',
-                  points: ex.xp_reward || 10,
-                  difficulty: ex.difficulty,
-                  level: level,
-                  mode: 'intense' as Exercise['mode'],
-                  questionTranslation: ex.question_translation || null,
-                  contextSentence: ex.context_sentence || null
-                }));
-                setRegularExercises(formattedExercises);
-                setExercises(formattedExercises);
-                setDragDropExercises([]);
-                toast({ title: "Exercises Ready! 🎯", description: `${formattedExercises.length} exercises loaded.` });
-                setIsLoading(false);
-                return;
-              }
+              console.error('Authentication required for exercises RPC. User must be logged in.');
             }
           }
 
