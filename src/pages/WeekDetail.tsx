@@ -23,6 +23,7 @@ import {
   type LearningWeek,
   type WeekVideoWithProgress,
 } from "@/services/learningPathService";
+import { trackEvent } from "@/lib/analytics";
 
 export default function WeekDetail() {
   const { weekId } = useParams<{ weekId: string }>();
@@ -36,6 +37,7 @@ export default function WeekDetail() {
 
   useEffect(() => {
     if (!weekId) return;
+    trackEvent('week_detail_viewed', { week_id: weekId });
     loadData();
   }, [weekId, user]);
 

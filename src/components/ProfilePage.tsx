@@ -40,6 +40,7 @@ import {
   getUserSubscription, 
   type UserSubscription 
 } from "@/services/subscriptionService";
+import { trackEvent } from "@/lib/analytics";
 
 interface UserProfile {
   id: string;
@@ -112,6 +113,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
   // Load profile data on mount
   useEffect(() => {
     if (user) {
+      trackEvent('profile_viewed');
       loadProfileData();
       loadFlashcardCount();
       loadSubscriptionData();

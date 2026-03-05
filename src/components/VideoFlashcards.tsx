@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import { toast } from "sonner";
 import { saveViewedFlashcards } from "@/services/flashcardService";
+import { trackEvent } from "@/lib/analytics";
 
 interface VideoFlashcardsProps {
   videoId: string;
@@ -85,6 +86,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
         if (data?.flashcards && data.flashcards.length > 0) {
           setFlashcards(data.flashcards);
           setLanguage(transcriptData.language || 'english');
+          trackEvent('flashcards_started', { video_id: videoId, count: data.flashcards.length });
           
           // Save flashcards to user's repository
           await saveViewedFlashcards(session.user.id, videoId);

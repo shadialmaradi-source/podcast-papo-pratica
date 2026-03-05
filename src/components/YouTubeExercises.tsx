@@ -398,6 +398,12 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
       const isCorrect = checkAnswerCorrectness(currentExercise, value);
       setCurrentAnswerCorrect(isCorrect);
       setShowFeedback(true);
+      trackEvent('exercise_answered', {
+        correct: isCorrect,
+        exercise_type: currentExercise.type,
+        question_index: currentExerciseIndex,
+        video_id: videoId,
+      });
     }
   };
 

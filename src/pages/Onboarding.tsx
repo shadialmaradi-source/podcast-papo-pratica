@@ -8,6 +8,7 @@ import { Headphones, ArrowRight, ArrowLeft, Check, Sprout, BookOpen, Zap, Award 
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent } from "@/lib/analytics";
 
 const targetLanguages = [
   { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: true },
@@ -69,11 +70,13 @@ export default function Onboarding() {
     if (selectedNativeLanguage === targetToNativeCode[selectedLanguage]) {
       setSelectedNativeLanguage(null);
     }
+    trackEvent('onboarding_step_changed', { step_name: 'native' });
     setStep('native');
   };
 
   const handleContinueToLevel = () => {
     if (!selectedNativeLanguage) return;
+    trackEvent('onboarding_step_changed', { step_name: 'level' });
     setStep('level');
   };
 
@@ -87,6 +90,12 @@ export default function Onboarding() {
     localStorage.setItem('onboarding_language', selectedLanguage);
     localStorage.setItem('onboarding_level', selectedLevel);
     localStorage.setItem('onboarding_native_language', selectedNativeLanguage);
+
+    trackEvent('onboarding_completed', {
+      selected_language: selectedLanguage,
+      native_language: selectedNativeLanguage,
+      level: selectedLevel,
+    });
 
     // Save to Supabase profile if user is logged in
     if (user) {

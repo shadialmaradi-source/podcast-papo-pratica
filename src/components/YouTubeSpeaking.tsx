@@ -369,6 +369,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
 
       mediaRecorder.start();
       setIsRecording(true);
+      trackEvent('speaking_started', { video_id: videoId, level });
       
       // Determine auto-stop duration:
       // - 30 seconds for authenticated users in summary mode

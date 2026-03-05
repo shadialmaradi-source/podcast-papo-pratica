@@ -42,12 +42,12 @@ export default function Lesson() {
   };
 
   const handleStartExercises = (level: string) => {
-    // Track video/lesson started
     trackEvent('video_started', {
       video_id: videoId,
       difficulty_level: level,
       timestamp: new Date().toISOString()
     });
+    trackEvent('level_selected', { video_id: videoId, level });
     setSelectedLevel(level);
     setLessonState("exercises");
   };
