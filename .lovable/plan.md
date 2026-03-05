@@ -1,29 +1,25 @@
 
 
-# Plan: Add First-Visit Onboarding Hints to AppHome
+# Plan: Add "Add Your Video" Card to Community Tab
 
 ## What
-Show animated tooltip hints on the AppHome page for first-time users, explaining what each card does. The hints appear once and are dismissed by clicking either card.
+In the Library page's Community tab, insert a persistent "Add Your Video" card as the first item in the video grid. Clicking it opens the same import dialog used on `/app`. This card appears before the Featured row and always stays visible regardless of filters.
 
 ## How
 
-### 1. Track first visit with localStorage
-Use a `has_seen_home_hints` key in localStorage. If absent, show the hints overlay. Set it when the user interacts with either card.
+### 1. Add import dialog state and logic to `Library.tsx`
+Copy the import video dialog + handler logic from `AppHome.tsx` into `Library.tsx`:
+- State: `importDialogOpen`, `videoUrl`, `importing`, `uploadQuota`, `showUpgradePrompt`, `upgradeReason`
+- `fetchUploadQuota()` on mount
+- `handleImportVideo()` function (same as AppHome)
+- The Dialog + UpgradePrompt components at the bottom
 
-### 2. Add hint tooltips to both cards
-When hints are active, render small speech-bubble-style labels below/above each card:
+### 2. Add an "Add Video" CTA card before the community videos
+Before the `FeaturedRow`, render a styled card with a `+` icon, title like "Add Your YouTube Video", and subtitle "Paste a link and start practicing". Clicking it opens the import dialog. Style it similarly to `VideoCard` so it fits the grid.
 
-- **Learn from Library card**: "Follow a structured learning path with videos curated by ListenFlow and the community"
-- **Your Own Video card**: "Paste any YouTube link to create a personalized lesson from your own video"
-
-Each hint will be a small animated badge/callout with a pulsing dot or subtle bounce animation using framer-motion. A semi-transparent overlay or subtle highlight draws attention.
-
-### 3. Auto-dismiss behavior
-- Clicking either card dismisses hints and sets `has_seen_home_hints = true`
-- A small "Got it" dismiss button also available
+### 3. Also prepend it in the "All Videos" grid
+If there are remaining videos shown in the grid below Featured, also prepend the same CTA card as the first grid item so it's always accessible.
 
 ## Files changed
-- **`src/pages/AppHome.tsx`**: Add `showHints` state (driven by localStorage), render hint callouts beneath each card with framer-motion animations, dismiss on card click
-
-No database changes needed.
+- **`src/pages/Library.tsx`**: Add import dialog state/logic, render CTA card in community tab, render Dialog and UpgradePrompt components
 
