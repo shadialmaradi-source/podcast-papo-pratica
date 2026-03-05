@@ -3,14 +3,29 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { LevelSelector } from "@/components/library/LevelSelector";
 import { FilterBar } from "@/components/library/FilterBar";
 import { FeaturedRow } from "@/components/library/FeaturedRow";
 import { VideoCard } from "@/components/library/VideoCard";
+import { AddVideoCard } from "@/components/library/AddVideoCard";
 import { LearningPath } from "@/components/library/LearningPath";
 import { AppHeader } from "@/components/AppHeader";
+import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
+import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { getUploadQuotaStatus } from "@/services/subscriptionService";
 
 interface VideoTopic {
   topic: string;
@@ -43,6 +58,20 @@ export default function Library() {
   const [loading, setLoading] = useState(true);
   const [userLanguage, setUserLanguage] = useState<string>(localStorage.getItem('onboarding_language') || 'english');
   const [curatedVideoIds, setCuratedVideoIds] = useState<Set<string>>(new Set());
+
+  // Import dialog state
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [uploadQuota, setUploadQuota] = useState<{
+    uploadsUsed: number;
+    uploadsLimit: number;
+    totalDurationUsed: number;
+    totalDurationLimit: number;
+    isPremium: boolean;
+  } | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState("");
 
   // Fetch curated video IDs (linked from week_videos)
   useEffect(() => {
@@ -107,53 +136,122 @@ export default function Library() {
     fetchVideos();
   }, [userLanguage]);
 
+  // Fetch upload quota
+  useEffect(() => {
+    const fetchQuota = async () => {
+      if (!user) return;
+      try {
+        const quota = await getUploadQuotaStatus(user.id);
+        setUploadQuota(quota);
+      } catch (error) {
+        console.error("Error fetching upload quota:", error);
+      }
+    };
+    fetchQuota();
+  }, [user]);
+
+  const handleImportVideo = async () => {
+    if (!videoUrl.trim()) {
+      toast.error("Please enter a video URL");
+      return;
+    }
+    if (!user) {
+      toast.error("Please log in to import videos");
+      return;
+    }
+    setImporting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        toast.error("Please log in to import videos");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("selected_language")
+        .eq("user_id", user.id)
+        .single();
+
+      const response = await fetch(
+        `https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/process-youtube-video`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            videoUrl: videoUrl,
+            language: profile?.selected_language || userLanguage
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        const errorMessage = data.error || "Failed to import video";
+        if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
+          setUpgradeReason(errorMessage);
+          setShowUpgradePrompt(true);
+          return;
+        }
+        toast.error(errorMessage);
+        return;
+      }
+
+      const videoDbId = data?.video?.id;
+      if (videoDbId) {
+        setVideoUrl("");
+        setImportDialogOpen(false);
+        toast.success("Video ready! Starting your lesson...");
+        const quota = await getUploadQuotaStatus(user.id);
+        setUploadQuota(quota);
+        navigate(`/lesson/${videoDbId}`);
+      } else {
+        toast.success("Video added! Check the library when processing completes.");
+        setVideoUrl("");
+        setImportDialogOpen(false);
+        const quota = await getUploadQuotaStatus(user.id);
+        setUploadQuota(quota);
+      }
+    } catch (error: any) {
+      console.error("Error importing video:", error);
+      toast.error(error?.message || "Failed to import video. Please try again.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // Filter videos based on current selections
   const filteredVideos = useMemo(() => {
     return videos.filter((video) => {
-      // Filter by level
       const levelMatch = video.difficulty_level.toLowerCase() === selectedLevel;
-      
-      // Filter by curated/community
       const tabMatch = activeTab === 'curated' ? video.is_curated : !video.is_curated;
-
-      // Exclude curated-linked videos from community tab
-      if (activeTab === 'community' && curatedVideoIds.has(video.id)) {
-        return false;
-      }
-      
-      // Filter by topic (check if video has the selected topic)
+      if (activeTab === 'community' && curatedVideoIds.has(video.id)) return false;
       let topicMatch = true;
       if (selectedTopic && video.topics) {
         topicMatch = video.topics.some(t => t.toLowerCase() === selectedTopic.toLowerCase());
       }
-      
-      // Filter by length
       let lengthMatch = true;
       if (selectedLength && video.duration) {
         const duration = video.duration;
         switch (selectedLength) {
-          case '0-60':
-            lengthMatch = duration <= 60;
-            break;
-          case '60-180':
-            lengthMatch = duration > 60 && duration <= 180;
-            break;
-          case '180+':
-            lengthMatch = duration > 180;
-            break;
+          case '0-60': lengthMatch = duration <= 60; break;
+          case '60-180': lengthMatch = duration > 60 && duration <= 180; break;
+          case '180+': lengthMatch = duration > 180; break;
         }
       }
-
       return levelMatch && tabMatch && topicMatch && lengthMatch;
     });
   }, [videos, selectedLevel, activeTab, selectedTopic, selectedLength, curatedVideoIds]);
 
-  // Get featured videos (first 4-6 from filtered)
   const featuredVideos = filteredVideos.slice(0, 6);
   const remainingVideos = filteredVideos.slice(6);
 
   const handleVideoClick = (videoId: string) => {
-    // Find the video to get its database ID
     const video = videos.find(v => v.id === videoId);
     if (video) {
       navigate(`/lesson/${video.id}`);
@@ -208,14 +306,20 @@ export default function Library() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-center py-12"
+                className="space-y-8"
               >
-                <p className="text-muted-foreground">
-                  No videos found for this selection.
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Try adjusting your filters or check back later.
-                </p>
+                {/* Always show Add Video card even when no videos */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <AddVideoCard onClick={() => setImportDialogOpen(true)} />
+                </div>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">
+                    No videos found for this selection.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Try adjusting your filters or add your own video above.
+                  </p>
+                </div>
               </motion.div>
             ) : (
               <motion.div
@@ -223,12 +327,26 @@ export default function Library() {
                 animate={{ opacity: 1 }}
                 className="space-y-8"
               >
-                {featuredVideos.length > 0 && (
-                  <FeaturedRow
-                    videos={featuredVideos}
-                    onVideoClick={handleVideoClick}
-                  />
-                )}
+                {/* Add Video CTA + Featured Row */}
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground mb-3">Featured</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <AddVideoCard onClick={() => setImportDialogOpen(true)} />
+                    {featuredVideos.map((video) => (
+                      <VideoCard
+                        key={video.id}
+                        id={video.id}
+                        title={video.title}
+                        thumbnailUrl={video.thumbnail_url}
+                        topics={video.topics}
+                        duration={video.duration}
+                        difficultyLevel={video.difficulty_level}
+                        isCurated={video.is_curated}
+                        onClick={() => handleVideoClick(video.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
                 {remainingVideos.length > 0 && (
                   <div>
                     <h2 className="text-lg font-semibold text-foreground mb-3">
@@ -256,6 +374,72 @@ export default function Library() {
           </>
         )}
       </main>
+
+      {/* Import Video Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Your Own Video</DialogTitle>
+            <DialogDescription>
+              Paste a YouTube video URL to create personalized lessons
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            {uploadQuota && (
+              <QuotaIndicator
+                used={uploadQuota.uploadsUsed}
+                limit={uploadQuota.uploadsLimit}
+                label="uploads"
+                showUpgradeHint={!uploadQuota.isPremium}
+              />
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="library-video-url">Video URL</Label>
+              <Input
+                id="library-video-url"
+                placeholder="https://youtube.com/watch?v=..."
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+              />
+              {!uploadQuota?.isPremium && (
+                <p className="text-xs text-muted-foreground">
+                  Max video length: 10 minutes
+                </p>
+              )}
+            </div>
+            <Button
+              className="w-full"
+              onClick={handleImportVideo}
+              disabled={importing || (uploadQuota?.uploadsUsed ?? 0) >= (uploadQuota?.uploadsLimit ?? 2)}
+            >
+              {importing ? "Processing..." : "Add Video"}
+            </Button>
+            {!uploadQuota?.isPremium && (
+              <div className="text-center pt-2 border-t">
+                <p className="text-xs text-muted-foreground mb-2">Want more uploads?</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/premium')}
+                  className="text-xs"
+                >
+                  Upgrade to Premium
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Prompt */}
+      <UpgradePrompt
+        open={showUpgradePrompt}
+        onOpenChange={setShowUpgradePrompt}
+        title="Upload Limit Reached"
+        description={upgradeReason || "Upgrade to Premium for more video uploads."}
+        quotaUsed={uploadQuota?.uploadsUsed}
+        quotaLimit={uploadQuota?.uploadsLimit}
+      />
     </div>
   );
 }
