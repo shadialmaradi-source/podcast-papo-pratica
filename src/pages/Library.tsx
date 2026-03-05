@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUploadQuotaStatus } from "@/services/subscriptionService";
+import { trackEvent } from "@/lib/analytics";
 
 interface VideoTopic {
   topic: string;
@@ -275,7 +276,7 @@ export default function Library() {
 
       {/* Tabs and Filters */}
       <div className="container mx-auto px-4 py-4 space-y-4">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'curated' | 'community')}>
+        <Tabs value={activeTab} onValueChange={(v) => { const tab = v as 'curated' | 'community'; trackEvent('library_tab_switched', { tab }); setActiveTab(tab); }}>
           <TabsList className="grid w-full max-w-xs grid-cols-2">
             <TabsTrigger value="curated">Curated</TabsTrigger>
             <TabsTrigger value="community">Community</TabsTrigger>

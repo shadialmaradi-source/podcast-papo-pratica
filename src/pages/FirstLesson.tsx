@@ -8,6 +8,7 @@ import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import LessonComplete from "@/components/lesson/LessonComplete";
 import { allLessonContent, getLocalizedContent } from "@/data/firstLessonContent";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent } from "@/lib/analytics";
 
 type LessonStep = 'intro' | 'video' | 'exercises' | 'speaking' | 'flashcards' | 'complete';
 
@@ -58,6 +59,10 @@ const FirstLesson = () => {
     };
     fetchVideo();
   }, [targetLanguage, userLevel]);
+
+  useEffect(() => {
+    trackEvent('first_lesson_started', { language: targetLanguage, level: userLevel });
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('lesson_step', step);

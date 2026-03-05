@@ -1,30 +1,63 @@
-import posthog from "posthog-js";
+const POSTHOG_API_KEY = "phc_p7UUw6GZ8h3JsZmK82XMKt9KTjJ40oqkZ4Un9vtNeRm";
+const POSTHOG_HOST = "https://us.i.posthog.com";
 
-// Initialize PostHog (call once on app load)
-export const initAnalytics = () => {
-  if (typeof window !== "undefined" && !posthog.__loaded) {
-    posthog.init("phc_2UXnWZCt3IvklRR0OIiMG2dvMPnRBtd7C5pNTMv6v90", {
-      api_host: "https://app.posthog.com",
-      capture_pageview: true,
-      capture_pageleave: true,
-      persistence: "localStorage",
-      // Respect user privacy
-      respect_dnt: true,
-    });
+let distinctId: string | null = null;
+
+const getDistinctId = (): string => {
+  if (distinctId) return distinctId;
+  const stored = localStorage.getItem("ph_distinct_id");
+  if (stored) {
+    distinctId = stored;
+    return stored;
   }
+  const newId = crypto.randomUUID();
+  localStorage.setItem("ph_distinct_id", newId);
+  distinctId = newId;
+  return newId;
+};
+
+const postCapture = (event: string, properties: Record<string, unknown> = {}) => {
+  fetch(`${POSTHOG_HOST}/capture/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: POSTHOG_API_KEY,
+      event,
+      properties: {
+        distinct_id: getDistinctId(),
+        $current_url: window.location.href,
+        $host: window.location.host,
+        $pathname: window.location.pathname,
+        ...properties,
+      },
+      timestamp: new Date().toISOString(),
+    }),
+  }).catch(() => {});
+};
+
+// Initialize analytics (call once on app load)
+export const initAnalytics = () => {
+  getDistinctId();
+  postCapture("$pageview");
 };
 
 // Identify user (call on login/signup)
 export const identifyUser = (userId: string, email?: string) => {
-  posthog.identify(userId, email ? { email } : {});
+  distinctId = userId;
+  localStorage.setItem("ph_distinct_id", userId);
+  postCapture("$identify", {
+    $set: email ? { email } : {},
+  });
 };
 
 // Reset on logout
 export const resetAnalytics = () => {
-  posthog.reset();
+  localStorage.removeItem("ph_distinct_id");
+  distinctId = null;
+  getDistinctId(); // generate new anonymous id
 };
 
 // Track events with properties
 export const trackEvent = (event: string, properties?: Record<string, unknown>) => {
-  posthog.capture(event, properties);
+  postCapture(event, properties || {});
 };

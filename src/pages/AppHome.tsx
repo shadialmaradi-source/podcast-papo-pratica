@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { getUploadQuotaStatus } from "@/services/subscriptionService";
 import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
+import { trackEvent } from "@/lib/analytics";
 
 interface UserProfile {
   full_name: string | null;
@@ -111,7 +112,8 @@ export default function AppHome() {
     setShowHints(false);
   };
 
-  const handleCardClick = (action: () => void) => {
+  const handleCardClick = (action: () => void, cardType: string) => {
+    trackEvent('home_card_clicked', { card_type: cardType });
     if (showHints) dismissHints();
     action();
   };
@@ -235,7 +237,7 @@ export default function AppHome() {
             >
               <Card
                 className="cursor-pointer border-2 border-primary bg-primary/5 hover:bg-primary/10 transition-colors h-full"
-                onClick={() => handleCardClick(() => navigate("/library"))}
+                onClick={() => handleCardClick(() => navigate("/library"), "library")}
               >
                 <CardContent className="p-6 flex flex-col items-center text-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
@@ -276,7 +278,7 @@ export default function AppHome() {
             >
               <Card
                 className="cursor-pointer border-2 hover:border-primary/50 transition-colors h-full"
-                onClick={() => handleCardClick(() => setImportDialogOpen(true))}
+                onClick={() => handleCardClick(() => { trackEvent('import_dialog_opened', { source_page: 'home' }); setImportDialogOpen(true); }, "import")}
               >
                 <CardContent className="p-6 flex flex-col items-center text-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
