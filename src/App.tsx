@@ -189,6 +189,14 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/my-lessons"
+              element={
+                <ProtectedRoute>
+                  <MyLessons />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

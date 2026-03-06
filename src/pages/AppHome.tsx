@@ -361,12 +361,24 @@ export default function AppHome() {
           {/* Assigned Lessons from Teacher */}
           {assignedLessons.length > 0 && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <GraduationCap className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">Your Lessons</h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">My Lessons</h3>
+                </div>
+                {assignedLessons.length > 3 && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => navigate("/my-lessons")}
+                    className="text-xs text-primary p-0 h-auto"
+                  >
+                    See All →
+                  </Button>
+                )}
               </div>
               <div className="space-y-2">
-                {assignedLessons.map((lesson) => (
+                {assignedLessons.slice(0, 3).map((lesson) => (
                   <Card
                     key={lesson.id}
                     className="cursor-pointer border border-border hover:border-primary/50 transition-colors"
@@ -392,6 +404,16 @@ export default function AppHome() {
                   </Card>
                 ))}
               </div>
+              {assignedLessons.length <= 3 && assignedLessons.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/my-lessons")}
+                  className="w-full text-xs text-muted-foreground"
+                >
+                  View all lessons
+                </Button>
+              )}
             </div>
           )}
         </motion.div>
