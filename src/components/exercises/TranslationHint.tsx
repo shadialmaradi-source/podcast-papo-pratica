@@ -5,15 +5,18 @@ import { motion, AnimatePresence } from "framer-motion";
 interface TranslationHintProps {
   translation: string | null | undefined;
   question?: string;
+  label?: string;
 }
 
-export function TranslationHint({ translation, question }: TranslationHintProps) {
+export function TranslationHint({ translation, question, label }: TranslationHintProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!translation) return null;
 
   // Don't show if translation is essentially the same as the question (same-language)
   if (question && translation.trim().toLowerCase() === question.trim().toLowerCase()) return null;
+
+  const buttonLabel = label || (isOpen ? "Hide translation" : "Need help? See translation");
 
   return (
     <div className="mt-2">
@@ -24,7 +27,7 @@ export function TranslationHint({ translation, question }: TranslationHintProps)
       >
         <Globe className="w-3.5 h-3.5" />
         <span className="italic">
-          {isOpen ? "Hide translation" : "Need help? See translation"}
+          {isOpen ? "Hide translation" : buttonLabel}
         </span>
         {isOpen ? (
           <ChevronUp className="w-3.5 h-3.5" />

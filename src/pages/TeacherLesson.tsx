@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExercisePresenter } from "@/components/teacher/ExercisePresenter";
 import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
-import { ArrowLeft, User, BookOpen, CheckCircle } from "lucide-react";
+import { EXERCISE_TYPE_LABELS, TYPE_COLORS } from "@/components/teacher/ExercisePresenter";
+import type { Exercise } from "@/components/teacher/ExercisePresenter";
+import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function extractYouTubeVideoId(url: string): string | null {
@@ -31,13 +33,8 @@ interface Lesson {
   status: string;
   youtube_url: string | null;
   transcript: string | null;
-}
-
-interface Exercise {
-  id: string;
-  exercise_type: string;
-  content: any;
-  order_index: number;
+  exercise_types: string[];
+  language: string;
 }
 
 export default function TeacherLesson() {
@@ -51,6 +48,30 @@ export default function TeacherLesson() {
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [done, setDone] = useState(false);
+  const [generatingType, setGeneratingType] = useState<string | null>(null);
+
+  interface GroupState { currentIndex: number; revealed: boolean; }
+  const [groupStates, setGroupStates] = useState<Record<string, GroupState>>({});
+
+  const exerciseGroups = useMemo(() => {
+    const typeOrder: string[] = [];
+    const grouped: Record<string, Exercise[]> = {};
+    for (const ex of exercises) {
+      if (!grouped[ex.exercise_type]) {
+        grouped[ex.exercise_type] = [];
+        typeOrder.push(ex.exercise_type);
+      }
+      grouped[ex.exercise_type].push(ex);
+    }
+    return typeOrder.map((type) => ({ type, exercises: grouped[type] }));
+  }, [exercises]);
+
+  const updateGroupState = (type: string, update: Partial<GroupState>) => {
+    setGroupStates((prev) => ({
+      ...prev,
+      [type]: { ...prev[type], ...update },
+    }));
+  };
 
   useEffect(() => {
     if (!id || !user) return;
@@ -61,7 +82,7 @@ export default function TeacherLesson() {
       const [lessonRes, exercisesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript")
+          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, exercise_types, language")
           .eq("id", id)
           .eq("teacher_id", user.id)
           .single(),
@@ -73,10 +94,19 @@ export default function TeacherLesson() {
       ]);
 
       if (lessonRes.data) setLesson(lessonRes.data as any as Lesson);
-      if (exercisesRes.data) setExercises(exercisesRes.data as Exercise[]);
+      if (exercisesRes.data) {
+        setExercises(exercisesRes.data as Exercise[]);
+        const groups: Record<string, Exercise[]> = {};
+        for (const ex of exercisesRes.data as Exercise[]) {
+          if (!groups[ex.exercise_type]) groups[ex.exercise_type] = [];
+          groups[ex.exercise_type].push(ex);
+        }
+        const initStates: Record<string, GroupState> = {};
+        Object.keys(groups).forEach((t) => { initStates[t] = { currentIndex: 0, revealed: false }; });
+        setGroupStates(initStates);
+      }
       setLoading(false);
 
-      // Transition to active if still ready
       if (lessonRes.data?.status === "ready") {
         await supabase
           .from("teacher_lessons")
@@ -98,6 +128,142 @@ export default function TeacherLesson() {
     setCompleting(false);
     setDone(true);
     toast({ title: "Lesson completed!", description: "Great session. The lesson has been marked as complete." });
+  };
+
+  const handleGenerateByType = async (exerciseType: string) => {
+    if (!id || generatingType) return;
+    setGeneratingType(exerciseType);
+    try {
+      const { error } = await supabase.functions.invoke("generate-lesson-exercises-by-type", {
+        body: { lessonId: id, exerciseType }
+      });
+      if (error) throw error;
+
+      const { data: fetchedExercises } = await supabase
+        .from("lesson_exercises")
+        .select("id, exercise_type, content, order_index")
+        .eq("lesson_id", id)
+        .order("order_index");
+
+      if (fetchedExercises) {
+        setExercises(fetchedExercises as Exercise[]);
+        const groups: Record<string, Exercise[]> = {};
+        for (const ex of fetchedExercises as Exercise[]) {
+          if (!groups[ex.exercise_type]) groups[ex.exercise_type] = [];
+          groups[ex.exercise_type].push(ex);
+        }
+        const newStates = { ...groupStates };
+        Object.keys(groups).forEach((t) => {
+          if (!newStates[t]) newStates[t] = { currentIndex: 0, revealed: false };
+        });
+        setGroupStates(newStates);
+      }
+
+      // Fetch transcript if updated
+      if (!lesson?.transcript) {
+        const { data: lessonData } = await supabase
+          .from("teacher_lessons")
+          .select("transcript")
+          .eq("id", id)
+          .single();
+        if (lessonData?.transcript) {
+          setLesson(prev => prev ? { ...prev, transcript: lessonData.transcript } : prev);
+        }
+      }
+
+      toast({ title: `${EXERCISE_TYPE_LABELS[exerciseType] || exerciseType} exercises generated!` });
+    } catch (err: any) {
+      toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+    } finally {
+      setGeneratingType(null);
+    }
+  };
+
+  const renderExerciseContent = (exercise: Exercise, revealed: boolean) => {
+    const c = exercise.content;
+    if (exercise.exercise_type === "fill_in_blank") {
+      return (
+        <div className="space-y-4">
+          <p className="text-xl font-medium text-foreground leading-relaxed">{c.sentence}</p>
+          {c.hint && <p className="text-sm text-muted-foreground italic">💡 Hint: {c.hint}</p>}
+          {revealed && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-1">Answer</p>
+              <p className="text-lg font-bold text-primary">{c.answer}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (exercise.exercise_type === "multiple_choice") {
+      return (
+        <div className="space-y-4">
+          <p className="text-xl font-medium text-foreground">{c.question}</p>
+          <ul className="space-y-2">
+            {(c.options || []).map((opt: string, i: number) => {
+              const letter = ["A", "B", "C", "D"][i];
+              const isCorrect = revealed && letter === c.correct;
+              return (
+                <li key={i} className={`rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${isCorrect ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-foreground"}`}>
+                  <span className="font-bold mr-2">{letter}.</span>{opt}
+                  {isCorrect && <span className="ml-2 text-primary">✓</span>}
+                </li>
+              );
+            })}
+          </ul>
+          {revealed && c.explanation && <p className="text-sm text-muted-foreground italic">{c.explanation}</p>}
+        </div>
+      );
+    }
+    if (exercise.exercise_type === "role_play") {
+      return (
+        <div className="space-y-4">
+          <p className="text-lg font-medium text-foreground">{c.scenario}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Teacher</p>
+              <p className="text-sm text-foreground">{c.teacher_role}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Student</p>
+              <p className="text-sm text-foreground">{c.student_role}</p>
+            </div>
+          </div>
+          {c.starter && <p className="text-sm italic text-muted-foreground">🗣 Starter: <span className="text-foreground">"{c.starter}"</span></p>}
+          {c.useful_phrases?.length > 0 && revealed && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Useful Phrases</p>
+              <div className="flex flex-wrap gap-2">
+                {c.useful_phrases.map((p: string, i: number) => (
+                  <span key={i} className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs">{p}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (exercise.exercise_type === "spot_the_mistake") {
+      return (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">{c.instruction}</p>
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-destructive mb-1">Find the mistake</p>
+            <p className="text-xl text-foreground">{c.sentence}</p>
+          </div>
+          {revealed && (
+            <>
+              <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-1">Correction</p>
+                <p className="text-xl font-bold text-primary">{c.corrected}</p>
+              </div>
+              {c.explanation && <p className="text-sm text-muted-foreground italic">{c.explanation}</p>}
+            </>
+          )}
+        </div>
+      );
+    }
+    return <p className="text-muted-foreground">Unknown exercise type</p>;
   };
 
   if (loading) {
@@ -128,6 +294,8 @@ export default function TeacherLesson() {
   }
 
   const youtubeVideoId = lesson.youtube_url ? extractYouTubeVideoId(lesson.youtube_url) : null;
+  const generatedTypes = new Set(exercises.map(e => e.exercise_type));
+  const availableTypes = (lesson.exercise_types || []).filter((t: string) => t !== "flashcards" && t !== "image_discussion");
 
   return (
     <div className="min-h-screen bg-background">
@@ -176,13 +344,6 @@ export default function TeacherLesson() {
             <p className="text-muted-foreground">This lesson has been marked as completed.</p>
             <Button onClick={() => navigate("/teacher")}>Back to Dashboard</Button>
           </div>
-        ) : exercises.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center">
-            <p className="text-muted-foreground">No exercises found. Generate exercises first.</p>
-            <Button className="mt-4" variant="outline" onClick={() => navigate("/teacher")}>
-              Back to Dashboard
-            </Button>
-          </div>
         ) : (
           <div className="space-y-6">
             {/* YouTube video */}
@@ -198,25 +359,107 @@ export default function TeacherLesson() {
               </div>
             )}
 
-            {/* Transcript with word exploration */}
+            {/* Transcript */}
             {lesson.transcript && (
               <TranscriptViewer
                 videoId={lesson.id}
                 transcript={lesson.transcript}
                 videoTitle={lesson.title}
-                language="italian"
+                language={lesson.language || "italian"}
                 isPremium={true}
                 onUpgradeClick={() => {}}
               />
             )}
 
-            {/* Exercises grouped by type */}
-            <ExercisePresenter
-              exercises={exercises}
-              lessonTitle={lesson.title}
-              lessonId={lesson.id}
-              onComplete={handleComplete}
-            />
+            {/* Per-type generation buttons */}
+            {availableTypes.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Generate Exercises</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {availableTypes.map((type: string) => {
+                    const label = EXERCISE_TYPE_LABELS[type] || type;
+                    const isGenerated = generatedTypes.has(type);
+                    const isGenerating = generatingType === type;
+
+                    return (
+                      <Button
+                        key={type}
+                        variant={isGenerated ? "outline" : "default"}
+                        size="sm"
+                        onClick={() => handleGenerateByType(type)}
+                        disabled={isGenerating || !!generatingType}
+                        className="gap-2"
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : isGenerated ? (
+                          <CheckCircle className="h-4 w-4" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        {label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Exercise groups */}
+            {exerciseGroups.map((group) => {
+              const state = groupStates[group.type] || { currentIndex: 0, revealed: false };
+              const exercise = group.exercises[state.currentIndex];
+              if (!exercise) return null;
+
+              const label = EXERCISE_TYPE_LABELS[group.type] || group.type;
+              const colorClass = TYPE_COLORS[group.type] || "";
+              const isFirst = state.currentIndex === 0;
+              const isLast = state.currentIndex === group.exercises.length - 1;
+
+              return (
+                <div key={group.type} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
+                        {label}
+                      </span>
+                      <span className="text-sm text-muted-foreground font-normal">
+                        {state.currentIndex + 1} / {group.exercises.length}
+                      </span>
+                    </h3>
+                  </div>
+
+                  <Card className="border border-border shadow-sm">
+                    <CardContent className="pt-6 pb-6 px-6 space-y-6">
+                      {renderExerciseContent(exercise, state.revealed)}
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <Button variant="outline" size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex - 1, revealed: false })} disabled={isFirst}>
+                      <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => updateGroupState(group.type, { revealed: !state.revealed })} className="flex-1">
+                      {state.revealed ? <><EyeOff className="h-4 w-4 mr-2" />Hide Answer</> : <><Eye className="h-4 w-4 mr-2" />Reveal Answer</>}
+                    </Button>
+                    <Button size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex + 1, revealed: false })} disabled={isLast}>
+                      Next <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Complete button */}
+            <Button
+              onClick={handleComplete}
+              disabled={completing}
+              className="w-full"
+              size="lg"
+            >
+              {completing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+              Complete Lesson
+            </Button>
           </div>
         )}
       </main>
