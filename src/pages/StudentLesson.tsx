@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User, Radio } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,6 +21,7 @@ interface Lesson {
   youtube_url: string | null;
   lesson_type: string;
   paragraph_content: string | null;
+  transcript: string | null;
 }
 
 function extractYouTubeVideoId(url: string): string | null {
@@ -44,7 +46,6 @@ interface Exercise {
 const EXERCISE_TYPE_LABELS: Record<string, string> = {
   fill_in_blank: "Fill in the Blank",
   multiple_choice: "Quiz",
-  image_discussion: "Image Discussion",
   role_play: "Role-play",
   spot_the_mistake: "Spot the Mistake",
 };
@@ -52,7 +53,6 @@ const EXERCISE_TYPE_LABELS: Record<string, string> = {
 const TYPE_COLORS: Record<string, string> = {
   fill_in_blank: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
   multiple_choice: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  image_discussion: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
   role_play: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   spot_the_mistake: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
 };
@@ -110,35 +110,6 @@ function StudentExerciseView({
       );
     }
 
-    if (exercise.exercise_type === "image_discussion") {
-      return (
-        <div className="space-y-4">
-          <p className="text-lg text-muted-foreground italic">"{c.prompt}"</p>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Discussion Questions</p>
-            <ul className="space-y-2">
-              {(c.discussion_questions || []).map((q: string, i: number) => (
-                <li key={i} className="flex gap-2 text-foreground text-sm">
-                  <span className="text-primary font-bold shrink-0">{i + 1}.</span>
-                  <span>{q}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          {c.vocabulary?.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Vocabulary</p>
-              <div className="flex flex-wrap gap-2">
-                {c.vocabulary.map((v: string, i: number) => (
-                  <Badge key={i} variant="secondary">{v}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
-
     if (exercise.exercise_type === "role_play") {
       return (
         <div className="space-y-4">
@@ -187,7 +158,7 @@ function StudentExerciseView({
     return null;
   };
 
-  const needsTextAnswer = ["fill_in_blank", "spot_the_mistake", "image_discussion", "role_play"].includes(exercise.exercise_type);
+  const needsTextAnswer = ["fill_in_blank", "spot_the_mistake", "role_play"].includes(exercise.exercise_type);
 
   return (
     <div className="space-y-6">
@@ -235,10 +206,33 @@ export default function StudentLesson() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
-  const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(true);
   const [done, setDone] = useState(false);
   const [teacherIndex, setTeacherIndex] = useState<number | null>(null);
+
+  // Group exercises by type
+  const exerciseGroups = useMemo(() => {
+    const typeOrder: string[] = [];
+    const grouped: Record<string, Exercise[]> = {};
+    for (const ex of exercises) {
+      if (!grouped[ex.exercise_type]) {
+        grouped[ex.exercise_type] = [];
+        typeOrder.push(ex.exercise_type);
+      }
+      grouped[ex.exercise_type].push(ex);
+    }
+    return typeOrder.map((type) => ({ type, exercises: grouped[type] }));
+  }, [exercises]);
+
+  interface GroupState { currentIndex: number; }
+  const [groupStates, setGroupStates] = useState<Record<string, GroupState>>({});
+
+  const updateGroupState = (type: string, update: Partial<GroupState>) => {
+    setGroupStates((prev) => ({
+      ...prev,
+      [type]: { ...prev[type], ...update },
+    }));
+  };
 
   useEffect(() => {
     if (!id || !user) return;
@@ -246,26 +240,23 @@ export default function StudentLesson() {
     const load = async () => {
       setLoading(true);
 
-      // Try loading by share_token first, then by ID
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id!);
       
       let lessonQuery = supabase
         .from("teacher_lessons")
-        .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content");
+        .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript");
       
       if (isUuid) {
-        // Could be lesson ID or share_token (both are UUIDs)
-        // Try share_token first
         const { data: byToken } = await lessonQuery.eq("share_token", id).maybeSingle();
         if (byToken) {
           lessonQuery = supabase
             .from("teacher_lessons")
-            .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content")
+            .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript")
             .eq("id", byToken.id);
         } else {
           lessonQuery = supabase
             .from("teacher_lessons")
-            .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content")
+            .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript")
             .eq("id", id);
         }
       } else {
@@ -293,12 +284,21 @@ export default function StudentLesson() {
         setLesson(data as Lesson);
         if (typeof data.current_exercise_index === "number") {
           setTeacherIndex(data.current_exercise_index);
-          setCurrent(data.current_exercise_index);
         }
       }
-      if (exercisesRes.data) setExercises(exercisesRes.data as Exercise[]);
+      if (exercisesRes.data) {
+        setExercises(exercisesRes.data as Exercise[]);
+        // Initialize group states
+        const groups: Record<string, Exercise[]> = {};
+        for (const ex of exercisesRes.data as Exercise[]) {
+          if (!groups[ex.exercise_type]) groups[ex.exercise_type] = [];
+          groups[ex.exercise_type].push(ex);
+        }
+        const initStates: Record<string, GroupState> = {};
+        Object.keys(groups).forEach((t) => { initStates[t] = { currentIndex: 0 }; });
+        setGroupStates(initStates);
+      }
 
-      // Restore previous responses
       if (responsesRes.data && responsesRes.data.length > 0) {
         const respMap: Record<string, string> = {};
         const subMap: Record<string, boolean> = {};
@@ -316,7 +316,7 @@ export default function StudentLesson() {
     load();
   }, [id, user]);
 
-  // Real-time sync: follow teacher's current exercise
+  // Real-time sync
   useEffect(() => {
     if (!lesson) return;
 
@@ -334,7 +334,6 @@ export default function StudentLesson() {
           const newIndex = (payload.new as any).current_exercise_index;
           if (typeof newIndex === "number") {
             setTeacherIndex(newIndex);
-            setCurrent(newIndex);
           }
           const newStatus = (payload.new as any).status;
           if (newStatus === "completed") {
@@ -349,17 +348,17 @@ export default function StudentLesson() {
     };
   }, [lesson?.id]);
 
-  const handleSubmit = async () => {
-    const exercise = exercises[current];
+  const handleSubmit = async (exerciseId: string) => {
+    const exercise = exercises.find((e) => e.id === exerciseId);
     if (!exercise || !user || !lesson) return;
-    const response = responses[exercise.id] ?? "";
+    const response = responses[exerciseId] ?? "";
 
     const { error } = await supabase
       .from("lesson_responses")
       .upsert(
         {
           lesson_id: lesson.id,
-          exercise_id: exercise.id,
+          exercise_id: exerciseId,
           user_id: user.id,
           response,
         },
@@ -371,12 +370,8 @@ export default function StudentLesson() {
       return;
     }
 
-    setSubmitted((prev) => ({ ...prev, [exercise.id]: true }));
+    setSubmitted((prev) => ({ ...prev, [exerciseId]: true }));
     toast.success("Answer saved!");
-  };
-
-  const handleFinish = () => {
-    setDone(true);
   };
 
   if (loading) {
@@ -406,9 +401,6 @@ export default function StudentLesson() {
     );
   }
 
-  const exercise = exercises[current];
-  const isFirst = current === 0;
-  const isLast = current === exercises.length - 1;
   const allSubmitted = exercises.length > 0 && exercises.every((e) => submitted[e.id]);
 
   if (done || (allSubmitted && exercises.length > 0)) {
@@ -426,6 +418,8 @@ export default function StudentLesson() {
     );
   }
 
+  const youtubeVideoId = lesson.youtube_url ? extractYouTubeVideoId(lesson.youtube_url) : null;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -440,7 +434,15 @@ export default function StudentLesson() {
             <ArrowLeft className="h-4 w-4 mr-1" />
             Home
           </Button>
-          <Badge variant="outline" className="capitalize">{lesson.cefr_level}</Badge>
+          <div className="flex items-center gap-2">
+            {teacherIndex !== null && (
+              <span className="flex items-center gap-1 text-xs text-primary font-medium">
+                <Radio className="h-3 w-3 animate-pulse" />
+                Live
+              </span>
+            )}
+            <Badge variant="outline" className="capitalize">{lesson.cefr_level}</Badge>
+          </div>
         </div>
       </header>
 
@@ -453,12 +455,6 @@ export default function StudentLesson() {
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground ml-7">
             {lesson.topic && <span>{lesson.topic}</span>}
-            {lesson.student_email && (
-              <span className="flex items-center gap-1">
-                <User className="h-3 w-3" />
-                {lesson.student_email}
-              </span>
-            )}
           </div>
         </div>
 
@@ -467,22 +463,31 @@ export default function StudentLesson() {
             <p className="text-muted-foreground">No exercises available yet. Check back soon!</p>
           </div>
         ) : (
-          <>
+          <div className="space-y-6">
             {/* YouTube video */}
-            {lesson.youtube_url && (() => {
-              const vid = extractYouTubeVideoId(lesson.youtube_url!);
-              return vid ? (
-                <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${vid}`}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    title="Lesson video"
-                  />
-                </div>
-              ) : null;
-            })()}
+            {youtubeVideoId && (
+              <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
+                <iframe
+                  src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title="Lesson video"
+                />
+              </div>
+            )}
+
+            {/* Transcript */}
+            {lesson.transcript && (
+              <TranscriptViewer
+                videoId={lesson.id}
+                transcript={lesson.transcript}
+                videoTitle={lesson.title}
+                language="italian"
+                isPremium={true}
+                onUpgradeClick={() => {}}
+              />
+            )}
 
             {/* Paragraph content */}
             {lesson.lesson_type === "paragraph" && lesson.paragraph_content && (
@@ -494,87 +499,90 @@ export default function StudentLesson() {
               </Card>
             )}
 
-            {/* Progress */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Exercise {current + 1} of {exercises.length}</span>
-                <div className="flex items-center gap-3">
-                  {teacherIndex !== null && (
-                    <span className="flex items-center gap-1 text-xs text-primary font-medium">
-                      <Radio className="h-3 w-3 animate-pulse" />
-                      Live
-                    </span>
-                  )}
-                  <span>{exercises.filter((e) => submitted[e.id]).length} answered</span>
-                </div>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${((current + 1) / exercises.length) * 100}%` }}
-                />
-              </div>
-            </div>
+            {/* Exercise sections grouped by type */}
+            {exerciseGroups.map((group) => {
+              const state = groupStates[group.type] || { currentIndex: 0 };
+              const exercise = group.exercises[state.currentIndex];
+              if (!exercise) return null;
 
-            {/* Exercise card */}
-            {exercise && (
-              <Card className="border border-border shadow-sm">
-                <CardContent className="pt-6 pb-6 px-6 space-y-6">
-                  <div>
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${TYPE_COLORS[exercise.exercise_type] || ""}`}
-                    >
-                      {EXERCISE_TYPE_LABELS[exercise.exercise_type] || exercise.exercise_type}
+              const label = EXERCISE_TYPE_LABELS[group.type] || group.type;
+              const colorClass = TYPE_COLORS[group.type] || "";
+              const isFirst = state.currentIndex === 0;
+              const isLast = state.currentIndex === group.exercises.length - 1;
+
+              return (
+                <div key={group.type} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
+                        {label}
+                      </span>
+                      <span className="text-sm text-muted-foreground font-normal">
+                        {state.currentIndex + 1} / {group.exercises.length}
+                      </span>
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      {group.exercises.filter((e) => submitted[e.id]).length} answered
                     </span>
                   </div>
-                  <StudentExerciseView
-                    exercise={exercise}
-                    response={responses[exercise.id] ?? ""}
-                    onResponseChange={(v) =>
-                      setResponses((prev) => ({ ...prev, [exercise.id]: v }))
-                    }
-                    onSubmit={handleSubmit}
-                    submitted={!!submitted[exercise.id]}
-                  />
-                </CardContent>
-              </Card>
-            )}
 
-            {/* Navigation */}
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrent((c) => c - 1)}
-                disabled={isFirst}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous
-              </Button>
+                  <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-500"
+                      style={{ width: `${((state.currentIndex + 1) / group.exercises.length) * 100}%` }}
+                    />
+                  </div>
 
-              {isLast ? (
-                <Button
-                  size="sm"
-                  onClick={handleFinish}
-                  disabled={!allSubmitted}
-                  className="flex-1"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Finish Lesson
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setCurrent((c) => c + 1)}
-                  className="ml-auto"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              )}
-            </div>
-          </>
+                  <Card className="border border-border shadow-sm">
+                    <CardContent className="pt-6 pb-6 px-6 space-y-6">
+                      <StudentExerciseView
+                        exercise={exercise}
+                        response={responses[exercise.id] ?? ""}
+                        onResponseChange={(v) =>
+                          setResponses((prev) => ({ ...prev, [exercise.id]: v }))
+                        }
+                        onSubmit={() => handleSubmit(exercise.id)}
+                        submitted={!!submitted[exercise.id]}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex - 1 })}
+                      disabled={isFirst}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex + 1 })}
+                      disabled={isLast}
+                      className="ml-auto"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Finish button */}
+            <Button
+              onClick={() => setDone(true)}
+              disabled={!allSubmitted}
+              className="w-full"
+              size="lg"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Finish Lesson
+            </Button>
+          </div>
         )}
       </main>
     </div>

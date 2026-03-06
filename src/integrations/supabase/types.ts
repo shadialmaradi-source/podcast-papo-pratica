@@ -629,6 +629,7 @@ export type Database = {
           teacher_id: string
           title: string
           topic: string | null
+          transcript: string | null
           updated_at: string
           youtube_url: string | null
         }
@@ -648,6 +649,7 @@ export type Database = {
           teacher_id: string
           title: string
           topic?: string | null
+          transcript?: string | null
           updated_at?: string
           youtube_url?: string | null
         }
@@ -667,6 +669,7 @@ export type Database = {
           teacher_id?: string
           title?: string
           topic?: string | null
+          transcript?: string | null
           updated_at?: string
           youtube_url?: string | null
         }

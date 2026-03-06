@@ -44,8 +44,16 @@ export default function AuthCallback() {
           .eq('user_id', user.id)
           .single();
 
+        // Check if there's a pending lesson token
+        const pendingToken = localStorage.getItem('pending_lesson_token');
+
         if (!profile?.native_language) {
+          // Onboarding will check for pending_lesson_token and handle redirect
           navigate("/onboarding", { replace: true });
+        } else if (pendingToken) {
+          // Already onboarded, go straight to the lesson
+          localStorage.removeItem('pending_lesson_token');
+          navigate(`/lesson/student/${pendingToken}`, { replace: true });
         } else {
           navigate("/app", { replace: true });
         }

@@ -1,17 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-
-function extractYouTubeVideoId(url: string): string | null {
-  let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-  if (match) return match[1];
-  match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-  if (match) return match[1];
-  match = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
-  if (match) return match[1];
-  match = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
-  if (match) return match[1];
-  return null;
-}
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,7 +15,6 @@ interface Exercise {
 const EXERCISE_TYPE_LABELS: Record<string, string> = {
   fill_in_blank: "Fill in the Blank",
   multiple_choice: "Quiz",
-  image_discussion: "Image Discussion",
   role_play: "Role-play",
   spot_the_mistake: "Spot the Mistake",
 };
@@ -35,7 +22,6 @@ const EXERCISE_TYPE_LABELS: Record<string, string> = {
 const TYPE_COLORS: Record<string, string> = {
   fill_in_blank: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
   multiple_choice: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  image_discussion: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
   role_play: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   spot_the_mistake: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
 };
@@ -47,9 +33,7 @@ function ExerciseContent({ exercise, revealed }: { exercise: Exercise; revealed:
     return (
       <div className="space-y-4">
         <p className="text-xl font-medium text-foreground leading-relaxed">{c.sentence}</p>
-        {c.hint && (
-          <p className="text-sm text-muted-foreground italic">💡 Hint: {c.hint}</p>
-        )}
+        {c.hint && <p className="text-sm text-muted-foreground italic">💡 Hint: {c.hint}</p>}
         {revealed && (
           <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-1">Answer</p>
@@ -85,35 +69,6 @@ function ExerciseContent({ exercise, revealed }: { exercise: Exercise; revealed:
         </ul>
         {revealed && c.explanation && (
           <p className="text-sm text-muted-foreground italic">{c.explanation}</p>
-        )}
-      </div>
-    );
-  }
-
-  if (exercise.exercise_type === "image_discussion") {
-    return (
-      <div className="space-y-4">
-        <p className="text-lg text-muted-foreground italic">"{c.prompt}"</p>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Discussion Questions</p>
-          <ul className="space-y-2">
-            {(c.discussion_questions || []).map((q: string, i: number) => (
-              <li key={i} className="flex gap-2 text-foreground text-sm">
-                <span className="text-primary font-bold shrink-0">{i + 1}.</span>
-                <span>{q}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        {c.vocabulary?.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Vocabulary</p>
-            <div className="flex flex-wrap gap-2">
-              {c.vocabulary.map((v: string, i: number) => (
-                <Badge key={i} variant="secondary">{v}</Badge>
-              ))}
-            </div>
-          </div>
         )}
       </div>
     );
@@ -186,118 +141,143 @@ interface ExercisePresenterProps {
   onComplete: () => void;
 }
 
+interface GroupState {
+  currentIndex: number;
+  revealed: boolean;
+}
+
 export function ExercisePresenter({ exercises, lessonTitle, lessonId, youtubeUrl, onComplete }: ExercisePresenterProps) {
-  const [current, setCurrent] = useState(0);
-  const [revealed, setRevealed] = useState(false);
+  // Group exercises by type preserving order of first appearance
+  const groups = useMemo(() => {
+    const typeOrder: string[] = [];
+    const grouped: Record<string, Exercise[]> = {};
+    for (const ex of exercises) {
+      if (!grouped[ex.exercise_type]) {
+        grouped[ex.exercise_type] = [];
+        typeOrder.push(ex.exercise_type);
+      }
+      grouped[ex.exercise_type].push(ex);
+    }
+    return typeOrder.map((type) => ({ type, exercises: grouped[type] }));
+  }, [exercises]);
 
-  // Extract YouTube video ID for embedding
-  const youtubeVideoId = youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null;
+  const [groupStates, setGroupStates] = useState<Record<string, GroupState>>(() => {
+    const init: Record<string, GroupState> = {};
+    groups.forEach((g) => { init[g.type] = { currentIndex: 0, revealed: false }; });
+    return init;
+  });
 
-  const exercise = exercises[current];
-  const isFirst = current === 0;
-  const isLast = current === exercises.length - 1;
+  const updateGroupState = (type: string, update: Partial<GroupState>) => {
+    setGroupStates((prev) => ({
+      ...prev,
+      [type]: { ...prev[type], ...update },
+    }));
+  };
 
   const syncIndex = (index: number) => {
     supabase.from("teacher_lessons").update({ current_exercise_index: index } as any).eq("id", lessonId).then();
   };
 
-  const handleNext = () => {
-    setRevealed(false);
-    const next = current + 1;
-    setCurrent(next);
-    syncIndex(next);
-  };
-
-  const handlePrev = () => {
-    setRevealed(false);
-    const prev = current - 1;
-    setCurrent(prev);
-    syncIndex(prev);
-  };
-
-  if (!exercise) return null;
-
-  const label = EXERCISE_TYPE_LABELS[exercise.exercise_type] || exercise.exercise_type;
-  const colorClass = TYPE_COLORS[exercise.exercise_type] || "";
+  // Check if all groups are at last exercise
+  const allComplete = groups.every((g) => {
+    const state = groupStates[g.type];
+    return state && state.currentIndex >= g.exercises.length - 1;
+  });
 
   return (
-    <div className="space-y-4">
-      {/* YouTube video */}
-      {youtubeVideoId && (
-        <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
-          <iframe
-            src={`https://www.youtube.com/embed/${youtubeVideoId}`}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            title="Lesson video"
-          />
-        </div>
-      )}
+    <div className="space-y-8">
+      {groups.map((group) => {
+        const state = groupStates[group.type] || { currentIndex: 0, revealed: false };
+        const exercise = group.exercises[state.currentIndex];
+        if (!exercise) return null;
 
-      {/* Progress bar */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground mb-1">
-        <span>Exercise {current + 1} of {exercises.length}</span>
-        <span>{Math.round(((current + 1) / exercises.length) * 100)}%</span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full bg-primary rounded-full transition-all duration-500"
-          style={{ width: `${((current + 1) / exercises.length) * 100}%` }}
-        />
-      </div>
+        const label = EXERCISE_TYPE_LABELS[group.type] || group.type;
+        const colorClass = TYPE_COLORS[group.type] || "";
+        const isFirst = state.currentIndex === 0;
+        const isLast = state.currentIndex === group.exercises.length - 1;
 
-      {/* Exercise card */}
-      <Card className="border border-border shadow-sm">
-        <CardContent className="pt-6 pb-6 px-6 space-y-6">
-          {/* Type badge */}
-          <div>
-            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
-              {label}
-            </span>
+        return (
+          <div key={group.type} className="space-y-3">
+            {/* Section header */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
+                  {label}
+                </span>
+                <span className="text-sm text-muted-foreground font-normal">
+                  {state.currentIndex + 1} / {group.exercises.length}
+                </span>
+              </h3>
+            </div>
+
+            {/* Progress bar */}
+            <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-500"
+                style={{ width: `${((state.currentIndex + 1) / group.exercises.length) * 100}%` }}
+              />
+            </div>
+
+            {/* Exercise card */}
+            <Card className="border border-border shadow-sm">
+              <CardContent className="pt-6 pb-6 px-6 space-y-6">
+                <ExerciseContent exercise={exercise} revealed={state.revealed} />
+              </CardContent>
+            </Card>
+
+            {/* Controls */}
+            <div className="flex items-center justify-between gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  updateGroupState(group.type, { currentIndex: state.currentIndex - 1, revealed: false });
+                }}
+                disabled={isFirst}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => updateGroupState(group.type, { revealed: !state.revealed })}
+                className="flex-1"
+              >
+                {state.revealed ? (
+                  <><EyeOff className="h-4 w-4 mr-2" />Hide Answer</>
+                ) : (
+                  <><Eye className="h-4 w-4 mr-2" />Reveal Answer</>
+                )}
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={() => {
+                  const next = state.currentIndex + 1;
+                  updateGroupState(group.type, { currentIndex: next, revealed: false });
+                  // Sync the global exercise index
+                  const globalIndex = exercises.findIndex((e) => e.id === group.exercises[next]?.id);
+                  if (globalIndex >= 0) syncIndex(globalIndex);
+                }}
+                disabled={isLast}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
           </div>
+        );
+      })}
 
-          {/* Exercise content */}
-          <ExerciseContent exercise={exercise} revealed={revealed} />
-        </CardContent>
-      </Card>
-
-      {/* Controls */}
-      <div className="flex items-center justify-between gap-3 pt-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePrev}
-          disabled={isFirst}
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Previous
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setRevealed((r) => !r)}
-          className="flex-1"
-        >
-          {revealed ? (
-            <><EyeOff className="h-4 w-4 mr-2" />Hide Answer</>
-          ) : (
-            <><Eye className="h-4 w-4 mr-2" />Reveal Answer</>
-          )}
-        </Button>
-
-        {isLast ? (
-          <Button size="sm" onClick={onComplete}>
-            Complete Lesson
-          </Button>
-        ) : (
-          <Button size="sm" onClick={handleNext}>
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        )}
-      </div>
+      {/* Complete button */}
+      <Button onClick={onComplete} className="w-full" size="lg">
+        Complete Lesson
+      </Button>
     </div>
   );
 }
+
+export { ExerciseContent, EXERCISE_TYPE_LABELS, TYPE_COLORS };
+export type { Exercise };

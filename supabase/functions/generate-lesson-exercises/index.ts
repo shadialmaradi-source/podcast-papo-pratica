@@ -10,10 +10,47 @@ const corsHeaders = {
 const EXERCISE_PROMPTS: Record<string, string> = {
   fill_in_blank: `Generate a fill-in-the-blank exercise. Return JSON: { "instruction": "string", "sentence": "string with ___ for the blank", "answer": "string", "hint": "string (optional grammar note)" }`,
   multiple_choice: `Generate a multiple-choice quiz question. Return JSON: { "question": "string", "options": ["A", "B", "C", "D"], "correct": "A|B|C|D", "explanation": "string" }`,
-  image_discussion: `Generate an image discussion prompt for speaking practice. Return JSON: { "prompt": "string (a vivid scene description for the teacher to show)", "discussion_questions": ["q1", "q2", "q3"], "vocabulary": ["word1", "word2", "word3"] }`,
-  role_play: `Generate a role-play scenario. Return JSON: { "scenario": "string", "teacher_role": "string", "student_role": "string", "starter": "string (first line the teacher says to kick off the role-play)", "useful_phrases": ["phrase1", "phrase2", "phrase3"] }`,
+  role_play: `Generate a role-play scenario inspired by the video content. The scenario should relate to the themes, vocabulary, or situations discussed in the video. Return JSON: { "scenario": "string (2-3 sentences describing the situation)", "teacher_role": "string", "student_role": "string", "starter": "string (first line the teacher says to kick off the role-play)", "useful_phrases": ["phrase1", "phrase2", "phrase3"] }`,
   spot_the_mistake: `Generate a spot-the-mistake exercise. Return JSON: { "instruction": "Find the mistake in this sentence:", "sentence": "string with ONE grammatical mistake", "corrected": "string (correct version)", "explanation": "string" }`,
 };
+
+function extractVideoId(url: string): string | null {
+  if (!url) return null;
+  let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  return null;
+}
+
+async function fetchTranscript(youtubeUrl: string): Promise<string | null> {
+  const videoId = extractVideoId(youtubeUrl);
+  if (!videoId) return null;
+
+  const SUPADATA_API_KEY = Deno.env.get("SUPADATA_API_KEY");
+  if (!SUPADATA_API_KEY) {
+    console.error("SUPADATA_API_KEY not configured");
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`,
+      { headers: { "x-api-key": SUPADATA_API_KEY } }
+    );
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data.content && data.content.length > 50) return data.content;
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -51,10 +88,25 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI key not configured");
 
+    // Fetch transcript for YouTube lessons
+    let transcriptText: string | null = null;
+    if (lesson.youtube_url) {
+      transcriptText = await fetchTranscript(lesson.youtube_url);
+      // Store transcript on lesson
+      if (transcriptText) {
+        await supabase
+          .from("teacher_lessons")
+          .update({ transcript: transcriptText })
+          .eq("id", lessonId);
+      }
+    }
+
     // Delete existing exercises for this lesson to regenerate cleanly
     await supabase.from("lesson_exercises").delete().eq("lesson_id", lessonId);
 
-    const exerciseTypes: string[] = lesson.exercise_types || [];
+    const exerciseTypes: string[] = (lesson.exercise_types || []).filter(
+      (t: string) => t !== "image_discussion"
+    );
     const generatedExercises: any[] = [];
     let orderIndex = 0;
 
@@ -63,21 +115,26 @@ serve(async (req) => {
       const typePrompt = EXERCISE_PROMPTS[type];
       if (!typePrompt) continue;
 
-      // Generate 5 questions for multiple_choice, 1 for others
-      const count = type === "multiple_choice" ? 5 : 1;
+      // 5 questions for all types except role_play (2-3 scenarios)
+      const count = type === "role_play" ? 3 : 5;
 
       for (let q = 0; q < count; q++) {
+        const transcriptContext = transcriptText
+          ? `\n\nBase the exercise on this video transcript:\n${transcriptText.slice(0, 3000)}`
+          : "";
+
         const systemPrompt = `You are an expert language teacher creating exercises for a 1-on-1 tutoring session.
 Language: ${lesson.cefr_level} level learner.
 Topic: ${lesson.topic || "general conversation"}.
 Exercise format: ${type}.
-${type === "multiple_choice" && q > 0 ? `This is question ${q + 1} of ${count}. Make it DIFFERENT from previous questions — vary the topic, grammar point, or vocabulary tested.` : ""}
+${q > 0 ? `This is exercise ${q + 1} of ${count}. Make it DIFFERENT from previous exercises — vary the topic, grammar point, or vocabulary tested.` : ""}
+${type === "role_play" ? "Create a role-play scenario that is directly inspired by the video content and transcript. The scenario should use similar themes, vocabulary, and situations from the video." : ""}
 Return ONLY valid JSON, no markdown, no explanation.`;
 
         const userPrompt = `${typePrompt}
 Make it appropriate for a ${lesson.cefr_level} level student studying: ${lesson.topic || "general conversation"}.${
           lesson.paragraph_content ? `\n\nBase the question on this text:\n${lesson.paragraph_content}` : ""
-        }`;
+        }${transcriptContext}`;
 
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
