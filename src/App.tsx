@@ -25,6 +25,7 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherLesson from "./pages/TeacherLesson";
 import StudentLesson from "./pages/StudentLesson";
 import ResetPassword from "./pages/ResetPassword";
+import MyLessons from "./pages/MyLessons";
 
 const queryClient = new QueryClient();
 
