@@ -1,124 +1,112 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Student Lessons UX + On-Demand Exercise Generation + Translations
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## 5 Changes Requested
 
-## Summary of Changes
+### 1. Student Homepage: "My Lessons" preview + dedicated page
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+**Current**: All assigned lessons listed inline on AppHome.
+**New**: Show 2-3 most recent lessons on homepage with a "See All" link. Create a new `/my-lessons` page with the full list, better card design (thumbnail/video preview if YouTube, topic, status badge).
+
+**Files**:
+- `src/pages/AppHome.tsx` -- limit to 3 lessons, add "See All →" link
+- `src/pages/MyLessons.tsx` -- new page with full lesson list, better cards
+- `src/App.tsx` -- add `/my-lessons` route
+
+### 2. Allow redo of completed lessons
+
+**Current**: When all exercises are submitted, the student sees "All Done!" with only "Back to Home". No way to redo.
+**New**: On the "All Done!" screen, add a "Redo Lesson" button that clears local state (responses/submitted) so the student can go through exercises again. Also allow modifying submitted answers (remove the `disabled` prop on submitted answers, change "Answer submitted" to "Update Answer" button).
+
+**Files**:
+- `src/pages/StudentLesson.tsx` -- add "Redo Lesson" button on completion screen, allow re-submitting answers (upsert already handles this), remove disabled state after submission
+
+### 3. On-demand exercise generation (generate per type on click)
+
+**Current**: All exercise types generated together at lesson creation time via `generate-lesson-exercises`. Teacher and student see all groups at once.
+**New**: 
+- At lesson creation, do NOT auto-generate exercises. Instead store the lesson and show the video + transcript + **buttons for each selected exercise type**.
+- When teacher clicks a button (e.g. "Fill in the Blank"), call a new edge function `generate-lesson-exercises-by-type` that generates only 5 exercises for that type.
+- Once generated, the exercises appear inline below that button.
+- Student sees the same: buttons per type, click to generate/view.
+
+**Edge function**: Create `generate-lesson-exercises-by-type` that accepts `{ lessonId, exerciseType }` and generates only that type's exercises (5 questions, or 3 for role_play). Reuse the same AI prompt logic.
+
+**Files**:
+- `supabase/functions/generate-lesson-exercises-by-type/index.ts` -- new function
+- `src/components/teacher/CreateLessonForm.tsx` -- replace auto-generation with per-type buttons
+- `src/pages/TeacherLesson.tsx` -- same per-type button pattern
+- `src/pages/StudentLesson.tsx` -- same per-type button pattern
+
+### 4. Exercise language matches video language (not hardcoded)
+
+**Current**: The edge function prompt says "Language: {cefr_level} level learner" but doesn't specify the actual language. Questions may come out in English.
+**New**: Detect the video's language from the YouTube URL context or let the teacher specify it. Add the language to the AI prompt so questions and answers are in the target language.
+
+The teacher already selects a language for paragraph lessons but NOT for YouTube lessons. Add a language selector to the YouTube lesson creation form.
+
+**DB**: Add `language` text column to `teacher_lessons` (default 'italian').
+**Edge function**: Use `lesson.language` in the AI prompt to ensure exercises are in the correct language.
+
+**Files**:
+- DB migration -- add `language` column
+- `src/components/teacher/CreateLessonForm.tsx` -- add language selector for YouTube lessons
+- `supabase/functions/generate-lesson-exercises-by-type/index.ts` -- use language in prompt
+
+### 5. Translation buttons (question + answer) using student's native language
+
+**Current**: Community video exercises have a `TranslationHint` component. Teacher lessons don't have this.
+**New**: 
+- Add a "student_native_language" field to the lesson creation form (dropdown: English, Spanish, Italian, German, French, Portuguese). This is stored on the lesson but the ACTUAL translation language used is the student's own profile `native_language`.
+- In the exercise generation, generate `question_translation` and `answer_translation` fields in the exercise content JSON by adding them to the AI prompt.
+- On the student view, show two collapsible buttons: "Translate question" and "Translate answer" using the existing `TranslationHint` pattern.
+
+**Approach**: Rather than adding a field to the lesson form (since user chose "student's own profile language"), we generate translations at exercise generation time. But since exercises are generated on-demand and we don't know the student's language at generation time, we should generate translations into the student's native language client-side using the `analyze-word` edge function, OR include translations in the AI prompt for common languages.
+
+Simpler approach: Include a `translations` object in the exercise content with translations for the 6 supported languages. The AI can do this in one pass. Then on the client, pick the student's native language from their profile.
+
+Actually, the cleanest approach: Add translation fields to the prompt, generating translations in English by default (most common). On the student view, the student's profile `native_language` determines which language to show. We can generate translations at exercise-generation time for the teacher's specified "hint language", or we generate multi-language translations.
+
+Given the user said "student's own profile language", the simplest: generate an English translation always (as fallback), and if the student's native language differs, use the existing translation infrastructure. But this is complex.
+
+**Pragmatic approach**: During exercise generation, generate `question_translation` and `answer_translation` in English. Store them in the exercise content JSON. On the client, display these translations via two separate `TranslationHint`-style buttons. If the student's profile language is not English, we could add a client-side translation step later, but for now English is the default.
+
+Actually re-reading: the user wants the teacher to select "what language the student wants the translation in" during lesson creation. So add a `translation_language` field to the form and store it on the lesson. Pass this to the edge function so translations are generated in that language.
+
+**Files**:
+- `src/components/teacher/CreateLessonForm.tsx` -- add "Translation Language" dropdown
+- DB migration -- add `translation_language` column to `teacher_lessons`
+- `supabase/functions/generate-lesson-exercises-by-type/index.ts` -- generate `question_translation` and `answer_translation` in the specified language
+- `src/pages/StudentLesson.tsx` -- add two `TranslationHint` buttons per exercise
 
 ---
 
-## Phase 1: Simplified Student Onboarding
+## DB Migration
 
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
-
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
-
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
-
----
-
-## Phase 2: Remove image_discussion, Update Exercise Types
-
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
-
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
-
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
-
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
-
----
-
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
-
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
-
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
-
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
-
-### DB migration
 ```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
+ALTER TABLE public.teacher_lessons 
+  ADD COLUMN language text NOT NULL DEFAULT 'italian',
+  ADD COLUMN translation_language text NOT NULL DEFAULT 'english';
 ```
 
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
+## New Edge Function: `generate-lesson-exercises-by-type`
 
----
+Same logic as current `generate-lesson-exercises` but:
+- Accepts `{ lessonId, exerciseType }` 
+- Generates only that type (5 questions or 3 for role_play)
+- Includes `question_translation` and `answer_translation` in the JSON prompt
+- Uses `lesson.language` to specify exercise language
+- Uses `lesson.translation_language` for translation fields
+- Fetches/stores transcript if not already stored
+- Appends to existing exercises (doesn't delete all)
 
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
+## Implementation Order
 
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
-
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
-
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
-
----
-
-## Technical Details
-
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+1. DB migration (language + translation_language columns)
+2. New edge function `generate-lesson-exercises-by-type`
+3. Update `CreateLessonForm.tsx` (language selector, translation language selector, per-type buttons instead of auto-generate)
+4. Update `StudentLesson.tsx` (per-type buttons, translation hints, redo capability, editable answers)
+5. Update `TeacherLesson.tsx` (per-type buttons)
+6. Create `MyLessons.tsx` page + update AppHome + routes
 
