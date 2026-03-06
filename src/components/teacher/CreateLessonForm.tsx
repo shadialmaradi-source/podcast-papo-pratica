@@ -50,6 +50,15 @@ const LANGUAGES = [
   { value: "english", label: "English" },
 ] as const;
 
+const TRANSLATION_LANGUAGES = [
+  { value: "english", label: "English" },
+  { value: "spanish", label: "Spanish" },
+  { value: "italian", label: "Italian" },
+  { value: "french", label: "French" },
+  { value: "portuguese", label: "Portuguese" },
+  { value: "german", label: "German" },
+] as const;
+
 const PARAGRAPH_LENGTHS = [
   { value: "short", label: "Short (~50-80 words)" },
   { value: "medium", label: "Medium (~80-150 words)" },
@@ -86,6 +95,7 @@ const baseSchema = {
   student_email: z.string().email("Enter a valid student email"),
   cefr_level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
   exercise_types: z.array(z.string()).min(1, "Select at least one exercise type"),
+  translation_language: z.string().min(1, "Select a translation language"),
 };
 
 const paragraphSchema = z.object({
@@ -102,6 +112,7 @@ const youtubeSchema = z.object({
     (val) => extractYouTubeId(val) !== null,
     "Enter a valid YouTube URL"
   ),
+  language: z.string().min(1, "Select a language"),
 });
 
 interface CreateLessonFormProps {
@@ -121,10 +132,13 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
 
   // Inline result state
   const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
-  const [generatingExercises, setGeneratingExercises] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [lessonTranscript, setLessonTranscript] = useState<string | null>(null);
   const [lessonYoutubeUrl, setLessonYoutubeUrl] = useState<string | null>(null);
+
+  // Per-type generation state
+  const [generatingType, setGeneratingType] = useState<string | null>(null);
+  const [selectedExerciseTypes, setSelectedExerciseTypes] = useState<string[]>([]);
 
   // Grouped exercise navigation state
   interface GroupState { currentIndex: number; revealed: boolean; }
@@ -152,9 +166,10 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
       student_email: "",
       cefr_level: "A1",
       exercise_types: [],
+      translation_language: "english",
       ...(isParagraph
         ? { paragraph_prompt: "", language: "italian", paragraph_length: "medium" }
-        : { topic: "", youtube_url: "" }),
+        : { topic: "", youtube_url: "", language: "italian" }),
     },
   });
 
@@ -236,6 +251,8 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
         status: "draft",
         lesson_type: lessonType,
         share_token: shareToken,
+        language: values.language || "italian",
+        translation_language: values.translation_language || "english",
       };
 
       if (isParagraph) {
@@ -258,57 +275,92 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
       setShareLink(link);
       setCreatedLessonId(data.id);
       setLessonYoutubeUrl(values.youtube_url || null);
-      toast({ title: "Lesson created!", description: "Generating exercises…" });
+      setSelectedExerciseTypes(values.exercise_types);
+      toast({ title: "Lesson created!", description: "Click the exercise type buttons below to generate exercises." });
       onCreated(data.id);
 
-      // Auto-trigger exercise generation
-      setGeneratingExercises(true);
-      try {
-        const { data: exData, error: exError } = await supabase.functions.invoke(
-          "generate-lesson-exercises",
-          { body: { lessonId: data.id } }
-        );
-        if (exError) throw exError;
-
-        // Fetch generated exercises
-        const { data: fetchedExercises } = await supabase
-          .from("lesson_exercises")
-          .select("*")
-          .eq("lesson_id", data.id)
-          .order("order_index");
-
-        setExercises((fetchedExercises || []) as Exercise[]);
-
-        // Fetch transcript if stored
-        const { data: updatedLesson } = await supabase
-          .from("teacher_lessons")
-          .select("transcript")
-          .eq("id", data.id)
-          .single();
-        if (updatedLesson?.transcript) {
-          setLessonTranscript(updatedLesson.transcript);
+      // Fetch transcript for YouTube lessons
+      if (!isParagraph && values.youtube_url) {
+        // Trigger transcript fetch via edge function (it will store it)
+        try {
+          await supabase.functions.invoke("generate-lesson-exercises-by-type", {
+            body: { lessonId: data.id, exerciseType: values.exercise_types[0] }
+          });
+          // Fetch the exercises + transcript
+          const [exRes, lessonRes] = await Promise.all([
+            supabase.from("lesson_exercises").select("*").eq("lesson_id", data.id).order("order_index"),
+            supabase.from("teacher_lessons").select("transcript").eq("id", data.id).single()
+          ]);
+          if (exRes.data) {
+            setExercises(exRes.data as Exercise[]);
+            const groups: Record<string, Exercise[]> = {};
+            for (const ex of exRes.data as Exercise[]) {
+              if (!groups[ex.exercise_type]) groups[ex.exercise_type] = [];
+              groups[ex.exercise_type].push(ex);
+            }
+            const initStates: Record<string, GroupState> = {};
+            Object.keys(groups).forEach((t) => { initStates[t] = { currentIndex: 0, revealed: false }; });
+            setGroupStates(initStates);
+          }
+          if (lessonRes.data?.transcript) setLessonTranscript(lessonRes.data.transcript);
+          // Mark first type as done
+          setGeneratingType(null);
+        } catch (err: any) {
+          console.error("First exercise generation error:", err);
         }
-
-        // Initialize group states
-        const groups: Record<string, Exercise[]> = {};
-        for (const ex of (fetchedExercises || []) as Exercise[]) {
-          if (!groups[ex.exercise_type]) groups[ex.exercise_type] = [];
-          groups[ex.exercise_type].push(ex);
-        }
-        const initStates: Record<string, GroupState> = {};
-        Object.keys(groups).forEach((t) => { initStates[t] = { currentIndex: 0, revealed: false }; });
-        setGroupStates(initStates);
-
-        toast({ title: "Exercises ready!", description: `${fetchedExercises?.length || 0} exercises generated.` });
-      } catch (exErr: any) {
-        toast({ title: "Exercise generation failed", description: exErr.message, variant: "destructive" });
-      } finally {
-        setGeneratingExercises(false);
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateByType = async (exerciseType: string) => {
+    if (!createdLessonId || generatingType) return;
+    setGeneratingType(exerciseType);
+    try {
+      const { error } = await supabase.functions.invoke("generate-lesson-exercises-by-type", {
+        body: { lessonId: createdLessonId, exerciseType }
+      });
+      if (error) throw error;
+
+      // Re-fetch all exercises
+      const { data: fetchedExercises } = await supabase
+        .from("lesson_exercises")
+        .select("*")
+        .eq("lesson_id", createdLessonId)
+        .order("order_index");
+
+      if (fetchedExercises) {
+        setExercises(fetchedExercises as Exercise[]);
+        const groups: Record<string, Exercise[]> = {};
+        for (const ex of fetchedExercises as Exercise[]) {
+          if (!groups[ex.exercise_type]) groups[ex.exercise_type] = [];
+          groups[ex.exercise_type].push(ex);
+        }
+        const newStates: Record<string, GroupState> = { ...groupStates };
+        Object.keys(groups).forEach((t) => {
+          if (!newStates[t]) newStates[t] = { currentIndex: 0, revealed: false };
+        });
+        setGroupStates(newStates);
+      }
+
+      // Fetch transcript if not yet loaded
+      if (!lessonTranscript) {
+        const { data: lessonData } = await supabase
+          .from("teacher_lessons")
+          .select("transcript")
+          .eq("id", createdLessonId)
+          .single();
+        if (lessonData?.transcript) setLessonTranscript(lessonData.transcript);
+      }
+
+      toast({ title: `${EXERCISE_TYPE_LABELS[exerciseType] || exerciseType} exercises generated!` });
+    } catch (err: any) {
+      toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+    } finally {
+      setGeneratingType(null);
     }
   };
 
@@ -343,7 +395,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
     }));
   };
 
-  // ExerciseContent renderer (inline for post-creation view)
+  // ExerciseContent renderer
   const renderExerciseContent = (exercise: Exercise, revealed: boolean) => {
     const c = exercise.content;
     if (exercise.exercise_type === "fill_in_blank") {
@@ -431,8 +483,10 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
     return <p className="text-muted-foreground">Unknown exercise type</p>;
   };
 
-  // YouTube video ID for embed
   const youtubeVideoId = lessonYoutubeUrl ? extractYouTubeId(lessonYoutubeUrl) : null;
+
+  // Determine which types have been generated
+  const generatedTypes = new Set(exercises.map(e => e.exercise_type));
 
   // If lesson was created, show the inline result
   if (createdLessonId) {
@@ -457,116 +511,132 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
             </Card>
           )}
 
-          {generatingExercises ? (
-            <div className="flex flex-col items-center gap-3 py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Generating exercises…</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* YouTube video embed */}
-              {youtubeVideoId && (
-                <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${youtubeVideoId}`}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    title="Lesson video"
-                  />
-                </div>
-              )}
-
-              {/* Transcript with word exploration */}
-              {lessonTranscript && (
-                <TranscriptViewer
-                  videoId={createdLessonId}
-                  transcript={lessonTranscript}
-                  videoTitle={form.getValues("title") || "Lesson"}
-                  language={currentLanguage}
-                  isPremium={true}
-                  onUpgradeClick={() => {}}
-                />
-              )}
-
-              {/* Paragraph content for paragraph lessons */}
-              {isParagraph && paragraphContent && (
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Select any word or phrase to explore it or save as a flashcard.
-                    </p>
-                    <div
-                      ref={paragraphRef}
-                      className="bg-background rounded-md p-4 text-foreground leading-relaxed whitespace-pre-wrap cursor-text select-text border"
-                    >
-                      {paragraphContent}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Exercise sections grouped by type */}
-              {exerciseGroups.length === 0 ? (
-                <Card>
-                  <CardContent className="pt-4 text-center text-muted-foreground">
-                    No exercises were generated.
-                  </CardContent>
-                </Card>
-              ) : (
-                exerciseGroups.map((group) => {
-                  const state = groupStates[group.type] || { currentIndex: 0, revealed: false };
-                  const exercise = group.exercises[state.currentIndex];
-                  if (!exercise) return null;
-
-                  const label = EXERCISE_TYPE_LABELS[group.type] || group.type;
-                  const colorClass = TYPE_COLORS[group.type] || "";
-                  const isFirst = state.currentIndex === 0;
-                  const isLast = state.currentIndex === group.exercises.length - 1;
-
-                  return (
-                    <div key={group.type} className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
-                            {label}
-                          </span>
-                          <span className="text-sm text-muted-foreground font-normal">
-                            {state.currentIndex + 1} / {group.exercises.length}
-                          </span>
-                        </h3>
-                      </div>
-
-                      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-500"
-                          style={{ width: `${((state.currentIndex + 1) / group.exercises.length) * 100}%` }}
-                        />
-                      </div>
-
-                      <Card className="border border-border shadow-sm">
-                        <CardContent className="pt-6 pb-6 px-6 space-y-6">
-                          {renderExerciseContent(exercise, state.revealed)}
-                        </CardContent>
-                      </Card>
-
-                      <div className="flex items-center justify-between gap-3">
-                        <Button variant="outline" size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex - 1, revealed: false })} disabled={isFirst}>
-                          <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => updateGroupState(group.type, { revealed: !state.revealed })} className="flex-1">
-                          {state.revealed ? <><EyeOff className="h-4 w-4 mr-2" />Hide Answer</> : <><Eye className="h-4 w-4 mr-2" />Reveal Answer</>}
-                        </Button>
-                        <Button size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex + 1, revealed: false })} disabled={isLast}>
-                          Next <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+          {/* YouTube video embed */}
+          {youtubeVideoId && (
+            <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
+              <iframe
+                src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title="Lesson video"
+              />
             </div>
           )}
+
+          {/* Transcript with word exploration */}
+          {lessonTranscript && (
+            <TranscriptViewer
+              videoId={createdLessonId}
+              transcript={lessonTranscript}
+              videoTitle={form.getValues("title") || "Lesson"}
+              language={currentLanguage}
+              isPremium={true}
+              onUpgradeClick={() => {}}
+            />
+          )}
+
+          {/* Paragraph content for paragraph lessons */}
+          {isParagraph && paragraphContent && (
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Select any word or phrase to explore it or save as a flashcard.
+                </p>
+                <div
+                  ref={paragraphRef}
+                  className="bg-background rounded-md p-4 text-foreground leading-relaxed whitespace-pre-wrap cursor-text select-text border"
+                >
+                  {paragraphContent}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Per-type exercise generation buttons */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Generate Exercises</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {selectedExerciseTypes.map((type) => {
+                const label = EXERCISE_TYPE_LABELS[type] || type;
+                const colorClass = TYPE_COLORS[type] || "";
+                const isGenerated = generatedTypes.has(type);
+                const isGenerating = generatingType === type;
+
+                return (
+                  <Button
+                    key={type}
+                    variant={isGenerated ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => handleGenerateByType(type)}
+                    disabled={isGenerating || !!generatingType}
+                    className="gap-2"
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isGenerated ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    {label}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Generated exercise sections */}
+          {exerciseGroups.map((group) => {
+            const state = groupStates[group.type] || { currentIndex: 0, revealed: false };
+            const exercise = group.exercises[state.currentIndex];
+            if (!exercise) return null;
+
+            const label = EXERCISE_TYPE_LABELS[group.type] || group.type;
+            const colorClass = TYPE_COLORS[group.type] || "";
+            const isFirst = state.currentIndex === 0;
+            const isLast = state.currentIndex === group.exercises.length - 1;
+
+            return (
+              <div key={group.type} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
+                      {label}
+                    </span>
+                    <span className="text-sm text-muted-foreground font-normal">
+                      {state.currentIndex + 1} / {group.exercises.length}
+                    </span>
+                  </h3>
+                </div>
+
+                <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{ width: `${((state.currentIndex + 1) / group.exercises.length) * 100}%` }}
+                  />
+                </div>
+
+                <Card className="border border-border shadow-sm">
+                  <CardContent className="pt-6 pb-6 px-6 space-y-6">
+                    {renderExerciseContent(exercise, state.revealed)}
+                  </CardContent>
+                </Card>
+
+                <div className="flex items-center justify-between gap-3">
+                  <Button variant="outline" size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex - 1, revealed: false })} disabled={isFirst}>
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => updateGroupState(group.type, { revealed: !state.revealed })} className="flex-1">
+                    {state.revealed ? <><EyeOff className="h-4 w-4 mr-2" />Hide Answer</> : <><Eye className="h-4 w-4 mr-2" />Reveal Answer</>}
+                  </Button>
+                  <Button size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex + 1, revealed: false })} disabled={isLast}>
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
 
           <Button variant="outline" onClick={onCancel} className="w-full">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -787,6 +857,28 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="language"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Video Language</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {LANGUAGES.map((lang) => (
+                          <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </>
           )}
 
@@ -816,6 +908,31 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
               </FormItem>
             )}
           />
+
+          {/* Translation Language */}
+          <FormField
+            control={form.control}
+            name="translation_language"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Translation Language <span className="text-muted-foreground text-xs">(for student hints)</span></FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select translation language" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {TRANSLATION_LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="exercise_types"
