@@ -6,8 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExercisePresenter } from "@/components/teacher/ExercisePresenter";
+import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { ArrowLeft, User, BookOpen, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+function extractYouTubeVideoId(url: string): string | null {
+  let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  match = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (match) return match[1];
+  return null;
+}
 
 interface Lesson {
   id: string;
@@ -17,6 +30,7 @@ interface Lesson {
   topic: string | null;
   status: string;
   youtube_url: string | null;
+  transcript: string | null;
 }
 
 interface Exercise {
@@ -47,7 +61,7 @@ export default function TeacherLesson() {
       const [lessonRes, exercisesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, youtube_url")
+          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript")
           .eq("id", id)
           .eq("teacher_id", user.id)
           .single(),
@@ -113,6 +127,8 @@ export default function TeacherLesson() {
     );
   }
 
+  const youtubeVideoId = lesson.youtube_url ? extractYouTubeVideoId(lesson.youtube_url) : null;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -168,13 +184,40 @@ export default function TeacherLesson() {
             </Button>
           </div>
         ) : (
-          <ExercisePresenter
-            exercises={exercises}
-            lessonTitle={lesson.title}
-            lessonId={lesson.id}
-            youtubeUrl={lesson.youtube_url}
-            onComplete={handleComplete}
-          />
+          <div className="space-y-6">
+            {/* YouTube video */}
+            {youtubeVideoId && (
+              <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
+                <iframe
+                  src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title="Lesson video"
+                />
+              </div>
+            )}
+
+            {/* Transcript with word exploration */}
+            {lesson.transcript && (
+              <TranscriptViewer
+                videoId={lesson.id}
+                transcript={lesson.transcript}
+                videoTitle={lesson.title}
+                language="italian"
+                isPremium={true}
+                onUpgradeClick={() => {}}
+              />
+            )}
+
+            {/* Exercises grouped by type */}
+            <ExercisePresenter
+              exercises={exercises}
+              lessonTitle={lesson.title}
+              lessonId={lesson.id}
+              onComplete={handleComplete}
+            />
+          </div>
         )}
       </main>
     </div>

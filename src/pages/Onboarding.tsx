@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,6 @@ const nativeLanguages = [
 
 type Step = 'language' | 'native' | 'level';
 
-// Map target language codes to native language codes for filtering
 const targetToNativeCode: Record<string, string> = {
   english: 'en',
   spanish: 'es',
@@ -45,6 +44,10 @@ export default function Onboarding() {
   const [selectedNativeLanguage, setSelectedNativeLanguage] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
+  // Check if coming from a shared lesson link
+  const pendingLessonToken = localStorage.getItem('pending_lesson_token');
+  const isLessonOnboarding = !!pendingLessonToken;
+
   const proficiencyLevels = [
     { code: 'absolute_beginner', label: t('absoluteBeginner'), description: t('absoluteBeginnerDesc'), icon: Sprout },
     { code: 'beginner', label: t('beginnerLabel'), description: t('beginnerDesc'), icon: BookOpen },
@@ -52,7 +55,8 @@ export default function Onboarding() {
     { code: 'advanced', label: t('advancedLabel'), description: t('advancedDesc'), icon: Award },
   ];
 
-  const steps: Step[] = ['language', 'native', 'level'];
+  // For lesson onboarding, skip the level step
+  const steps: Step[] = isLessonOnboarding ? ['language', 'native'] : ['language', 'native', 'level'];
   const currentStepIndex = steps.indexOf(step);
 
   const filteredNativeLanguages = nativeLanguages.filter(
@@ -66,7 +70,6 @@ export default function Onboarding() {
 
   const handleContinueToNative = () => {
     if (!selectedLanguage) return;
-    // If previously selected native lang matches target, reset it
     if (selectedNativeLanguage === targetToNativeCode[selectedLanguage]) {
       setSelectedNativeLanguage(null);
     }
@@ -85,6 +88,32 @@ export default function Onboarding() {
     else if (step === 'level') setStep('native');
   };
 
+  // For lesson onboarding: after native language, save and go to lesson
+  const handleLessonOnboardingComplete = async () => {
+    if (!selectedLanguage || !selectedNativeLanguage) return;
+    localStorage.setItem('onboarding_language', selectedLanguage);
+    localStorage.setItem('onboarding_native_language', selectedNativeLanguage);
+
+    trackEvent('onboarding_completed', {
+      selected_language: selectedLanguage,
+      native_language: selectedNativeLanguage,
+      lesson_onboarding: true,
+    });
+
+    if (user) {
+      await supabase.from('profiles').update({
+        selected_language: selectedLanguage,
+        native_language: selectedNativeLanguage,
+        current_level: 'beginner', // Default for lesson onboarding
+      }).eq('user_id', user.id);
+    }
+
+    // Clear the pending token and redirect to lesson
+    const token = pendingLessonToken;
+    localStorage.removeItem('pending_lesson_token');
+    navigate(`/lesson/student/${token}`);
+  };
+
   const handleFinalContinue = async () => {
     if (!selectedLanguage || !selectedLevel || !selectedNativeLanguage) return;
     localStorage.setItem('onboarding_language', selectedLanguage);
@@ -97,7 +126,6 @@ export default function Onboarding() {
       level: selectedLevel,
     });
 
-    // Save to Supabase profile if user is logged in
     if (user) {
       await supabase.from('profiles').update({
         selected_language: selectedLanguage,
@@ -109,7 +137,9 @@ export default function Onboarding() {
     navigate('/lesson/first');
   };
 
-  const stepLabels = [t('onboardingStep1'), t('onboardingStep2'), t('onboardingStep3')];
+  const stepLabels = isLessonOnboarding
+    ? [t('onboardingStep1'), t('onboardingStep2')]
+    : [t('onboardingStep1'), t('onboardingStep2'), t('onboardingStep3')];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
@@ -215,14 +245,20 @@ export default function Onboarding() {
                 <Button onClick={handleBack} variant="outline" size="lg" className="py-6 text-lg rounded-full">
                   <ArrowLeft className="mr-2 h-5 w-5" /> {t('back')}
                 </Button>
-                <Button onClick={handleContinueToLevel} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-6 text-lg rounded-full">
-                  {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
+                {isLessonOnboarding ? (
+                  <Button onClick={handleLessonOnboardingComplete} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-6 text-lg rounded-full">
+                    Start Lesson <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                ) : (
+                  <Button onClick={handleContinueToLevel} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-6 text-lg rounded-full">
+                    {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                )}
               </div>
             </motion.div>
           )}
 
-          {step === 'level' && (
+          {step === 'level' && !isLessonOnboarding && (
             <motion.div key="level" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="w-full max-w-lg">
               <div className="text-center mb-8">
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingLevelTitle')}</h1>

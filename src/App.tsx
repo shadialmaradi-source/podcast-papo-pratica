@@ -31,12 +31,18 @@ const queryClient = new QueryClient();
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
   
   if (!user) {
+    // If trying to access a student lesson, store the token for post-auth redirect
+    const studentLessonMatch = location.pathname.match(/^\/lesson\/student\/(.+)$/);
+    if (studentLessonMatch) {
+      localStorage.setItem('pending_lesson_token', studentLessonMatch[1]);
+    }
     return <Navigate to="/auth" replace />;
   }
   
