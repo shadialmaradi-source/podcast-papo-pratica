@@ -620,6 +620,7 @@ export type Database = {
           description: string | null
           exercise_types: string[]
           id: string
+          language: string
           lesson_type: string
           paragraph_content: string | null
           paragraph_prompt: string | null
@@ -630,6 +631,7 @@ export type Database = {
           title: string
           topic: string | null
           transcript: string | null
+          translation_language: string
           updated_at: string
           youtube_url: string | null
         }
@@ -640,6 +642,7 @@ export type Database = {
           description?: string | null
           exercise_types?: string[]
           id?: string
+          language?: string
           lesson_type?: string
           paragraph_content?: string | null
           paragraph_prompt?: string | null
@@ -650,6 +653,7 @@ export type Database = {
           title: string
           topic?: string | null
           transcript?: string | null
+          translation_language?: string
           updated_at?: string
           youtube_url?: string | null
         }
@@ -660,6 +664,7 @@ export type Database = {
           description?: string | null
           exercise_types?: string[]
           id?: string
+          language?: string
           lesson_type?: string
           paragraph_content?: string | null
           paragraph_prompt?: string | null
@@ -670,6 +675,7 @@ export type Database = {
           title?: string
           topic?: string | null
           transcript?: string | null
+          translation_language?: string
           updated_at?: string
           youtube_url?: string | null
         }
