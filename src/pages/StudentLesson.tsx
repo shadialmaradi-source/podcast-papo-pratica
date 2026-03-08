@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { TranslationHint } from "@/components/exercises/TranslationHint";
+import { StudentSpeakingView } from "@/components/lesson/StudentSpeakingView";
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User, Radio, RefreshCw, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { trackEvent, trackPageView } from "@/lib/analytics";
