@@ -1,124 +1,128 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Deep PostHog Analytics -- Funnels, Page Views & Drop-off Tracking
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## What exists today
+- `analytics.ts` has `trackEvent`, `trackPageView`, `trackPageLoad`, `setSection`, `setUserProperties`, `identifyUser`
+- Person properties (role, plan, level, language) are set on login in `useAuth.tsx`
+- Several pages already track events but many are missing `trackPageView` with section context
+- No funnel step tracking, no session duration, no abandonment tracking
 
-## Summary of Changes
+## What's missing
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+**Pages with NO `trackPageView`:**
+- `LandingPage.tsx`, `Onboarding.tsx`, `FirstLesson.tsx`, `AppHome.tsx`, `Library.tsx`, `Lesson.tsx`, `WeekDetail.tsx`, `WeekVideo.tsx`, `MyLessons.tsx`, `Premium.tsx`, `ProfilePageWrapper.tsx`
+- `TeacherDashboard.tsx` (has `trackPageLoad` but no `trackPageView`), `TeacherOnboarding.tsx`, `TeacherLesson.tsx`, `TeacherCommunity.tsx`, `TeacherBranding.tsx`, `TeacherAnalytics.tsx`
 
----
+**No funnel tracking** for onboarding, first lesson, teacher onboarding, or lesson creation flows.
 
-## Phase 1: Simplified Student Onboarding
+**No session duration or abandonment tracking.**
 
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+## Implementation
 
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+### 1. Enhance `src/lib/analytics.ts`
 
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+Add three new exports:
+- `trackFunnelStep(funnel, step, stepIndex, props?)` -- fires `${funnel}_step` event with funnel metadata
+- `trackSessionStart()` -- stores start time in sessionStorage
+- `trackSessionEnd()` -- fires `session_ended` with duration_seconds on beforeunload
 
----
+### 2. Add session tracking in `src/App.tsx`
 
-## Phase 2: Remove image_discussion, Update Exercise Types
+- Call `trackSessionStart()` alongside `initAnalytics()`
+- Add `beforeunload` listener calling `trackSessionEnd()`
 
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
+### 3. Add `trackPageView` to all pages (20 pages)
 
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+Each page gets a `useEffect` with `trackPageView("page_name", "student"|"teacher"|"shared")`:
 
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+| Page | Section | Page Name |
+|---|---|---|
+| `LandingPage.tsx` | shared | `landing` |
+| `Onboarding.tsx` | shared | `onboarding` |
+| `FirstLesson.tsx` | student | `first_lesson` |
+| `AppHome.tsx` | student | `app_home` |
+| `Library.tsx` | student | `library` |
+| `Lesson.tsx` | student | `lesson` |
+| `WeekDetail.tsx` | student | `week_detail` |
+| `WeekVideo.tsx` | student | `week_video` |
+| `MyLessons.tsx` | student | `my_lessons` |
+| `Premium.tsx` | student | `premium` |
+| `ProfilePageWrapper.tsx` | shared | `profile` |
+| `TeacherDashboard.tsx` | teacher | `teacher_dashboard` |
+| `TeacherOnboarding.tsx` | teacher | `teacher_onboarding` |
+| `TeacherLesson.tsx` | teacher | `teacher_lesson` |
+| `TeacherCommunity.tsx` | teacher | `teacher_community` |
+| `TeacherBranding.tsx` | teacher | `teacher_branding` |
+| `TeacherAnalytics.tsx` | teacher | `teacher_analytics` |
 
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+### 4. Add funnel tracking to key conversion paths
 
----
+**Student Onboarding Funnel** (`Onboarding.tsx`):
+- `onboarding_funnel_step` with steps: `language_selected` (0), `native_selected` (1), `level_selected` (2), `completed` (3)
 
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
+**First Lesson Funnel** (`FirstLesson.tsx`):
+- `first_lesson_step` with steps: `intro` (0), `video` (1), `exercises` (2), `speaking` (3), `flashcards` (4), `complete` (5)
+- Track each step transition + abandonment on `beforeunload`
 
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+**Week Video Lesson Funnel** (`WeekVideo.tsx`):
+- `lesson_step` with steps matching the lesson step transitions
 
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+**Teacher Onboarding Funnel** (`TeacherOnboarding.tsx`):
+- `teacher_onboarding_step` with steps: `profile` (0), `add_student` (1), `tour` (2), `completed` (3)
 
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+**Teacher Lesson Creation Funnel** (`CreateLessonForm.tsx`):
+- `teacher_lesson_creation_started` on form mount
+- `teacher_lesson_creation_completed` on success with type/language
 
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
-```
+### 5. Add feature usage events to Library
 
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
+- `student_video_clicked` when navigating to a video
+- `student_library_searched` on search input (debounced)
+- `student_library_filtered` on filter/tab changes
 
----
+### 6. PostHog Dashboard Configuration
 
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
+This is purely about event naming conventions that enable PostHog dashboards. With the events above, in PostHog you can create:
 
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
+**Student Dashboard** (filter: `section = student`):
+- Funnel: onboarding_funnel_step 0→1→2→3 (conversion rate)
+- Funnel: first_lesson_step 0→1→2→3→4→5 (drop-off per step)
+- Bar chart: most visited student pages ($pageview where section=student, breakdown by page)
+- Retention: student_lesson_opened → student_lesson_completed
+- Table: feature usage frequency (student_video_clicked, student_speaking_opened, etc.)
 
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
+**Teacher Dashboard** (filter: `section = teacher`):
+- Funnel: teacher_onboarding_step 0→1→2→3
+- Funnel: teacher_lesson_creation_started → teacher_lesson_creation_completed
+- Bar chart: most visited teacher pages
+- Table: teacher_student_added, teacher_video_assigned, teacher_speaking_assigned counts
+- Retention: teacher_dashboard viewed → lesson created within 7 days
 
----
+No code is needed for the dashboards themselves -- they are configured in the PostHog UI using the events we fire.
 
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
+## Files Changed
 
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
-
----
-
-## Technical Details
-
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+| File | Change |
+|---|---|
+| `src/lib/analytics.ts` | Add `trackFunnelStep`, `trackSessionStart`, `trackSessionEnd` |
+| `src/App.tsx` | Add session start/end tracking |
+| `src/pages/LandingPage.tsx` | Add `trackPageView` |
+| `src/pages/Onboarding.tsx` | Add `trackPageView` + funnel steps |
+| `src/pages/FirstLesson.tsx` | Add `trackPageView` + funnel steps + abandonment |
+| `src/pages/AppHome.tsx` | Add `trackPageView` |
+| `src/pages/Library.tsx` | Add `trackPageView` + search/filter/click events |
+| `src/pages/Lesson.tsx` | Add `trackPageView` |
+| `src/pages/WeekDetail.tsx` | Add `trackPageView` |
+| `src/pages/WeekVideo.tsx` | Add `trackPageView` + lesson step funnel |
+| `src/pages/MyLessons.tsx` | Add `trackPageView` |
+| `src/pages/Premium.tsx` | Add `trackPageView` |
+| `src/pages/ProfilePageWrapper.tsx` | Add `trackPageView` |
+| `src/pages/TeacherDashboard.tsx` | Add `trackPageView` + action tracking |
+| `src/pages/TeacherOnboarding.tsx` | Add `trackPageView` + funnel steps |
+| `src/pages/TeacherLesson.tsx` | Add `trackPageView` |
+| `src/pages/TeacherCommunity.tsx` | Add `trackPageView` |
+| `src/pages/TeacherBranding.tsx` | Add `trackPageView` |
+| `src/pages/TeacherAnalytics.tsx` | Add `trackPageView` |
+| `src/components/teacher/CreateLessonForm.tsx` | Add creation started/completed funnel events |
 
