@@ -251,7 +251,7 @@ export default function Library() {
   // Filter videos based on current selections
   const filteredVideos = useMemo(() => {
     return videos.filter((video) => {
-      const levelMatch = video.difficulty_level.toLowerCase() === selectedLevel;
+      const levelMatch = activeTab === 'curated' ? video.difficulty_level.toLowerCase() === selectedLevel : true;
       const tabMatch = activeTab === 'curated' ? video.is_curated : !video.is_curated;
       if (activeTab === 'community' && curatedVideoIds.has(video.id)) return false;
       let topicMatch = true;
@@ -262,9 +262,8 @@ export default function Library() {
       if (selectedLength && video.duration) {
         const duration = video.duration;
         switch (selectedLength) {
-          case '0-60': lengthMatch = duration <= 60; break;
-          case '60-180': lengthMatch = duration > 60 && duration <= 180; break;
-          case '180+': lengthMatch = duration > 180; break;
+          case 'short': lengthMatch = duration <= 60; break;
+          case 'long': lengthMatch = duration > 60; break;
         }
       }
       return levelMatch && tabMatch && topicMatch && lengthMatch;
@@ -286,15 +285,17 @@ export default function Library() {
       {/* Header */}
       <AppHeader title="Video Library" showBackButton backTo="/app" />
 
-      {/* Level Selector */}
-      <div className="sticky top-[57px] z-40 bg-background border-b">
-        <div className="container mx-auto px-4">
-          <LevelSelector
-            selectedLevel={selectedLevel}
-            onLevelChange={setSelectedLevel}
-          />
+      {/* Level Selector — only on Learning Path */}
+      {activeTab === 'curated' && (
+        <div className="sticky top-[57px] z-40 bg-background border-b">
+          <div className="container mx-auto px-4">
+            <LevelSelector
+              selectedLevel={selectedLevel}
+              onLevelChange={setSelectedLevel}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tabs and Filters */}
       <div className="container mx-auto px-4 py-4 space-y-4">
