@@ -101,8 +101,9 @@ const FirstLesson = () => {
 
   const handleFlashcardsComplete = () => {
     setFlashcardsLearned(activeFlashcards.length);
-    localStorage.removeItem('lesson_step');
     setStep('complete');
+    // Clear persisted step after navigating to complete screen
+    localStorage.removeItem('lesson_step');
   };
 
   switch (step) {
