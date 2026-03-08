@@ -761,6 +761,7 @@ export default function StudentLesson() {
             </p>
           )}
         </div>
+        )}
       </main>
     </div>
   );
