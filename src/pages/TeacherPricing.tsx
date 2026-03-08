@@ -65,8 +65,6 @@ const tiers = [
       "160 lessons/month",
       "Videos up to 15 min",
       "White-label (your branding)",
-      "API access",
-      "Dedicated support",
     ],
   },
 ];
