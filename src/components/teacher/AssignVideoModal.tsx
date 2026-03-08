@@ -79,16 +79,7 @@ export function AssignVideoModal({
 
       if (error) throw error;
 
-      // Create notification for student
       const studentName = students.find(s => s.student_email === selectedEmail)?.student_name;
-      await supabase.from("notifications").insert({
-        user_id: user.id, // Will be matched by email via RLS on student side
-        type: "assignment",
-        title: "New Video Assignment",
-        content: `You've been assigned to watch "${videoTitle}"${dueDate ? ` by ${format(dueDate, "PPP")}` : ""}`,
-        data: { assignment_type: "video", video_id: videoId, video_title: videoTitle },
-      } as any);
-
       const name = studentName || selectedEmail;
       toast.success(`Video assigned to ${name}!`);
       onOpenChange(false);

@@ -107,7 +107,7 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -122,9 +122,17 @@ export default function Auth() {
             setError(error.message);
           }
         } else {
+          // If teacher signup, update the role from default 'student' to 'teacher'
+          if (preselectedRole === "teacher" && signUpData.user) {
+            await supabase
+              .from("user_roles" as any)
+              .update({ role: "teacher" } as any)
+              .eq("user_id", signUpData.user.id);
+          }
           // Track successful signup
           trackEvent('user_signup', {
             method: 'email',
+            role: preselectedRole || 'student',
             timestamp: new Date().toISOString()
           });
           toast({

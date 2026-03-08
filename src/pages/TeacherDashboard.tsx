@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Users, ArrowLeft, Settings } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
+import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
 import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
@@ -22,7 +23,6 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { role, loading: roleLoading } = useUserRole();
-  const [dashboardReady, setDashboardReady] = useState(false);
   const [step, setStep] = useState<FlowStep>("home");
   const [lessonType, setLessonType] = useState<LessonType>("paragraph");
   const [refresh, setRefresh] = useState(0);
@@ -225,6 +225,7 @@ export default function TeacherDashboard() {
           </div>
         )}
       </main>
+      <TeacherNav />
     </div>
   );
 }

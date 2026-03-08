@@ -503,7 +503,7 @@ export default function AppHome() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {a.video_id && (
-                          <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/library`)}>
+                          <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/lesson/${a.video_id}`)}>
                             Watch
                           </Button>
                         )}

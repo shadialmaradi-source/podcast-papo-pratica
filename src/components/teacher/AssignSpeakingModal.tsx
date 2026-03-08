@@ -73,7 +73,7 @@ export function AssignSpeakingModal({
       });
   }, [open]);
 
-  const filteredTopics = predefinedTopics.filter((t) => t.cefr_level === selectedLevel);
+  const filteredTopics = predefinedTopics.filter((t) => t.cefr_level === selectedLevel && t.language === selectedLanguage);
 
   const handleSubmit = async () => {
     if (!user) return;
