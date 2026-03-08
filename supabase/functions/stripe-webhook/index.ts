@@ -226,6 +226,12 @@ serve(async (req) => {
               .update({ status: 'past_due', updated_at: new Date().toISOString() })
               .eq('teacher_id', teacherSub.teacher_id);
             console.log('Teacher set to past_due:', teacherSub.teacher_id);
+
+            // Send payment failure email
+            const { data: teacherUser } = await supabase.auth.admin.getUserById(teacherSub.teacher_id);
+            if (teacherUser?.user?.email) {
+              await sendPaymentFailureEmail(teacherUser.user.email, teacherUser.user.user_metadata?.full_name || 'Teacher');
+            }
             break;
           }
 
