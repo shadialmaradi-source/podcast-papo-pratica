@@ -88,6 +88,7 @@ export default function AppHome() {
   const [upgradeReason, setUpgradeReason] = useState("");
 
   useEffect(() => {
+    trackPageView("app_home", "student");
     trackPageLoad("app_home");
     if (user) {
       fetchProfile();

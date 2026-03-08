@@ -145,6 +145,7 @@ export default function Onboarding() {
       native_language: selectedNativeLanguage,
       level: selectedLevel,
     });
+    trackFunnelStep("onboarding_funnel", "completed", 3);
 
     if (user) {
       await supabase.from('profiles').update({

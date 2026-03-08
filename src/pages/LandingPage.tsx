@@ -181,6 +181,7 @@ export default function LandingPage() {
   const t = landingTranslations[selectedLanguage];
 
   useEffect(() => {
+    trackPageView("landing", "shared");
     const handleScroll = () => {
       setShowMobileCTA(window.scrollY > 300);
     };

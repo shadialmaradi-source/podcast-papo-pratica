@@ -285,6 +285,7 @@ export default function Library() {
   const handleVideoClick = (videoId: string) => {
     const video = videos.find(v => v.id === videoId);
     if (video) {
+      trackEvent('student_video_clicked', { video_id: video.id, source: video.is_curated ? 'curated' : 'community' });
       navigate(`/lesson/${video.id}`);
     }
   };
