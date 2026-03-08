@@ -360,18 +360,20 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+        className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
       >
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Speaking Practice
-            </h1>
-            <p className="text-muted-foreground">
-              You've used your free tries
-            </p>
+        <div className="flex-1 overflow-auto p-3 md:p-8">
+          <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+            <div className="text-center space-y-2">
+              <h1 className="text-xl md:text-3xl font-bold text-foreground">
+                Speaking Practice
+              </h1>
+              <p className="text-sm md:text-base text-muted-foreground">
+                You've used your free tries
+              </p>
+            </div>
+            <SignupPrompt />
           </div>
-          <SignupPrompt />
         </div>
       </motion.div>
     );
