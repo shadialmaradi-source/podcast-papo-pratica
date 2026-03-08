@@ -275,20 +275,20 @@ export default function Onboarding() {
                         selectedLevel === level.code ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'
                       }`}
                     >
-                      <CardContent className="p-4 flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                      <CardContent className="p-3 md:p-4 flex items-center gap-3 md:gap-4">
+                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shrink-0 ${
                           selectedLevel === level.code ? 'bg-primary/20' : 'bg-muted'
                         }`}>
-                          <IconComponent className={`h-6 w-6 ${selectedLevel === level.code ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <IconComponent className={`h-5 w-5 md:h-6 md:w-6 ${selectedLevel === level.code ? 'text-primary' : 'text-muted-foreground'}`} />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-foreground">{level.label}</h3>
-                          <p className="text-sm text-muted-foreground">{level.description}</p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-foreground text-sm md:text-base">{level.label}</h3>
+                          <p className="text-xs md:text-sm text-muted-foreground truncate">{level.description}</p>
                         </div>
                         {selectedLevel === level.code && (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                              <Check className="h-4 w-4 text-primary-foreground" />
+                            <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
                             </div>
                           </motion.div>
                         )}
