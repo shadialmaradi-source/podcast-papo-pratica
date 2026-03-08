@@ -343,6 +343,28 @@ export default function TeacherStudents() {
 
       <AddStudentModal open={addOpen} onOpenChange={setAddOpen} onAdded={fetchData} />
       <EditStudentModal open={!!editStudent} onOpenChange={(o) => !o && setEditStudent(null)} student={editStudent} onUpdated={fetchData} />
+
+      {/* Upgrade prompt modal */}
+      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+        <DialogContent className="sm:max-w-md text-center">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center gap-2">
+              <Crown className="h-5 w-5 text-primary" />
+              Upgrade to Pro
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            You've reached the free tier limit of 3 students. Upgrade to Pro for unlimited students and advanced features.
+          </p>
+          <div className="flex justify-center gap-3 pt-2">
+            <Button variant="outline" onClick={() => setUpgradeOpen(false)}>Cancel</Button>
+            <Button onClick={() => navigate("/teacher/pricing")}>
+              <Crown className="mr-2 h-4 w-4" />
+              Upgrade Now
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
