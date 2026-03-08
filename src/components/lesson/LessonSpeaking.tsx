@@ -445,9 +445,9 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
               )}
 
               {!summaryRecorded && !isAnalyzing && !error ? (
-                <div className="text-center space-y-6">
+                <div className="text-center space-y-4 md:space-y-6">
                   {/* Timer */}
-                  <div className={`text-5xl font-bold ${summaryTime <= 10 ? 'text-destructive' : 'text-foreground'}`}>
+                  <div className={`text-4xl md:text-5xl font-bold ${summaryTime <= 10 ? 'text-destructive' : 'text-foreground'}`}>
                     {summaryTime}s
                   </div>
 
@@ -455,20 +455,20 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={isRecording ? stopRecording : startRecording}
-                    className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto transition-all ${
+                    className={`w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center mx-auto transition-all ${
                       isRecording 
                         ? 'bg-destructive animate-pulse' 
                         : 'bg-primary hover:bg-primary/90'
                     }`}
                   >
                     {isRecording ? (
-                      <Square className="w-10 h-10 text-destructive-foreground" />
+                      <Square className="w-8 h-8 md:w-10 md:h-10 text-destructive-foreground" />
                     ) : (
-                      <Mic className="w-10 h-10 text-primary-foreground" />
+                      <Mic className="w-8 h-8 md:w-10 md:h-10 text-primary-foreground" />
                     )}
                   </motion.button>
 
-                  <p className="text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {isRecording ? 'Tap to stop' : 'Tap to start recording'}
                   </p>
                 </div>
