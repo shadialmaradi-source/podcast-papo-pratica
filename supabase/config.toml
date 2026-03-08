@@ -105,3 +105,6 @@ verify_jwt = false
 
 [functions.generate-lesson-exercises-by-type]
 verify_jwt = true
+
+[functions.teacher-stripe-checkout]
+verify_jwt = false

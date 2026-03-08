@@ -123,7 +123,7 @@ export default function TeacherPricing() {
       .eq("teacher_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
-        setSubscription(data as TeacherSub | null);
+        setSubscription(data as unknown as TeacherSub | null);
         setLoading(false);
       });
   }, [user]);
