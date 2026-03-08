@@ -150,65 +150,7 @@ export default function TeacherDashboard() {
                     <p className="text-sm text-muted-foreground mt-1">Manage your students</p>
                   </div>
                 </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => navigate("/teacher/analytics")}
-              >
-                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
-                  <BarChart3 className="h-12 w-12 text-primary" />
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Analytics</p>
-                    <p className="text-sm text-muted-foreground mt-1">Track student progress</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => navigate("/teacher/pricing")}
-              >
-                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
-                  <CreditCard className="h-12 w-12 text-primary" />
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Pricing</p>
-                    <p className="text-sm text-muted-foreground mt-1">Manage your subscription</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => navigate("/teacher/community")}
-              >
-                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
-                  <Globe className="h-12 w-12 text-primary" />
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Community</p>
-                    <p className="text-sm text-muted-foreground mt-1">Discover & share lessons</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => navigate("/teacher/branding")}
-              >
-                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
-                  <Palette className="h-12 w-12 text-primary" />
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Branding</p>
-                    <p className="text-sm text-muted-foreground mt-1">White-label your lessons</p>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
-
-            <Separator className="mb-6" />
-
-            {/* Lesson List */}
-            <LessonList refresh={refresh} />
           </>
         )}
 
