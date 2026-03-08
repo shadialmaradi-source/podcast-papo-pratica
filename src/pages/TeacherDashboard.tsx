@@ -253,6 +253,7 @@ export default function TeacherDashboard() {
                   onCreated={handleCreated}
                   onCancel={handleBack}
                   prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
+                  maxVideoMinutes={quota?.maxVideoMinutes}
                 />
               </CardContent>
             </Card>
