@@ -94,7 +94,7 @@ export default function TeacherNotifications() {
   };
 
   const typeIcon = (type: string) => {
-    if (type === "assignment_completed") return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    if (type === "assignment_completed") return <CheckCircle2 className="h-4 w-4 text-primary" />;
     return <Bell className="h-4 w-4 text-muted-foreground" />;
   };
 
