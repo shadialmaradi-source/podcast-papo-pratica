@@ -152,9 +152,9 @@ export default function SpeakingAssignment() {
   };
 
   const difficultyDot = (d: number) => {
-    if (d === 1) return <Circle className="h-3 w-3 fill-green-500 text-green-500" />;
-    if (d === 2) return <Circle className="h-3 w-3 fill-yellow-500 text-yellow-500" />;
-    return <Circle className="h-3 w-3 fill-red-500 text-red-500" />;
+    if (d === 1) return <Circle className="h-3 w-3 fill-primary/60 text-primary/60" />;
+    if (d === 2) return <Circle className="h-3 w-3 fill-accent text-accent" />;
+    return <Circle className="h-3 w-3 fill-destructive/70 text-destructive/70" />;
   };
 
   if (loading) {

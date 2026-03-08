@@ -284,7 +284,7 @@ export function AssignSpeakingModal({
           <div className="space-y-2">
             <Label>Instructions for Student (optional)</Label>
             <Textarea
-              placeholder='E.g., "Prepare questions 1-4. We\'ll discuss in our lesson tomorrow."'
+              placeholder="E.g., Prepare questions 1-4 for our next lesson."
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               rows={2}
