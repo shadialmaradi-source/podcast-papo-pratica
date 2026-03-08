@@ -367,7 +367,7 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
             exit={{ opacity: 0, x: -20 }}
           >
             <Card className="shadow-xl rounded-2xl border-0">
-              <CardContent className="p-6 md:p-8 space-y-6">
+              <CardContent className="p-4 md:p-8 space-y-4 md:space-y-6">
                 <div className="space-y-2">
                   <span className="text-xs font-medium text-primary uppercase tracking-wide">
                     {currentExercise.type.replace('_', ' ')}
