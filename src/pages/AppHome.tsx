@@ -96,6 +96,7 @@ export default function AppHome() {
       fetchAssignedLessons();
       fetchFlashcardCount();
       fetchVideoAssignments();
+      fetchSpeakingAssignments();
     }
   }, [user]);
 
