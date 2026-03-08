@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 serve(async (req) => {
@@ -19,8 +19,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized', success: false }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     const authSupabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-    const { data: claimsData, error: claimsError } = await authSupabase.auth.getClaims(authHeader.replace('Bearer ', ''));
-    if (claimsError || !claimsData?.claims?.sub) {
+    const { data: { user: authUser }, error: authError } = await authSupabase.auth.getUser();
+    if (authError || !authUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized', success: false }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 

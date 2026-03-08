@@ -261,9 +261,8 @@ export default function Lesson() {
           scene_index: currentSceneIndex,
           total_scenes: scenes.length,
         });
-        // Stay in exercises state — will re-render with new scene
-        setLessonState("select-level"); // briefly reset to force re-mount
-        setTimeout(() => setLessonState("exercises"), 50);
+        // Stay in exercises — the key prop on YouTubeExercises includes currentSceneIndex,
+        // so React will re-mount the component automatically
         return;
       }
 
@@ -305,10 +304,7 @@ export default function Lesson() {
 
   const handleSceneSelect = (sceneIndex: number) => {
     setCurrentSceneIndex(sceneIndex);
-    if (lessonState === "exercises") {
-      setLessonState("select-level");
-      setTimeout(() => setLessonState("exercises"), 50);
-    }
+    // Key prop on YouTubeExercises includes currentSceneIndex, so it auto-remounts
   };
 
   const handleNextVideo = async () => {

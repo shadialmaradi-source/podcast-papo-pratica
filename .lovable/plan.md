@@ -1,49 +1,124 @@
 
 
-# Fix Smart Scene Segmentation (End-to-End)
+# Plan: Teacher YouTube Lesson Overhaul
 
-The feature code exists but has never worked. There are **zero scenes** and **zero scene-linked exercises** in the database. Here are the root causes and fixes:
+This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
 
-## Problems Found
+## Summary of Changes
 
-### 1. `generate-level-exercises` auth uses non-existent `getClaims` method
-Line 22 of the edge function calls `authSupabase.auth.getClaims()` which doesn't exist in the Supabase JS client v2. This causes the function to return 401 on every scene exercise generation call. Fix: replace with `authSupabase.auth.getUser()`.
+1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
+2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
+3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
+4. **Student lesson view update** -- same grouped-by-type sequential layout
 
-### 2. `youtube_exercises` table has no SELECT RLS policy for authenticated users
-The scene-filtered exercise query in `YouTubeExercises.tsx` (line 319-326) does a direct `.select('*')` on `youtube_exercises` filtered by `scene_id`. But the table only has a "Service role full access" policy — no policy for regular authenticated users. The non-scene path works because it uses the `get_youtube_exercises_with_answers` RPC (SECURITY DEFINER). Fix: either add an authenticated SELECT policy, or create a new RPC that accepts `scene_id` as a parameter.
+---
 
-### 3. Edge function `segment-video-scenes` may not be deployed
-No logs exist. The function code is present but has never been called successfully. It needs to be redeployed (happens automatically on file save).
+## Phase 1: Simplified Student Onboarding
 
-## Plan
+### Problem
+Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
 
-### Step 1: Fix `generate-level-exercises` auth (edge function)
-Replace `getClaims` with `getUser()` in `supabase/functions/generate-level-exercises/index.ts`:
-```typescript
-const { data: { user }, error: authError } = await authSupabase.auth.getUser();
-if (authError || !user) {
-  return 401...
-}
+### Solution
+- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
+- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
+- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+
+### Files changed
+- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
+- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
+- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+
+---
+
+## Phase 2: Remove image_discussion, Update Exercise Types
+
+### DB migration
+- No schema changes needed (exercise_types is a text array, content is JSONB)
+
+### Edge function: `generate-lesson-exercises`
+- Remove `image_discussion` from `EXERCISE_PROMPTS`
+- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
+- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
+- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+
+### Frontend: `CreateLessonForm.tsx`
+- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+
+### Files changed
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
+- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+
+---
+
+## Phase 3: Teacher Post-Creation View (YouTube lessons)
+
+### Current state
+After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+
+### New design
+After creation, the teacher sees:
+1. **Share link** (unchanged)
+2. **YouTube video embed** at the top
+3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
+4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+
+### Transcript fetching approach
+- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
+- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+
+### DB migration
+```sql
+ALTER TABLE teacher_lessons ADD COLUMN transcript text;
 ```
 
-### Step 2: Fix exercise loading for scene-filtered queries
-Add an RLS SELECT policy on `youtube_exercises` for authenticated users, OR update the `get_youtube_exercises_with_answers` RPC to accept an optional `scene_id_param`. The RPC approach is safer and consistent. We'll add a new overload or modify the existing function to accept `scene_id_param` (default null).
+### Files changed
+- **DB migration** -- add `transcript` column
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
+- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
 
-**Database migration**: Add a new RPC or update existing one to support scene filtering.
+---
 
-### Step 3: Update `YouTubeExercises.tsx` to use the RPC for scene queries too
-Instead of direct table query, use the updated RPC with `scene_id_param`.
+## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
 
-### Step 4: Redeploy `segment-video-scenes` edge function
-Touch the file to trigger redeployment (add a comment or minor formatting change).
+Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
+- Show video at top
+- Show transcript below (same interactive component)
+- Exercise sections grouped by type, each with its own prev/next within 5 questions
 
-### Step 5: Minor fix in `Lesson.tsx` scene transition
-The current approach of cycling through `select-level` state to force re-mount (line 265-266) is fragile. Use a proper key-based re-render instead.
+### Files changed
+- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
+- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
 
-## Files to Change
-- `supabase/functions/generate-level-exercises/index.ts` — fix auth
-- `supabase/functions/segment-video-scenes/index.ts` — ensure deployment
-- `src/components/YouTubeExercises.tsx` — use RPC for scene queries
-- Database migration — add `scene_id_param` to `get_youtube_exercises_with_answers` RPC
-- `src/pages/Lesson.tsx` — improve scene transition logic
+---
+
+## Phase 5: Student Lesson View (`StudentLesson.tsx`)
+
+Mirror the teacher's layout for the student:
+- Video at top
+- Transcript (read-only or interactive if we want students to also explore words)
+- Exercise sections grouped by type, sequential, with submit per question
+
+### Files changed
+- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
+
+---
+
+## Technical Details
+
+### Exercise generation counts
+| Type | Count |
+|------|-------|
+| fill_in_blank | 5 |
+| multiple_choice | 5 |
+| spot_the_mistake | 5 |
+| role_play | 2-3 scenarios |
+
+### Role-play prompt update
+The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
+
+### Transcript storage
+Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
+
+### RLS
+No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
 
