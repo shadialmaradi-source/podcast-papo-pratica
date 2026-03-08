@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Link2, Flame, Star, GraduationCap, X, RotateCw, Video, MessageSquare, CalendarDays, CheckCircle2 } from "lucide-react";
+import { BookOpen, Link2, Flame, Star, GraduationCap, X, RotateCw, MessageSquare, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
