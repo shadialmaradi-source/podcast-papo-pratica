@@ -45,33 +45,34 @@ const LessonCompleteScreen = ({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8 flex items-center justify-center"
+      className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
     >
-      <div className="max-w-lg w-full space-y-6">
-        {/* Celebration header */}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-          className="text-center space-y-4"
-        >
-          <div className="relative inline-block">
-            <motion.div
-              animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="w-20 h-20 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg mx-auto"
-            >
-              <Trophy className="w-10 h-10 text-primary-foreground" />
-            </motion.div>
-          </div>
+      <div className="flex-1 flex items-center justify-center overflow-auto p-3 md:p-8">
+        <div className="max-w-lg w-full space-y-4 md:space-y-6">
+          {/* Celebration header */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+            className="text-center space-y-3 md:space-y-4"
+          >
+            <div className="relative inline-block">
+              <motion.div
+                animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg mx-auto"
+              >
+                <Trophy className="w-8 h-8 md:w-10 md:h-10 text-primary-foreground" />
+              </motion.div>
+            </div>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-            🎉 Lesson Complete!
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Amazing work! You've finished all 3 steps.
-          </p>
-        </motion.div>
+            <h1 className="text-2xl md:text-4xl font-bold text-foreground">
+              🎉 Lesson Complete!
+            </h1>
+            <p className="text-muted-foreground text-base md:text-lg">
+              Amazing work! You've finished all 3 steps.
+            </p>
+          </motion.div>
 
         {/* Stats card */}
         <motion.div
