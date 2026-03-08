@@ -129,6 +129,9 @@ export default function SpeakingAssignment() {
 
   const handleBlur = (questionId: string) => {
     const text = drafts[questionId] || "";
+    if (text.trim()) {
+      trackEvent("student_speaking_response_saved", { assignment_id: assignmentId, question_id: questionId });
+    }
     saveResponse(questionId, text);
   };
 
