@@ -256,7 +256,7 @@ export default function LandingPage() {
             </h2>
 
             {/* Subheadline */}
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-base md:text-xl text-muted-foreground mb-6 md:mb-8 max-w-2xl mx-auto">
               {t.heroSubtitle}
             </p>
 
