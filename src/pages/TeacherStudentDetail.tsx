@@ -132,8 +132,7 @@ export default function TeacherStudentDetail() {
     );
   }
 
-  const completedCount = lessons.filter((l) => l.status === "completed").length;
-  const pct = lessons.length ? Math.round((completedCount / lessons.length) * 100) : 0;
+  const totalAssignments = assignments.length + speakingAssignments.length;
 
   return (
     <div className="min-h-screen bg-background">
