@@ -377,6 +377,61 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
     }
   };
 
+  const handleToggleCommunityShare = useCallback(async (checked: boolean) => {
+    if (!createdLessonId || !user) return;
+    setTogglingCommunity(true);
+    try {
+      if (checked) {
+        // Fetch teacher name
+        const { data: profile } = await supabase
+          .from("teacher_profiles" as any)
+          .select("full_name")
+          .eq("teacher_id", user.id)
+          .maybeSingle();
+
+        const teacherName = (profile as any)?.full_name || user.email?.split("@")[0] || "";
+        const values = form.getValues();
+
+        await supabase.from("community_lessons" as any).insert({
+          source_lesson_id: createdLessonId,
+          teacher_id: user.id,
+          teacher_name: teacherName,
+          title: values.title,
+          description: null,
+          lesson_type: lessonType,
+          language: values.language || "italian",
+          translation_language: values.translation_language || "english",
+          cefr_level: values.cefr_level,
+          topic: values.topic || null,
+          exercise_types: values.exercise_types,
+        } as any);
+
+        await supabase
+          .from("teacher_lessons")
+          .update({ is_community_shared: true } as any)
+          .eq("id", createdLessonId);
+
+        trackEvent("path_made_public", { lesson_id: createdLessonId });
+      } else {
+        await supabase
+          .from("community_lessons" as any)
+          .delete()
+          .eq("source_lesson_id", createdLessonId)
+          .eq("teacher_id", user.id);
+
+        await supabase
+          .from("teacher_lessons")
+          .update({ is_community_shared: false } as any)
+          .eq("id", createdLessonId);
+      }
+      setCommunityShared(checked);
+    } catch (err: any) {
+      console.error("Community share toggle failed:", err);
+    } finally {
+      setTogglingCommunity(false);
+    }
+  }, [createdLessonId, user, form, lessonType]);
+
   const currentLanguage = form.watch("language") || "italian";
 
   // Group exercises by type
