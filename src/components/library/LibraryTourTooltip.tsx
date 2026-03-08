@@ -30,13 +30,13 @@ export function LibraryTourTooltip({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: position === "bottom" ? -6 : 6 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: position === "bottom" ? -6 : 6 }}
-        className={`absolute z-[60] w-64 ${position === "bottom" ? "top-full mt-3" : "bottom-full mb-3"} left-1/2 -translate-x-1/2`}
+        exit={{ opacity: 0, y: 8 }}
+        className="fixed bottom-4 left-4 right-4 z-[60] mx-auto max-w-sm sm:absolute sm:bottom-auto sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-64 sm:top-full sm:mt-3"
       >
         <div
-          className={`relative rounded-lg bg-primary px-4 py-3 text-primary-foreground text-sm shadow-lg ${arrow}`}
+          className={`relative rounded-lg bg-primary px-4 py-3 text-primary-foreground text-sm shadow-lg sm:${arrow}`}
         >
           <button
             onClick={onClose}
