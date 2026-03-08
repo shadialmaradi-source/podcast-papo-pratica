@@ -387,9 +387,14 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
       >
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="text-center space-y-2">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Speaking Practice
-            </h1>
+            <div className="flex items-center justify-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                Speaking Practice
+              </h1>
+              <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-sm">
+                Skip <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
             <p className="text-muted-foreground">
               Summarize what happened in the video
             </p>
@@ -402,7 +407,7 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
               <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
                 <h3 className="font-semibold text-foreground mb-2">Your task:</h3>
                 <p className="text-muted-foreground">
-                  Summarize what happened in the video in {isAuthenticated ? '20-30' : '5'} seconds using Spanish. 
+                  Summarize what happened in the video in {isAuthenticated ? '20-30' : '5'} seconds using {language.charAt(0).toUpperCase() + language.slice(1)}. 
                   Include the main characters, setting, and key events.
                 </p>
               </div>
@@ -552,13 +557,6 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
             </CardContent>
           </Card>
 
-          {/* Skip speaking button */}
-          <div className="text-center pt-2">
-            <Button variant="ghost" onClick={onComplete} className="text-muted-foreground">
-              Skip Speaking Practice
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
         </div>
       </motion.div>
     );
@@ -575,9 +573,16 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
     >
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            Speaking Practice
-          </h1>
+          <div className="flex items-center justify-center gap-3">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Speaking Practice
+            </h1>
+            {!allPhrasesRecorded && (
+              <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-sm">
+                Skip <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            )}
+          </div>
           <p className="text-muted-foreground">
             Repeat each phrase after listening
           </p>
@@ -788,15 +793,6 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
           </motion.div>
         )}
 
-        {/* Skip speaking button (always visible in phrase mode) */}
-        {!allPhrasesRecorded && (
-          <div className="text-center pt-2">
-            <Button variant="ghost" onClick={onComplete} className="text-muted-foreground">
-              Skip Speaking Practice
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-        )}
       </div>
     </motion.div>
   );

@@ -134,13 +134,6 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
     
     // Save progress after each answer
     saveProgress(currentIndex, newAnswers, newScore);
-    
-    // Show subtle save confirmation
-    toast({
-      description: "Progress saved ✓",
-      duration: 1500,
-      className: "bg-muted text-muted-foreground text-sm",
-    });
   };
 
   const handleNext = () => {
