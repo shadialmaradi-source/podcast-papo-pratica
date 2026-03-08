@@ -225,7 +225,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   }
 
   if (isStudying && studyFlashcards.length > 0) {
-    return <LessonFlashcards flashcards={studyFlashcards} onComplete={handleStudyComplete} language={studyLanguage} />;
+    return <LessonFlashcards flashcards={studyFlashcards} onComplete={handleStudyComplete} onExit={() => setIsStudying(false)} language={studyLanguage} />;
   }
 
   const filteredCount = getFilteredFlashcards().length;
