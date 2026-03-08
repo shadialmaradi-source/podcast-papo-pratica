@@ -141,7 +141,7 @@ const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english"
                       // Front - Target language phrase
                       <div className="space-y-4 md:space-y-6">
                         <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-xl md:text-2xl">{getLanguageFlag(language)}</span>
+                          <span className="text-xl md:text-2xl">{getLanguageFlag(currentCard.cardLanguage || language)}</span>
                         </div>
                         <p className="text-xl md:text-3xl font-bold text-foreground">
                           {currentCard.phrase}
