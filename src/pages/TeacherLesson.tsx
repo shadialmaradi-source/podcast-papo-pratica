@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { EXERCISE_TYPE_LABELS, TYPE_COLORS } from "@/components/teacher/ExercisePresenter";
 import type { Exercise } from "@/components/teacher/ExercisePresenter";
-import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight, X, Keyboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function extractYouTubeVideoId(url: string): string | null {
@@ -52,6 +52,8 @@ export default function TeacherLesson() {
 
   interface GroupState { currentIndex: number; revealed: boolean; }
   const [groupStates, setGroupStates] = useState<Record<string, GroupState>>({});
+  const [activeGroupType, setActiveGroupType] = useState<string | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(true);
 
   const exerciseGroups = useMemo(() => {
     const typeOrder: string[] = [];
@@ -67,11 +69,55 @@ export default function TeacherLesson() {
   }, [exercises]);
 
   const updateGroupState = (type: string, update: Partial<GroupState>) => {
+    setActiveGroupType(type);
     setGroupStates((prev) => ({
       ...prev,
       [type]: { ...prev[type], ...update },
     }));
   };
+
+  // Set default active group when exercise groups change
+  useEffect(() => {
+    if (exerciseGroups.length > 0 && !activeGroupType) {
+      setActiveGroupType(exerciseGroups[0].type);
+    }
+  }, [exerciseGroups, activeGroupType]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (!activeGroupType) return;
+
+      const group = exerciseGroups.find((g) => g.type === activeGroupType);
+      if (!group) return;
+      const state = groupStates[activeGroupType] || { currentIndex: 0, revealed: false };
+
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (state.currentIndex < group.exercises.length - 1) {
+          updateGroupState(activeGroupType, { currentIndex: state.currentIndex + 1, revealed: false });
+        }
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (state.currentIndex > 0) {
+          updateGroupState(activeGroupType, { currentIndex: state.currentIndex - 1, revealed: false });
+        }
+      } else if (e.key === " ") {
+        e.preventDefault();
+        updateGroupState(activeGroupType, { revealed: !state.revealed });
+      } else if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        updateGroupState(activeGroupType, { revealed: true });
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        (document.activeElement as HTMLElement)?.blur();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [activeGroupType, exerciseGroups, groupStates]);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -417,7 +463,11 @@ export default function TeacherLesson() {
               const isLast = state.currentIndex === group.exercises.length - 1;
 
               return (
-                <div key={group.type} className="space-y-3">
+                <div
+                  key={group.type}
+                  className={`space-y-3 rounded-lg transition-colors ${activeGroupType === group.type ? "border-l-4 border-primary pl-4" : "border-l-4 border-transparent pl-4"}`}
+                  onClick={() => setActiveGroupType(group.type)}
+                >
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                       <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
@@ -463,6 +513,31 @@ export default function TeacherLesson() {
           </div>
         )}
       </main>
+
+      {/* Keyboard shortcuts hint */}
+      {showShortcuts && exerciseGroups.length > 0 && !done && lesson?.status !== "completed" && (
+        <div className="fixed bottom-0 inset-x-0 bg-card/95 backdrop-blur border-t border-border px-4 py-2 z-50">
+          <div className="container mx-auto max-w-2xl flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Keyboard className="h-3.5 w-3.5" />
+              <span className="flex items-center gap-3 flex-wrap">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">←</kbd> Previous
+                <span className="text-border">·</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">→</kbd> Next
+                <span className="text-border">·</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Space</kbd> Toggle
+                <span className="text-border">·</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">R</kbd> Reveal
+                <span className="text-border">·</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> Unfocus
+              </span>
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground" onClick={() => setShowShortcuts(false)}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
