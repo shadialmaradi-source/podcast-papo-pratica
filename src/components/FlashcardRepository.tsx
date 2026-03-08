@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, BookOpen, Filter, Loader2, Shuffle } from "lucide-react";
+import { ArrowLeft, BookOpen, Filter, Globe, Loader2, Shuffle } from "lucide-react";
 import { motion } from "framer-motion";
 import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import { toast } from "sonner";
+import { getLanguageFlag, getLanguageName } from "@/utils/languageUtils";
 
 interface FlashcardRepositoryProps {
   userId: string;
@@ -41,9 +42,39 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   const [loading, setLoading] = useState(true);
   const [isStudying, setIsStudying] = useState(false);
   const [filter, setFilter] = useState<string>("all");
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [videoGroups, setVideoGroups] = useState<VideoGroup[]>([]);
   const [studyFlashcards, setStudyFlashcards] = useState<{ phrase: string; translation: string; why: string }[]>([]);
   const [studyLanguage, setStudyLanguage] = useState<string>("english");
+
+  // Detect distinct languages
+  const distinctLanguages = useMemo(() => {
+    const langs = [...new Set(flashcards.map(fc => fc.video_language))];
+    return langs;
+  }, [flashcards]);
+
+  // Auto-select language when there's only one
+  useEffect(() => {
+    if (distinctLanguages.length === 1) {
+      setSelectedLanguage(distinctLanguages[0]);
+    } else if (distinctLanguages.length >= 2 && !selectedLanguage) {
+      setSelectedLanguage(null);
+    }
+  }, [distinctLanguages]);
+
+  // Get language-filtered flashcards and video groups
+  const languageFilteredFlashcards = useMemo(() => {
+    if (!selectedLanguage) return flashcards;
+    return flashcards.filter(fc => fc.video_language === selectedLanguage);
+  }, [flashcards, selectedLanguage]);
+
+  const filteredVideoGroups = useMemo(() => {
+    if (!selectedLanguage) return videoGroups;
+    return videoGroups.filter(g => {
+      const groupCards = flashcards.filter(fc => fc.video_id === g.video_id);
+      return groupCards.some(fc => fc.video_language === selectedLanguage);
+    });
+  }, [videoGroups, flashcards, selectedLanguage]);
 
   useEffect(() => {
     loadFlashcards();
@@ -119,13 +150,12 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   };
 
   const getFilteredFlashcards = () => {
-    let filtered = flashcards;
+    let filtered = languageFilteredFlashcards;
 
     if (filter === "unmastered") {
-      filtered = flashcards.filter(fc => !fc.is_mastered);
+      filtered = filtered.filter(fc => !fc.is_mastered);
     } else if (filter !== "all") {
-      // Filter by video_id
-      filtered = flashcards.filter(fc => fc.video_id === filter);
+      filtered = filtered.filter(fc => fc.video_id === filter);
     }
 
     return filtered;
@@ -139,9 +169,8 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
       return;
     }
 
-    // Determine the language from the first filtered card
-    const detectedLanguage = filtered[0]?.video_language || 'english';
-    setStudyLanguage(detectedLanguage);
+    // Use selected language
+    setStudyLanguage(selectedLanguage || filtered[0]?.video_language || 'english');
 
     let cardsToStudy = filtered.map(fc => ({
       phrase: fc.phrase,
@@ -230,17 +259,17 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
           <CardContent className="p-6">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <div className="text-3xl font-bold text-primary">{flashcards.length}</div>
+                <div className="text-3xl font-bold text-primary">{languageFilteredFlashcards.length}</div>
                 <div className="text-sm text-muted-foreground">Total Flashcards</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-green-500">
-                  {flashcards.filter(fc => fc.is_mastered).length}
+                <div className="text-3xl font-bold text-emerald-500">
+                  {languageFilteredFlashcards.filter(fc => fc.is_mastered).length}
                 </div>
                 <div className="text-sm text-muted-foreground">Mastered</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-blue-500">{videoGroups.length}</div>
+                <div className="text-3xl font-bold text-primary/70">{filteredVideoGroups.length}</div>
                 <div className="text-sm text-muted-foreground">Videos</div>
               </div>
             </div>
@@ -262,6 +291,41 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
           </Card>
         ) : (
           <>
+            {/* Language Selector - only when 2+ languages */}
+            {distinctLanguages.length >= 2 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    Select Language
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Select 
+                    value={selectedLanguage || ""} 
+                    onValueChange={(val) => {
+                      setSelectedLanguage(val);
+                      setFilter("all"); // Reset filter when changing language
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a language to study" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {distinctLanguages.map(lang => (
+                        <SelectItem key={lang} value={lang}>
+                          {getLanguageFlag(lang)} {getLanguageName(lang)} ({flashcards.filter(fc => fc.video_language === lang).length} cards)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Study Options - shown when language is selected (or only 1 language) */}
+            {selectedLanguage && (
+            <>
             {/* Filter & Actions */}
             <Card>
               <CardHeader>
@@ -278,11 +342,11 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
                         <SelectValue placeholder="Filter flashcards" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Flashcards ({flashcards.length})</SelectItem>
+                        <SelectItem value="all">All Flashcards ({languageFilteredFlashcards.length})</SelectItem>
                         <SelectItem value="unmastered">
-                          Unmastered ({flashcards.filter(fc => !fc.is_mastered).length})
+                          Unmastered ({languageFilteredFlashcards.filter(fc => !fc.is_mastered).length})
                         </SelectItem>
-                        {videoGroups.map(group => (
+                        {filteredVideoGroups.map(group => (
                           <SelectItem key={group.video_id} value={group.video_id}>
                             {group.video_title.substring(0, 40)}... ({group.flashcard_count})
                           </SelectItem>
@@ -322,7 +386,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {videoGroups.map(group => (
+                  {filteredVideoGroups.map(group => (
                     <motion.div
                       key={group.video_id}
                       whileHover={{ scale: 1.02 }}
@@ -355,6 +419,8 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
                 </div>
               </CardContent>
             </Card>
+            </>
+            )}
           </>
         )}
       </div>
