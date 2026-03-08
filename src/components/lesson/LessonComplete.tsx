@@ -75,6 +75,7 @@ const LessonComplete = ({
           <Card className="shadow-xl rounded-2xl border-0">
             <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
               {/* XP earned */}
+              <div className="text-center p-3 md:p-4 bg-primary/5 rounded-xl border border-primary/20">
                 <div className="flex items-center justify-center gap-2 text-primary">
                   <Zap className="w-5 h-5 md:w-6 md:h-6" />
                   <span className="text-2xl md:text-3xl font-bold">+{xpEarned} XP</span>
