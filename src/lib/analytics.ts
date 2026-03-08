@@ -61,3 +61,11 @@ export const resetAnalytics = () => {
 export const trackEvent = (event: string, properties?: Record<string, unknown>) => {
   postCapture(event, properties || {});
 };
+
+// Track page load performance
+export const trackPageLoad = (page: string) => {
+  postCapture("page_load_time", {
+    page,
+    load_time_ms: Math.round(performance.now()),
+  });
+};
