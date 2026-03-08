@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { BookOpen, User, Sparkles, Loader2, ChevronDown, ChevronUp, Play } from "lucide-react";
+import { BookOpen, User, Sparkles, Loader2, ChevronDown, ChevronUp, Play, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,6 +30,8 @@ interface Lesson {
 interface LessonListProps {
   refresh: number;
 }
+
+const PAGE_SIZE = 20;
 
 const STATUS_VARIANT: Record<string, "secondary" | "default" | "outline" | "destructive"> = {
   draft: "secondary",
@@ -124,6 +126,8 @@ export function LessonList({ refresh }: LessonListProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -132,19 +136,24 @@ export function LessonList({ refresh }: LessonListProps) {
   const fetchLessons = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error, count } = await supabase
       .from("teacher_lessons")
-      .select("id, title, student_email, cefr_level, topic, status, exercise_types, created_at")
+      .select("id, title, student_email, cefr_level, topic, status, exercise_types, created_at", { count: "exact" })
       .eq("teacher_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (!error && data) setLessons(data as Lesson[]);
+    setTotalCount(count || 0);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchLessons();
-  }, [user, refresh]);
+  }, [user, refresh, page]);
 
   const handleGenerate = async (lessonId: string) => {
     setGenerating(lessonId);
@@ -206,17 +215,19 @@ export function LessonList({ refresh }: LessonListProps) {
     }
   };
 
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
   if (loading) {
     return (
       <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
+        {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-20 w-full rounded-lg" />
         ))}
       </div>
     );
   }
 
-  if (lessons.length === 0) {
+  if (lessons.length === 0 && page === 1) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <BookOpen className="mx-auto h-10 w-10 mb-3 opacity-40" />
@@ -321,6 +332,33 @@ export function LessonList({ refresh }: LessonListProps) {
           </CardContent>
         </Card>
       ))}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage(p => p - 1)}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => p + 1)}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

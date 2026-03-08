@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Users, BookOpen, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight, ArrowRight } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, Users, BookOpen, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays, isAfter, differenceInWeeks, differenceInDays } from "date-fns";
@@ -36,6 +38,8 @@ type StudentWithStats = {
 type TimeRange = "7d" | "30d" | "all";
 type StatusFilter = "all" | "active" | "at_risk" | "inactive";
 
+const ACTIVITY_PAGE_SIZE = 20;
+
 export default function TeacherAnalytics() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -48,6 +52,8 @@ export default function TeacherAnalytics() {
   const [lessonsByLevel, setLessonsByLevel] = useState<{ level: string; count: number }[]>([]);
   const [allResponses, setAllResponses] = useState<{ lesson_id: string; submitted_at: string }[]>([]);
   const [allLessons, setAllLessons] = useState<{ id: string; student_email: string | null; status: string; cefr_level: string; created_at: string; title: string }[]>([]);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [activityPage, setActivityPage] = useState(1);
 
   useEffect(() => {
     if (roleLoading) return;
@@ -148,8 +154,9 @@ export default function TeacherAnalytics() {
   const totalAssigned = students.reduce((sum, s) => sum + s.assigned, 0);
   const avgCompletion = totalStudents > 0 ? Math.round(students.reduce((sum, s) => sum + s.completionRate, 0) / totalStudents) : 0;
 
-  // Retention metrics
+  // Retention metrics — only compute when tab active
   const retentionData = useMemo(() => {
+    if (activeTab !== "retention") return { week1: { active: 0, total: 0, rate: 0 }, week2: { active: 0, total: 0, rate: 0 }, week4: { active: 0, total: 0, rate: 0 }, month1: { active: 0, total: 0, rate: 0 }, curve: [] };
     const now = new Date();
     const total = students.length;
     if (total === 0) return { week1: { active: 0, total: 0, rate: 0 }, week2: { active: 0, total: 0, rate: 0 }, week4: { active: 0, total: 0, rate: 0 }, month1: { active: 0, total: 0, rate: 0 }, curve: [] };
@@ -158,24 +165,23 @@ export default function TeacherAnalytics() {
     const w1 = calcActive(7), w2 = calcActive(14), w4 = calcActive(28), m1 = calcActive(30);
     const rate = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
 
-    const curve = [
-      { week: "Week 0", retention: 100 },
-      { week: "Week 1", retention: rate(w1) },
-      { week: "Week 2", retention: rate(w2) },
-      { week: "Week 4", retention: rate(w4) },
-    ];
-
     return {
       week1: { active: w1, total, rate: rate(w1) },
       week2: { active: w2, total, rate: rate(w2) },
       week4: { active: w4, total, rate: rate(w4) },
       month1: { active: m1, total, rate: rate(m1) },
-      curve,
+      curve: [
+        { week: "Week 0", retention: 100 },
+        { week: "Week 1", retention: rate(w1) },
+        { week: "Week 2", retention: rate(w2) },
+        { week: "Week 4", retention: rate(w4) },
+      ],
     };
-  }, [students]);
+  }, [students, activeTab]);
 
-  // Churn prediction
+  // Churn prediction — only when retention tab
   const churnStudents = useMemo<ChurnStudent[]>(() => {
+    if (activeTab !== "retention") return [];
     return students.map(s => {
       const daysInactive = s.last_active ? differenceInDays(new Date(), new Date(s.last_active)) : 30;
       const inactiveScore = Math.min(daysInactive * 5, 50);
@@ -184,20 +190,46 @@ export default function TeacherAnalytics() {
       const riskLevel = riskScore >= 80 ? "high" as const : riskScore >= 50 ? "medium" as const : "low" as const;
       return { id: s.id, student_name: s.student_name, student_email: s.student_email, riskScore, riskLevel, lastActive: s.last_active, completionRate: s.completionRate };
     }).filter(s => s.riskLevel !== "low");
-  }, [students]);
+  }, [students, activeTab]);
 
-  // Engagement metrics
+  // Cohort analysis — only when retention tab
+  const cohortByMonth = useMemo<CohortRow[]>(() => {
+    if (activeTab !== "retention") return [];
+    const monthMap = new Map<string, StudentWithStats[]>();
+    students.forEach(s => {
+      const month = format(new Date(s.invited_at), "MMM yyyy");
+      monthMap.set(month, [...(monthMap.get(month) || []), s]);
+    });
+    return [...monthMap.entries()].map(([label, group]) => {
+      const active = group.filter(s => s.last_active && isAfter(new Date(s.last_active), subDays(new Date(), 14))).length;
+      return { label, totalStudents: group.length, activeStudents: active, retentionRate: group.length > 0 ? Math.round((active / group.length) * 100) : 0 };
+    });
+  }, [students, activeTab]);
+
+  const cohortByLevel = useMemo<CohortRow[]>(() => {
+    if (activeTab !== "retention") return [];
+    const levelMap = new Map<string, StudentWithStats[]>();
+    students.forEach(s => {
+      const lvl = s.level || "Unknown";
+      levelMap.set(lvl, [...(levelMap.get(lvl) || []), s]);
+    });
+    return [...levelMap.entries()].map(([label, group]) => {
+      const active = group.filter(s => s.last_active && isAfter(new Date(s.last_active), subDays(new Date(), 14))).length;
+      return { label, totalStudents: group.length, activeStudents: active, retentionRate: group.length > 0 ? Math.round((active / group.length) * 100) : 0 };
+    });
+  }, [students, activeTab]);
+
+  // Engagement metrics — only when engagement tab
   const engagementData = useMemo(() => {
+    if (activeTab !== "engagement") return { avgLessonsPerWeek: 0, mostActiveDay: "N/A", weeklyActivity: [] };
     const responses = allResponses;
     if (responses.length === 0) return { avgLessonsPerWeek: 0, mostActiveDay: "N/A", weeklyActivity: [] };
 
-    // Most active day
     const dayCount = [0, 0, 0, 0, 0, 0, 0];
     const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     responses.forEach(r => dayCount[new Date(r.submitted_at).getDay()]++);
     const maxDay = dayCount.indexOf(Math.max(...dayCount));
 
-    // Weekly activity
     const weekMap = new Map<string, number>();
     responses.forEach(r => {
       const wk = format(new Date(r.submitted_at), "MMM dd");
@@ -205,16 +237,16 @@ export default function TeacherAnalytics() {
     });
     const weeklyActivity = [...weekMap.entries()].sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()).slice(-14).map(([week, responses]) => ({ week, responses }));
 
-    // Avg completions per week
     const firstResponse = responses.reduce((min, r) => r.submitted_at < min ? r.submitted_at : min, responses[0].submitted_at);
     const weeksSinceFirst = Math.max(1, differenceInWeeks(new Date(), new Date(firstResponse)));
     const avgLessonsPerWeek = totalStudents > 0 ? responses.length / weeksSinceFirst : 0;
 
     return { avgLessonsPerWeek, mostActiveDay: DAYS[maxDay], weeklyActivity };
-  }, [allResponses, totalStudents]);
+  }, [allResponses, totalStudents, activeTab]);
 
-  // Content performance
+  // Content performance — only when engagement tab
   const contentItems = useMemo<ContentItem[]>(() => {
+    if (activeTab !== "engagement") return [];
     const titleMap = new Map<string, { assigned: number; completed: number }>();
     allLessons.forEach(l => {
       const entry = titleMap.get(l.title) || { assigned: 0, completed: 0 };
@@ -225,32 +257,7 @@ export default function TeacherAnalytics() {
     return [...titleMap.entries()].map(([title, { assigned, completed }]) => ({
       title, assigned, completed, completionRate: assigned > 0 ? Math.round((completed / assigned) * 100) : 0,
     }));
-  }, [allLessons]);
-
-  // Cohort analysis
-  const cohortByMonth = useMemo<CohortRow[]>(() => {
-    const monthMap = new Map<string, StudentWithStats[]>();
-    students.forEach(s => {
-      const month = format(new Date(s.invited_at), "MMM yyyy");
-      monthMap.set(month, [...(monthMap.get(month) || []), s]);
-    });
-    return [...monthMap.entries()].map(([label, group]) => {
-      const active = group.filter(s => s.last_active && isAfter(new Date(s.last_active), subDays(new Date(), 14))).length;
-      return { label, totalStudents: group.length, activeStudents: active, retentionRate: group.length > 0 ? Math.round((active / group.length) * 100) : 0 };
-    });
-  }, [students]);
-
-  const cohortByLevel = useMemo<CohortRow[]>(() => {
-    const levelMap = new Map<string, StudentWithStats[]>();
-    students.forEach(s => {
-      const lvl = s.level || "Unknown";
-      levelMap.set(lvl, [...(levelMap.get(lvl) || []), s]);
-    });
-    return [...levelMap.entries()].map(([label, group]) => {
-      const active = group.filter(s => s.last_active && isAfter(new Date(s.last_active), subDays(new Date(), 14))).length;
-      return { label, totalStudents: group.length, activeStudents: active, retentionRate: group.length > 0 ? Math.round((active / group.length) * 100) : 0 };
-    });
-  }, [students]);
+  }, [allLessons, activeTab]);
 
   // Filtered students for activity table
   const atRiskIds = useMemo(() => new Set(churnStudents.map(s => s.id)), [churnStudents]);
@@ -262,6 +269,16 @@ export default function TeacherAnalytics() {
       return true;
     });
   }, [students, statusFilter, atRiskIds]);
+
+  // Local pagination for activity table
+  const activityTotalPages = Math.ceil(filteredStudents.length / ACTIVITY_PAGE_SIZE);
+  const paginatedStudents = useMemo(() => {
+    const from = (activityPage - 1) * ACTIVITY_PAGE_SIZE;
+    return filteredStudents.slice(from, from + ACTIVITY_PAGE_SIZE);
+  }, [filteredStudents, activityPage]);
+
+  // Reset activity page when filter changes
+  useEffect(() => { setActivityPage(1); }, [statusFilter]);
 
   const formatLastActive = (date: string | null) => {
     if (!date) return "Never";
@@ -277,8 +294,37 @@ export default function TeacherAnalytics() {
     return <span className="flex items-center gap-1 text-muted-foreground"><ArrowRight className="h-4 w-4" /> Steady</span>;
   };
 
+  const SkeletonSection = () => (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-28 w-full rounded-lg" />
+        ))}
+      </div>
+      <Skeleton className="h-64 w-full rounded-lg" />
+    </div>
+  );
+
   if (loading && students.length === 0) {
-    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading analytics...</div>;
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-card">
+          <div className="container mx-auto flex items-center gap-4 px-4 py-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/teacher")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-6 w-6 text-primary" />
+              <h1 className="text-xl font-bold text-foreground">Analytics</h1>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8 max-w-5xl">
+          <SkeletonSection />
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -296,7 +342,7 @@ export default function TeacherAnalytics() {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
-        {/* Overview Cards */}
+        {/* Overview Cards — always visible */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6 text-center">
@@ -328,125 +374,150 @@ export default function TeacherAnalytics() {
           </Card>
         </div>
 
-        {/* Retention Metrics */}
-        <RetentionMetrics data={retentionData} />
+        {/* Tabbed sections */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="w-full justify-start">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="retention">Retention & Churn</TabsTrigger>
+            <TabsTrigger value="engagement">Engagement & Content</TabsTrigger>
+          </TabsList>
 
-        {/* Churn Prediction */}
-        <ChurnPrediction students={churnStudents} />
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3">
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
+                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="all">All time</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Students</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="at_risk">At Risk</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        {/* Engagement + Content side by side on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <EngagementMetrics data={engagementData} />
-          <ContentPerformance items={contentItems} />
-        </div>
+            {/* Student Activity Table */}
+            <Card>
+              <CardHeader><CardTitle>Student Activity</CardTitle></CardHeader>
+              <CardContent>
+                {paginatedStudents.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No students match filters.</p>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Student</TableHead>
+                            <TableHead className="text-center">Assigned</TableHead>
+                            <TableHead className="text-center">Completed</TableHead>
+                            <TableHead className="text-center">In Progress</TableHead>
+                            <TableHead className="text-center">Not Started</TableHead>
+                            <TableHead>Last Active</TableHead>
+                            <TableHead>Trend</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedStudents.map(s => (
+                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/teacher/student/${s.id}`)}>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium text-foreground">{s.student_name || s.student_email}</p>
+                                  {s.student_name && <p className="text-xs text-muted-foreground">{s.student_email}</p>}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">{s.assigned}</TableCell>
+                              <TableCell className="text-center">{s.completed} ({s.completionRate}%)</TableCell>
+                              <TableCell className="text-center">{s.in_progress}</TableCell>
+                              <TableCell className="text-center">{s.not_started}</TableCell>
+                              <TableCell>{formatLastActive(s.last_active)}</TableCell>
+                              <TableCell><TrendIcon trend={s.trend} /></TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {activityTotalPages > 1 && (
+                      <div className="flex items-center justify-center gap-4 pt-4">
+                        <Button variant="outline" size="sm" disabled={activityPage <= 1} onClick={() => setActivityPage(p => p - 1)}>
+                          <ChevronLeft className="h-4 w-4 mr-1" />Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground">Page {activityPage} of {activityTotalPages}</span>
+                        <Button variant="outline" size="sm" disabled={activityPage >= activityTotalPages} onClick={() => setActivityPage(p => p + 1)}>
+                          Next<ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Cohort Analysis */}
-        <CohortAnalysis byMonth={cohortByMonth} byLevel={cohortByLevel} />
+            {/* Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader><CardTitle className="text-base">Completions Over Time</CardTitle></CardHeader>
+                <CardContent>
+                  {completionOverTime.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={completionOverTime}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="date" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                        <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="completed" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-12">No completion data yet.</p>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Lessons by Level</CardTitle></CardHeader>
+                <CardContent>
+                  {lessonsByLevel.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={lessonsByLevel}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="level" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                        <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-12">No lesson data yet.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3">
-          <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="all">All time</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Students</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="at_risk">At Risk</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          {/* Retention & Churn Tab */}
+          <TabsContent value="retention" className="space-y-6 mt-6">
+            <RetentionMetrics data={retentionData} />
+            <ChurnPrediction students={churnStudents} />
+            <CohortAnalysis byMonth={cohortByMonth} byLevel={cohortByLevel} />
+          </TabsContent>
 
-        {/* Student Activity Table */}
-        <Card>
-          <CardHeader><CardTitle>Student Activity</CardTitle></CardHeader>
-          <CardContent>
-            {filteredStudents.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No students match filters.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead className="text-center">Assigned</TableHead>
-                      <TableHead className="text-center">Completed</TableHead>
-                      <TableHead className="text-center">In Progress</TableHead>
-                      <TableHead className="text-center">Not Started</TableHead>
-                      <TableHead>Last Active</TableHead>
-                      <TableHead>Trend</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredStudents.map(s => (
-                      <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/teacher/student/${s.id}`)}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-foreground">{s.student_name || s.student_email}</p>
-                            {s.student_name && <p className="text-xs text-muted-foreground">{s.student_email}</p>}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">{s.assigned}</TableCell>
-                        <TableCell className="text-center">{s.completed} ({s.completionRate}%)</TableCell>
-                        <TableCell className="text-center">{s.in_progress}</TableCell>
-                        <TableCell className="text-center">{s.not_started}</TableCell>
-                        <TableCell>{formatLastActive(s.last_active)}</TableCell>
-                        <TableCell><TrendIcon trend={s.trend} /></TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Completions Over Time</CardTitle></CardHeader>
-            <CardContent>
-              {completionOverTime.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={completionOverTime}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                    <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="completed" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-muted-foreground text-center py-12">No completion data yet.</p>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Lessons by Level</CardTitle></CardHeader>
-            <CardContent>
-              {lessonsByLevel.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={lessonsByLevel}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="level" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                    <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-muted-foreground text-center py-12">No lesson data yet.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+          {/* Engagement & Content Tab */}
+          <TabsContent value="engagement" className="space-y-6 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <EngagementMetrics data={engagementData} />
+              <ContentPerformance items={contentItems} />
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
