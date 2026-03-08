@@ -932,14 +932,9 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Exercise {currentExerciseIndex + 1}</span>
-            <div className="flex gap-2">
-              <Badge variant="outline" className="text-xs">
-                {currentExercise.type.replace('-', ' ').toUpperCase()}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {currentExercise.points} pts
-              </Badge>
-            </div>
+            <Badge variant="outline" className="text-xs">
+              {currentExercise.points} pts
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
