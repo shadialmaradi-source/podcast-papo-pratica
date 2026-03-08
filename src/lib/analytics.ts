@@ -94,3 +94,34 @@ export const trackPageLoad = (page: string) => {
     load_time_ms: Math.round(performance.now()),
   });
 };
+
+// Track funnel steps for multi-step flows
+export const trackFunnelStep = (
+  funnel: string,
+  step: string,
+  stepIndex: number,
+  props?: Record<string, unknown>
+) => {
+  postCapture(`${funnel}_step`, {
+    funnel,
+    step,
+    step_index: stepIndex,
+    ...props,
+  });
+};
+
+// Session duration tracking
+export const trackSessionStart = () => {
+  sessionStorage.setItem("ph_session_start", String(Date.now()));
+};
+
+export const trackSessionEnd = () => {
+  const startStr = sessionStorage.getItem("ph_session_start");
+  if (!startStr) return;
+  const durationSeconds = Math.round((Date.now() - Number(startStr)) / 1000);
+  if (durationSeconds < 2) return; // ignore trivial sessions
+  postCapture("session_ended", {
+    duration_seconds: durationSeconds,
+    section: currentSection,
+  });
+};

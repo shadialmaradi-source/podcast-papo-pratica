@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import {
   BookOpen, Users, BarChart3, ArrowRight, ArrowLeft, Check, SkipForward,
   Share2, ChevronRight
@@ -78,7 +78,9 @@ export default function TeacherOnboarding() {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
+    trackPageView("teacher_onboarding", "teacher");
     trackEvent("teacher_onboarding_started");
+    trackFunnelStep("teacher_onboarding", "profile", 0);
   }, []);
 
   const toggleLanguage = (lang: string) => {
@@ -116,6 +118,7 @@ export default function TeacherOnboarding() {
       );
 
       trackEvent("teacher_onboarding_step_1", { languages: selectedLanguages });
+      trackFunnelStep("teacher_onboarding", "add_student", 1);
       setStep(1);
     } catch {
       toast({ title: "Error saving profile", variant: "destructive" });
@@ -144,6 +147,7 @@ export default function TeacherOnboarding() {
     } else {
       trackEvent("teacher_onboarding_step_2", { added_student: false });
     }
+    trackFunnelStep("teacher_onboarding", "tour", 2);
     setStep(2);
   };
 
@@ -156,6 +160,7 @@ export default function TeacherOnboarding() {
         .eq("teacher_id", user!.id);
 
       trackEvent("teacher_onboarding_completed");
+      trackFunnelStep("teacher_onboarding", "completed", 3);
       navigate("/teacher", { replace: true });
     } catch {
       toast({ title: "Error completing onboarding", variant: "destructive" });

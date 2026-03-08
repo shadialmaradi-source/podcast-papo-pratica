@@ -28,7 +28,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUploadQuotaStatus } from "@/services/subscriptionService";
-import { trackEvent, trackPageLoad } from "@/lib/analytics";
+import { trackEvent, trackPageLoad, trackPageView } from "@/lib/analytics";
 import { AssignVideoModal } from "@/components/teacher/AssignVideoModal";
 
 interface VideoTopic {
@@ -106,6 +106,7 @@ export default function Library() {
 
   // Fetch curated video IDs (linked from week_videos)
   useEffect(() => {
+    trackPageView("library", "student");
     trackPageLoad("library");
     supabase.from("week_videos").select("linked_video_id")
       .not("linked_video_id", "is", null)
@@ -284,6 +285,7 @@ export default function Library() {
   const handleVideoClick = (videoId: string) => {
     const video = videos.find(v => v.id === videoId);
     if (video) {
+      trackEvent('student_video_clicked', { video_id: video.id, source: video.is_curated ? 'curated' : 'community' });
       navigate(`/lesson/${video.id}`);
     }
   };

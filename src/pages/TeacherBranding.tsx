@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Upload, Palette, BookOpen, Loader2, Crown, Globe } from "lucide-react";
 import { toast } from "sonner";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 
 interface BrandingConfig {
   logo_url: string;
@@ -42,6 +42,7 @@ export default function TeacherBranding() {
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
+    trackPageView("teacher_branding", "teacher");
     if (roleLoading || !user) return;
     if (role !== "teacher") {
       navigate("/app");

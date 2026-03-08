@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { trackPageView } from "@/lib/analytics";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -180,6 +181,7 @@ export default function LandingPage() {
   const t = landingTranslations[selectedLanguage];
 
   useEffect(() => {
+    trackPageView("landing", "shared");
     const handleScroll = () => {
       setShowMobileCTA(window.scrollY > 300);
     };

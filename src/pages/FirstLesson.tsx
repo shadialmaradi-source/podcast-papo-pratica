@@ -8,7 +8,7 @@ import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import LessonComplete from "@/components/lesson/LessonComplete";
 import { allLessonContent, getLocalizedContent } from "@/data/firstLessonContent";
 import { supabase } from "@/integrations/supabase/client";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 
 type LessonStep = 'intro' | 'video' | 'exercises' | 'speaking' | 'flashcards' | 'complete';
 
@@ -65,11 +65,26 @@ const FirstLesson = () => {
   }, [targetLanguage, userLevel]);
 
   useEffect(() => {
+    trackPageView("first_lesson", "student");
     trackEvent('first_lesson_started', { language: targetLanguage, level: userLevel });
+    trackFunnelStep("first_lesson", "intro", 0, { language: targetLanguage, level: userLevel });
+
+    // Track abandonment on page leave
+    const handleBeforeUnload = () => {
+      const currentStep = localStorage.getItem('lesson_step') || 'intro';
+      if (currentStep !== 'complete') {
+        trackEvent('first_lesson_abandoned', { last_step: currentStep, language: targetLanguage, level: userLevel });
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
+
+  const stepIndexMap: Record<LessonStep, number> = { intro: 0, video: 1, exercises: 2, speaking: 3, flashcards: 4, complete: 5 };
 
   useEffect(() => {
     localStorage.setItem('lesson_step', step);
+    trackFunnelStep("first_lesson", step, stepIndexMap[step]);
   }, [step]);
 
   // Build video data: prefer Supabase, fallback to hardcoded

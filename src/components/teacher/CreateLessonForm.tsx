@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Copy, Check, ArrowLeft, Share2, Eye, EyeOff, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackFunnelStep } from "@/lib/analytics";
 import { useTextSelection } from "@/hooks/useTextSelection";
 import { TextSelectionPopover } from "@/components/transcript/TextSelectionPopover";
 import { WordExplorerPanel } from "@/components/transcript/WordExplorerPanel";
@@ -135,6 +135,10 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
   const [copied, setCopied] = useState(false);
   const [communityShared, setCommunityShared] = useState(false);
   const [togglingCommunity, setTogglingCommunity] = useState(false);
+
+  useEffect(() => {
+    trackEvent("teacher_lesson_creation_started", { type: lessonType });
+  }, [lessonType]);
 
   // Inline result state
   const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
@@ -283,6 +287,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
       setLessonYoutubeUrl(values.youtube_url || null);
       setSelectedExerciseTypes(values.exercise_types);
       toast({ title: "Lesson created!", description: "Click the exercise type buttons below to generate exercises." });
+      trackEvent("teacher_lesson_creation_completed", { type: lessonType, language: values.language, cefr_level: values.cefr_level });
       onCreated(data.id);
 
       // Fetch transcript for YouTube lessons

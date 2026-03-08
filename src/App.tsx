@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { initAnalytics } from "@/lib/analytics";
+import { initAnalytics, trackSessionStart, trackSessionEnd } from "@/lib/analytics";
 
 // Eager imports — critical entry paths
 import LandingPage from "./pages/LandingPage";
@@ -113,6 +113,10 @@ function AuthRedirector() {
 const App = () => {
   useEffect(() => {
     initAnalytics();
+    trackSessionStart();
+    const handleBeforeUnload = () => trackSessionEnd();
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
 
   return (

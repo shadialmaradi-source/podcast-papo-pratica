@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Headphones, ArrowRight, ArrowLeft, Check, Sprout, BookOpen, Zap, Award 
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 
 const targetLanguages = [
   { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: true },
@@ -60,7 +60,7 @@ export default function Onboarding() {
   const [selectedNativeLanguage, setSelectedNativeLanguage] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
-  // Check if coming from a shared lesson link
+  useEffect(() => { trackPageView("onboarding", "shared"); }, []);
   const pendingLessonToken = localStorage.getItem('pending_lesson_token');
   const isLessonOnboarding = !!pendingLessonToken;
 
@@ -82,6 +82,7 @@ export default function Onboarding() {
   const handleLanguageSelect = (langCode: string, available: boolean) => {
     if (!available) return;
     setSelectedLanguage(langCode);
+    trackFunnelStep("onboarding_funnel", "language_selected", 0, { language: langCode });
   };
 
   const handleContinueToNative = () => {
@@ -90,12 +91,14 @@ export default function Onboarding() {
       setSelectedNativeLanguage(null);
     }
     trackEvent('onboarding_step_changed', { step_name: 'native' });
+    trackFunnelStep("onboarding_funnel", "native_selected", 1);
     setStep('native');
   };
 
   const handleContinueToLevel = () => {
     if (!selectedNativeLanguage) return;
     trackEvent('onboarding_step_changed', { step_name: 'level' });
+    trackFunnelStep("onboarding_funnel", "level_selected", 2);
     setStep('level');
   };
 
@@ -115,6 +118,7 @@ export default function Onboarding() {
       native_language: selectedNativeLanguage,
       lesson_onboarding: true,
     });
+    trackFunnelStep("onboarding_funnel", "completed", 3, { lesson_onboarding: true });
 
     if (user) {
       await supabase.from('profiles').update({
@@ -141,6 +145,7 @@ export default function Onboarding() {
       native_language: selectedNativeLanguage,
       level: selectedLevel,
     });
+    trackFunnelStep("onboarding_funnel", "completed", 3);
 
     if (user) {
       await supabase.from('profiles').update({

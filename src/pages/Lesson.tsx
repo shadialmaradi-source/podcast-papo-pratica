@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
@@ -6,7 +6,7 @@ import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
 import VideoFlashcards from "@/components/VideoFlashcards";
 import LessonCompleteScreen from "@/components/lesson/LessonCompleteScreen";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 
 type LessonState = "select-level" | "exercises" | "speaking" | "flashcards" | "complete";
 
@@ -29,6 +29,11 @@ export default function Lesson() {
     exerciseAccuracy: 0,
     flashcardsCount: 5,
   });
+
+  useEffect(() => {
+    trackPageView("lesson", "student");
+    trackFunnelStep("lesson", "select_level", 0, { video_id: videoId });
+  }, [videoId]);
 
   const handleBack = () => {
     if (lessonState === "select-level") {

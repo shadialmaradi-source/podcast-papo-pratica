@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { trackPageView, trackFunnelStep } from "@/lib/analytics";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -60,6 +61,7 @@ export default function WeekVideo() {
 
   useEffect(() => {
     if (!weekVideoId) return;
+    trackPageView("week_video", "student");
     loadData();
   }, [weekVideoId, user]);
 
@@ -213,10 +215,10 @@ export default function WeekVideo() {
             source="curated"
             language={week.language || "italian"}
             onBack={() => setLessonStep("video")}
-            onComplete={() => setLessonStep("speaking")}
-            onContinueToSpeaking={() => setLessonStep("speaking")}
-            onTryNextLevel={() => setLessonStep("speaking")}
-            onSkipToFlashcards={() => setLessonStep("flashcards")}
+            onComplete={() => { trackFunnelStep("lesson", "speaking", 2, { video_id: weekVideoId }); setLessonStep("speaking"); }}
+            onContinueToSpeaking={() => { trackFunnelStep("lesson", "speaking", 2, { video_id: weekVideoId }); setLessonStep("speaking"); }}
+            onTryNextLevel={() => { trackFunnelStep("lesson", "speaking", 2, { video_id: weekVideoId }); setLessonStep("speaking"); }}
+            onSkipToFlashcards={() => { trackFunnelStep("lesson", "flashcards", 3, { video_id: weekVideoId }); setLessonStep("flashcards"); }}
           />
         )}
 
@@ -224,7 +226,7 @@ export default function WeekVideo() {
           <YouTubeSpeaking
             videoId={linkedVideoId!}
             level="beginner"
-            onComplete={() => setLessonStep("flashcards")}
+            onComplete={() => { trackFunnelStep("lesson", "flashcards", 3, { video_id: weekVideoId }); setLessonStep("flashcards"); }}
             onBack={() => setLessonStep("exercises")}
           />
         )}
@@ -233,10 +235,11 @@ export default function WeekVideo() {
           <VideoFlashcards
             videoId={linkedVideoId!}
             level="beginner"
-            onComplete={() => {
-              handleComplete();
-              setLessonStep("complete");
-            }}
+              onComplete={() => {
+                handleComplete();
+                trackFunnelStep("lesson", "complete", 4, { video_id: weekVideoId });
+                setLessonStep("complete");
+              }}
             onBack={() => setLessonStep("speaking")}
           />
         )}
