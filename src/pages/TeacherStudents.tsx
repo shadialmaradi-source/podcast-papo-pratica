@@ -16,6 +16,7 @@ import { AddStudentModal } from "@/components/teacher/AddStudentModal";
 import { EditStudentModal } from "@/components/teacher/EditStudentModal";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 
 interface StudentRow {
   id: string;
