@@ -197,8 +197,14 @@ export default function Lesson() {
         .eq('id', videoDbId)
         .single();
 
-      if (!videoData || (videoData.duration || 0) <= 120) {
-        // Short video, no segmentation
+      if (!videoData) {
+        setIsSegmented(false);
+        setLessonState("exercises");
+        return;
+      }
+
+      // If duration is known and short, skip segmentation
+      if (videoData.duration !== null && videoData.duration <= 120) {
         setIsSegmented(false);
         setLessonState("exercises");
         return;
