@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive, Crown } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive, Crown, ChevronLeft, ChevronRight } from "lucide-react";
 import { AddStudentModal } from "@/components/teacher/AddStudentModal";
 import { EditStudentModal } from "@/components/teacher/EditStudentModal";
 import { toast } from "@/hooks/use-toast";
@@ -34,6 +35,7 @@ interface LessonStats {
 }
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const PAGE_SIZE = 20;
 
 export default function TeacherStudents() {
   const { user } = useAuth();
@@ -41,6 +43,8 @@ export default function TeacherStudents() {
   const navigate = useNavigate();
 
   const [students, setStudents] = useState<StudentRow[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [lessonStats, setLessonStats] = useState<LessonStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
@@ -70,15 +74,24 @@ export default function TeacherStudents() {
       .maybeSingle();
     setTeacherPlan((subData as any)?.plan || "free");
 
-    // Fetch students
-    const { data: studentsData } = await supabase
+    // Fetch students with server-side pagination
+    let query = supabase
       .from("teacher_students" as any)
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("teacher_id", user.id)
       .order("invited_at", { ascending: false });
 
+    if (statusFilter !== "all") query = query.eq("status", statusFilter);
+    if (levelFilter !== "all") query = query.eq("level", levelFilter);
+
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    query = query.range(from, to);
+
+    const { data: studentsData, count } = await query;
     const rows = (studentsData || []) as unknown as StudentRow[];
     setStudents(rows);
+    setTotalCount(count || 0);
 
     // Fetch lesson stats per student email
     const { data: lessons } = await supabase
@@ -102,15 +115,15 @@ export default function TeacherStudents() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [user]);
+  useEffect(() => { fetchData(); }, [user, page, statusFilter, levelFilter]);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [statusFilter, levelFilter]);
 
   const getStats = (email: string) => lessonStats.find((s) => s.student_email === email) || { assigned: 0, completed: 0 };
 
-  const filtered = useMemo(() => {
+  const sorted = useMemo(() => {
     let list = [...students];
-    if (statusFilter !== "all") list = list.filter((s) => s.status === statusFilter);
-    if (levelFilter !== "all") list = list.filter((s) => s.level === levelFilter);
-
     list.sort((a, b) => {
       if (sortBy === "name") return (a.student_name || a.student_email).localeCompare(b.student_name || b.student_email);
       if (sortBy === "completion") {
@@ -120,13 +133,13 @@ export default function TeacherStudents() {
         const bR = bS.assigned ? bS.completed / bS.assigned : 0;
         return bR - aR;
       }
-      // last_active
+      // last_active default
       const aD = a.last_active || a.invited_at;
       const bD = b.last_active || b.invited_at;
       return new Date(bD).getTime() - new Date(aD).getTime();
     });
     return list;
-  }, [students, statusFilter, levelFilter, sortBy, lessonStats]);
+  }, [students, sortBy, lessonStats]);
 
   const handleArchive = async (student: StudentRow) => {
     const { error } = await supabase
@@ -157,7 +170,9 @@ export default function TeacherStudents() {
     }
   };
 
-  if (roleLoading || loading) {
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  if (roleLoading) {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>;
   }
 
@@ -172,12 +187,12 @@ export default function TeacherStudents() {
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               <h1 className="text-xl font-bold text-foreground">
-                My Students ({students.filter((s) => s.status !== "archived").length})
+                My Students ({totalCount})
               </h1>
             </div>
           </div>
           <Button onClick={() => {
-            const nonArchived = students.filter(s => s.status !== "archived").length;
+            const nonArchived = totalCount;
             if (teacherPlan === "free" && nonArchived >= 3) {
               setUpgradeOpen(true);
             } else {
@@ -195,7 +210,7 @@ export default function TeacherStudents() {
         {teacherPlan === "free" && (
           <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
             <p className="text-sm text-foreground">
-              You're using <strong>{students.filter(s => s.status !== "archived").length}</strong> of <strong>3</strong> free student slots.
+              You're using <strong>{totalCount}</strong> of <strong>3</strong> free student slots.
             </p>
             <Button size="sm" variant="outline" onClick={() => navigate("/teacher/pricing")}>
               <Crown className="mr-1.5 h-3.5 w-3.5" />
@@ -266,19 +281,7 @@ export default function TeacherStudents() {
         </div>
 
         {/* Table */}
-        {filtered.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <Users className="h-12 w-12 text-muted-foreground mb-3" />
-              <p className="text-lg font-medium text-foreground">No students yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Add your first student to get started.</p>
-              <Button className="mt-4" onClick={() => setAddOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Student
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
+        {loading ? (
           <Card>
             <Table>
               <TableHeader>
@@ -293,51 +296,121 @@ export default function TeacherStudents() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((s) => {
-                  const stats = getStats(s.student_email);
-                  const pct = stats.assigned ? Math.round((stats.completed / stats.assigned) * 100) : 0;
-                  return (
-                    <TableRow key={s.id}>
-                      <TableCell>
-                        <div>
-                          {s.student_name && <p className="font-medium text-foreground">{s.student_name}</p>}
-                          <p className="text-sm text-muted-foreground">{s.student_email}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {s.level ? <Badge variant="outline">{s.level}</Badge> : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell className="text-center">{stats.assigned}</TableCell>
-                      <TableCell className="text-center">
-                        {stats.assigned ? `${stats.completed} (${pct}%)` : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {s.last_active ? formatDistanceToNow(new Date(s.last_active), { addSuffix: true }) : "Never"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusColor(s.status)}>{s.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => navigate(`/teacher/student/${s.id}`)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setEditStudent(s)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {s.status !== "archived" && (
-                            <Button variant="ghost" size="icon" onClick={() => handleArchive(s)}>
-                              <Archive className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-10" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-8 mx-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16 mx-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-14" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </Card>
+        ) : sorted.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <Users className="h-12 w-12 text-muted-foreground mb-3" />
+              <p className="text-lg font-medium text-foreground">No students yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Add your first student to get started.</p>
+              <Button className="mt-4" onClick={() => setAddOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Student
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name / Email</TableHead>
+                    <TableHead>Level</TableHead>
+                    <TableHead className="text-center">Lessons</TableHead>
+                    <TableHead className="text-center">Completed</TableHead>
+                    <TableHead>Last Active</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sorted.map((s) => {
+                    const stats = getStats(s.student_email);
+                    const pct = stats.assigned ? Math.round((stats.completed / stats.assigned) * 100) : 0;
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell>
+                          <div>
+                            {s.student_name && <p className="font-medium text-foreground">{s.student_name}</p>}
+                            <p className="text-sm text-muted-foreground">{s.student_email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {s.level ? <Badge variant="outline">{s.level}</Badge> : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-center">{stats.assigned}</TableCell>
+                        <TableCell className="text-center">
+                          {stats.assigned ? `${stats.completed} (${pct}%)` : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {s.last_active ? formatDistanceToNow(new Date(s.last_active), { addSuffix: true }) : "Never"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusColor(s.status)}>{s.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => navigate(`/teacher/student/${s.id}`)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setEditStudent(s)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            {s.status !== "archived" && (
+                              <Button variant="ghost" size="icon" onClick={() => handleArchive(s)}>
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => p - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
