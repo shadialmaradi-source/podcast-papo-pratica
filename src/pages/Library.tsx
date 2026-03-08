@@ -24,10 +24,12 @@ import { AppHeader } from "@/components/AppHeader";
 import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUploadQuotaStatus } from "@/services/subscriptionService";
 import { trackEvent, trackPageLoad } from "@/lib/analytics";
+import { AssignVideoModal } from "@/components/teacher/AssignVideoModal";
 
 interface VideoTopic {
   topic: string;
