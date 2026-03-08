@@ -129,14 +129,14 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
                   >
                     {!isFlipped ? (
                       // Front - Target language phrase
-                      <div className="space-y-6">
-                        <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">{getLanguageFlag(language)}</span>
+                      <div className="space-y-4 md:space-y-6">
+                        <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
+                          <span className="text-xl md:text-2xl">{getLanguageFlag(language)}</span>
                         </div>
-                        <p className="text-2xl md:text-3xl font-bold text-foreground">
+                        <p className="text-xl md:text-3xl font-bold text-foreground">
                           {currentCard.phrase}
                         </p>
-                        <p className="text-muted-foreground text-sm">
+                        <p className="text-muted-foreground text-xs md:text-sm">
                           Tap to reveal translation
                         </p>
                       </div>
