@@ -387,7 +387,7 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
     };
 
     loadExercises();
-  }, [videoId, level, intensity]);
+  }, [videoId, level, intensity, sceneId]);
 
   // Check vocal quota when results are shown
   useEffect(() => {
