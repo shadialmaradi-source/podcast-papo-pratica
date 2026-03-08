@@ -571,26 +571,27 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+      className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
     >
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-3">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Speaking Practice
-            </h1>
-            {!allPhrasesRecorded && (
-              <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-sm">
-                Skip <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
-            )}
+      <div className="flex-1 overflow-auto p-3 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+          <div className="text-center space-y-1 md:space-y-2">
+            <div className="flex items-center justify-center gap-2 md:gap-3">
+              <h1 className="text-xl md:text-3xl font-bold text-foreground">
+                Speaking Practice
+              </h1>
+              {!allPhrasesRecorded && (
+                <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-xs md:text-sm">
+                  Skip <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              )}
+            </div>
+            <p className="text-sm md:text-base text-muted-foreground">
+              Repeat each phrase after listening
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            Repeat each phrase after listening
-          </p>
-        </div>
 
-        <RemainingTriesIndicator />
+          <RemainingTriesIndicator />
 
         {/* Progress */}
         <div className="flex justify-center gap-2">
