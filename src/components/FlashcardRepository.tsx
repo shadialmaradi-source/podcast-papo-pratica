@@ -259,17 +259,17 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
           <CardContent className="p-6">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <div className="text-3xl font-bold text-primary">{flashcards.length}</div>
+                <div className="text-3xl font-bold text-primary">{languageFilteredFlashcards.length}</div>
                 <div className="text-sm text-muted-foreground">Total Flashcards</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-green-500">
-                  {flashcards.filter(fc => fc.is_mastered).length}
+                <div className="text-3xl font-bold text-emerald-500">
+                  {languageFilteredFlashcards.filter(fc => fc.is_mastered).length}
                 </div>
                 <div className="text-sm text-muted-foreground">Mastered</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-blue-500">{videoGroups.length}</div>
+                <div className="text-3xl font-bold text-primary/70">{filteredVideoGroups.length}</div>
                 <div className="text-sm text-muted-foreground">Videos</div>
               </div>
             </div>
