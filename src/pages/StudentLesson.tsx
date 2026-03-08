@@ -588,6 +588,15 @@ export default function StudentLesson() {
           </div>
         </div>
 
+        {lesson.lesson_type === "speaking" ? (
+          <StudentSpeakingView
+            lessonId={lesson.id}
+            lessonTitle={lesson.title}
+            cefrLevel={lesson.cefr_level}
+            topic={lesson.topic}
+            language={lesson.language}
+          />
+        ) : (
         <div className="space-y-6">
           {/* YouTube video */}
           {youtubeVideoId && (
