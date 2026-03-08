@@ -3,6 +3,10 @@ import { FileText, Youtube, MessageSquare } from "lucide-react";
 
 type LessonType = "paragraph" | "youtube" | "speaking";
 
+interface LessonTypeSelectorProps {
+  onSelect: (type: LessonType) => void;
+}
+
 const options: { type: LessonType; icon: typeof FileText; title: string; description: string }[] = [
   {
     type: "paragraph",
