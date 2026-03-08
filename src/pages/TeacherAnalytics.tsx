@@ -196,8 +196,8 @@ export default function TeacherAnalytics() {
   };
 
   const TrendIcon = ({ trend }: { trend: string }) => {
-    if (trend === "improving") return <span className="flex items-center gap-1 text-green-600"><ArrowUpRight className="h-4 w-4" /> Improving</span>;
-    if (trend === "declining") return <span className="flex items-center gap-1 text-red-500"><ArrowDownRight className="h-4 w-4" /> Declining</span>;
+    if (trend === "improving") return <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><ArrowUpRight className="h-4 w-4" /> Improving</span>;
+    if (trend === "declining") return <span className="flex items-center gap-1 text-destructive"><ArrowDownRight className="h-4 w-4" /> Declining</span>;
     return <span className="flex items-center gap-1 text-muted-foreground"><ArrowRight className="h-4 w-4" /> Steady</span>;
   };
 
