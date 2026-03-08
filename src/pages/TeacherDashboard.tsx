@@ -13,7 +13,7 @@ import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
 import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
 import { useUserRole } from "@/hooks/useUserRole";
-import { trackPageLoad } from "@/lib/analytics";
+import { trackPageLoad, trackPageView } from "@/lib/analytics";
 
 
 type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse";
