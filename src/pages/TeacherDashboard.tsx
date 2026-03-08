@@ -11,6 +11,7 @@ import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { LessonList } from "@/components/teacher/LessonList";
 import { useUserRole } from "@/hooks/useUserRole";
+import { trackPageLoad } from "@/lib/analytics";
 
 
 type FlowStep = "home" | "choose_type" | "form";
