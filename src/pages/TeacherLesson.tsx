@@ -521,6 +521,8 @@ export default function TeacherLesson() {
               {completing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
               Complete Lesson
             </Button>
+          </>
+            )}
           </div>
         )}
       </main>
