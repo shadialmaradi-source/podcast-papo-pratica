@@ -419,8 +419,8 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
                 </div>
               </CardContent>
             </Card>
-          </>
-        )}
+            </>
+            )}
       </div>
     </motion.div>
   );
