@@ -44,7 +44,46 @@ export default function Lesson() {
   useEffect(() => {
     trackPageView("lesson", "student");
     trackFunnelStep("lesson", "select_level", 0, { video_id: videoId });
-  }, [videoId]);
+    if (isAssignment && videoId) {
+      markAssignmentInProgress(videoId);
+    }
+  }, [videoId, isAssignment]);
+
+  const markAssignmentInProgress = async (vid: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return;
+      // Look up the youtube video_id string from the UUID
+      const { data: videoData } = await supabase.from("youtube_videos").select("video_id").eq("id", vid).single();
+      const ytId = videoData?.video_id || vid;
+      await supabase
+        .from("video_assignments" as any)
+        .update({ status: "in_progress" } as any)
+        .eq("student_email", user.email)
+        .eq("video_id", ytId)
+        .eq("status", "assigned");
+    } catch (err) {
+      console.error("Error updating assignment status:", err);
+    }
+  };
+
+  const markAssignmentCompleted = async (vid: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return;
+      const { data: videoData } = await supabase.from("youtube_videos").select("video_id").eq("id", vid).single();
+      const ytId = videoData?.video_id || vid;
+      await supabase
+        .from("video_assignments" as any)
+        .update({ status: "completed", completed_at: new Date().toISOString() } as any)
+        .eq("student_email", user.email)
+        .eq("video_id", ytId)
+        .neq("status", "completed");
+      trackEvent("assignment_completed", { video_id: vid });
+    } catch (err) {
+      console.error("Error completing assignment:", err);
+    }
+  };
 
   // Load scene progress on mount
   useEffect(() => {
