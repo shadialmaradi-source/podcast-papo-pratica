@@ -1,0 +1,1 @@
+ALTER TABLE teacher_subscriptions ADD COLUMN IF NOT EXISTS current_period_end timestamptz;
