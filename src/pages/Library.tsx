@@ -45,6 +45,7 @@ interface Video {
   difficulty_level: string;
   is_curated: boolean;
   language: string;
+  is_short?: boolean;
 }
 
 export default function Library() {
@@ -259,11 +260,10 @@ export default function Library() {
         topicMatch = video.topics.some(t => t.toLowerCase() === selectedTopic.toLowerCase());
       }
       let lengthMatch = true;
-      if (selectedLength && video.duration) {
-        const duration = video.duration;
+      if (selectedLength) {
         switch (selectedLength) {
-          case 'short': lengthMatch = duration <= 60; break;
-          case 'long': lengthMatch = duration > 60; break;
+          case 'short': lengthMatch = video.is_short === true; break;
+          case 'long': lengthMatch = video.is_short !== true; break;
         }
       }
       return levelMatch && tabMatch && topicMatch && lengthMatch;

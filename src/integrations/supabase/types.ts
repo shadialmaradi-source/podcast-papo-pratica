@@ -1678,6 +1678,7 @@ export type Database = {
           duration: number | null
           id: string
           is_curated: boolean | null
+          is_short: boolean
           language: string
           processed_at: string | null
           processing_started_at: string | null
@@ -1699,6 +1700,7 @@ export type Database = {
           duration?: number | null
           id?: string
           is_curated?: boolean | null
+          is_short?: boolean
           language?: string
           processed_at?: string | null
           processing_started_at?: string | null
@@ -1720,6 +1722,7 @@ export type Database = {
           duration?: number | null
           id?: string
           is_curated?: boolean | null
+          is_short?: boolean
           language?: string
           processed_at?: string | null
           processing_started_at?: string | null

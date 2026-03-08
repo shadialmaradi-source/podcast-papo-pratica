@@ -44,6 +44,9 @@ serve(async (req) => {
       throw new Error('Video URL is required');
     }
 
+    // Detect if this is a YouTube Short based on URL pattern
+    const isShort = /youtube\.com\/shorts\//.test(videoUrl.trim());
+
     const videoId = extractVideoId(videoUrl);
     if (!videoId) {
       throw new Error('Invalid YouTube URL');
@@ -129,7 +132,8 @@ serve(async (req) => {
         status: 'processing',
         processing_started_at: new Date().toISOString(),
         added_by_user_id: userId,
-        is_curated: false
+        is_curated: false,
+        is_short: isShort
       })
       .select()
       .single();
