@@ -681,6 +681,78 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_profiles: {
+        Row: {
+          bio: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          languages_taught: string[] | null
+          onboarding_completed: boolean
+          specialties: string[] | null
+          teacher_id: string
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          languages_taught?: string[] | null
+          onboarding_completed?: boolean
+          specialties?: string[] | null
+          teacher_id: string
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          languages_taught?: string[] | null
+          onboarding_completed?: boolean
+          specialties?: string[] | null
+          teacher_id?: string
+        }
+        Relationships: []
+      }
+      teacher_students: {
+        Row: {
+          id: string
+          invited_at: string
+          last_active: string | null
+          level: string | null
+          native_language: string | null
+          notes: string | null
+          status: string
+          student_email: string
+          student_name: string | null
+          teacher_id: string
+        }
+        Insert: {
+          id?: string
+          invited_at?: string
+          last_active?: string | null
+          level?: string | null
+          native_language?: string | null
+          notes?: string | null
+          status?: string
+          student_email: string
+          student_name?: string | null
+          teacher_id: string
+        }
+        Update: {
+          id?: string
+          invited_at?: string
+          last_active?: string | null
+          level?: string | null
+          native_language?: string | null
+          notes?: string | null
+          status?: string
+          student_email?: string
+          student_name?: string | null
+          teacher_id?: string
+        }
+        Relationships: []
+      }
       transcript_word_suggestions: {
         Row: {
           created_at: string
