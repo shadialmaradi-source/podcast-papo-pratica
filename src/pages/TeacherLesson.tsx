@@ -463,7 +463,11 @@ export default function TeacherLesson() {
               const isLast = state.currentIndex === group.exercises.length - 1;
 
               return (
-                <div key={group.type} className="space-y-3">
+                <div
+                  key={group.type}
+                  className={`space-y-3 rounded-lg transition-colors ${activeGroupType === group.type ? "border-l-4 border-primary pl-4" : "border-l-4 border-transparent pl-4"}`}
+                  onClick={() => setActiveGroupType(group.type)}
+                >
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                       <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
