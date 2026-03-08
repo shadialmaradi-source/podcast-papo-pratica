@@ -94,14 +94,24 @@ export default function TeacherStudentDetail() {
         .order("created_at", { ascending: false });
       setLessons((lData || []) as LessonRow[]);
 
-      // Fetch assignments
+      // Fetch video assignments
       const { data: aData } = await supabase
         .from("video_assignments" as any)
-        .select("id, assignment_type, video_title, speaking_topic, speaking_level, due_date, note, status, created_at, completed_at")
+        .select("id, assignment_type, video_title, due_date, note, status, created_at, completed_at")
+        .eq("teacher_id", user.id)
+        .eq("student_email", s.student_email)
+        .eq("assignment_type", "video")
+        .order("created_at", { ascending: false });
+      setAssignments((aData || []) as unknown as AssignmentRow[]);
+
+      // Fetch speaking assignments
+      const { data: saData } = await supabase
+        .from("speaking_assignments" as any)
+        .select("id, topic_title, cefr_level, custom_instructions, due_date, status, created_at, completed_at")
         .eq("teacher_id", user.id)
         .eq("student_email", s.student_email)
         .order("created_at", { ascending: false });
-      setAssignments((aData || []) as unknown as AssignmentRow[]);
+      setSpeakingAssignments((saData || []) as unknown as SpeakingAssignmentRow[]);
     }
 
     setLoading(false);
