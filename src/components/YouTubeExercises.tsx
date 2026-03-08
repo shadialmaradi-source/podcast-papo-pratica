@@ -45,6 +45,8 @@ interface YouTubeExercisesProps {
   intensity: string;
   source?: string;
   language?: string;
+  sceneId?: string;
+  sceneTranscript?: string;
   onBack: () => void;
   onComplete: () => void;
   onContinueToSpeaking?: (videoId: string, level: string) => void;
