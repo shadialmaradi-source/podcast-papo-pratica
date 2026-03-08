@@ -155,6 +155,24 @@ export default function TeacherDashboard() {
 
         {step === "home" && (
           <>
+            {/* Payment failure banner */}
+            {quota?.status === "past_due" && (
+              <Card className="mb-6 border-destructive bg-destructive/5">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-destructive">Payment failed</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your last payment didn't go through. Lesson creation is paused until this is resolved.
+                    </p>
+                  </div>
+                  <Button variant="destructive" size="sm" onClick={() => navigate("/teacher/pricing")}>
+                    Update Payment
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Quota Indicator */}
             {quota && (
               <div className="mb-6 space-y-2">
@@ -165,7 +183,7 @@ export default function TeacherDashboard() {
                   <span className="text-xs text-muted-foreground capitalize">{quota.plan} plan</span>
                 </div>
                 <Progress value={(quota.lessonsUsed / quota.lessonsLimit) * 100} className="h-2" />
-                {!quota.canCreateLesson && (
+                {!quota.canCreateLesson && quota.status !== "past_due" && (
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
                     <span>You've reached your monthly lesson limit.</span>
