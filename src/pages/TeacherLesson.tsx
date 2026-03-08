@@ -69,11 +69,55 @@ export default function TeacherLesson() {
   }, [exercises]);
 
   const updateGroupState = (type: string, update: Partial<GroupState>) => {
+    setActiveGroupType(type);
     setGroupStates((prev) => ({
       ...prev,
       [type]: { ...prev[type], ...update },
     }));
   };
+
+  // Set default active group when exercise groups change
+  useEffect(() => {
+    if (exerciseGroups.length > 0 && !activeGroupType) {
+      setActiveGroupType(exerciseGroups[0].type);
+    }
+  }, [exerciseGroups, activeGroupType]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (!activeGroupType) return;
+
+      const group = exerciseGroups.find((g) => g.type === activeGroupType);
+      if (!group) return;
+      const state = groupStates[activeGroupType] || { currentIndex: 0, revealed: false };
+
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (state.currentIndex < group.exercises.length - 1) {
+          updateGroupState(activeGroupType, { currentIndex: state.currentIndex + 1, revealed: false });
+        }
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (state.currentIndex > 0) {
+          updateGroupState(activeGroupType, { currentIndex: state.currentIndex - 1, revealed: false });
+        }
+      } else if (e.key === " ") {
+        e.preventDefault();
+        updateGroupState(activeGroupType, { revealed: !state.revealed });
+      } else if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        updateGroupState(activeGroupType, { revealed: true });
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        (document.activeElement as HTMLElement)?.blur();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [activeGroupType, exerciseGroups, groupStates]);
 
   useEffect(() => {
     if (!id || !user) return;
