@@ -43,6 +43,7 @@ export default function AppHome() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [streakData, setStreakData] = useState<{ current_streak: number; longest_streak: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
