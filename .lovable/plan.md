@@ -1,124 +1,73 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Interactive Teacher Demo Walkthrough
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## Summary
 
-## Summary of Changes
+Replace the current static "tour slides" (Step 3 of onboarding) with a fully interactive guided demo that walks teachers through creating a lesson step-by-step using the real dashboard UI -- but with pre-filled/fake data so nothing actually hits the backend. Popup tooltips guide each action, similar to the existing `TranscriptTutorial` pattern used for students.
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+## How It Works
 
----
+After completing Steps 1-2 (profile + student), instead of showing 3 static slides, the teacher lands on a **demo version of the dashboard** with a guided overlay system. The demo auto-advances through each step of lesson creation:
 
-## Phase 1: Simplified Student Onboarding
+1. **"Create a Lesson"** -- tooltip points at the card, teacher clicks it
+2. **"Choose YouTube"** -- tooltip points at the YouTube option
+3. **"Pick from Community"** -- tooltip highlights the community browser option
+4. **Pre-filled form** -- form auto-fills with demo data (URL, level, language), tooltip says "This is where you configure the lesson"
+5. **"Create Lesson"** -- tooltip points at the submit button, fake submit shows a mock share link
+6. **"Share with students"** -- tooltip highlights the share link with copy button
+7. **"Done!"** -- final celebration card, button to go to real dashboard
 
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+Each step has a floating tooltip (reusing the same visual style as `TranscriptTutorial`) with a skip option.
 
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+## Architecture
 
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+### New Component: `TeacherDemoWalkthrough.tsx`
 
----
+- Receives `onComplete` and `onSkip` callbacks
+- Manages a `demoStep` state machine (7 steps)
+- Renders a **fake** version of the dashboard UI (simplified, non-functional copies of the key screens)
+- Each step shows a `DemoTooltip` pointing at the relevant element
+- No real Supabase calls -- everything is mocked inline
+- Uses `framer-motion` for transitions between steps
 
-## Phase 2: Remove image_discussion, Update Exercise Types
+### New Component: `DemoTooltip.tsx`
 
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
+- Reusable floating tooltip with: title, description, optional action button, skip link
+- Positioned relative to a target element (top/bottom/center)
+- Same visual style as `TranscriptTutorial` floating tooltips
+- Auto-shows skip after 3 seconds
 
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+### Modify: `TeacherOnboarding.tsx`
 
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+- Step 2 (`handleStep2Next`) now transitions to `step === 2` which renders `TeacherDemoWalkthrough` instead of the static tour slides
+- `onComplete` from the demo calls `handleComplete()` (marks onboarding done)
+- `onSkip` also calls `handleComplete()`
 
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+### Demo Steps Detail
 
----
+| Step | What's shown | Tooltip message |
+|------|-------------|----------------|
+| 0 | Dashboard home (fake) | "This is your dashboard. Tap 'Create a Lesson' to start!" |
+| 1 | Lesson type selector (fake) | "Choose the type of lesson. Let's try YouTube!" |
+| 2 | YouTube source selector (fake) | "You can paste any URL or browse our library" |
+| 3 | Pre-filled form | "Configure level, language, and exercises. We've filled this for you!" |
+| 4 | Mock "creating..." then result | "Your lesson is ready! AI generated exercises automatically." |
+| 5 | Share link + exercise preview | "Copy this link and send it to your student. That's it!" |
+| 6 | Celebration screen | "You're all set! Let's go to your real dashboard." |
 
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
+## Files Changed
 
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+| File | Change |
+|------|--------|
+| `src/components/teacher/DemoTooltip.tsx` | New -- reusable guided tooltip component |
+| `src/components/teacher/TeacherDemoWalkthrough.tsx` | New -- full interactive demo with fake dashboard screens |
+| `src/pages/TeacherOnboarding.tsx` | Modified -- Step 3 renders `TeacherDemoWalkthrough` instead of static slides |
 
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+## Key Decisions
 
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
-
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
-```
-
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
-
----
-
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
-
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
-
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
-
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
-
----
-
-## Technical Details
-
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+- **No real API calls** during the demo -- all data is hardcoded/mocked to avoid creating junk data
+- **Reuses visual patterns** from the real dashboard (Cards, icons, layout) so teachers recognize the UI when they arrive at the real thing
+- **localStorage flag** (`teacher_demo_completed`) as backup to not re-show
+- **Skip always available** after 3 seconds on each step
 
