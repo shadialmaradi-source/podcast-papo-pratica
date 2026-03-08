@@ -8,7 +8,7 @@ import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import LessonComplete from "@/components/lesson/LessonComplete";
 import { allLessonContent, getLocalizedContent } from "@/data/firstLessonContent";
 import { supabase } from "@/integrations/supabase/client";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 
 type LessonStep = 'intro' | 'video' | 'exercises' | 'speaking' | 'flashcards' | 'complete';
 
