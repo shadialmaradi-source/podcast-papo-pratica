@@ -9,11 +9,13 @@ import { useNavigate } from "react-router-dom";
 import { BookOpen, Users, ArrowLeft, Settings } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
+import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
+import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
 import { useUserRole } from "@/hooks/useUserRole";
 import { trackPageLoad } from "@/lib/analytics";
 
 
-type FlowStep = "home" | "choose_type" | "form";
+type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse";
 type LessonType = "paragraph" | "youtube";
 
 export default function TeacherDashboard() {
@@ -24,6 +26,7 @@ export default function TeacherDashboard() {
   const [step, setStep] = useState<FlowStep>("home");
   const [lessonType, setLessonType] = useState<LessonType>("paragraph");
   const [refresh, setRefresh] = useState(0);
+  const [prefillYoutubeUrl, setPrefillYoutubeUrl] = useState<string | null>(null);
 
   // Redirect non-teachers away; redirect teachers who haven't onboarded
   useEffect(() => {
@@ -56,11 +59,33 @@ export default function TeacherDashboard() {
 
   const handleSelectType = (type: LessonType) => {
     setLessonType(type);
+    if (type === "youtube") {
+      setStep("youtube_source");
+    } else {
+      setPrefillYoutubeUrl(null);
+      setStep("form");
+    }
+  };
+
+  const handleYoutubeSource = (source: "scratch" | "community") => {
+    if (source === "scratch") {
+      setPrefillYoutubeUrl(null);
+      setStep("form");
+    } else {
+      setStep("youtube_browse");
+    }
+  };
+
+  const handleCommunityVideoSelected = (url: string) => {
+    setPrefillYoutubeUrl(url);
     setStep("form");
   };
 
   const handleBack = () => {
-    if (step === "form") setStep("choose_type");
+    if (step === "form" && lessonType === "youtube") setStep("youtube_source");
+    else if (step === "form") setStep("choose_type");
+    else if (step === "youtube_browse") setStep("youtube_source");
+    else if (step === "youtube_source") setStep("choose_type");
     else setStep("home");
   };
 
@@ -161,6 +186,26 @@ export default function TeacherDashboard() {
           </div>
         )}
 
+        {step === "youtube_source" && (
+          <div className="space-y-4">
+            <Button variant="ghost" size="sm" onClick={handleBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <YouTubeSourceSelector onSelect={handleYoutubeSource} />
+          </div>
+        )}
+
+        {step === "youtube_browse" && (
+          <div className="space-y-4">
+            <Button variant="ghost" size="sm" onClick={handleBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <CommunityVideoBrowser onSelectVideo={handleCommunityVideoSelected} />
+          </div>
+        )}
+
         {step === "form" && (
           <div className="space-y-4">
             <Button variant="ghost" size="sm" onClick={handleBack}>
@@ -173,6 +218,7 @@ export default function TeacherDashboard() {
                   lessonType={lessonType}
                   onCreated={handleCreated}
                   onCancel={handleBack}
+                  prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
                 />
               </CardContent>
             </Card>

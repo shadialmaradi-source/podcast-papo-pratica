@@ -122,9 +122,10 @@ interface CreateLessonFormProps {
   lessonType: LessonType;
   onCreated: (lessonId: string) => void;
   onCancel: () => void;
+  prefillYoutubeUrl?: string;
 }
 
-export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLessonFormProps) {
+export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutubeUrl }: CreateLessonFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -174,7 +175,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
       translation_language: "english",
       ...(isParagraph
         ? { paragraph_prompt: "", language: "italian", paragraph_length: "medium" }
-        : { topic: "", youtube_url: "", language: "italian" }),
+        : { topic: "", youtube_url: prefillYoutubeUrl || "", language: "italian" }),
     },
   });
 
@@ -895,7 +896,12 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
                   <FormItem>
                     <FormLabel>YouTube Video URL</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://youtube.com/watch?v=... or youtube.com/shorts/..." {...field} />
+                      <Input
+                        placeholder="https://youtube.com/watch?v=... or youtube.com/shorts/..."
+                        {...field}
+                        readOnly={!!prefillYoutubeUrl}
+                        className={prefillYoutubeUrl ? "bg-muted" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
