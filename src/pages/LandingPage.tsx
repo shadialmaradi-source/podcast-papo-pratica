@@ -282,12 +282,12 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <Button
-                size="lg"
-                onClick={handleStartLesson}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105"
-              >
-                {t.tryCTA}
+                <Button
+                  size="lg"
+                  onClick={handleStartLesson}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 md:px-8 py-5 md:py-6 text-base md:text-lg rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                >
+                  {t.tryCTA}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </motion.div>
