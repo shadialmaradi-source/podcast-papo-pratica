@@ -59,6 +59,7 @@ export default function TeacherCommunity() {
 
   useEffect(() => {
     trackEvent("community_viewed");
+    trackPageLoad("teacher_community");
     fetchLessons();
   }, []);
 
