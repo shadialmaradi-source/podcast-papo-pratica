@@ -22,7 +22,6 @@ export default function AuthPage() {
   const [selectedRole, setSelectedRole] = useState<AppRole>("student");
 
   useEffect(() => {
-    // Check if user is already logged in and redirect
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -46,19 +45,18 @@ export default function AuthPage() {
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
             toast({
-              title: "Errore di accesso",
-              description: "Email o password non corretti",
+              title: "Login Error",
+              description: "Invalid email or password",
               variant: "destructive",
             });
           } else {
             toast({
-              title: "Errore",
+              title: "Error",
               description: error.message,
               variant: "destructive",
             });
           }
         } else {
-          // Fetch user role to redirect appropriately
           const { data: { user: loggedInUser } } = await supabase.auth.getUser();
           let redirectPath = "/app";
           if (loggedInUser) {
@@ -72,16 +70,16 @@ export default function AuthPage() {
             }
           }
           toast({
-            title: "Accesso effettuato!",
-            description: "Benvenuto nell'app",
+            title: "Logged in!",
+            description: "Welcome back",
           });
           window.location.href = redirectPath;
         }
       } else {
         if (password !== confirmPassword) {
           toast({
-            title: "Errore",
-            description: "Le password non coincidono",
+            title: "Error",
+            description: "Passwords don't match",
             variant: "destructive",
           });
           return;
@@ -97,38 +95,40 @@ export default function AuthPage() {
           },
         });
 
-        // If teacher was selected and signup succeeded, upsert role
+        // If teacher was selected and signup succeeded, update the role
+        // (handle_new_user trigger already created a 'student' row)
         if (!error && signUpData.user && selectedRole === "teacher") {
           await supabase
             .from("user_roles" as any)
-            .upsert({ user_id: signUpData.user.id, role: "teacher" } as any, { onConflict: "user_id" });
+            .update({ role: "teacher" } as any)
+            .eq("user_id", signUpData.user.id);
         }
 
         if (error) {
           if (error.message.includes("User already registered")) {
             toast({
-              title: "Utente già registrato",
-              description: "Prova ad accedere invece di registrarti",
+              title: "Already registered",
+              description: "Try logging in instead",
               variant: "destructive",
             });
           } else {
             toast({
-              title: "Errore",
+              title: "Error",
               description: error.message,
               variant: "destructive",
             });
           }
         } else {
           toast({
-            title: "Registrazione completata!",
-            description: "Controlla la tua email per confermare l'account",
+            title: "Registration complete!",
+            description: "Check your email to confirm your account",
           });
         }
       }
     } catch (error) {
       toast({
-        title: "Errore",
-        description: "Qualcosa è andato storto. Riprova.",
+        title: "Error",
+        description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -140,8 +140,8 @@ export default function AuthPage() {
     e.preventDefault();
     if (!email) {
       toast({
-        title: "Email richiesta",
-        description: "Inserisci la tua email per recuperare la password",
+        title: "Email required",
+        description: "Enter your email to reset your password",
         variant: "destructive",
       });
       return;
@@ -155,21 +155,21 @@ export default function AuthPage() {
 
       if (error) {
         toast({
-          title: "Errore",
+          title: "Error",
           description: error.message,
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Email inviata!",
-          description: "Controlla la tua email per le istruzioni di recupero password",
+          title: "Email sent!",
+          description: "Check your email for password reset instructions",
         });
         setShowForgotPassword(false);
       }
     } catch (error) {
       toast({
-        title: "Errore",
-        description: "Qualcosa è andato storto. Riprova.",
+        title: "Error",
+        description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -197,7 +197,7 @@ export default function AuthPage() {
               </CardTitle>
             </motion.div>
             <CardDescription>
-              {isLogin ? "Accedi al tuo account" : "Crea il tuo account"}
+              {isLogin ? "Log in to your account" : "Create your account"}
             </CardDescription>
           </CardHeader>
           
@@ -210,7 +210,7 @@ export default function AuthPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="tua@email.com"
+                    placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
@@ -226,7 +226,7 @@ export default function AuthPage() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="La tua password"
+                    placeholder="Your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
@@ -247,7 +247,7 @@ export default function AuthPage() {
                       onClick={() => setShowForgotPassword(true)}
                       className="text-sm text-muted-foreground hover:text-primary transition-colors"
                     >
-                      Hai dimenticato la password?
+                      Forgot password?
                     </button>
                   </div>
                 )}
@@ -256,13 +256,13 @@ export default function AuthPage() {
               {!isLogin && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Conferma Password</Label>
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="confirmPassword"
                         type="password"
-                        placeholder="Conferma la password"
+                        placeholder="Confirm your password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         className="pl-10"
@@ -271,7 +271,7 @@ export default function AuthPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Sei un...</Label>
+                    <Label>I am a...</Label>
                     <RoleSelector selectedRole={selectedRole} onRoleChange={setSelectedRole} />
                   </div>
                 </>
@@ -283,7 +283,7 @@ export default function AuthPage() {
                 disabled={loading}
                 variant="learning"
               >
-                {loading ? "Caricamento..." : (isLogin ? "Accedi" : "Registrati")}
+                {loading ? "Loading..." : (isLogin ? "Log in" : "Sign up")}
               </Button>
             </form>
             
@@ -293,7 +293,7 @@ export default function AuthPage() {
                 onClick={() => setIsLogin(!isLogin)}
                 className="text-sm text-muted-foreground hover:text-primary transition-colors"
               >
-                {isLogin ? "Non hai un account? Registrati" : "Hai già un account? Accedi"}
+                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in"}
               </button>
             </div>
           </CardContent>
@@ -314,9 +314,9 @@ export default function AuthPage() {
             >
               <Card className="border-0 shadow-xl bg-card/95 backdrop-blur-sm">
                 <CardHeader className="text-center">
-                  <CardTitle className="text-xl">Recupera Password</CardTitle>
+                  <CardTitle className="text-xl">Reset Password</CardTitle>
                   <CardDescription>
-                    Inserisci la tua email per ricevere le istruzioni di recupero
+                    Enter your email to receive password reset instructions
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -328,7 +328,7 @@ export default function AuthPage() {
                         <Input
                           id="forgot-email"
                           type="email"
-                          placeholder="tua@email.com"
+                          placeholder="your@email.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="pl-10"
@@ -343,7 +343,7 @@ export default function AuthPage() {
                         className="flex-1" 
                         disabled={loading}
                       >
-                        {loading ? "Invio..." : "Invia Email"}
+                        {loading ? "Sending..." : "Send Email"}
                       </Button>
                       <Button 
                         type="button" 
@@ -351,7 +351,7 @@ export default function AuthPage() {
                         onClick={() => setShowForgotPassword(false)}
                         disabled={loading}
                       >
-                        Annulla
+                        Cancel
                       </Button>
                     </div>
                   </form>

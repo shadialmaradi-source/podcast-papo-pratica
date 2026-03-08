@@ -34,6 +34,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { FlashcardRepository } from "./FlashcardRepository";
+import { RoleSwitcher } from "./RoleSwitcher";
 import { getFlashcardCount, getUserCreatedFlashcardCount } from "@/services/flashcardService";
 import { PdfDownloadButton } from "./subscription/PdfDownloadButton";
 import { 
@@ -984,6 +985,10 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                 <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180" />
               </div>
               
+
+              {/* Role */}
+              <RoleSwitcher />
+
               {/* Native Language */}
               <div className="flex items-center justify-between py-2 -mx-3 px-3 rounded-lg">
                 <div className="flex items-center gap-3">
