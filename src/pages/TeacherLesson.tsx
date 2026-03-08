@@ -398,6 +398,11 @@ export default function TeacherLesson() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Speaking lesson view */}
+            {lesson.lesson_type === "speaking" ? (
+              <TeacherSpeakingView lessonId={lesson.id} />
+            ) : (
+            <>
             {/* YouTube video */}
             {youtubeVideoId && (
               <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
