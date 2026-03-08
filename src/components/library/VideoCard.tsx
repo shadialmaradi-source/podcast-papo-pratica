@@ -82,6 +82,7 @@ export function VideoCard({
   difficultyLevel,
   isCurated,
   onClick,
+  onAssign,
 }: VideoCardProps) {
   const durationDisplay = formatDuration(duration);
   
