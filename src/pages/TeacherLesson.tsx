@@ -225,7 +225,13 @@ export default function TeacherLesson() {
 
       toast({ title: `${EXERCISE_TYPE_LABELS[exerciseType] || exerciseType} exercises generated!` });
     } catch (err: any) {
-      toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+      const msg = err?.message || JSON.stringify(err) || "";
+      if (msg.includes("VIDEO_TOO_LONG")) {
+        const cleanMsg = msg.split("VIDEO_TOO_LONG:")[1] || "This video exceeds your plan's duration limit.";
+        toast({ title: "Video Too Long", description: cleanMsg, variant: "destructive" });
+      } else {
+        toast({ title: "Generation failed", description: msg, variant: "destructive" });
+      }
     } finally {
       setGeneratingType(null);
     }
