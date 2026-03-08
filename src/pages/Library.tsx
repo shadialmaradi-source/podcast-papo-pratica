@@ -75,6 +75,27 @@ export default function Library() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
 
+  // Tour state (1-4 steps, null = done)
+  const [tourStep, setTourStep] = useState<number | null>(() => {
+    return localStorage.getItem('library_tour_completed') ? null : 1;
+  });
+
+  const advanceTour = useCallback(() => {
+    setTourStep((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next === 3) {
+        // Auto-switch to community tab for step 3
+        setActiveTab('community');
+      }
+      if (next > 4) {
+        localStorage.setItem('library_tour_completed', 'true');
+        return null;
+      }
+      return next;
+    });
+  }, []);
+
   // Fetch curated video IDs (linked from week_videos)
   useEffect(() => {
     supabase.from("week_videos").select("linked_video_id")
