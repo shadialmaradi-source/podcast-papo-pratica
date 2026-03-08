@@ -84,8 +84,13 @@ export default function Library() {
   // Assign modal state
   const [assignVideo, setAssignVideo] = useState<{ id: string; title: string; videoId: string } | null>(null);
 
+  // Unified tour integration
+  const { phase: tourPhase, advancePhase: advanceTourPhase } = useStudentTour();
+  
   // Tour state (1-4 steps, null = done)
   const [tourStep, setTourStep] = useState<number | null>(() => {
+    // Show tour if in library phase OR if legacy flag absent (backward compat)
+    if (tourPhase === 'library') return 1;
     return localStorage.getItem('library_tour_completed') ? null : 1;
   });
 
@@ -94,16 +99,18 @@ export default function Library() {
       if (prev === null) return null;
       const next = prev + 1;
       if (next === 3) {
-        // Auto-switch to community tab for step 3
         setActiveTab('community');
       }
       if (next > 4) {
         localStorage.setItem('library_tour_completed', 'true');
+        if (tourPhase === 'library') {
+          advanceTourPhase();
+        }
         return null;
       }
       return next;
     });
-  }, []);
+  }, [tourPhase, advanceTourPhase]);
 
   // Fetch curated video IDs (linked from week_videos)
   useEffect(() => {

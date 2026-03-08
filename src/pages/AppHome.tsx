@@ -192,8 +192,12 @@ export default function AppHome() {
   };
 
   const dismissHints = () => {
-    localStorage.setItem("has_seen_home_hints", "true");
     setShowHints(false);
+    if (tourPhase === "home") {
+      advanceTourPhase();
+    } else {
+      localStorage.setItem("has_seen_home_hints", "true");
+    }
   };
 
   const handleCardClick = (action: () => void, cardType: string) => {

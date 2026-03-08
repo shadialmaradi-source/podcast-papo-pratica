@@ -223,20 +223,20 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const handleTutorialSkip = useCallback(() => {
     setTutorialStep('completed');
     localStorage.setItem('transcript_tutorial_completed', 'true');
-    // Resume video
+    if (tourPhase === 'transcript') advanceTourPhase();
     if (playerRef.current?.playVideo) {
       playerRef.current.playVideo();
     }
-  }, []);
+  }, [tourPhase, advanceTourPhase]);
 
   const handleTutorialComplete = useCallback(() => {
     setTutorialStep('completed');
     localStorage.setItem('transcript_tutorial_completed', 'true');
-    // Resume video
+    if (tourPhase === 'transcript') advanceTourPhase();
     if (playerRef.current?.playVideo) {
       playerRef.current.playVideo();
     }
-  }, []);
+  }, [tourPhase, advanceTourPhase]);
 
   // Callbacks from TranscriptViewer during tutorial
   const handleTutorialExplorerOpened = useCallback(() => {
