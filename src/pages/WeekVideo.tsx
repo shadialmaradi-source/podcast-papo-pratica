@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { trackPageView, trackFunnelStep } from "@/lib/analytics";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
