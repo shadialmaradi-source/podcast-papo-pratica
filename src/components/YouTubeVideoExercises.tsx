@@ -56,10 +56,12 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const [generatingLevel, setGeneratingLevel] = useState<string | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
+  const [playerFailed, setPlayerFailed] = useState(false);
 
   // YouTube IFrame API
   const playerContainerId = `yt-player-${videoId}`;
   const playerRef = useRef<any>(null);
+  const playerReadyRef = useRef(false);
   const timePollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // Tutorial state
