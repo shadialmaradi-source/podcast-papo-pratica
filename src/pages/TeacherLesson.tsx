@@ -134,7 +134,7 @@ export default function TeacherLesson() {
       const [lessonRes, exercisesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, exercise_types, language")
+          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, exercise_types, language, lesson_type")
           .eq("id", id)
           .eq("teacher_id", user.id)
           .single(),
