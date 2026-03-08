@@ -210,13 +210,18 @@ export default function LandingPage() {
             <span className="text-xl font-bold text-foreground">ListenFlow</span>
           </div>
           
-          {/* Log in button */}
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/auth')}
-          >
-            {t.login}
-          </Button>
+          {/* Nav links */}
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/teachers')}>
+              For Teachers
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/auth')}
+            >
+              {t.login}
+            </Button>
+          </div>
         </div>
       </header>
 
