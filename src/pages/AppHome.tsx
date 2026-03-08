@@ -348,23 +348,6 @@ export default function AppHome() {
                   </div>
                 </CardContent>
               </Card>
-              <AnimatePresence>
-                {showHints && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ delay: 0.3, duration: 0.4 }}
-                    className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-56 z-10"
-                  >
-                    <div className="relative bg-popover border border-border rounded-lg px-3 py-2 shadow-lg text-xs text-popover-foreground text-center">
-                      <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-popover border-l border-t border-border" />
-                      <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse mr-1.5 align-middle" />
-                      Follow a structured path with videos curated by ListenFlow and the community
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
 
             {/* Your Own Video */}
@@ -389,25 +372,43 @@ export default function AppHome() {
                   </div>
                 </CardContent>
               </Card>
-              <AnimatePresence>
-                {showHints && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ delay: 0.5, duration: 0.4 }}
-                    className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-56 z-10"
-                  >
-                    <div className="relative bg-popover border border-border rounded-lg px-3 py-2 shadow-lg text-xs text-popover-foreground text-center">
-                      <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-popover border-l border-t border-border" />
-                      <span className="inline-block w-2 h-2 rounded-full bg-accent animate-pulse mr-1.5 align-middle" />
-                      Paste any YouTube link to create a personalized lesson from your own video
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           </div>
+
+          {/* Consolidated onboarding hint banner below the grid */}
+          <AnimatePresence>
+            {showHints && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ delay: 0.3, duration: 0.4 }}
+                className="mt-4"
+              >
+                <div className="relative bg-popover border border-border rounded-lg px-4 py-3 shadow-lg text-xs text-popover-foreground space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse mt-1 shrink-0" />
+                    <span><strong>Learn from Library</strong> — Follow a structured path with videos curated by ListenFlow and the community</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full bg-accent animate-pulse mt-1 shrink-0" />
+                    <span><strong>Your Own Video</strong> — Paste any YouTube link to create a personalized lesson</span>
+                  </div>
+                  <div className="flex justify-center pt-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={dismissHints}
+                      className="text-xs text-muted-foreground gap-1 h-7"
+                    >
+                      <X className="w-3 h-3" />
+                      Got it
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Quick Review Button */}
           {flashcardCount > 0 && (
