@@ -132,7 +132,8 @@ serve(async (req) => {
         status: 'processing',
         processing_started_at: new Date().toISOString(),
         added_by_user_id: userId,
-        is_curated: false
+        is_curated: false,
+        is_short: isShort
       })
       .select()
       .single();
