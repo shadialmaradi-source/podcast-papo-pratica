@@ -27,7 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUploadQuotaStatus } from "@/services/subscriptionService";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageLoad } from "@/lib/analytics";
 
 interface VideoTopic {
   topic: string;
@@ -99,6 +99,7 @@ export default function Library() {
 
   // Fetch curated video IDs (linked from week_videos)
   useEffect(() => {
+    trackPageLoad("library");
     supabase.from("week_videos").select("linked_video_id")
       .not("linked_video_id", "is", null)
       .then(({ data }) => {

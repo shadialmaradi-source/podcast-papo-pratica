@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { getUploadQuotaStatus } from "@/services/subscriptionService";
 import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageLoad } from "@/lib/analytics";
 import { QuickReviewSession } from "@/components/QuickReviewSession";
 
 interface UserProfile {
@@ -66,6 +66,7 @@ export default function AppHome() {
   const [upgradeReason, setUpgradeReason] = useState("");
 
   useEffect(() => {
+    trackPageLoad("app_home");
     if (user) {
       fetchProfile();
       fetchStreakData();

@@ -1,93 +1,124 @@
 
 
-# Plan: Optimize App Performance
+# Plan: Teacher YouTube Lesson Overhaul
 
-## Overview
-Apply three high-impact optimizations: lazy-load route pages (code splitting), add performance tracking, and add missing DB indexes. Skip materialized views (overkill for current scale) and custom domains (infrastructure-level).
+This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
 
-## 1. Code Splitting — Lazy Load All Pages
+## Summary of Changes
 
-**File: `src/App.tsx`**
+1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
+2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
+3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
+4. **Student lesson view update** -- same grouped-by-type sequential layout
 
-Replace all static page imports with `React.lazy()` + wrap routes in `<Suspense>`. This is the single biggest frontend win -- each page and its dependencies only load when navigated to.
+---
 
-```tsx
-const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
-const Library = lazy(() => import("./pages/Library"));
-// ... all ~20 page imports
-```
+## Phase 1: Simplified Student Onboarding
 
-Add a shared `<Suspense fallback={<LoadingSpinner />}>` wrapping `<Routes>`.
+### Problem
+Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
 
-Keep `LandingPage` and `Auth` as eager imports (critical entry paths).
+### Solution
+- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
+- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
+- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
 
-## 2. Debounced Search in Community & Library
+### Files changed
+- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
+- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
+- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
 
-**Files: `src/pages/TeacherCommunity.tsx`, `src/pages/Library.tsx`**
+---
 
-- Create a `useDebounce` hook (`src/hooks/useDebounce.ts`) — standard 300ms debounce for search inputs
-- Apply to search/filter inputs to avoid re-rendering on every keystroke
+## Phase 2: Remove image_discussion, Update Exercise Types
 
-## 3. Performance Tracking via PostHog
+### DB migration
+- No schema changes needed (exercise_types is a text array, content is JSONB)
 
-**File: `src/lib/analytics.ts`**
+### Edge function: `generate-lesson-exercises`
+- Remove `image_discussion` from `EXERCISE_PROMPTS`
+- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
+- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
+- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
 
-Add a `trackPageLoad` helper that records `performance.now()` timing. Call from key pages (`AppHome`, `Library`, `TeacherDashboard`) on mount to track load times.
+### Frontend: `CreateLessonForm.tsx`
+- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
 
-```ts
-export const trackPageLoad = (page: string) => {
-  postCapture('page_load_time', { page, load_time_ms: Math.round(performance.now()) });
-};
-```
+### Files changed
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
+- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
 
-## 4. Database Indexes (Migration)
+---
 
-Add indexes for the most common query patterns that currently lack them:
+## Phase 3: Teacher Post-Creation View (YouTube lessons)
 
+### Current state
+After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+
+### New design
+After creation, the teacher sees:
+1. **Share link** (unchanged)
+2. **YouTube video embed** at the top
+3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
+4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+
+### Transcript fetching approach
+- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
+- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+
+### DB migration
 ```sql
--- teacher_lessons: frequent lookups by teacher_id, student_email, share_token
-CREATE INDEX IF NOT EXISTS idx_teacher_lessons_teacher_id ON teacher_lessons(teacher_id);
-CREATE INDEX IF NOT EXISTS idx_teacher_lessons_student_email ON teacher_lessons(student_email);
-CREATE INDEX IF NOT EXISTS idx_teacher_lessons_share_token ON teacher_lessons(share_token);
-
--- lesson_exercises: frequent lookups by lesson_id
-CREATE INDEX IF NOT EXISTS idx_lesson_exercises_lesson_id ON lesson_exercises(lesson_id);
-
--- lesson_responses: frequent lookups by lesson_id, user_id
-CREATE INDEX IF NOT EXISTS idx_lesson_responses_lesson_id ON lesson_responses(lesson_id);
-CREATE INDEX IF NOT EXISTS idx_lesson_responses_user_id ON lesson_responses(user_id);
-
--- teacher_students: frequent lookups by teacher_id
-CREATE INDEX IF NOT EXISTS idx_teacher_students_teacher_id ON teacher_students(teacher_id);
-
--- youtube_exercises: frequent lookups by video_id
-CREATE INDEX IF NOT EXISTS idx_youtube_exercises_video_id ON youtube_exercises(video_id);
+ALTER TABLE teacher_lessons ADD COLUMN transcript text;
 ```
 
-## 5. QueryClient Stale Time
+### Files changed
+- **DB migration** -- add `transcript` column
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
+- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
 
-**File: `src/App.tsx`**
+---
 
-Configure `QueryClient` with sensible defaults to avoid redundant refetches:
+## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
 
-```ts
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { staleTime: 5 * 60 * 1000, gcTime: 10 * 60 * 1000 },
-  },
-});
-```
+Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
+- Show video at top
+- Show transcript below (same interactive component)
+- Exercise sections grouped by type, each with its own prev/next within 5 questions
 
-## Files Summary
+### Files changed
+- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
+- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
 
-| Action | File |
-|--------|------|
-| Create | `src/hooks/useDebounce.ts` |
-| Modify | `src/App.tsx` (lazy imports, Suspense, QueryClient config) |
-| Modify | `src/lib/analytics.ts` (add trackPageLoad) |
-| Modify | `src/pages/AppHome.tsx` (track page load) |
-| Modify | `src/pages/Library.tsx` (track page load) |
-| Modify | `src/pages/TeacherDashboard.tsx` (track page load) |
-| Modify | `src/pages/TeacherCommunity.tsx` (debounced search) |
-| Migration | Add indexes on high-traffic columns |
+---
+
+## Phase 5: Student Lesson View (`StudentLesson.tsx`)
+
+Mirror the teacher's layout for the student:
+- Video at top
+- Transcript (read-only or interactive if we want students to also explore words)
+- Exercise sections grouped by type, sequential, with submit per question
+
+### Files changed
+- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
+
+---
+
+## Technical Details
+
+### Exercise generation counts
+| Type | Count |
+|------|-------|
+| fill_in_blank | 5 |
+| multiple_choice | 5 |
+| spot_the_mistake | 5 |
+| role_play | 2-3 scenarios |
+
+### Role-play prompt update
+The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
+
+### Transcript storage
+Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
+
+### RLS
+No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
 

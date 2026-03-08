@@ -4,7 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageLoad } from "@/lib/analytics";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,6 +59,7 @@ export default function TeacherCommunity() {
 
   useEffect(() => {
     trackEvent("community_viewed");
+    trackPageLoad("teacher_community");
     fetchLessons();
   }, []);
 
@@ -74,10 +76,12 @@ export default function TeacherCommunity() {
     setLoading(false);
   };
 
+  const debouncedSearch = useDebounce(search, 300);
+
   const filtered = useMemo(() => {
     let result = [...lessons];
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(
         (l) =>
           l.title.toLowerCase().includes(q) ||
@@ -97,7 +101,7 @@ export default function TeacherCommunity() {
       result.sort((a, b) => b.copy_count - a.copy_count);
     }
     return result;
-  }, [lessons, search, levelFilter, languageFilter, sortBy]);
+  }, [lessons, debouncedSearch, levelFilter, languageFilter, sortBy]);
 
   // Top contributors
   const topContributors = useMemo(() => {

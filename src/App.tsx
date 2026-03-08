@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,35 +7,53 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { initAnalytics } from "@/lib/analytics";
+
+// Eager imports — critical entry paths
 import LandingPage from "./pages/LandingPage";
-import TeacherLanding from "./pages/TeacherLanding";
-import Onboarding from "./pages/Onboarding";
-import AppHome from "./pages/AppHome";
-import Library from "./pages/Library";
-import Lesson from "./pages/Lesson";
 import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
-import { ProfilePage } from "./components/ProfilePage";
 
-import Premium from "./pages/Premium";
-import FirstLesson from "./pages/FirstLesson";
-import AuthCallback from "./pages/AuthCallback";
-import WeekDetail from "./pages/WeekDetail";
-import WeekVideo from "./pages/WeekVideo";
-import TeacherDashboard from "./pages/TeacherDashboard";
-import TeacherCommunity from "./pages/TeacherCommunity";
-import TeacherBranding from "./pages/TeacherBranding";
-import TeacherPricing from "./pages/TeacherPricing";
-import TeacherAnalytics from "./pages/TeacherAnalytics";
-import TeacherOnboarding from "./pages/TeacherOnboarding";
-import TeacherStudents from "./pages/TeacherStudents";
-import TeacherStudentDetail from "./pages/TeacherStudentDetail";
-import TeacherLesson from "./pages/TeacherLesson";
-import StudentLesson from "./pages/StudentLesson";
-import ResetPassword from "./pages/ResetPassword";
-import MyLessons from "./pages/MyLessons";
+// Lazy-loaded pages
+const TeacherLanding = lazy(() => import("./pages/TeacherLanding"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const AppHome = lazy(() => import("./pages/AppHome"));
+const Library = lazy(() => import("./pages/Library"));
+const Lesson = lazy(() => import("./pages/Lesson"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const ProfilePage = lazy(() => import("./pages/ProfilePageWrapper"));
+const Premium = lazy(() => import("./pages/Premium"));
+const FirstLesson = lazy(() => import("./pages/FirstLesson"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const WeekDetail = lazy(() => import("./pages/WeekDetail"));
+const WeekVideo = lazy(() => import("./pages/WeekVideo"));
+const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
+const TeacherCommunity = lazy(() => import("./pages/TeacherCommunity"));
+const TeacherBranding = lazy(() => import("./pages/TeacherBranding"));
+const TeacherPricing = lazy(() => import("./pages/TeacherPricing"));
+const TeacherAnalytics = lazy(() => import("./pages/TeacherAnalytics"));
+const TeacherOnboarding = lazy(() => import("./pages/TeacherOnboarding"));
+const TeacherStudents = lazy(() => import("./pages/TeacherStudents"));
+const TeacherStudentDetail = lazy(() => import("./pages/TeacherStudentDetail"));
+const TeacherLesson = lazy(() => import("./pages/TeacherLesson"));
+const StudentLesson = lazy(() => import("./pages/StudentLesson"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const MyLessons = lazy(() => import("./pages/MyLessons"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+    },
+  },
+});
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+}
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -43,11 +61,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <LoadingFallback />;
   }
   
   if (!user) {
-    // If trying to access a student lesson, store the token for post-auth redirect
     const studentLessonMatch = location.pathname.match(/^\/lesson\/student\/(.+)$/);
     if (studentLessonMatch) {
       localStorage.setItem('pending_lesson_token', studentLessonMatch[1]);
@@ -56,12 +73,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   
   return <>{children}</>;
-}
-
-// Wrapper to provide onBack to ProfilePage
-function ProfilePageWrapper() {
-  const navigate = useNavigate();
-  return <ProfilePage onBack={() => navigate("/app")} />;
 }
 
 function AuthRedirector() {
@@ -98,7 +109,6 @@ function AuthRedirector() {
 }
 
 const App = () => {
-  // Initialize PostHog analytics on app load
   useEffect(() => {
     initAnalytics();
   }, []);
@@ -111,159 +121,41 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <AuthRedirector />
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/teachers" element={<TeacherLanding />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            
-            <Route path="/lesson/first" element={<FirstLesson />} />
-            <Route path="/premium" element={<Premium />} />
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/teachers" element={<TeacherLanding />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/lesson/first" element={<FirstLesson />} />
+              <Route path="/premium" element={<Premium />} />
 
-            {/* Teacher routes */}
-            <Route
-              path="/teacher/onboarding"
-              element={
-                <ProtectedRoute>
-                  <TeacherOnboarding />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher"
-              element={
-                <ProtectedRoute>
-                  <TeacherDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/pricing"
-              element={
-                <ProtectedRoute>
-                  <TeacherPricing />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/analytics"
-              element={
-                <ProtectedRoute>
-                  <TeacherAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/students"
-              element={
-                <ProtectedRoute>
-                  <TeacherStudents />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/student/:studentId"
-              element={
-                <ProtectedRoute>
-                  <TeacherStudentDetail />
-                </ProtectedRoute>
-              }
-            />
-          <Route
-            path="/teacher/community"
-            element={
-              <ProtectedRoute>
-                <TeacherCommunity />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/branding"
-            element={
-              <ProtectedRoute>
-                <TeacherBranding />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/teacher/lesson/:id"
-            element={
-              <ProtectedRoute>
-                <TeacherLesson />
-              </ProtectedRoute>
-            }
-          />
+              {/* Teacher routes */}
+              <Route path="/teacher/onboarding" element={<ProtectedRoute><TeacherOnboarding /></ProtectedRoute>} />
+              <Route path="/teacher" element={<ProtectedRoute><TeacherDashboard /></ProtectedRoute>} />
+              <Route path="/teacher/pricing" element={<ProtectedRoute><TeacherPricing /></ProtectedRoute>} />
+              <Route path="/teacher/analytics" element={<ProtectedRoute><TeacherAnalytics /></ProtectedRoute>} />
+              <Route path="/teacher/students" element={<ProtectedRoute><TeacherStudents /></ProtectedRoute>} />
+              <Route path="/teacher/student/:studentId" element={<ProtectedRoute><TeacherStudentDetail /></ProtectedRoute>} />
+              <Route path="/teacher/community" element={<ProtectedRoute><TeacherCommunity /></ProtectedRoute>} />
+              <Route path="/teacher/branding" element={<ProtectedRoute><TeacherBranding /></ProtectedRoute>} />
+              <Route path="/teacher/lesson/:id" element={<ProtectedRoute><TeacherLesson /></ProtectedRoute>} />
 
-          {/* Protected app routes */}
-            <Route 
-              path="/app" 
-              element={
-                <ProtectedRoute>
-                  <AppHome />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/library" 
-              element={
-                <ProtectedRoute>
-                  <Library />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/lesson/:videoId" 
-              element={
-                <ProtectedRoute>
-                  <Lesson />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/learn/week/:weekId" 
-              element={
-                <ProtectedRoute>
-                  <WeekDetail />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/learn/video/:weekVideoId" 
-              element={
-                <ProtectedRoute>
-                  <WeekVideo />
-                </ProtectedRoute>
-              } 
-            />
-            <Route
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <ProfilePageWrapper />
-                </ProtectedRoute>
-              } 
-            />
-            <Route
-              path="/lesson/student/:id"
-              element={
-                <ProtectedRoute>
-                  <StudentLesson />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/my-lessons"
-              element={
-                <ProtectedRoute>
-                  <MyLessons />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              {/* Protected app routes */}
+              <Route path="/app" element={<ProtectedRoute><AppHome /></ProtectedRoute>} />
+              <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
+              <Route path="/lesson/:videoId" element={<ProtectedRoute><Lesson /></ProtectedRoute>} />
+              <Route path="/learn/week/:weekId" element={<ProtectedRoute><WeekDetail /></ProtectedRoute>} />
+              <Route path="/learn/video/:weekVideoId" element={<ProtectedRoute><WeekVideo /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/lesson/student/:id" element={<ProtectedRoute><StudentLesson /></ProtectedRoute>} />
+              <Route path="/my-lessons" element={<ProtectedRoute><MyLessons /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

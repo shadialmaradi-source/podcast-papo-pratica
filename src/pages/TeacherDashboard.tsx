@@ -11,6 +11,7 @@ import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { LessonList } from "@/components/teacher/LessonList";
 import { useUserRole } from "@/hooks/useUserRole";
+import { trackPageLoad } from "@/lib/analytics";
 
 
 type FlowStep = "home" | "choose_type" | "form";
@@ -27,6 +28,7 @@ export default function TeacherDashboard() {
 
   // Redirect non-teachers away; redirect teachers who haven't onboarded
   useEffect(() => {
+    trackPageLoad("teacher_dashboard");
     if (roleLoading) return;
     if (role !== "teacher") {
       navigate("/app");
