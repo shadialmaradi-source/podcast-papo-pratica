@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 serve(async (req) => {
@@ -21,7 +21,6 @@ serve(async (req) => {
       );
     }
 
-    // Get user from auth header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -34,7 +33,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user from token
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
@@ -45,16 +43,25 @@ serve(async (req) => {
       );
     }
 
-    // Get subscription with stripe_customer_id
-    const { data: subscription } = await supabase
+    // Check student subscriptions first
+    const { data: studentSub } = await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('user_id', user.id)
       .single();
 
-    if (!subscription?.stripe_customer_id) {
+    // Also check teacher subscriptions
+    const { data: teacherSub } = await supabase
+      .from('teacher_subscriptions')
+      .select('stripe_customer_id')
+      .eq('teacher_id', user.id)
+      .single();
+
+    const stripeCustomerId = teacherSub?.stripe_customer_id || studentSub?.stripe_customer_id;
+
+    if (!stripeCustomerId) {
       return new Response(
-        JSON.stringify({ error: 'No Stripe subscription found. Your premium access may be from a promo code.' }),
+        JSON.stringify({ error: 'No Stripe subscription found. Your access may be from a promo code.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -64,7 +71,7 @@ serve(async (req) => {
     const { returnUrl } = await req.json();
 
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: subscription.stripe_customer_id,
+      customer: stripeCustomerId,
       return_url: returnUrl || `${req.headers.get('origin')}/app`,
     });
 

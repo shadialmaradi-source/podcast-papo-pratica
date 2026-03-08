@@ -64,18 +64,31 @@ serve(async (req) => {
           break;
         }
 
+        // Fetch subscription to get current_period_end
+        let periodEnd: string | null = null;
+        if (session.subscription) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+            periodEnd = new Date(sub.current_period_end * 1000).toISOString();
+          } catch (e) {
+            console.error('Failed to fetch subscription details:', e);
+          }
+        }
+
         if (teacherPlan) {
-          // Teacher subscription
+          const upsertData: Record<string, unknown> = {
+            teacher_id: userId,
+            plan: teacherPlan,
+            status: 'active',
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: session.subscription as string,
+            updated_at: new Date().toISOString(),
+          };
+          if (periodEnd) upsertData.current_period_end = periodEnd;
+
           const { error } = await supabase
             .from('teacher_subscriptions')
-            .upsert({
-              teacher_id: userId,
-              plan: teacherPlan,
-              status: 'active',
-              stripe_customer_id: session.customer as string,
-              stripe_subscription_id: session.subscription as string,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'teacher_id' });
+            .upsert(upsertData, { onConflict: 'teacher_id' });
 
           if (error) {
             console.error('Error updating teacher subscription:', error);
@@ -83,7 +96,6 @@ serve(async (req) => {
             console.log('Teacher upgraded to', teacherPlan, ':', userId);
           }
         } else {
-          // Student/user subscription
           const { error } = await supabase
             .from('subscriptions')
             .upsert({
@@ -110,7 +122,6 @@ serve(async (req) => {
         const teacherPlan = subscription.metadata?.teacher_plan;
 
         if (teacherPlan || !userId) {
-          // Try teacher_subscriptions first
           const { data: teacherSub } = await supabase
             .from('teacher_subscriptions')
             .select('teacher_id')
@@ -120,14 +131,13 @@ serve(async (req) => {
           if (teacherSub) {
             await supabase
               .from('teacher_subscriptions')
-              .update({ plan: 'free', status: 'cancelled', updated_at: new Date().toISOString() })
+              .update({ plan: 'free', status: 'cancelled', updated_at: new Date().toISOString(), current_period_end: null })
               .eq('teacher_id', teacherSub.teacher_id);
             console.log('Teacher downgraded to free:', teacherSub.teacher_id);
             break;
           }
         }
 
-        // Fallback: regular user subscription
         if (userId) {
           await supabase
             .from('subscriptions')
@@ -157,20 +167,43 @@ serve(async (req) => {
         const userId = subscription.metadata?.supabase_user_id;
         const teacherPlan = subscription.metadata?.teacher_plan;
         const status = subscription.status === 'active' ? 'active' :
-                      subscription.status === 'canceled' ? 'cancelled' : 'expired';
+                      subscription.status === 'canceled' ? 'cancelled' :
+                      subscription.status === 'past_due' ? 'past_due' : 'expired';
+        const periodEnd = new Date(subscription.current_period_end * 1000).toISOString();
 
         if (teacherPlan && userId) {
+          const updateData: Record<string, unknown> = {
+            status,
+            plan: teacherPlan,
+            current_period_end: periodEnd,
+            updated_at: new Date().toISOString(),
+          };
           await supabase
             .from('teacher_subscriptions')
-            .update({ status, updated_at: new Date().toISOString() })
+            .update(updateData)
             .eq('teacher_id', userId);
-          console.log('Teacher subscription updated:', userId, 'status:', status);
+          console.log('Teacher subscription updated:', userId, 'plan:', teacherPlan, 'status:', status);
         } else if (userId) {
           await supabase
             .from('subscriptions')
             .update({ status, updated_at: new Date().toISOString() })
             .eq('user_id', userId);
           console.log('Subscription updated for user:', userId, 'status:', status);
+        } else {
+          // Fallback: try to find by stripe_subscription_id
+          const { data: teacherSub } = await supabase
+            .from('teacher_subscriptions')
+            .select('teacher_id')
+            .eq('stripe_subscription_id', subscription.id)
+            .single();
+
+          if (teacherSub) {
+            await supabase
+              .from('teacher_subscriptions')
+              .update({ status, current_period_end: periodEnd, updated_at: new Date().toISOString() })
+              .eq('teacher_id', teacherSub.teacher_id);
+            console.log('Teacher subscription updated by sub ID:', teacherSub.teacher_id, 'status:', status);
+          }
         }
         break;
       }
@@ -188,7 +221,11 @@ serve(async (req) => {
             .single();
 
           if (teacherSub) {
-            console.log('Payment failed for teacher:', teacherSub.teacher_id);
+            await supabase
+              .from('teacher_subscriptions')
+              .update({ status: 'past_due', updated_at: new Date().toISOString() })
+              .eq('teacher_id', teacherSub.teacher_id);
+            console.log('Teacher set to past_due:', teacherSub.teacher_id);
             break;
           }
 
@@ -199,7 +236,11 @@ serve(async (req) => {
             .single();
 
           if (sub) {
-            console.log('Payment failed for user:', sub.user_id);
+            await supabase
+              .from('subscriptions')
+              .update({ status: 'past_due', updated_at: new Date().toISOString() })
+              .eq('user_id', sub.user_id);
+            console.log('User set to past_due:', sub.user_id);
           }
         }
         break;
