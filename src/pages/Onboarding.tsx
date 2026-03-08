@@ -142,23 +142,23 @@ export default function Onboarding() {
     : [t('onboardingStep1'), t('onboardingStep2'), t('onboardingStep3')];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
       {/* Header */}
-      <header className="p-4">
+      <header className="p-3 md:p-4">
         <div className="container mx-auto flex items-center gap-2">
-          <Headphones className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+          <Headphones className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+          <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
             ListenFlow
           </span>
         </div>
       </header>
 
       {/* Progress Indicator */}
-      <div className="container mx-auto px-4 pt-4">
-        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+      <div className="container mx-auto px-4 pt-2 md:pt-4">
+        <div className="flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground">
           {stepLabels.map((label, i) => (
-            <span key={i} className="flex items-center gap-2">
-              {i > 0 && <ArrowRight className="h-4 w-4" />}
+            <span key={i} className="flex items-center gap-1 md:gap-2">
+              {i > 0 && <ArrowRight className="h-3 w-3 md:h-4 md:w-4" />}
               <span className={currentStepIndex === i ? 'text-primary font-medium' : currentStepIndex > i ? 'text-primary/60' : ''}>
                 {label}
               </span>
@@ -168,7 +168,7 @@ export default function Onboarding() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center p-4">
+      <main className="flex-1 flex items-center justify-center p-3 md:p-4 overflow-auto">
         <AnimatePresence mode="wait">
           {step === 'language' && (
             <motion.div key="language" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-lg">
