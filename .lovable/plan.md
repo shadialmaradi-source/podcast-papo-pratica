@@ -1,124 +1,84 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Full-Site Bug Fixes and UX Improvements
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## Bugs Found
 
-## Summary of Changes
+### Bug 1: Notification insert uses teacher's user_id instead of student's
+**File:** `src/components/teacher/AssignVideoModal.tsx` line 85
+**Issue:** `user_id: user.id` sets the teacher's own ID for the notification, so the student never sees it. The notifications table RLS policy only allows viewing notifications where `auth.uid() = user_id`.
+**Fix:** Look up the student's user ID from `auth.users` via a helper, or skip the notification insert entirely if the student hasn't registered yet (since we can't query `auth.users` from the client). Remove the broken notification insert for now.
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+### Bug 2: Auth page has no role selection during signup
+**File:** `src/pages/Auth.tsx`
+**Issue:** The signup flow doesn't offer a teacher/student role choice. All new users get the default `student` role from the `handle_new_user` trigger. Teachers can only register via the old `AuthPage.tsx` component (which isn't used). The `/teachers` landing page CTA should link to `/auth?role=teacher`, but even so, the Auth page's `isSignUp` logic only uses `preselectedRole` to auto-switch to signup mode -- it never updates the role.
+**Fix:** When `preselectedRole === "teacher"` and signup succeeds, update the `user_roles` table to `teacher` (same pattern as `AuthPage.tsx`).
 
----
+### Bug 3: "Watch" button on video assignments navigates to `/library` not the specific video
+**File:** `src/pages/AppHome.tsx` line 506
+**Issue:** `onClick={() => navigate('/library')}` -- should navigate to the actual video lesson page, e.g., `/lesson/${a.video_id}`.
+**Fix:** Navigate to `/lesson/${a.video_id}` if `video_id` exists.
 
-## Phase 1: Simplified Student Onboarding
+### Bug 4: `speaking_topics` predefined list only has Italian topics
+**File:** Migration seeded only Italian topics
+**Issue:** `AssignSpeakingModal` filters by level but not by language, so teachers teaching Spanish/English see Italian topics.
+**Fix:** Filter `predefinedTopics` by `selectedLanguage` in the modal, and add seed data for other languages in a migration.
 
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+### Bug 5: Stats grid on TeacherStudentDetail only shows 2 of 3 columns
+**File:** `src/pages/TeacherStudentDetail.tsx` line 206
+**Issue:** The grid is `grid-cols-3` but only renders 2 cards (Lessons, Assignments). The third cell is empty, creating an awkward gap.
+**Fix:** Add a third stat card (e.g., "Completed") or change to `grid-cols-2`.
 
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
-
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
-
----
-
-## Phase 2: Remove image_discussion, Update Exercise Types
-
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
-
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
-
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
-
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+### Bug 6: `dashboardReady` state in TeacherDashboard is never set to true
+**File:** `src/pages/TeacherDashboard.tsx` line 25
+**Issue:** `dashboardReady` is initialized as `false` but never updated. While it's not currently used to gate rendering, it's dead code that could cause confusion.
+**Fix:** Remove the unused state variable.
 
 ---
 
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
+## UX Improvements
 
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+### UX 1: No teacher navigation bar
+**Issue:** Teacher pages have inconsistent navigation. Dashboard has a settings icon, but there's no persistent nav to go between Dashboard, Students, Settings. Users must go back to dashboard to navigate.
+**Fix:** Add a simple bottom nav or top nav for teacher pages (Dashboard, Students, Settings) as a shared layout pattern.
 
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+### UX 2: Student AppHome doesn't show teacher's name for assignments
+**Issue:** Video and speaking assignment cards don't show which teacher assigned them.
+**Fix:** Add teacher info to the assignment cards (requires joining or storing teacher name).
 
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
-
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
-```
-
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
+### UX 3: Onboarding only shows Spanish and English as available languages
+**File:** `src/pages/Onboarding.tsx` lines 13-19
+**Issue:** Italian, French, German are marked `available: false` with "Coming Soon" labels, but the app has Italian content in the library.
+**Fix:** Mark Italian as available since content exists.
 
 ---
 
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
+## Implementation Order
 
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
-
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
-
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
+1. **Fix Bug 3** -- Video assignment "Watch" navigates to wrong page (1 line change in AppHome.tsx)
+2. **Fix Bug 5** -- Stats grid layout (change grid-cols-3 to grid-cols-2 in TeacherStudentDetail.tsx)
+3. **Fix Bug 1** -- Remove broken notification insert in AssignVideoModal.tsx
+4. **Fix Bug 2** -- Add teacher role update on signup when `role=teacher` query param in Auth.tsx
+5. **Fix Bug 4** -- Filter predefined topics by language in AssignSpeakingModal.tsx
+6. **Fix Bug 6** -- Remove dead `dashboardReady` state
+7. **Fix UX 3** -- Mark Italian as available in Onboarding.tsx
+8. **Fix UX 1** -- Add teacher bottom navigation component
 
 ---
 
-## Technical Details
+## Files Changed
 
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+| File | Change |
+|------|--------|
+| `src/pages/AppHome.tsx` | Fix video assignment navigation |
+| `src/pages/TeacherStudentDetail.tsx` | Fix stats grid to 2 cols |
+| `src/components/teacher/AssignVideoModal.tsx` | Remove broken notification insert |
+| `src/pages/Auth.tsx` | Add teacher role update on signup |
+| `src/components/teacher/AssignSpeakingModal.tsx` | Filter topics by language |
+| `src/pages/TeacherDashboard.tsx` | Remove dead state |
+| `src/pages/Onboarding.tsx` | Mark Italian as available |
+| New: `src/components/teacher/TeacherNav.tsx` | Shared bottom nav for teacher pages |
+| `src/pages/TeacherDashboard.tsx` | Add TeacherNav |
+| `src/pages/TeacherStudents.tsx` | Add TeacherNav |
+| `src/pages/TeacherSettings.tsx` | Add TeacherNav |
 
