@@ -793,15 +793,6 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
           </motion.div>
         )}
 
-        {/* Skip speaking button (always visible in phrase mode) */}
-        {!allPhrasesRecorded && (
-          <div className="text-center pt-2">
-            <Button variant="ghost" onClick={onComplete} className="text-muted-foreground">
-              Skip Speaking Practice
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-        )}
       </div>
     </motion.div>
   );
