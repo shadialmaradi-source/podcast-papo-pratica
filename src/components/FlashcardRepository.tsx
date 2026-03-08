@@ -169,9 +169,8 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
       return;
     }
 
-    // Determine the language from the first filtered card
-    const detectedLanguage = filtered[0]?.video_language || 'english';
-    setStudyLanguage(detectedLanguage);
+    // Use selected language
+    setStudyLanguage(selectedLanguage || filtered[0]?.video_language || 'english');
 
     let cardsToStudy = filtered.map(fc => ({
       phrase: fc.phrase,
