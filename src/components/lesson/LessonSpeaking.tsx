@@ -379,40 +379,40 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
     );
   }
 
-  // Summary mode for intermediate/advanced
   if (isSummaryMode) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+        className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
       >
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                Speaking Practice
-              </h1>
-              <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-sm">
-                Skip <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
-            </div>
-            <p className="text-muted-foreground">
-              Summarize what happened in the video
-            </p>
-          </div>
-
-          <RemainingTriesIndicator />
-
-          <Card className="shadow-xl rounded-2xl border-0">
-            <CardContent className="p-6 md:p-8 space-y-6">
-              <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
-                <h3 className="font-semibold text-foreground mb-2">Your task:</h3>
-                <p className="text-muted-foreground">
-                  Summarize what happened in the video in {isAuthenticated ? '20-30' : '5'} seconds using {language.charAt(0).toUpperCase() + language.slice(1)}. 
-                  Include the main characters, setting, and key events.
-                </p>
+        <div className="flex-1 overflow-auto p-3 md:p-8">
+          <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+            <div className="text-center space-y-1 md:space-y-2">
+              <div className="flex items-center justify-center gap-2 md:gap-3">
+                <h1 className="text-xl md:text-3xl font-bold text-foreground">
+                  Speaking Practice
+                </h1>
+                <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-xs md:text-sm">
+                  Skip <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
               </div>
+              <p className="text-sm md:text-base text-muted-foreground">
+                Summarize what happened in the video
+              </p>
+            </div>
+
+            <RemainingTriesIndicator />
+
+            <Card className="shadow-xl rounded-2xl border-0">
+              <CardContent className="p-4 md:p-8 space-y-4 md:space-y-6">
+                <div className="bg-primary/5 rounded-xl p-3 md:p-4 border border-primary/20">
+                  <h3 className="font-semibold text-foreground mb-1 md:mb-2 text-sm md:text-base">Your task:</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Summarize what happened in the video in {isAuthenticated ? '20-30' : '5'} seconds using {language.charAt(0).toUpperCase() + language.slice(1)}. 
+                    Include the main characters, setting, and key events.
+                  </p>
+                </div>
 
               {/* Error display */}
               {error && (
