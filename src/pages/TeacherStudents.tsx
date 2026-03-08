@@ -62,6 +62,8 @@ export default function TeacherStudents() {
   useEffect(() => {
     if (roleLoading) return;
     if (role !== "teacher") { navigate("/app"); return; }
+    trackPageView("teacher_students", "teacher");
+    trackEvent("teacher_students_viewed");
   }, [role, roleLoading, navigate]);
 
   const fetchData = async () => {
