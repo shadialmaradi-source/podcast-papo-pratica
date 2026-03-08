@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, BarChart3, CreditCard, Globe, Palette, LogOut } from "lucide-react";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
-import { trackPageLoad } from "@/lib/analytics";
+import { trackPageView, trackEvent } from "@/lib/analytics";
 import { useEffect } from "react";
 
 const settingsItems = [
@@ -20,7 +20,8 @@ export default function TeacherSettings() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    trackPageLoad("teacher_settings");
+    trackPageView("teacher_settings", "teacher");
+    trackEvent("teacher_settings_viewed");
   }, []);
 
   const handleSignOut = async () => {

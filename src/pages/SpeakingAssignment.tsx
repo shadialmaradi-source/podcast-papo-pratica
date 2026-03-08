@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,8 @@ export default function SpeakingAssignment() {
 
   useEffect(() => {
     if (!user || !assignmentId) return;
+    trackPageView("speaking_assignment", "student");
+    trackEvent("student_speaking_opened", { assignment_id: assignmentId });
     fetchData();
   }, [user, assignmentId]);
 
@@ -126,6 +129,9 @@ export default function SpeakingAssignment() {
 
   const handleBlur = (questionId: string) => {
     const text = drafts[questionId] || "";
+    if (text.trim()) {
+      trackEvent("student_speaking_response_saved", { assignment_id: assignmentId, question_id: questionId });
+    }
     saveResponse(questionId, text);
   };
 
@@ -146,6 +152,7 @@ export default function SpeakingAssignment() {
       .update({ status: "reviewed" } as any)
       .eq("id", assignmentId);
 
+    trackEvent("student_speaking_marked_prepared", { assignment_id: assignmentId, answers_count: Object.values(drafts).filter(d => d.trim()).length });
     toast.success("Marked as prepared!");
     setAssignment((prev) => (prev ? { ...prev, status: "reviewed" } : prev));
     setSaving(false);

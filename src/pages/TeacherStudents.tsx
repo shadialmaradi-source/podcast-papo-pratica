@@ -16,6 +16,7 @@ import { AddStudentModal } from "@/components/teacher/AddStudentModal";
 import { EditStudentModal } from "@/components/teacher/EditStudentModal";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 
 interface StudentRow {
   id: string;
@@ -61,6 +62,8 @@ export default function TeacherStudents() {
   useEffect(() => {
     if (roleLoading) return;
     if (role !== "teacher") { navigate("/app"); return; }
+    trackPageView("teacher_students", "teacher");
+    trackEvent("teacher_students_viewed");
   }, [role, roleLoading, navigate]);
 
   const fetchData = async () => {
@@ -151,6 +154,7 @@ export default function TeacherStudents() {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
+      trackEvent("teacher_student_archived", { student_id: student.id });
       toast({ title: "Student archived" });
       fetchData();
     }

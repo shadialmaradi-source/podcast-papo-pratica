@@ -12,6 +12,7 @@ import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { TranslationHint } from "@/components/exercises/TranslationHint";
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User, Radio, RefreshCw, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 
 interface Lesson {
   id: string;
@@ -344,6 +345,8 @@ export default function StudentLesson() {
   };
 
   useEffect(() => {
+    trackPageView("student_lesson", "student");
+    if (id) trackEvent("student_lesson_opened", { lesson_id: id });
     loadData();
   }, [id, user]);
 
@@ -402,6 +405,11 @@ export default function StudentLesson() {
     }
 
     setSubmitted((prev) => ({ ...prev, [exerciseId]: true }));
+    trackEvent("student_exercise_answered", {
+      lesson_id: lesson.id,
+      exercise_id: exerciseId,
+      exercise_type: exercise.exercise_type,
+    });
     toast.success("Answer saved!");
   };
 

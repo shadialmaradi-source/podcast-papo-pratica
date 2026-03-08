@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const LANGUAGES = ["English", "Spanish", "Portuguese", "French", "Italian", "German", "Chinese", "Japanese", "Korean", "Arabic"];
@@ -62,6 +63,7 @@ export function AddStudentModal({ open, onOpenChange, onAdded }: AddStudentModal
       return;
     }
 
+    trackEvent("teacher_student_added", { level: level || "unset" });
     toast({ title: "Student added!", description: "Now assign them lessons." });
     resetForm();
     onOpenChange(false);
