@@ -220,7 +220,7 @@ export default function TeacherDashboard() {
             <Card>
               <CardContent className="pt-6">
                 <CreateLessonForm
-                  lessonType={lessonType}
+                  lessonType={lessonType as "paragraph" | "youtube"}
                   onCreated={handleCreated}
                   onCancel={handleBack}
                   prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
@@ -228,6 +228,17 @@ export default function TeacherDashboard() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {step === "speaking_form" && (
+          <Card>
+            <CardContent className="pt-6">
+              <SpeakingLessonCreator
+                onCancel={handleBack}
+                onCreated={handleCreated}
+              />
+            </CardContent>
+          </Card>
         )}
       </main>
       <TeacherNav />
