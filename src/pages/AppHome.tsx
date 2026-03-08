@@ -43,14 +43,6 @@ interface AssignedLesson {
   status: string;
 }
 
-interface VideoAssignment {
-  id: string;
-  video_id: string | null;
-  video_title: string | null;
-  due_date: string | null;
-  note: string | null;
-  status: string;
-}
 
 interface SpeakingAssignment {
   id: string;
