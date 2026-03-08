@@ -45,6 +45,7 @@ interface Video {
   difficulty_level: string;
   is_curated: boolean;
   language: string;
+  is_short?: boolean;
 }
 
 export default function Library() {
