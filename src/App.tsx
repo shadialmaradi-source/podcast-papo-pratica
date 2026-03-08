@@ -24,6 +24,8 @@ import WeekDetail from "./pages/WeekDetail";
 import WeekVideo from "./pages/WeekVideo";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherOnboarding from "./pages/TeacherOnboarding";
+import TeacherStudents from "./pages/TeacherStudents";
+import TeacherStudentDetail from "./pages/TeacherStudentDetail";
 import TeacherLesson from "./pages/TeacherLesson";
 import StudentLesson from "./pages/StudentLesson";
 import ResetPassword from "./pages/ResetPassword";
