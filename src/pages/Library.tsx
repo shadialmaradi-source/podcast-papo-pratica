@@ -53,6 +53,8 @@ interface Video {
 export default function Library() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { role } = useUserRole();
+  const isTeacher = role === "teacher";
   
   // State
   const [selectedLevel, setSelectedLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
