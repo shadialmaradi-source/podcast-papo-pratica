@@ -71,7 +71,8 @@ export default function AppHome() {
   const [videoUrl, setVideoUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
-  const [showHints, setShowHints] = useState(() => !localStorage.getItem("has_seen_home_hints"));
+  const { phase: tourPhase, advancePhase: advanceTourPhase } = useStudentTour();
+  const [showHints, setShowHints] = useState(() => tourPhase === "home");
   const [showQuickReview, setShowQuickReview] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState(0);
   const [videoAssignments, setVideoAssignments] = useState<VideoAssignment[]>([]);
