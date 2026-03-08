@@ -251,7 +251,7 @@ export default function Library() {
   // Filter videos based on current selections
   const filteredVideos = useMemo(() => {
     return videos.filter((video) => {
-      const levelMatch = video.difficulty_level.toLowerCase() === selectedLevel;
+      const levelMatch = activeTab === 'curated' ? video.difficulty_level.toLowerCase() === selectedLevel : true;
       const tabMatch = activeTab === 'curated' ? video.is_curated : !video.is_curated;
       if (activeTab === 'community' && curatedVideoIds.has(video.id)) return false;
       let topicMatch = true;
