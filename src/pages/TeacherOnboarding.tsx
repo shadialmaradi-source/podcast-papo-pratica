@@ -147,6 +147,7 @@ export default function TeacherOnboarding() {
     } else {
       trackEvent("teacher_onboarding_step_2", { added_student: false });
     }
+    trackFunnelStep("teacher_onboarding", "tour", 2);
     setStep(2);
   };
 
