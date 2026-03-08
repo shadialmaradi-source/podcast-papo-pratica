@@ -314,29 +314,18 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
           let dbExercises: any[] | null = null;
           let dbError: any = null;
 
+          // Use RPC for all exercise queries (scene and non-scene)
+          const rpcParams: any = { 
+            video_id_param: videoData.id,
+            difficulty_param: dbDifficulty,
+            native_language_param: userNativeLanguage,
+          };
           if (sceneId) {
-            // Direct query filtered by scene_id
-            const result = await supabase
-              .from('youtube_exercises')
-              .select('*')
-              .eq('video_id', videoData.id)
-              .eq('difficulty', dbDifficulty)
-              .eq('scene_id', sceneId)
-              .eq('native_language', userNativeLanguage)
-              .order('order_index', { ascending: true });
-            dbExercises = result.data;
-            dbError = result.error;
-          } else {
-            // Use existing RPC for non-scene exercises
-            const result = await supabase
-              .rpc('get_youtube_exercises_with_answers', { 
-                video_id_param: videoData.id,
-                difficulty_param: dbDifficulty,
-                native_language_param: userNativeLanguage
-              });
-            dbExercises = result.data;
-            dbError = result.error;
+            rpcParams.scene_id_param = sceneId;
           }
+          const result = await supabase.rpc('get_youtube_exercises_with_answers', rpcParams);
+          dbExercises = result.data;
+          dbError = result.error;
 
           if (dbError) {
             console.error('Error fetching exercises:', dbError);

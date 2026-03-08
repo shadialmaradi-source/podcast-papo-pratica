@@ -2501,6 +2501,30 @@ export type Database = {
               xp_reward: number
             }[]
           }
+        | {
+            Args: {
+              difficulty_param?: string
+              native_language_param?: string
+              scene_id_param?: string
+              video_id_param: string
+            }
+            Returns: {
+              context_sentence: string
+              correct_answer: string
+              difficulty: string
+              exercise_type: string
+              explanation: string
+              id: string
+              intensity: string
+              options: Json
+              order_index: number
+              question: string
+              question_translation: string
+              video_id: string
+              vocabulary_words: Json
+              xp_reward: number
+            }[]
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

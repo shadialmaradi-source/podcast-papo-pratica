@@ -304,10 +304,7 @@ export default function Lesson() {
 
   const handleSceneSelect = (sceneIndex: number) => {
     setCurrentSceneIndex(sceneIndex);
-    if (lessonState === "exercises") {
-      setLessonState("select-level");
-      setTimeout(() => setLessonState("exercises"), 50);
-    }
+    // Key prop on YouTubeExercises includes currentSceneIndex, so it auto-remounts
   };
 
   const handleNextVideo = async () => {
