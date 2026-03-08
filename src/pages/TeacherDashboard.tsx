@@ -63,6 +63,8 @@ export default function TeacherDashboard() {
     setLessonType(type);
     if (type === "youtube") {
       setStep("youtube_source");
+    } else if (type === "speaking") {
+      setStep("speaking_form");
     } else {
       setPrefillYoutubeUrl(null);
       setStep("form");
