@@ -5,13 +5,17 @@ import { useNavigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Users, BookOpen, TrendingUp, AlertTriangle, BarChart3, ArrowUpRight, ArrowDownRight, ArrowRight } from "lucide-react";
+import { ArrowLeft, Users, BookOpen, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight, ArrowRight } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format, subDays, isAfter } from "date-fns";
+import { format, subDays, isAfter, differenceInWeeks, differenceInDays } from "date-fns";
+import { RetentionMetrics } from "@/components/teacher/analytics/RetentionMetrics";
+import { ChurnPrediction, type ChurnStudent } from "@/components/teacher/analytics/ChurnPrediction";
+import { EngagementMetrics } from "@/components/teacher/analytics/EngagementMetrics";
+import { ContentPerformance, type ContentItem } from "@/components/teacher/analytics/ContentPerformance";
+import { CohortAnalysis, type CohortRow } from "@/components/teacher/analytics/CohortAnalysis";
 
 type StudentWithStats = {
   id: string;
@@ -20,6 +24,7 @@ type StudentWithStats = {
   level: string | null;
   status: string;
   last_active: string | null;
+  invited_at: string;
   assigned: number;
   completed: number;
   in_progress: number;
@@ -41,6 +46,8 @@ export default function TeacherAnalytics() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [completionOverTime, setCompletionOverTime] = useState<{ date: string; completed: number }[]>([]);
   const [lessonsByLevel, setLessonsByLevel] = useState<{ level: string; count: number }[]>([]);
+  const [allResponses, setAllResponses] = useState<{ lesson_id: string; submitted_at: string }[]>([]);
+  const [allLessons, setAllLessons] = useState<{ id: string; student_email: string | null; status: string; cefr_level: string; created_at: string; title: string }[]>([]);
 
   useEffect(() => {
     if (roleLoading) return;
@@ -49,6 +56,7 @@ export default function TeacherAnalytics() {
 
   useEffect(() => {
     trackEvent("analytics_viewed");
+    trackEvent("retention_viewed");
   }, []);
 
   useEffect(() => {
@@ -60,22 +68,17 @@ export default function TeacherAnalytics() {
     if (!user) return;
     setLoading(true);
 
-    const cutoffDate = timeRange === "7d" ? subDays(new Date(), 7) : timeRange === "30d" ? subDays(new Date(), 30) : null;
-
-    // Fetch students
     const { data: studentsData } = await supabase
       .from("teacher_students" as any)
       .select("*")
       .eq("teacher_id", user.id)
       .neq("status", "archived");
 
-    // Fetch lessons
     const { data: lessonsData } = await supabase
       .from("teacher_lessons")
-      .select("id, student_email, status, cefr_level, created_at")
+      .select("id, student_email, status, cefr_level, created_at, title")
       .eq("teacher_id", user.id);
 
-    // Fetch responses for timeline
     const { data: responsesData } = await supabase
       .from("lesson_responses")
       .select("lesson_id, submitted_at")
@@ -84,8 +87,10 @@ export default function TeacherAnalytics() {
     const typedStudents = (studentsData || []) as any[];
     const lessons = lessonsData || [];
     const responses = responsesData || [];
+    setAllResponses(responses);
+    setAllLessons(lessons);
 
-    // Build per-student stats
+    const midpoint = subDays(new Date(), 15);
     const studentStats: StudentWithStats[] = typedStudents.map((s: any) => {
       const studentLessons = lessons.filter(l => l.student_email === s.student_email);
       const assigned = studentLessons.length;
@@ -94,15 +99,12 @@ export default function TeacherAnalytics() {
       const notStarted = assigned - completed - inProgress;
       const completionRate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
 
-      // Determine last active from responses
       const studentLessonIds = new Set(studentLessons.map(l => l.id));
       const studentResponses = responses.filter(r => studentLessonIds.has(r.lesson_id));
       const lastActive = studentResponses.length > 0
         ? studentResponses.sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())[0].submitted_at
         : s.last_active;
 
-      // Simple trend: compare recent vs older completion
-      const midpoint = subDays(new Date(), 15);
       const recentLessons = studentLessons.filter(l => l.created_at && isAfter(new Date(l.created_at), midpoint));
       const olderLessons = studentLessons.filter(l => l.created_at && !isAfter(new Date(l.created_at), midpoint));
       const recentRate = recentLessons.length > 0 ? recentLessons.filter(l => l.status === "completed").length / recentLessons.length : 0;
@@ -110,82 +112,156 @@ export default function TeacherAnalytics() {
       const trend: "improving" | "declining" | "steady" = recentRate > olderRate + 0.1 ? "improving" : recentRate < olderRate - 0.1 ? "declining" : "steady";
 
       return {
-        id: s.id,
-        student_email: s.student_email,
-        student_name: s.student_name,
-        level: s.level,
-        status: s.status,
-        last_active: lastActive,
-        assigned,
-        completed,
-        in_progress: inProgress,
-        not_started: notStarted,
-        completionRate,
-        trend,
+        id: s.id, student_email: s.student_email, student_name: s.student_name,
+        level: s.level, status: s.status, last_active: lastActive,
+        invited_at: s.invited_at || s.created_at || new Date().toISOString(),
+        assigned, completed, in_progress: inProgress, not_started: notStarted, completionRate, trend,
       };
     });
 
     setStudents(studentStats);
 
-    // Completion over time chart data
+    // Completion over time
     const dateMap = new Map<string, number>();
     responses.forEach(r => {
       const day = format(new Date(r.submitted_at), "MMM dd");
       dateMap.set(day, (dateMap.get(day) || 0) + 1);
     });
-    const sortedDates = [...dateMap.entries()]
-      .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
-      .slice(-30)
-      .map(([date, completed]) => ({ date, completed }));
-    setCompletionOverTime(sortedDates);
+    setCompletionOverTime(
+      [...dateMap.entries()]
+        .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+        .slice(-30)
+        .map(([date, completed]) => ({ date, completed }))
+    );
 
-    // Lessons by level chart
+    // Lessons by level
     const levelMap = new Map<string, number>();
-    lessons.forEach(l => {
-      levelMap.set(l.cefr_level, (levelMap.get(l.cefr_level) || 0) + 1);
-    });
-    const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
-    setLessonsByLevel(levels.map(level => ({ level, count: levelMap.get(level) || 0 })).filter(l => l.count > 0));
+    lessons.forEach(l => levelMap.set(l.cefr_level, (levelMap.get(l.cefr_level) || 0) + 1));
+    setLessonsByLevel(["A1", "A2", "B1", "B2", "C1", "C2"].map(level => ({ level, count: levelMap.get(level) || 0 })).filter(l => l.count > 0));
 
     setLoading(false);
   };
 
   // Overview stats
   const totalStudents = students.length;
-  const activeThisWeek = students.filter(s => {
-    if (!s.last_active) return false;
-    return isAfter(new Date(s.last_active), subDays(new Date(), 7));
-  }).length;
+  const activeThisWeek = students.filter(s => s.last_active && isAfter(new Date(s.last_active), subDays(new Date(), 7))).length;
   const totalAssigned = students.reduce((sum, s) => sum + s.assigned, 0);
-  const avgCompletion = totalStudents > 0
-    ? Math.round(students.reduce((sum, s) => sum + s.completionRate, 0) / totalStudents)
-    : 0;
+  const avgCompletion = totalStudents > 0 ? Math.round(students.reduce((sum, s) => sum + s.completionRate, 0) / totalStudents) : 0;
 
-  // At-risk students
-  const atRiskStudents = useMemo(() => students.filter(s => {
-    const inactive = !s.last_active || !isAfter(new Date(s.last_active), subDays(new Date(), 7));
-    const lowCompletion = s.completionRate < 50 && s.assigned > 0;
-    return inactive || lowCompletion;
-  }).map(s => {
-    const inactive = !s.last_active || !isAfter(new Date(s.last_active), subDays(new Date(), 7));
-    const lowCompletion = s.completionRate < 50 && s.assigned > 0;
-    const issue = inactive && lowCompletion
-      ? `Inactive + ${s.completionRate}% completion`
-      : inactive
-        ? `Not active in 7+ days`
-        : `Low completion (${s.completionRate}%)`;
-    return { ...s, issue };
-  }), [students]);
+  // Retention metrics
+  const retentionData = useMemo(() => {
+    const now = new Date();
+    const total = students.length;
+    if (total === 0) return { week1: { active: 0, total: 0, rate: 0 }, week2: { active: 0, total: 0, rate: 0 }, week4: { active: 0, total: 0, rate: 0 }, month1: { active: 0, total: 0, rate: 0 }, curve: [] };
 
-  // Filtered students
+    const calcActive = (days: number) => students.filter(s => s.last_active && isAfter(new Date(s.last_active), subDays(now, days))).length;
+    const w1 = calcActive(7), w2 = calcActive(14), w4 = calcActive(28), m1 = calcActive(30);
+    const rate = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
+
+    const curve = [
+      { week: "Week 0", retention: 100 },
+      { week: "Week 1", retention: rate(w1) },
+      { week: "Week 2", retention: rate(w2) },
+      { week: "Week 4", retention: rate(w4) },
+    ];
+
+    return {
+      week1: { active: w1, total, rate: rate(w1) },
+      week2: { active: w2, total, rate: rate(w2) },
+      week4: { active: w4, total, rate: rate(w4) },
+      month1: { active: m1, total, rate: rate(m1) },
+      curve,
+    };
+  }, [students]);
+
+  // Churn prediction
+  const churnStudents = useMemo<ChurnStudent[]>(() => {
+    return students.map(s => {
+      const daysInactive = s.last_active ? differenceInDays(new Date(), new Date(s.last_active)) : 30;
+      const inactiveScore = Math.min(daysInactive * 5, 50);
+      const completionScore = Math.min((100 - s.completionRate) * 0.5, 50);
+      const riskScore = Math.round(inactiveScore + completionScore);
+      const riskLevel = riskScore >= 80 ? "high" as const : riskScore >= 50 ? "medium" as const : "low" as const;
+      return { id: s.id, student_name: s.student_name, student_email: s.student_email, riskScore, riskLevel, lastActive: s.last_active, completionRate: s.completionRate };
+    }).filter(s => s.riskLevel !== "low");
+  }, [students]);
+
+  // Engagement metrics
+  const engagementData = useMemo(() => {
+    const responses = allResponses;
+    if (responses.length === 0) return { avgLessonsPerWeek: 0, mostActiveDay: "N/A", weeklyActivity: [] };
+
+    // Most active day
+    const dayCount = [0, 0, 0, 0, 0, 0, 0];
+    const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    responses.forEach(r => dayCount[new Date(r.submitted_at).getDay()]++);
+    const maxDay = dayCount.indexOf(Math.max(...dayCount));
+
+    // Weekly activity
+    const weekMap = new Map<string, number>();
+    responses.forEach(r => {
+      const wk = format(new Date(r.submitted_at), "MMM dd");
+      weekMap.set(wk, (weekMap.get(wk) || 0) + 1);
+    });
+    const weeklyActivity = [...weekMap.entries()].sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()).slice(-14).map(([week, responses]) => ({ week, responses }));
+
+    // Avg completions per week
+    const firstResponse = responses.reduce((min, r) => r.submitted_at < min ? r.submitted_at : min, responses[0].submitted_at);
+    const weeksSinceFirst = Math.max(1, differenceInWeeks(new Date(), new Date(firstResponse)));
+    const avgLessonsPerWeek = totalStudents > 0 ? responses.length / weeksSinceFirst : 0;
+
+    return { avgLessonsPerWeek, mostActiveDay: DAYS[maxDay], weeklyActivity };
+  }, [allResponses, totalStudents]);
+
+  // Content performance
+  const contentItems = useMemo<ContentItem[]>(() => {
+    const titleMap = new Map<string, { assigned: number; completed: number }>();
+    allLessons.forEach(l => {
+      const entry = titleMap.get(l.title) || { assigned: 0, completed: 0 };
+      entry.assigned++;
+      if (l.status === "completed") entry.completed++;
+      titleMap.set(l.title, entry);
+    });
+    return [...titleMap.entries()].map(([title, { assigned, completed }]) => ({
+      title, assigned, completed, completionRate: assigned > 0 ? Math.round((completed / assigned) * 100) : 0,
+    }));
+  }, [allLessons]);
+
+  // Cohort analysis
+  const cohortByMonth = useMemo<CohortRow[]>(() => {
+    const monthMap = new Map<string, StudentWithStats[]>();
+    students.forEach(s => {
+      const month = format(new Date(s.invited_at), "MMM yyyy");
+      monthMap.set(month, [...(monthMap.get(month) || []), s]);
+    });
+    return [...monthMap.entries()].map(([label, group]) => {
+      const active = group.filter(s => s.last_active && isAfter(new Date(s.last_active), subDays(new Date(), 14))).length;
+      return { label, totalStudents: group.length, activeStudents: active, retentionRate: group.length > 0 ? Math.round((active / group.length) * 100) : 0 };
+    });
+  }, [students]);
+
+  const cohortByLevel = useMemo<CohortRow[]>(() => {
+    const levelMap = new Map<string, StudentWithStats[]>();
+    students.forEach(s => {
+      const lvl = s.level || "Unknown";
+      levelMap.set(lvl, [...(levelMap.get(lvl) || []), s]);
+    });
+    return [...levelMap.entries()].map(([label, group]) => {
+      const active = group.filter(s => s.last_active && isAfter(new Date(s.last_active), subDays(new Date(), 14))).length;
+      return { label, totalStudents: group.length, activeStudents: active, retentionRate: group.length > 0 ? Math.round((active / group.length) * 100) : 0 };
+    });
+  }, [students]);
+
+  // Filtered students for activity table
+  const atRiskIds = useMemo(() => new Set(churnStudents.map(s => s.id)), [churnStudents]);
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
       if (statusFilter === "active") return s.last_active && isAfter(new Date(s.last_active), subDays(new Date(), 7));
-      if (statusFilter === "at_risk") return atRiskStudents.some(ar => ar.id === s.id);
+      if (statusFilter === "at_risk") return atRiskIds.has(s.id);
       if (statusFilter === "inactive") return !s.last_active || !isAfter(new Date(s.last_active), subDays(new Date(), 7));
       return true;
     });
-  }, [students, statusFilter, atRiskStudents]);
+  }, [students, statusFilter, atRiskIds]);
 
   const formatLastActive = (date: string | null) => {
     if (!date) return "Never";
@@ -252,6 +328,21 @@ export default function TeacherAnalytics() {
           </Card>
         </div>
 
+        {/* Retention Metrics */}
+        <RetentionMetrics data={retentionData} />
+
+        {/* Churn Prediction */}
+        <ChurnPrediction students={churnStudents} />
+
+        {/* Engagement + Content side by side on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <EngagementMetrics data={engagementData} />
+          <ContentPerformance items={contentItems} />
+        </div>
+
+        {/* Cohort Analysis */}
+        <CohortAnalysis byMonth={cohortByMonth} byLevel={cohortByLevel} />
+
         {/* Filters */}
         <div className="flex flex-wrap gap-3">
           <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
@@ -316,33 +407,6 @@ export default function TeacherAnalytics() {
             )}
           </CardContent>
         </Card>
-
-        {/* At-Risk Students */}
-        {atRiskStudents.length > 0 && (
-          <Card className="border-destructive/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                Students Who Need Attention ({atRiskStudents.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {atRiskStudents.map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium text-foreground">{s.student_name || s.student_email}</p>
-                      <p className="text-sm text-muted-foreground">{s.issue}</p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/student/${s.id}`)}>
-                      View Detail
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Charts */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
