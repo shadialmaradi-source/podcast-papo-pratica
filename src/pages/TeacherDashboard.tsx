@@ -104,9 +104,8 @@ export default function TeacherDashboard() {
             <BookOpen className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold text-foreground">Teacher Dashboard</h1>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+          <Button variant="ghost" size="icon" onClick={() => navigate("/teacher/settings")}>
+            <Settings className="h-5 w-5" />
           </Button>
         </div>
       </header>
