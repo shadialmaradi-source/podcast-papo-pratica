@@ -61,6 +61,7 @@ export default function WeekVideo() {
 
   useEffect(() => {
     if (!weekVideoId) return;
+    trackPageView("week_video", "student");
     loadData();
   }, [weekVideoId, user]);
 
