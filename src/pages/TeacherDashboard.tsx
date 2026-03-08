@@ -59,11 +59,33 @@ export default function TeacherDashboard() {
 
   const handleSelectType = (type: LessonType) => {
     setLessonType(type);
+    if (type === "youtube") {
+      setStep("youtube_source");
+    } else {
+      setPrefillYoutubeUrl(null);
+      setStep("form");
+    }
+  };
+
+  const handleYoutubeSource = (source: "scratch" | "community") => {
+    if (source === "scratch") {
+      setPrefillYoutubeUrl(null);
+      setStep("form");
+    } else {
+      setStep("youtube_browse");
+    }
+  };
+
+  const handleCommunityVideoSelected = (url: string) => {
+    setPrefillYoutubeUrl(url);
     setStep("form");
   };
 
   const handleBack = () => {
-    if (step === "form") setStep("choose_type");
+    if (step === "form" && lessonType === "youtube") setStep("youtube_source");
+    else if (step === "form") setStep("choose_type");
+    else if (step === "youtube_browse") setStep("youtube_source");
+    else if (step === "youtube_source") setStep("choose_type");
     else setStep("home");
   };
 
