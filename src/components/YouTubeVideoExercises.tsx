@@ -58,7 +58,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
 
   // YouTube IFrame API
-  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const playerContainerId = `yt-player-${videoId}`;
   const playerRef = useRef<any>(null);
   const timePollingRef = useRef<NodeJS.Timeout | null>(null);
 
