@@ -345,6 +345,8 @@ export default function StudentLesson() {
   };
 
   useEffect(() => {
+    trackPageView("student_lesson", "student");
+    if (id) trackEvent("student_lesson_opened", { lesson_id: id });
     loadData();
   }, [id, user]);
 
