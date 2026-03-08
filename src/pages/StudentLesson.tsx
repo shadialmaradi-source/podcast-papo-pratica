@@ -728,11 +728,19 @@ export default function StudentLesson() {
               onClick={() => setDone(true)}
               disabled={!allSubmitted}
               className="w-full"
+              style={hasBranding ? { backgroundColor: branding!.primary_color, color: "#fff" } : {}}
               size="lg"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Finish Lesson
             </Button>
+          )}
+
+          {/* Powered by footer */}
+          {hasBranding && branding!.show_powered_by !== false && (
+            <p className="text-center text-[10px] text-muted-foreground pt-4 border-t border-border">
+              Powered by <span className="font-semibold">{brandTeacherName}</span> · ListenFlow
+            </p>
           )}
         </div>
       </main>
