@@ -145,17 +145,17 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="space-y-6"
+                        className="space-y-4 md:space-y-6"
                         style={{ transform: 'rotateY(180deg)' }}
                       >
-                        <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">{getNativeLanguageFlag(nativeLanguage)}</span>
+                        <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
+                          <span className="text-xl md:text-2xl">{getNativeLanguageFlag(nativeLanguage)}</span>
                         </div>
-                         <p className="text-2xl md:text-3xl font-bold text-foreground">
+                         <p className="text-xl md:text-3xl font-bold text-foreground">
                            {getLocalizedText(currentCard.translation, nativeLanguage)}
                          </p>
-                         <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
-                           <p className="text-sm text-muted-foreground">
+                         <div className="bg-primary/5 rounded-xl p-3 md:p-4 border border-primary/20">
+                           <p className="text-xs md:text-sm text-muted-foreground">
                              <span className="text-primary font-medium">Why this matters:</span><br />
                              {getLocalizedText(currentCard.why, nativeLanguage)}
                            </p>
