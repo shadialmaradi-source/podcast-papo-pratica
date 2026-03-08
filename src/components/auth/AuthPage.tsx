@@ -66,7 +66,15 @@ export default function AuthPage() {
               .eq("user_id", loggedInUser.id)
               .maybeSingle();
             if (roleData && (roleData as any).role === "teacher") {
-              redirectPath = "/teacher";
+              // Check teacher onboarding
+              const { data: tp } = await supabase
+                .from("teacher_profiles" as any)
+                .select("onboarding_completed")
+                .eq("teacher_id", loggedInUser.id)
+                .maybeSingle();
+              redirectPath = (!tp || !(tp as any).onboarding_completed)
+                ? "/teacher/onboarding"
+                : "/teacher";
             }
           }
           toast({
