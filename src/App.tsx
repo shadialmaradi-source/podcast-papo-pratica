@@ -119,13 +119,21 @@ const App = () => {
 
             {/* Teacher routes */}
             <Route
+              path="/teacher/onboarding"
+              element={
+                <ProtectedRoute>
+                  <TeacherOnboarding />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/teacher"
               element={
                 <ProtectedRoute>
                   <TeacherDashboard />
-            </ProtectedRoute>
-            }
-          />
+                </ProtectedRoute>
+              }
+            />
           <Route
             path="/teacher/lesson/:id"
             element={
