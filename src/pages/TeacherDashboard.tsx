@@ -225,6 +225,7 @@ export default function TeacherDashboard() {
           </div>
         )}
       </main>
+      <TeacherNav />
     </div>
   );
 }

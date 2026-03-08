@@ -73,6 +73,7 @@ export default function TeacherSettings() {
           Sign Out
         </Button>
       </main>
+      <TeacherNav />
     </div>
   );
 }
