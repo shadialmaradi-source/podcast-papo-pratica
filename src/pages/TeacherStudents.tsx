@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive, Crown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive, Crown, ChevronLeft, ChevronRight, Video } from "lucide-react";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { AddStudentModal } from "@/components/teacher/AddStudentModal";
 import { EditStudentModal } from "@/components/teacher/EditStudentModal";
+import { VideoBrowserModal } from "@/components/teacher/VideoBrowserModal";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { trackEvent, trackPageView } from "@/lib/analytics";
@@ -51,6 +52,7 @@ export default function TeacherStudents() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
+  const [assignStudentEmail, setAssignStudentEmail] = useState<string | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [teacherPlan, setTeacherPlan] = useState("free");
 
@@ -375,6 +377,9 @@ export default function TeacherStudents() {
                             <Button variant="ghost" size="icon" onClick={() => setEditStudent(s)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setAssignStudentEmail(s.student_email)} title="Assign Video">
+                              <Video className="h-4 w-4" />
+                            </Button>
                             {s.status !== "archived" && (
                               <Button variant="ghost" size="icon" onClick={() => handleArchive(s)}>
                                 <Archive className="h-4 w-4" />
@@ -421,6 +426,12 @@ export default function TeacherStudents() {
 
       <AddStudentModal open={addOpen} onOpenChange={setAddOpen} onAdded={fetchData} />
       <EditStudentModal open={!!editStudent} onOpenChange={(o) => !o && setEditStudent(null)} student={editStudent} onUpdated={fetchData} />
+      <VideoBrowserModal
+        open={!!assignStudentEmail}
+        onOpenChange={(o) => { if (!o) setAssignStudentEmail(null); }}
+        studentEmail={assignStudentEmail || ""}
+        onAssigned={fetchData}
+      />
 
       {/* Upgrade prompt modal */}
       <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
