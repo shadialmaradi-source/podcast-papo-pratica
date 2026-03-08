@@ -70,11 +70,12 @@ const tiers = [
 
 const comparisonRows = [
   { feature: "Students", free: "3", pro: "Unlimited", premium: "Unlimited" },
-  { feature: "Learning Paths", free: false, pro: true, premium: true },
+  { feature: "Lessons/month", free: "10", pro: "60", premium: "160" },
+  { feature: "Max video length", free: "5 min", pro: "10 min", premium: "15 min" },
+  { feature: "Lesson types", free: "All", pro: "All", premium: "All" },
   { feature: "Analytics", free: "Basic", pro: "Advanced", premium: "Advanced" },
   { feature: "Branding", free: "ListenFlow", pro: "Removable", premium: "Your Brand" },
   { feature: "Support", free: "Email", pro: "Priority", premium: "Dedicated" },
-  { feature: "Custom Video Uploads", free: false, pro: false, premium: true },
   { feature: "API Access", free: false, pro: false, premium: true },
 ];
 
