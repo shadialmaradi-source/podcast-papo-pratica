@@ -621,7 +621,7 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                 {/* Phrase display */}
                 <div className="text-center space-y-2 md:space-y-3">
                   <div className="bg-primary/5 rounded-2xl p-4 md:p-6 border border-primary/20">
-                    <p className="text-2xl md:text-3xl font-bold text-foreground">
+                    <p className="text-xl md:text-3xl font-bold text-foreground">
                       {currentPhrase.phrase}
                     </p>
                   </div>
