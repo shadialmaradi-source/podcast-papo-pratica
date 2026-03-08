@@ -19,11 +19,26 @@ const targetLanguages = [
 ];
 
 const nativeLanguages = [
-  { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
-  { code: 'es', name: 'Spanish', flag: '🇪🇸', native: 'Español' },
-  { code: 'fr', name: 'French', flag: '🇫🇷', native: 'Français' },
-  { code: 'it', name: 'Italian', flag: '🇮🇹', native: 'Italiano' },
-  { code: 'pt', name: 'Portuguese', flag: '🇧🇷', native: 'Português' },
+  { code: 'en', name: 'English', flag: '🇺🇸' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt', name: 'Português', flag: '🇧🇷' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'ko', name: '한국어', flag: '🇰🇷' },
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'nl', name: 'Nederlands', flag: '🇳🇱' },
+  { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+  { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+  { code: 'sv', name: 'Svenska', flag: '🇸🇪' },
+  { code: 'no', name: 'Norsk', flag: '🇳🇴' },
+  { code: 'da', name: 'Dansk', flag: '🇩🇰' },
+  { code: 'el', name: 'Ελληνικά', flag: '🇬🇷' },
+  { code: 'th', name: 'ไทย', flag: '🇹🇭' },
 ];
 
 type Step = 'language' | 'native' | 'level';
@@ -33,6 +48,7 @@ const targetToNativeCode: Record<string, string> = {
   spanish: 'es',
   french: 'fr',
   italian: 'it',
+  german: 'de',
 };
 
 export default function Onboarding() {
@@ -217,29 +233,25 @@ export default function Onboarding() {
                 <h1 className="text-xl md:text-3xl font-bold text-foreground mb-1 md:mb-2">{t('onboardingNativeTitle')}</h1>
                 <p className="text-sm md:text-base text-muted-foreground">{t('onboardingNativeSubtitle')}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-8">
-                {filteredNativeLanguages.map((lang) => (
-                  <Card
-                    key={lang.code}
-                    onClick={() => setSelectedNativeLanguage(lang.code)}
-                    className={`cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] ${
-                      selectedNativeLanguage === lang.code ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'
-                    }`}
-                  >
-                    <CardContent className="p-3 md:p-6 text-center relative">
-                      {selectedNativeLanguage === lang.code && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-1 right-1 md:top-2 md:right-2">
-                          <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary flex items-center justify-center">
-                            <Check className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
-                          </div>
-                        </motion.div>
-                      )}
-                      <span className="text-3xl md:text-4xl mb-2 md:mb-3 block">{lang.flag}</span>
-                      <h3 className="font-bold text-foreground text-sm md:text-base">{lang.name}</h3>
-                      <p className="text-xs md:text-sm text-muted-foreground">{lang.native}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="max-h-[50vh] overflow-y-auto rounded-lg border border-border/50 p-2 mb-4 md:mb-8">
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-1.5 md:gap-2">
+                  {filteredNativeLanguages.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => setSelectedNativeLanguage(lang.code)}
+                      className={`flex items-center gap-1.5 md:gap-2 px-2 py-2 md:px-3 md:py-2.5 rounded-lg border text-left transition-all ${
+                        selectedNativeLanguage === lang.code
+                          ? 'ring-2 ring-primary border-primary bg-primary/10 shadow-sm'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                      }`}
+                    >
+                      <span className="text-base md:text-lg shrink-0">{lang.flag}</span>
+                      <span className={`text-xs md:text-sm truncate ${
+                        selectedNativeLanguage === lang.code ? 'font-semibold text-primary' : 'text-foreground'
+                      }`}>{lang.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="flex gap-2 md:gap-3">
                 <Button onClick={handleBack} variant="outline" size="lg" className="py-4 md:py-6 text-base md:text-lg rounded-full">

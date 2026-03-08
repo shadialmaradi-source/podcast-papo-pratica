@@ -1,5 +1,5 @@
 // Translation system for the entire application
-export type LanguageCode = 'en' | 'it' | 'pt' | 'es' | 'fr';
+export type LanguageCode = 'en' | 'it' | 'pt' | 'es' | 'fr' | 'de' | 'zh' | 'ja' | 'ko' | 'ar' | 'hi' | 'ru' | 'nl' | 'tr' | 'pl' | 'sv' | 'no' | 'da' | 'el' | 'th';
 
 export const translations = {
   en: {
@@ -529,11 +529,41 @@ export function mapLanguageToCode(language: string): LanguageCode {
     'english': 'en',
     'spanish': 'es',
     'french': 'fr',
+    'german': 'de',
+    'chinese': 'zh',
+    'japanese': 'ja',
+    'korean': 'ko',
+    'arabic': 'ar',
+    'hindi': 'hi',
+    'russian': 'ru',
+    'dutch': 'nl',
+    'turkish': 'tr',
+    'polish': 'pl',
+    'swedish': 'sv',
+    'norwegian': 'no',
+    'danish': 'da',
+    'greek': 'el',
+    'thai': 'th',
     'it': 'it',
     'pt': 'pt',
     'en': 'en',
     'es': 'es',
-    'fr': 'fr'
+    'fr': 'fr',
+    'de': 'de',
+    'zh': 'zh',
+    'ja': 'ja',
+    'ko': 'ko',
+    'ar': 'ar',
+    'hi': 'hi',
+    'ru': 'ru',
+    'nl': 'nl',
+    'tr': 'tr',
+    'pl': 'pl',
+    'sv': 'sv',
+    'no': 'no',
+    'da': 'da',
+    'el': 'el',
+    'th': 'th',
   };
   return mapping[language.toLowerCase()] || 'en';
 }
