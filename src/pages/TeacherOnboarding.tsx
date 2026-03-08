@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import {
   BookOpen, Users, BarChart3, ArrowRight, ArrowLeft, Check, SkipForward,
   Share2, ChevronRight
