@@ -8,7 +8,7 @@ import { Headphones, ArrowRight, ArrowLeft, Check, Sprout, BookOpen, Zap, Award 
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 
 const targetLanguages = [
   { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: true },
