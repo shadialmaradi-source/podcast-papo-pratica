@@ -80,6 +80,9 @@ export default function Library() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
 
+  // Assign modal state
+  const [assignVideo, setAssignVideo] = useState<{ id: string; title: string; videoId: string } | null>(null);
+
   // Tour state (1-4 steps, null = done)
   const [tourStep, setTourStep] = useState<number | null>(() => {
     return localStorage.getItem('library_tour_completed') ? null : 1;
