@@ -416,23 +416,26 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
             </Card>
           </motion.div>
         </AnimatePresence>
+        </div>
+      </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between">
+      {/* Sticky Navigation */}
+      <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+        <div className="max-w-2xl mx-auto flex justify-between">
           <Button
             variant="ghost"
             onClick={handlePrevious}
             disabled={currentIndex === 0}
-            className="gap-2"
+            className="gap-1 md:gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Previous
+            <span className="hidden sm:inline">Previous</span>
           </Button>
 
           {showFeedback && (
             <Button
               onClick={handleNext}
-              className="bg-primary hover:bg-primary/90 gap-2"
+              className="bg-primary hover:bg-primary/90 gap-1 md:gap-2"
             >
               {currentIndex === exercises.length - 1 ? 'See Results' : 'Next'}
               <ArrowRight className="w-4 h-4" />
