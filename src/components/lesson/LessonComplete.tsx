@@ -73,7 +73,7 @@ const LessonComplete = ({
           transition={{ delay: 0.4 }}
         >
           <Card className="shadow-xl rounded-2xl border-0">
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
               {/* XP earned */}
               <div className="text-center p-4 bg-primary/5 rounded-xl border border-primary/20">
                 <div className="flex items-center justify-center gap-2 text-primary">
