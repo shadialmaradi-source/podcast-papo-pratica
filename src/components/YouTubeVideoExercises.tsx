@@ -58,7 +58,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
 
   // YouTube IFrame API
-  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const playerContainerId = `yt-player-${videoId}`;
   const playerRef = useRef<any>(null);
   const timePollingRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -97,9 +97,11 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     };
 
     const createPlayer = () => {
-      if (!playerContainerRef.current || playerRef.current) return;
+      if (playerRef.current) return;
+      const el = document.getElementById(playerContainerId);
+      if (!el) return;
 
-      playerRef.current = new window.YT.Player(playerContainerRef.current, {
+      playerRef.current = new window.YT.Player(playerContainerId, {
         videoId: videoData.video_id,
         playerVars: {
           enablejsapi: 1,
@@ -398,7 +400,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
             <Card>
               <CardContent className="p-0">
                 <div className="aspect-video w-full">
-                  <div ref={playerContainerRef} className="w-full h-full" />
+                  <div key={videoData.video_id} id={playerContainerId} className="w-full h-full" />
                 </div>
               </CardContent>
             </Card>
