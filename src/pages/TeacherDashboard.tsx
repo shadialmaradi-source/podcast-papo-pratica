@@ -17,7 +17,7 @@ type FlowStep = "home" | "choose_type" | "form";
 type LessonType = "paragraph" | "youtube";
 
 export default function TeacherDashboard() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { role, loading: roleLoading } = useUserRole();
   const [dashboardReady, setDashboardReady] = useState(false);
