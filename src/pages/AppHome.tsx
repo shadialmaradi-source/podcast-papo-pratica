@@ -65,10 +65,21 @@ export default function AppHome() {
   useEffect(() => {
     if (user) {
       fetchProfile();
+      fetchStreakData();
       fetchUploadQuota();
       fetchAssignedLessons();
     }
   }, [user]);
+
+  const fetchStreakData = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("user_streak_data")
+      .select("current_streak, longest_streak")
+      .eq("user_id", user.id)
+      .single();
+    if (data) setStreakData(data);
+  };
 
   const fetchAssignedLessons = async () => {
     if (!user?.email) return;
