@@ -112,7 +112,8 @@ export default function TeacherPricing() {
   }, [role, roleLoading, navigate]);
 
   useEffect(() => {
-    trackEvent("pricing_viewed", { context: "teacher" });
+    trackPageView("teacher_pricing", "teacher");
+    trackEvent("teacher_pricing_viewed");
   }, []);
 
   useEffect(() => {
