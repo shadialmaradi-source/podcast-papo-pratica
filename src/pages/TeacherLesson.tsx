@@ -513,6 +513,31 @@ export default function TeacherLesson() {
           </div>
         )}
       </main>
+
+      {/* Keyboard shortcuts hint */}
+      {showShortcuts && exerciseGroups.length > 0 && !done && lesson?.status !== "completed" && (
+        <div className="fixed bottom-0 inset-x-0 bg-card/95 backdrop-blur border-t border-border px-4 py-2 z-50">
+          <div className="container mx-auto max-w-2xl flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Keyboard className="h-3.5 w-3.5" />
+              <span className="flex items-center gap-3 flex-wrap">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">←</kbd> Previous
+                <span className="text-border">·</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">→</kbd> Next
+                <span className="text-border">·</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Space</kbd> Toggle
+                <span className="text-border">·</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">R</kbd> Reveal
+                <span className="text-border">·</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> Unfocus
+              </span>
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground" onClick={() => setShowShortcuts(false)}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
