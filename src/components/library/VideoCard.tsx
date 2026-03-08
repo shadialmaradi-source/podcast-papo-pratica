@@ -148,9 +148,11 @@ export function VideoCard({
               📚 General
             </span>
           )}
-          <Badge variant="outline" className="text-xs py-0 px-1.5 capitalize ml-auto">
-            {difficultyLevel}
-          </Badge>
+          {isCurated && (
+            <Badge variant="outline" className="text-xs py-0 px-1.5 capitalize ml-auto">
+              {difficultyLevel}
+            </Badge>
+          )}
         </div>
       </CardContent>
     </Card>
