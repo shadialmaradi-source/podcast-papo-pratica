@@ -215,10 +215,10 @@ export default function WeekVideo() {
             source="curated"
             language={week.language || "italian"}
             onBack={() => setLessonStep("video")}
-            onComplete={() => setLessonStep("speaking")}
-            onContinueToSpeaking={() => setLessonStep("speaking")}
-            onTryNextLevel={() => setLessonStep("speaking")}
-            onSkipToFlashcards={() => setLessonStep("flashcards")}
+            onComplete={() => { trackFunnelStep("lesson", "speaking", 2, { video_id: weekVideoId }); setLessonStep("speaking"); }}
+            onContinueToSpeaking={() => { trackFunnelStep("lesson", "speaking", 2, { video_id: weekVideoId }); setLessonStep("speaking"); }}
+            onTryNextLevel={() => { trackFunnelStep("lesson", "speaking", 2, { video_id: weekVideoId }); setLessonStep("speaking"); }}
+            onSkipToFlashcards={() => { trackFunnelStep("lesson", "flashcards", 3, { video_id: weekVideoId }); setLessonStep("flashcards"); }}
           />
         )}
 
