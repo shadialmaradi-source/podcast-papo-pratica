@@ -99,6 +99,7 @@ export default function Library() {
 
   // Fetch curated video IDs (linked from week_videos)
   useEffect(() => {
+    trackPageLoad("library");
     supabase.from("week_videos").select("linked_video_id")
       .not("linked_video_id", "is", null)
       .then(({ data }) => {

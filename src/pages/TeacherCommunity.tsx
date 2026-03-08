@@ -101,7 +101,7 @@ export default function TeacherCommunity() {
       result.sort((a, b) => b.copy_count - a.copy_count);
     }
     return result;
-  }, [lessons, search, levelFilter, languageFilter, sortBy]);
+  }, [lessons, debouncedSearch, levelFilter, languageFilter, sortBy]);
 
   // Top contributors
   const topContributors = useMemo(() => {
