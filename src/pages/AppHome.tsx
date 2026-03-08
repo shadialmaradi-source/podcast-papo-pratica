@@ -294,9 +294,8 @@ export default function AppHome() {
 
   if (showQuickReview) {
     return (
-      <QuickReviewSession
+      <FlashcardRepository
         userId={user!.id}
-        language={profile?.selected_language || "english"}
         onClose={() => setShowQuickReview(false)}
       />
     );
