@@ -123,3 +123,6 @@ verify_jwt = false
 
 [functions.translate-vocabulary]
 verify_jwt = false
+
+[functions.notify-teacher-email]
+verify_jwt = false
