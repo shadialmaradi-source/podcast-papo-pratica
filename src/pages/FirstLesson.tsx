@@ -26,7 +26,11 @@ interface OnboardingVideo {
 
 const FirstLesson = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState<LessonStep>('intro');
+  const [step, setStep] = useState<LessonStep>(() => {
+    const saved = localStorage.getItem('lesson_step') as LessonStep | null;
+    const validSteps: LessonStep[] = ['intro', 'video', 'exercises', 'speaking', 'flashcards', 'complete'];
+    return saved && validSteps.includes(saved) ? saved : 'intro';
+  });
   const [exerciseScore, setExerciseScore] = useState(0);
   const [totalExercises, setTotalExercises] = useState(5);
   const [phrasesLearned, setPhrasesLearned] = useState(0);
@@ -97,8 +101,9 @@ const FirstLesson = () => {
 
   const handleFlashcardsComplete = () => {
     setFlashcardsLearned(activeFlashcards.length);
-    localStorage.removeItem('lesson_step');
     setStep('complete');
+    // Clear persisted step after navigating to complete screen
+    localStorage.removeItem('lesson_step');
   };
 
   switch (step) {
