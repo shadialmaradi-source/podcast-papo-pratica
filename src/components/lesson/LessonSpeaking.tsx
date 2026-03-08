@@ -630,8 +630,8 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                     {currentPhrase.translation}
                   </p>
                   
-                  <div className="bg-muted/50 rounded-lg p-3">
-                    <p className="text-sm text-muted-foreground">
+                  <div className="bg-muted/50 rounded-lg p-2 md:p-3">
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       <strong>Why learn this:</strong> {currentPhrase.why}
                     </p>
                   </div>
