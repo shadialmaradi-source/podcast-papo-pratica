@@ -19,11 +19,26 @@ const targetLanguages = [
 ];
 
 const nativeLanguages = [
-  { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
-  { code: 'es', name: 'Spanish', flag: '🇪🇸', native: 'Español' },
-  { code: 'fr', name: 'French', flag: '🇫🇷', native: 'Français' },
-  { code: 'it', name: 'Italian', flag: '🇮🇹', native: 'Italiano' },
-  { code: 'pt', name: 'Portuguese', flag: '🇧🇷', native: 'Português' },
+  { code: 'en', name: 'English', flag: '🇺🇸' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt', name: 'Português', flag: '🇧🇷' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'ko', name: '한국어', flag: '🇰🇷' },
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'nl', name: 'Nederlands', flag: '🇳🇱' },
+  { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+  { code: 'pl', name: 'Polski', flag: '🇵🇱' },
+  { code: 'sv', name: 'Svenska', flag: '🇸🇪' },
+  { code: 'no', name: 'Norsk', flag: '🇳🇴' },
+  { code: 'da', name: 'Dansk', flag: '🇩🇰' },
+  { code: 'el', name: 'Ελληνικά', flag: '🇬🇷' },
+  { code: 'th', name: 'ไทย', flag: '🇹🇭' },
 ];
 
 type Step = 'language' | 'native' | 'level';
@@ -33,6 +48,7 @@ const targetToNativeCode: Record<string, string> = {
   spanish: 'es',
   french: 'fr',
   italian: 'it',
+  german: 'de',
 };
 
 export default function Onboarding() {
