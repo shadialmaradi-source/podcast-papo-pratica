@@ -35,6 +35,7 @@ export default function Lesson() {
     trackFunnelStep("lesson", "select_level", 0, { video_id: videoId });
   }, [videoId]);
 
+  const handleBack = () => {
     if (lessonState === "select-level") {
       navigate("/library");
     } else if (lessonState === "exercises") {
