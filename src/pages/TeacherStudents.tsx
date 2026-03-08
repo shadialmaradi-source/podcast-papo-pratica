@@ -439,6 +439,7 @@ export default function TeacherStudents() {
           </div>
         </DialogContent>
       </Dialog>
+      <TeacherNav />
     </div>
   );
 }
