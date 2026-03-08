@@ -11,9 +11,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import {
-  BookOpen, Users, BarChart3, ArrowRight, ArrowLeft, Check, SkipForward,
-  Share2, ChevronRight
+  Users, ArrowRight, ArrowLeft, Check, ChevronRight
 } from "lucide-react";
+import { TeacherDemoWalkthrough } from "@/components/teacher/TeacherDemoWalkthrough";
 
 const LANGUAGES = [
   "English", "Spanish", "French", "Italian", "Portuguese",
