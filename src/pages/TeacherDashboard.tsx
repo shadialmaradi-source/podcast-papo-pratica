@@ -26,6 +26,7 @@ export default function TeacherDashboard() {
   const [step, setStep] = useState<FlowStep>("home");
   const [lessonType, setLessonType] = useState<LessonType>("paragraph");
   const [refresh, setRefresh] = useState(0);
+  const [prefillYoutubeUrl, setPrefillYoutubeUrl] = useState<string | null>(null);
 
   // Redirect non-teachers away; redirect teachers who haven't onboarded
   useEffect(() => {
