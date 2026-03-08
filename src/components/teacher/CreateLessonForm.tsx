@@ -136,6 +136,10 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
   const [communityShared, setCommunityShared] = useState(false);
   const [togglingCommunity, setTogglingCommunity] = useState(false);
 
+  useEffect(() => {
+    trackEvent("teacher_lesson_creation_started", { type: lessonType });
+  }, [lessonType]);
+
   // Inline result state
   const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
