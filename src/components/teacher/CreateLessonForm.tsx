@@ -287,6 +287,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
       setLessonYoutubeUrl(values.youtube_url || null);
       setSelectedExerciseTypes(values.exercise_types);
       toast({ title: "Lesson created!", description: "Click the exercise type buttons below to generate exercises." });
+      trackEvent("teacher_lesson_creation_completed", { type: lessonType, language: values.language, cefr_level: values.cefr_level });
       onCreated(data.id);
 
       // Fetch transcript for YouTube lessons
