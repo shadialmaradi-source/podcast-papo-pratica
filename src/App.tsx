@@ -172,6 +172,14 @@ const App = () => {
               }
             />
           <Route
+            path="/teacher/community"
+            element={
+              <ProtectedRoute>
+                <TeacherCommunity />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/teacher/lesson/:id"
             element={
               <ProtectedRoute>
