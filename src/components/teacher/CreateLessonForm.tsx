@@ -122,9 +122,10 @@ interface CreateLessonFormProps {
   lessonType: LessonType;
   onCreated: (lessonId: string) => void;
   onCancel: () => void;
+  prefillYoutubeUrl?: string;
 }
 
-export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLessonFormProps) {
+export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutubeUrl }: CreateLessonFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);

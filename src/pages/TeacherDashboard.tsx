@@ -186,6 +186,26 @@ export default function TeacherDashboard() {
           </div>
         )}
 
+        {step === "youtube_source" && (
+          <div className="space-y-4">
+            <Button variant="ghost" size="sm" onClick={handleBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <YouTubeSourceSelector onSelect={handleYoutubeSource} />
+          </div>
+        )}
+
+        {step === "youtube_browse" && (
+          <div className="space-y-4">
+            <Button variant="ghost" size="sm" onClick={handleBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <CommunityVideoBrowser onSelectVideo={handleCommunityVideoSelected} />
+          </div>
+        )}
+
         {step === "form" && (
           <div className="space-y-4">
             <Button variant="ghost" size="sm" onClick={handleBack}>
@@ -198,6 +218,7 @@ export default function TeacherDashboard() {
                   lessonType={lessonType}
                   onCreated={handleCreated}
                   onCancel={handleBack}
+                  prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
                 />
               </CardContent>
             </Card>
