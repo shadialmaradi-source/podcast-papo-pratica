@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Link2, Flame, Star, GraduationCap, X } from "lucide-react";
+import { BookOpen, Link2, Flame, Star, GraduationCap, X, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import { getUploadQuotaStatus } from "@/services/subscriptionService";
 import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { trackEvent } from "@/lib/analytics";
+import { QuickReviewSession } from "@/components/QuickReviewSession";
 
 interface UserProfile {
   full_name: string | null;
@@ -50,6 +51,8 @@ export default function AppHome() {
   const [importing, setImporting] = useState(false);
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [showHints, setShowHints] = useState(() => !localStorage.getItem("has_seen_home_hints"));
+  const [showQuickReview, setShowQuickReview] = useState(false);
+  const [flashcardCount, setFlashcardCount] = useState(0);
   
   // Upload quota state
   const [uploadQuota, setUploadQuota] = useState<{
@@ -68,6 +71,7 @@ export default function AppHome() {
       fetchStreakData();
       fetchUploadQuota();
       fetchAssignedLessons();
+      fetchFlashcardCount();
     }
   }, [user]);
 
@@ -90,6 +94,15 @@ export default function AppHome() {
       .in("status", ["ready", "active", "completed"])
       .order("created_at", { ascending: false });
     if (data) setAssignedLessons(data as AssignedLesson[]);
+  };
+
+  const fetchFlashcardCount = async () => {
+    if (!user) return;
+    const { count } = await supabase
+      .from("user_viewed_flashcards")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    setFlashcardCount(count || 0);
   };
 
   const fetchUploadQuota = async () => {
@@ -216,6 +229,16 @@ export default function AppHome() {
     );
   }
 
+  if (showQuickReview) {
+    return (
+      <QuickReviewSession
+        userId={user!.id}
+        language={profile?.selected_language || "english"}
+        onClose={() => setShowQuickReview(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -323,6 +346,30 @@ export default function AppHome() {
               </AnimatePresence>
             </motion.div>
           </div>
+
+          {/* Quick Review Button */}
+          {flashcardCount > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Button
+                variant="ghost"
+                className="w-full justify-between border border-border rounded-xl px-4 py-3 h-auto hover:border-primary/40 transition-colors"
+                onClick={() => {
+                  trackEvent("quick_review_opened", { flashcard_count: flashcardCount });
+                  setShowQuickReview(true);
+                }}
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <RotateCw className="w-4 h-4 text-primary" />
+                  Review Flashcards
+                </span>
+                <span className="text-xs text-muted-foreground">{flashcardCount} cards</span>
+              </Button>
+            </motion.div>
+          )}
 
           {/* Got it dismiss button */}
           <AnimatePresence>
