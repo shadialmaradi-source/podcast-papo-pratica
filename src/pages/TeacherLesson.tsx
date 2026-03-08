@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { EXERCISE_TYPE_LABELS, TYPE_COLORS } from "@/components/teacher/ExercisePresenter";
 import type { Exercise } from "@/components/teacher/ExercisePresenter";
+import { TeacherSpeakingView } from "@/components/lesson/TeacherSpeakingView";
 import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight, X, Keyboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
