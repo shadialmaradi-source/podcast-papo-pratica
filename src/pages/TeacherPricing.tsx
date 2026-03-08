@@ -50,7 +50,7 @@ const tiers = [
       "60 lessons/month",
       "Videos up to 10 min",
       "Advanced analytics",
-      "Priority support",
+      
       "Remove branding",
     ],
   },
