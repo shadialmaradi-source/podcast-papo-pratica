@@ -144,9 +144,10 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+      className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
     >
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex-1 overflow-auto p-3 md:p-8">
+        <div className="max-w-3xl mx-auto space-y-3 md:space-y-6">
         <div className="space-y-2">
           <Button
             variant="ghost"
