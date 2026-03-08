@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Link2, Flame, Star, GraduationCap, X, RotateCw, Video, MessageSquare, CalendarDays, CheckCircle2 } from "lucide-react";
+import { BookOpen, Link2, Flame, Star, GraduationCap, X, RotateCw, MessageSquare, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { trackEvent, trackPageLoad, trackPageView } from "@/lib/analytics";
 import { FlashcardRepository } from "@/components/FlashcardRepository";
 import { useStudentTour } from "@/hooks/useStudentTour";
+import AssignedVideosSection from "@/components/AssignedVideosSection";
 
 interface UserProfile {
   full_name: string | null;
@@ -42,14 +43,6 @@ interface AssignedLesson {
   status: string;
 }
 
-interface VideoAssignment {
-  id: string;
-  video_id: string | null;
-  video_title: string | null;
-  due_date: string | null;
-  note: string | null;
-  status: string;
-}
 
 interface SpeakingAssignment {
   id: string;
@@ -75,7 +68,7 @@ export default function AppHome() {
   const [showHints, setShowHints] = useState(() => tourPhase === "home");
   const [showQuickReview, setShowQuickReview] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState(0);
-  const [videoAssignments, setVideoAssignments] = useState<VideoAssignment[]>([]);
+  
   const [speakingAssignments, setSpeakingAssignments] = useState<SpeakingAssignment[]>([]);
   
   // Upload quota state
@@ -98,7 +91,6 @@ export default function AppHome() {
       fetchUploadQuota();
       fetchAssignedLessons();
       fetchFlashcardCount();
-      fetchVideoAssignments();
       fetchSpeakingAssignments();
     }
   }, [user]);
@@ -133,18 +125,6 @@ export default function AppHome() {
     setFlashcardCount(count || 0);
   };
 
-  const fetchVideoAssignments = async () => {
-    if (!user?.email) return;
-    const { data } = await supabase
-      .from("video_assignments" as any)
-      .select("id, video_id, video_title, due_date, note, status")
-      .eq("student_email", user.email)
-      .eq("status", "assigned")
-      .eq("assignment_type", "video")
-      .order("created_at", { ascending: false });
-    if (data) setVideoAssignments(data as unknown as VideoAssignment[]);
-  };
-
   const fetchSpeakingAssignments = async () => {
     if (!user?.email) return;
     const { data } = await supabase
@@ -156,13 +136,8 @@ export default function AppHome() {
     if (data) setSpeakingAssignments(data as unknown as SpeakingAssignment[]);
   };
 
-  const markAssignmentComplete = async (assignmentId: string) => {
-    await supabase
-      .from("video_assignments" as any)
-      .update({ status: "completed", completed_at: new Date().toISOString() } as any)
-      .eq("id", assignmentId);
-    fetchVideoAssignments();
-  };
+
+
 
   const fetchUploadQuota = async () => {
     if (!user) return;
@@ -459,50 +434,7 @@ export default function AppHome() {
           </div>
 
           {/* Teacher Assignments - Videos */}
-          {videoAssignments.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Video className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">Video Assignments</h3>
-              </div>
-              <div className="space-y-2">
-                {videoAssignments.slice(0, 5).map((a) => (
-                  <Card key={a.id} className="border border-border">
-                    <CardContent className="px-4 py-3 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                          <Video className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-foreground text-sm truncate">{a.video_title}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {a.due_date && (
-                              <span className="flex items-center gap-1">
-                                <CalendarDays className="h-3 w-3" />
-                                {format(new Date(a.due_date), "MMM d")}
-                              </span>
-                            )}
-                            {a.note && <span className="truncate max-w-[150px]">{a.note}</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {a.video_id && (
-                          <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/lesson/${a.video_id}`)}>
-                            Watch
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" className="text-xs" onClick={() => markAssignmentComplete(a.id)}>
-                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                          Done
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
+          <AssignedVideosSection />
 
           {/* Teacher Assignments - Speaking */}
           {speakingAssignments.length > 0 && (

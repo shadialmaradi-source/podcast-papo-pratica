@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
 import { YouTubeExercises } from "@/components/YouTubeExercises";
@@ -22,6 +22,8 @@ interface LessonStats {
 export default function Lesson() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isAssignment = searchParams.get("assignment") === "true";
   const [lessonState, setLessonState] = useState<LessonState>("select-level");
   const [selectedLevel, setSelectedLevel] = useState("");
   const [nextVideoLoading, setNextVideoLoading] = useState(false);
@@ -42,7 +44,46 @@ export default function Lesson() {
   useEffect(() => {
     trackPageView("lesson", "student");
     trackFunnelStep("lesson", "select_level", 0, { video_id: videoId });
-  }, [videoId]);
+    if (isAssignment && videoId) {
+      markAssignmentInProgress(videoId);
+    }
+  }, [videoId, isAssignment]);
+
+  const markAssignmentInProgress = async (vid: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return;
+      // Look up the youtube video_id string from the UUID
+      const { data: videoData } = await supabase.from("youtube_videos").select("video_id").eq("id", vid).single();
+      const ytId = videoData?.video_id || vid;
+      await supabase
+        .from("video_assignments" as any)
+        .update({ status: "in_progress" } as any)
+        .eq("student_email", user.email)
+        .eq("video_id", ytId)
+        .eq("status", "assigned");
+    } catch (err) {
+      console.error("Error updating assignment status:", err);
+    }
+  };
+
+  const markAssignmentCompleted = async (vid: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return;
+      const { data: videoData } = await supabase.from("youtube_videos").select("video_id").eq("id", vid).single();
+      const ytId = videoData?.video_id || vid;
+      await supabase
+        .from("video_assignments" as any)
+        .update({ status: "completed", completed_at: new Date().toISOString() } as any)
+        .eq("student_email", user.email)
+        .eq("video_id", ytId)
+        .neq("status", "completed");
+      trackEvent("assignment_completed", { video_id: vid });
+    } catch (err) {
+      console.error("Error completing assignment:", err);
+    }
+  };
 
   // Load scene progress on mount
   useEffect(() => {
@@ -256,6 +297,9 @@ export default function Lesson() {
       ...prev,
       flashcardsCount: count || 5,
     }));
+    if (isAssignment && videoId) {
+      markAssignmentCompleted(videoId);
+    }
     setLessonState("complete");
   };
 

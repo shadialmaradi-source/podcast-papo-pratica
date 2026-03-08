@@ -1,86 +1,124 @@
 
 
-# Plan: Enhanced "Assigned by Teacher" Section on Student Homepage
+# Plan: Teacher YouTube Lesson Overhaul
 
-## Current State
+This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
 
-- Video assignments already display on `/app` as simple list items with Watch/Done buttons
-- The `video_assignments` table stores `video_id` (YouTube ID string, NOT the UUID), `video_title`, `due_date`, `note`, `status`
-- Navigation to `/lesson/${a.video_id}` is broken because the Lesson page expects a `youtube_videos.id` UUID, not a YouTube video ID string
-- No `/my-assignments` page exists
-- No teacher name shown on assignments
-- No overdue/due-soon styling
-- No thumbnail display
+## Summary of Changes
 
-## Key Issue: video_id Mismatch
+1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
+2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
+3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
+4. **Student lesson view update** -- same grouped-by-type sequential layout
 
-The `AssignVideoModal` stores the YouTube video ID (e.g. `dQw4w9WgXcQ`) but the lesson route needs the `youtube_videos.id` UUID. We need to look up the UUID when navigating.
+---
 
-## Plan
+## Phase 1: Simplified Student Onboarding
 
-### 1. Create `AssignedVideosSection.tsx` component
+### Problem
+Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
 
-New component replacing the current inline video assignments block in AppHome. Features:
-- Fetch assignments with a join-like approach: after fetching assignments, look up `youtube_videos` by `video_id` field to get UUID, thumbnail, level, duration
-- Sort: overdue first, then by due date ascending, then no due date
-- Show max 3 cards (2 on mobile)
-- "See All" link to `/my-assignments` if more than 3
-- Hide section entirely if no assignments
+### Solution
+- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
+- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
+- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
 
-Each card shows:
-- Thumbnail (from `youtube_videos.thumbnail_url`, derived from YouTube ID)
-- Title, level badge, duration
-- Due date badge with color coding (overdue=red, today=orange, soon=yellow, normal=gray)
-- Teacher note (truncated)
-- CTA button: Start / Continue / Review based on status
-- Red border for overdue items
+### Files changed
+- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
+- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
+- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
 
-### 2. Create `AssignmentVideoCard.tsx` component
+---
 
-Reusable card for both homepage and assignments page. Props: assignment data + video metadata. Handles:
-- Due date logic and badge colors
-- Status-based CTA text
-- Click → navigate to `/lesson/{youtube_videos_uuid}` (look up UUID from YouTube video ID)
-- Track analytics on click
+## Phase 2: Remove image_discussion, Update Exercise Types
 
-### 3. Create `/my-assignments` page (`MyAssignments.tsx`)
+### DB migration
+- No schema changes needed (exercise_types is a text array, content is JSONB)
 
-Full page showing all video assignments with:
-- Filter tabs: All / Overdue / Upcoming / Completed
-- Each assignment as a card (reuses `AssignmentVideoCard`)
-- Sorting by due date
+### Edge function: `generate-lesson-exercises`
+- Remove `image_discussion` from `EXERCISE_PROMPTS`
+- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
+- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
+- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
 
-### 4. Update `AppHome.tsx`
+### Frontend: `CreateLessonForm.tsx`
+- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
 
-- Replace the current inline video assignments block (lines 461-505) with `<AssignedVideosSection />`
-- Move section ABOVE the "What do you want to learn today?" heading
-- Remove the `markAssignmentComplete` function and related state (handled by the new component)
+### Files changed
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
+- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
 
-### 5. Update assignment status on lesson interaction
+---
 
-- In `Lesson.tsx`: check URL param `?assignment=true`, update `video_assignments` status to `in_progress` on load and `completed` on lesson completion
-- Look up assignment by matching `video_id` (YouTube ID) from the `youtube_videos` table
+## Phase 3: Teacher Post-Creation View (YouTube lessons)
 
-### 6. Add route for `/my-assignments`
+### Current state
+After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
 
-In `App.tsx`, add protected route for the new page.
+### New design
+After creation, the teacher sees:
+1. **Share link** (unchanged)
+2. **YouTube video embed** at the top
+3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
+4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
 
-### 7. Analytics
+### Transcript fetching approach
+- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
+- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
 
-Track: `assignment_viewed`, `assignment_started`, `assignment_completed`, `my_assignments_page_viewed`
+### DB migration
+```sql
+ALTER TABLE teacher_lessons ADD COLUMN transcript text;
+```
 
-## Files Changed
+### Files changed
+- **DB migration** -- add `transcript` column
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
+- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
 
-| File | Change |
-|------|--------|
-| `src/components/AssignedVideosSection.tsx` | New — fetches & displays top 3 assignments |
-| `src/components/AssignmentVideoCard.tsx` | New — individual assignment card |
-| `src/pages/MyAssignments.tsx` | New — full assignments list page |
-| `src/pages/AppHome.tsx` | Replace inline video assignments with new component, reposition above hero |
-| `src/pages/Lesson.tsx` | Handle `?assignment=true` param for status updates |
-| `src/App.tsx` | Add `/my-assignments` route |
+---
 
-## No Database Changes Needed
+## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
 
-The existing `video_assignments` table and RLS policies are sufficient. The `youtube_videos` table already has the thumbnail/level/duration data we need.
+Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
+- Show video at top
+- Show transcript below (same interactive component)
+- Exercise sections grouped by type, each with its own prev/next within 5 questions
+
+### Files changed
+- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
+- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
+
+---
+
+## Phase 5: Student Lesson View (`StudentLesson.tsx`)
+
+Mirror the teacher's layout for the student:
+- Video at top
+- Transcript (read-only or interactive if we want students to also explore words)
+- Exercise sections grouped by type, sequential, with submit per question
+
+### Files changed
+- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
+
+---
+
+## Technical Details
+
+### Exercise generation counts
+| Type | Count |
+|------|-------|
+| fill_in_blank | 5 |
+| multiple_choice | 5 |
+| spot_the_mistake | 5 |
+| role_play | 2-3 scenarios |
+
+### Role-play prompt update
+The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
+
+### Transcript storage
+Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
+
+### RLS
+No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
 
