@@ -64,6 +64,7 @@ export default function TeacherStudentDetail() {
   const [student, setStudent] = useState<StudentRow | null>(null);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [speakingAssignments, setSpeakingAssignments] = useState<SpeakingAssignmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [videoBrowserOpen, setVideoBrowserOpen] = useState(false);
