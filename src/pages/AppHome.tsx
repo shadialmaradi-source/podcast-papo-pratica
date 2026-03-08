@@ -354,7 +354,7 @@ export default function AppHome() {
                 <Flame className="w-4 h-4 text-accent-foreground" />
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">{profile?.current_streak || 0}</p>
+                <p className="text-sm font-medium text-foreground">{streakData?.current_streak || 0}</p>
                 <p className="text-xs text-muted-foreground">Day streak</p>
               </div>
             </div>
