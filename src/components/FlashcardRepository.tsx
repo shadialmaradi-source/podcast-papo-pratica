@@ -150,13 +150,12 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   };
 
   const getFilteredFlashcards = () => {
-    let filtered = flashcards;
+    let filtered = languageFilteredFlashcards;
 
     if (filter === "unmastered") {
-      filtered = flashcards.filter(fc => !fc.is_mastered);
+      filtered = filtered.filter(fc => !fc.is_mastered);
     } else if (filter !== "all") {
-      // Filter by video_id
-      filtered = flashcards.filter(fc => fc.video_id === filter);
+      filtered = filtered.filter(fc => fc.video_id === filter);
     }
 
     return filtered;
