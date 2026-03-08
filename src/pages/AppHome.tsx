@@ -96,6 +96,15 @@ export default function AppHome() {
     if (data) setAssignedLessons(data as AssignedLesson[]);
   };
 
+  const fetchFlashcardCount = async () => {
+    if (!user) return;
+    const { count } = await supabase
+      .from("user_viewed_flashcards")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    setFlashcardCount(count || 0);
+  };
+
   const fetchUploadQuota = async () => {
     if (!user) return;
     try {
