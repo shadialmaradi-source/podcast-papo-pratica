@@ -8,7 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive, Crown } from "lucide-react";
 import { AddStudentModal } from "@/components/teacher/AddStudentModal";
 import { EditStudentModal } from "@/components/teacher/EditStudentModal";
 import { toast } from "@/hooks/use-toast";
@@ -44,6 +45,8 @@ export default function TeacherStudents() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [teacherPlan, setTeacherPlan] = useState("free");
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("all");
@@ -58,6 +61,14 @@ export default function TeacherStudents() {
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
+
+    // Fetch teacher plan
+    const { data: subData } = await supabase
+      .from("teacher_subscriptions" as any)
+      .select("plan")
+      .eq("teacher_id", user.id)
+      .maybeSingle();
+    setTeacherPlan((subData as any)?.plan || "free");
 
     // Fetch students
     const { data: studentsData } = await supabase
@@ -165,7 +176,14 @@ export default function TeacherStudents() {
               </h1>
             </div>
           </div>
-          <Button onClick={() => setAddOpen(true)}>
+          <Button onClick={() => {
+            const nonArchived = students.filter(s => s.status !== "archived").length;
+            if (teacherPlan === "free" && nonArchived >= 3) {
+              setUpgradeOpen(true);
+            } else {
+              setAddOpen(true);
+            }
+          }}>
             <Plus className="mr-2 h-4 w-4" />
             Add Student
           </Button>
@@ -173,6 +191,19 @@ export default function TeacherStudents() {
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-5xl space-y-6">
+        {/* Free tier banner */}
+        {teacherPlan === "free" && (
+          <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <p className="text-sm text-foreground">
+              You're using <strong>{students.filter(s => s.status !== "archived").length}</strong> of <strong>3</strong> free student slots.
+            </p>
+            <Button size="sm" variant="outline" onClick={() => navigate("/teacher/pricing")}>
+              <Crown className="mr-1.5 h-3.5 w-3.5" />
+              Upgrade
+            </Button>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
@@ -312,6 +343,28 @@ export default function TeacherStudents() {
 
       <AddStudentModal open={addOpen} onOpenChange={setAddOpen} onAdded={fetchData} />
       <EditStudentModal open={!!editStudent} onOpenChange={(o) => !o && setEditStudent(null)} student={editStudent} onUpdated={fetchData} />
+
+      {/* Upgrade prompt modal */}
+      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+        <DialogContent className="sm:max-w-md text-center">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center gap-2">
+              <Crown className="h-5 w-5 text-primary" />
+              Upgrade to Pro
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            You've reached the free tier limit of 3 students. Upgrade to Pro for unlimited students and advanced features.
+          </p>
+          <div className="flex justify-center gap-3 pt-2">
+            <Button variant="outline" onClick={() => setUpgradeOpen(false)}>Cancel</Button>
+            <Button onClick={() => navigate("/teacher/pricing")}>
+              <Crown className="mr-2 h-4 w-4" />
+              Upgrade Now
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

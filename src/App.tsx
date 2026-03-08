@@ -23,6 +23,7 @@ import AuthCallback from "./pages/AuthCallback";
 import WeekDetail from "./pages/WeekDetail";
 import WeekVideo from "./pages/WeekVideo";
 import TeacherDashboard from "./pages/TeacherDashboard";
+import TeacherPricing from "./pages/TeacherPricing";
 import TeacherAnalytics from "./pages/TeacherAnalytics";
 import TeacherOnboarding from "./pages/TeacherOnboarding";
 import TeacherStudents from "./pages/TeacherStudents";
@@ -134,6 +135,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <TeacherDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/pricing"
+              element={
+                <ProtectedRoute>
+                  <TeacherPricing />
                 </ProtectedRoute>
               }
             />

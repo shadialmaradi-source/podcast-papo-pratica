@@ -1,80 +1,124 @@
 
 
-# Plan: Teacher Pricing Page and Stripe Integration
+# Plan: Teacher YouTube Lesson Overhaul
 
-## Overview
-Create a `/teacher/pricing` page with 3 tiers (Free/Pro/Premium), a dedicated teacher checkout edge function, a `teacher_subscriptions` table, webhook handling for teacher plans, and free-tier student limit enforcement.
+This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
 
-## Database Changes
+## Summary of Changes
 
-### New table: `teacher_subscriptions`
+1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
+2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
+3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
+4. **Student lesson view update** -- same grouped-by-type sequential layout
+
+---
+
+## Phase 1: Simplified Student Onboarding
+
+### Problem
+Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+
+### Solution
+- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
+- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
+- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+
+### Files changed
+- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
+- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
+- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+
+---
+
+## Phase 2: Remove image_discussion, Update Exercise Types
+
+### DB migration
+- No schema changes needed (exercise_types is a text array, content is JSONB)
+
+### Edge function: `generate-lesson-exercises`
+- Remove `image_discussion` from `EXERCISE_PROMPTS`
+- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
+- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
+- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+
+### Frontend: `CreateLessonForm.tsx`
+- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+
+### Files changed
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
+- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+
+---
+
+## Phase 3: Teacher Post-Creation View (YouTube lessons)
+
+### Current state
+After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+
+### New design
+After creation, the teacher sees:
+1. **Share link** (unchanged)
+2. **YouTube video embed** at the top
+3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
+4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+
+### Transcript fetching approach
+- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
+- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+
+### DB migration
 ```sql
-CREATE TABLE public.teacher_subscriptions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  teacher_id UUID NOT NULL UNIQUE,
-  plan TEXT NOT NULL DEFAULT 'free', -- 'free', 'pro', 'premium'
-  status TEXT NOT NULL DEFAULT 'active', -- 'active', 'cancelled', 'past_due'
-  stripe_customer_id TEXT,
-  stripe_subscription_id TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.teacher_subscriptions ENABLE ROW LEVEL SECURITY;
--- Teachers can read own subscription
-CREATE POLICY "Teachers can select own subscription" ON public.teacher_subscriptions FOR SELECT USING (auth.uid() = teacher_id);
--- Service role manages writes (webhook)
-CREATE POLICY "Service role can manage teacher subscriptions" ON public.teacher_subscriptions FOR ALL USING ((auth.jwt() ->> 'role') = 'service_role');
--- Teachers can insert own (for initial free record)
-CREATE POLICY "Teachers can insert own subscription" ON public.teacher_subscriptions FOR INSERT WITH CHECK (auth.uid() = teacher_id);
+ALTER TABLE teacher_lessons ADD COLUMN transcript text;
 ```
 
-## Files to Create
+### Files changed
+- **DB migration** -- add `transcript` column
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
+- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
 
-### 1. `src/pages/TeacherPricing.tsx`
-3-tier pricing page:
-- **Hero**: "Choose Your Plan" headline
-- **3 Cards**: Free ($0, 3 students, basic features), Pro ($19/mo, unlimited students, advanced features, "RECOMMENDED" badge), Premium ($39/mo, white-label, API, dedicated support)
-- **Comparison Table**: Feature matrix (students, learning paths, analytics, branding, support)
-- **FAQ Accordion**: Cancel policy, downgrade behavior, student pricing
-- **Checkout flow**: Pro/Premium buttons call `teacher-stripe-checkout` edge function, Premium also has "Contact Sales" option
-- **Manage Subscription**: If already on Pro/Premium, show "Manage Subscription" button linking to Stripe Portal
-- Uses existing `trackEvent` for analytics
+---
 
-### 2. `supabase/functions/teacher-stripe-checkout/index.ts`
-Separate edge function for teacher checkout (different products/prices than student Premium):
-- Accepts `{ plan: 'pro' | 'premium', successUrl, cancelUrl }`
-- Creates Stripe checkout session with inline `price_data`: $19/mo for Pro, $39/mo for Premium
-- Includes `supabase_user_id` and `teacher_plan` in metadata
-- Reuses existing Stripe customer lookup pattern from `stripe-checkout`
+## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
 
-## Files to Modify
+Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
+- Show video at top
+- Show transcript below (same interactive component)
+- Exercise sections grouped by type, each with its own prev/next within 5 questions
 
-### 3. `supabase/functions/stripe-webhook/index.ts`
-Add handling for teacher subscriptions:
-- In `checkout.session.completed`: check `metadata.teacher_plan` -- if present, upsert into `teacher_subscriptions` instead of `subscriptions`
-- In `customer.subscription.deleted` and `updated`: also check `teacher_subscriptions` table
-- Map `teacher_plan` metadata value to the correct plan column
+### Files changed
+- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
+- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
 
-### 4. `src/App.tsx`
-- Import `TeacherPricing`
-- Add protected route: `/teacher/pricing`
+---
 
-### 5. `src/pages/TeacherDashboard.tsx`
-- Add "Pricing" card (CreditCard icon) in the hero grid linking to `/teacher/pricing`
+## Phase 5: Student Lesson View (`StudentLesson.tsx`)
 
-### 6. `src/pages/TeacherStudents.tsx`
-- Before opening AddStudentModal, check teacher subscription plan from `teacher_subscriptions`
-- If plan is `free` and student count >= 3, show upgrade prompt modal instead of add student modal
-- Display a subtle banner when at 2/3 students: "You're using 2 of 3 free student slots"
+Mirror the teacher's layout for the student:
+- Video at top
+- Transcript (read-only or interactive if we want students to also explore words)
+- Exercise sections grouped by type, sequential, with submit per question
 
-### 7. `src/components/teacher/AddStudentModal.tsx`
-- Accept an optional `studentLimitReached` prop
-- If true, show upgrade prompt UI instead of the form
+### Files changed
+- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
 
-## No changes needed to `stripe-portal` -- it already works generically with any `stripe_customer_id`. The pricing page will query `teacher_subscriptions` for the customer ID and call the existing portal function.
+---
 
-## Enforcement Logic
-- Free tier: max 3 students (checked client-side against `teacher_students` count before insert)
-- Pro: unlimited students, all features
-- Premium: same as Pro + future white-label flags
+## Technical Details
+
+### Exercise generation counts
+| Type | Count |
+|------|-------|
+| fill_in_blank | 5 |
+| multiple_choice | 5 |
+| spot_the_mistake | 5 |
+| role_play | 2-3 scenarios |
+
+### Role-play prompt update
+The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
+
+### Transcript storage
+Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
+
+### RLS
+No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
 

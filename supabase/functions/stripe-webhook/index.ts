@@ -8,7 +8,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -27,9 +26,7 @@ serve(async (req) => {
       );
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2023-10-16',
-    });
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
 
     const signature = req.headers.get('stripe-signature');
     if (!signature) {
@@ -60,30 +57,49 @@ serve(async (req) => {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.metadata?.supabase_user_id;
-        
+        const teacherPlan = session.metadata?.teacher_plan;
+
         if (!userId) {
           console.error('No user ID in session metadata');
           break;
         }
 
-        // Upsert subscription record
-        const { error } = await supabase
-          .from('subscriptions')
-          .upsert({
-            user_id: userId,
-            tier: 'premium',
-            status: 'active',
-            stripe_customer_id: session.customer as string,
-            stripe_subscription_id: session.subscription as string,
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'user_id'
-          });
+        if (teacherPlan) {
+          // Teacher subscription
+          const { error } = await supabase
+            .from('teacher_subscriptions')
+            .upsert({
+              teacher_id: userId,
+              plan: teacherPlan,
+              status: 'active',
+              stripe_customer_id: session.customer as string,
+              stripe_subscription_id: session.subscription as string,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'teacher_id' });
 
-        if (error) {
-          console.error('Error updating subscription:', error);
+          if (error) {
+            console.error('Error updating teacher subscription:', error);
+          } else {
+            console.log('Teacher upgraded to', teacherPlan, ':', userId);
+          }
         } else {
-          console.log('User upgraded to premium:', userId);
+          // Student/user subscription
+          const { error } = await supabase
+            .from('subscriptions')
+            .upsert({
+              user_id: userId,
+              tier: 'premium',
+              status: 'active',
+              stripe_customer_id: session.customer as string,
+              stripe_subscription_id: session.subscription as string,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' });
+
+          if (error) {
+            console.error('Error updating subscription:', error);
+          } else {
+            console.log('User upgraded to premium:', userId);
+          }
         }
         break;
       }
@@ -91,38 +107,47 @@ serve(async (req) => {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         const userId = subscription.metadata?.supabase_user_id;
-        
-        if (!userId) {
-          // Try to find user by stripe subscription ID
+        const teacherPlan = subscription.metadata?.teacher_plan;
+
+        if (teacherPlan || !userId) {
+          // Try teacher_subscriptions first
+          const { data: teacherSub } = await supabase
+            .from('teacher_subscriptions')
+            .select('teacher_id')
+            .eq('stripe_subscription_id', subscription.id)
+            .single();
+
+          if (teacherSub) {
+            await supabase
+              .from('teacher_subscriptions')
+              .update({ plan: 'free', status: 'cancelled', updated_at: new Date().toISOString() })
+              .eq('teacher_id', teacherSub.teacher_id);
+            console.log('Teacher downgraded to free:', teacherSub.teacher_id);
+            break;
+          }
+        }
+
+        // Fallback: regular user subscription
+        if (userId) {
+          await supabase
+            .from('subscriptions')
+            .update({ tier: 'free', status: 'cancelled', updated_at: new Date().toISOString() })
+            .eq('user_id', userId);
+          console.log('User downgraded to free:', userId);
+        } else {
           const { data: sub } = await supabase
             .from('subscriptions')
             .select('user_id')
             .eq('stripe_subscription_id', subscription.id)
             .single();
-          
+
           if (sub) {
             await supabase
               .from('subscriptions')
-              .update({
-                tier: 'free',
-                status: 'cancelled',
-                updated_at: new Date().toISOString(),
-              })
+              .update({ tier: 'free', status: 'cancelled', updated_at: new Date().toISOString() })
               .eq('user_id', sub.user_id);
-            
             console.log('User downgraded to free (by subscription ID):', sub.user_id);
           }
-        } else {
-          await supabase
-            .from('subscriptions')
-            .update({
-              tier: 'free',
-              status: 'cancelled',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('user_id', userId);
-          
-          console.log('User downgraded to free:', userId);
         }
         break;
       }
@@ -130,19 +155,21 @@ serve(async (req) => {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
         const userId = subscription.metadata?.supabase_user_id;
-        
-        if (userId) {
-          const status = subscription.status === 'active' ? 'active' : 
-                        subscription.status === 'canceled' ? 'cancelled' : 'expired';
-          
+        const teacherPlan = subscription.metadata?.teacher_plan;
+        const status = subscription.status === 'active' ? 'active' :
+                      subscription.status === 'canceled' ? 'cancelled' : 'expired';
+
+        if (teacherPlan && userId) {
+          await supabase
+            .from('teacher_subscriptions')
+            .update({ status, updated_at: new Date().toISOString() })
+            .eq('teacher_id', userId);
+          console.log('Teacher subscription updated:', userId, 'status:', status);
+        } else if (userId) {
           await supabase
             .from('subscriptions')
-            .update({
-              status,
-              updated_at: new Date().toISOString(),
-            })
+            .update({ status, updated_at: new Date().toISOString() })
             .eq('user_id', userId);
-          
           console.log('Subscription updated for user:', userId, 'status:', status);
         }
         break;
@@ -151,17 +178,28 @@ serve(async (req) => {
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
         const subscriptionId = invoice.subscription as string;
-        
+
         if (subscriptionId) {
+          // Check teacher_subscriptions first
+          const { data: teacherSub } = await supabase
+            .from('teacher_subscriptions')
+            .select('teacher_id')
+            .eq('stripe_subscription_id', subscriptionId)
+            .single();
+
+          if (teacherSub) {
+            console.log('Payment failed for teacher:', teacherSub.teacher_id);
+            break;
+          }
+
           const { data: sub } = await supabase
             .from('subscriptions')
             .select('user_id')
             .eq('stripe_subscription_id', subscriptionId)
             .single();
-          
+
           if (sub) {
             console.log('Payment failed for user:', sub.user_id);
-            // Could send notification or update status here
           }
         }
         break;
