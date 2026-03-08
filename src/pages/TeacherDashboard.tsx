@@ -121,6 +121,19 @@ export default function TeacherDashboard() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card
+                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
+                onClick={() => navigate("/teacher/analytics")}
+              >
+                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
+                  <BarChart3 className="h-12 w-12 text-primary" />
+                  <div>
+                    <p className="text-lg font-semibold text-foreground">Analytics</p>
+                    <p className="text-sm text-muted-foreground mt-1">Track student progress</p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             <Separator className="mb-6" />

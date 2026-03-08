@@ -138,6 +138,14 @@ const App = () => {
               }
             />
             <Route
+              path="/teacher/analytics"
+              element={
+                <ProtectedRoute>
+                  <TeacherAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/teacher/students"
               element={
                 <ProtectedRoute>
