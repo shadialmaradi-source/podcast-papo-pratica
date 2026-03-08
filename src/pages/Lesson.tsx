@@ -30,7 +30,11 @@ export default function Lesson() {
     flashcardsCount: 5,
   });
 
-  const handleBack = () => {
+  useEffect(() => {
+    trackPageView("lesson", "student");
+    trackFunnelStep("lesson", "select_level", 0, { video_id: videoId });
+  }, [videoId]);
+
     if (lessonState === "select-level") {
       navigate("/library");
     } else if (lessonState === "exercises") {
