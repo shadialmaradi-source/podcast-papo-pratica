@@ -136,6 +136,22 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/teacher/students"
+              element={
+                <ProtectedRoute>
+                  <TeacherStudents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/student/:studentId"
+              element={
+                <ProtectedRoute>
+                  <TeacherStudentDetail />
+                </ProtectedRoute>
+              }
+            />
           <Route
             path="/teacher/lesson/:id"
             element={

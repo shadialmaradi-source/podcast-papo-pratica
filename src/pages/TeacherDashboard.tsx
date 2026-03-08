@@ -109,12 +109,15 @@ export default function TeacherDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="opacity-60">
+              <Card
+                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
+                onClick={() => navigate("/teacher/students")}
+              >
                 <CardContent className="flex flex-col items-center text-center gap-3 p-8">
-                  <Users className="h-12 w-12 text-muted-foreground" />
+                  <Users className="h-12 w-12 text-primary" />
                   <div>
                     <p className="text-lg font-semibold text-foreground">My Students</p>
-                    <p className="text-sm text-muted-foreground mt-1">Coming soon</p>
+                    <p className="text-sm text-muted-foreground mt-1">Manage your students</p>
                   </div>
                 </CardContent>
               </Card>
