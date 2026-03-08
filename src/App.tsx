@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { initAnalytics } from "@/lib/analytics";
 import LandingPage from "./pages/LandingPage";
+import TeacherLanding from "./pages/TeacherLanding";
 import Onboarding from "./pages/Onboarding";
 import AppHome from "./pages/AppHome";
 import Library from "./pages/Library";
