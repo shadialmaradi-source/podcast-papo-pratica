@@ -42,6 +42,7 @@ export default function TeacherBranding() {
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
+    trackPageView("teacher_branding", "teacher");
     if (roleLoading || !user) return;
     if (role !== "teacher") {
       navigate("/app");

@@ -58,6 +58,7 @@ export default function TeacherCommunity() {
   }, [role, roleLoading, navigate]);
 
   useEffect(() => {
+    trackPageView("teacher_community", "teacher");
     trackEvent("community_viewed");
     trackPageLoad("teacher_community");
     fetchLessons();

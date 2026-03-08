@@ -61,6 +61,7 @@ export default function TeacherAnalytics() {
   }, [role, roleLoading, navigate]);
 
   useEffect(() => {
+    trackPageView("teacher_analytics", "teacher");
     trackEvent("analytics_viewed");
     trackEvent("retention_viewed");
   }, []);

@@ -160,6 +160,7 @@ export default function TeacherOnboarding() {
         .eq("teacher_id", user!.id);
 
       trackEvent("teacher_onboarding_completed");
+      trackFunnelStep("teacher_onboarding", "completed", 3);
       navigate("/teacher", { replace: true });
     } catch {
       toast({ title: "Error completing onboarding", variant: "destructive" });

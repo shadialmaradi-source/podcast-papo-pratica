@@ -47,6 +47,9 @@ export default function TeacherLesson() {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => { trackPageView("teacher_lesson", "teacher"); }, [id]);
+
   const [completing, setCompleting] = useState(false);
   const [done, setDone] = useState(false);
   const [generatingType, setGeneratingType] = useState<string | null>(null);

@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Copy, Check, ArrowLeft, Share2, Eye, EyeOff, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackFunnelStep } from "@/lib/analytics";
 import { useTextSelection } from "@/hooks/useTextSelection";
 import { TextSelectionPopover } from "@/components/transcript/TextSelectionPopover";
 import { WordExplorerPanel } from "@/components/transcript/WordExplorerPanel";
