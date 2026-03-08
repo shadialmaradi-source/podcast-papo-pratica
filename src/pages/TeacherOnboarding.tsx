@@ -118,6 +118,7 @@ export default function TeacherOnboarding() {
       );
 
       trackEvent("teacher_onboarding_step_1", { languages: selectedLanguages });
+      trackFunnelStep("teacher_onboarding", "add_student", 1);
       setStep(1);
     } catch {
       toast({ title: "Error saving profile", variant: "destructive" });
