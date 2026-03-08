@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, RotateCw, Check, BookOpen } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCw, Check, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getLanguageFlag } from "@/utils/languageUtils";
 import { trackEvent } from "@/lib/analytics";
@@ -10,6 +10,7 @@ interface Flashcard {
   phrase: string;
   translation: string | Record<string, string>;
   why: string | Record<string, string>;
+  cardLanguage?: string;
 }
 
 const getLocalizedText = (field: string | Record<string, string>, lang: string): string => {
@@ -20,6 +21,7 @@ const getLocalizedText = (field: string | Record<string, string>, lang: string):
 interface LessonFlashcardsProps {
   flashcards: Flashcard[];
   onComplete: () => void;
+  onExit?: () => void;
   language?: string;
   nativeLanguage?: string;
 }
@@ -32,7 +34,7 @@ const getNativeLanguageFlag = (code: string): string => {
   return flags[code?.toLowerCase()] || '🌐';
 };
 
-const LessonFlashcards = ({ flashcards, onComplete, language = "english", nativeLanguage = "en" }: LessonFlashcardsProps) => {
+const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english", nativeLanguage = "en" }: LessonFlashcardsProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [learned, setLearned] = useState<Record<number, boolean>>({});
@@ -80,6 +82,14 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
     >
       <div className="flex-1 overflow-auto p-3 md:p-8">
         <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+          {/* Exit button */}
+          {onExit && (
+            <Button variant="ghost" size="sm" onClick={onExit} className="gap-1">
+              <ArrowLeft className="w-4 h-4" />
+              Exit
+            </Button>
+          )}
+
           <div className="text-center space-y-1 md:space-y-2">
             <h1 className="text-xl md:text-3xl font-bold text-foreground">
               <BookOpen className="w-6 h-6 md:w-8 md:h-8 inline-block mr-2 text-primary" />
@@ -131,7 +141,7 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
                       // Front - Target language phrase
                       <div className="space-y-4 md:space-y-6">
                         <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-xl md:text-2xl">{getLanguageFlag(language)}</span>
+                          <span className="text-xl md:text-2xl">{getLanguageFlag(currentCard.cardLanguage || language)}</span>
                         </div>
                         <p className="text-xl md:text-3xl font-bold text-foreground">
                           {currentCard.phrase}

@@ -44,7 +44,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   const [filter, setFilter] = useState<string>("all");
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [videoGroups, setVideoGroups] = useState<VideoGroup[]>([]);
-  const [studyFlashcards, setStudyFlashcards] = useState<{ phrase: string; translation: string; why: string }[]>([]);
+  const [studyFlashcards, setStudyFlashcards] = useState<{ phrase: string; translation: string; why: string; cardLanguage?: string }[]>([]);
   const [studyLanguage, setStudyLanguage] = useState<string>("english");
 
   // Detect distinct languages
@@ -176,6 +176,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
       phrase: fc.phrase,
       translation: fc.translation,
       why: fc.why,
+      cardLanguage: fc.video_language,
     }));
 
     if (shuffle) {
@@ -224,7 +225,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   }
 
   if (isStudying && studyFlashcards.length > 0) {
-    return <LessonFlashcards flashcards={studyFlashcards} onComplete={handleStudyComplete} language={studyLanguage} />;
+    return <LessonFlashcards flashcards={studyFlashcards} onComplete={handleStudyComplete} onExit={() => setIsStudying(false)} language={studyLanguage} />;
   }
 
   const filteredCount = getFilteredFlashcards().length;
