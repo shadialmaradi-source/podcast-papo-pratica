@@ -136,13 +136,8 @@ export default function AppHome() {
     if (data) setSpeakingAssignments(data as unknown as SpeakingAssignment[]);
   };
 
-  const markAssignmentComplete = async (assignmentId: string) => {
-    await supabase
-      .from("video_assignments" as any)
-      .update({ status: "completed", completed_at: new Date().toISOString() } as any)
-      .eq("id", assignmentId);
-    fetchVideoAssignments();
-  };
+
+
 
   const fetchUploadQuota = async () => {
     if (!user) return;
