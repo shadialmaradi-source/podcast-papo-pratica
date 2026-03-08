@@ -172,11 +172,11 @@ export default function Onboarding() {
         <AnimatePresence mode="wait">
           {step === 'language' && (
             <motion.div key="language" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-lg">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingLangTitle')}</h1>
-                <p className="text-muted-foreground">{t('onboardingLangSubtitle')}</p>
+              <div className="text-center mb-4 md:mb-8">
+                <h1 className="text-xl md:text-3xl font-bold text-foreground mb-1 md:mb-2">{t('onboardingLangTitle')}</h1>
+                <p className="text-sm md:text-base text-muted-foreground">{t('onboardingLangSubtitle')}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="grid grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-8">
                 {targetLanguages.map((lang) => (
                   <Card
                     key={lang.code}
