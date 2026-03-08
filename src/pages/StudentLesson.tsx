@@ -240,6 +240,9 @@ export default function StudentLesson() {
   const [teacherIndex, setTeacherIndex] = useState<number | null>(null);
   const [generatingType, setGeneratingType] = useState<string | null>(null);
 
+  const { branding, teacherName: brandTeacherName } = useTeacherBranding(lesson?.teacher_id ?? null);
+  const hasBranding = branding && (branding.logo_url || branding.primary_color);
+
   // Group exercises by type
   const exerciseGroups = useMemo(() => {
     const typeOrder: string[] = [];
