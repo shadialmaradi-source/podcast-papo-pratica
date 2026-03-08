@@ -38,6 +38,7 @@ const TeacherLesson = lazy(() => import("./pages/TeacherLesson"));
 const StudentLesson = lazy(() => import("./pages/StudentLesson"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const MyLessons = lazy(() => import("./pages/MyLessons"));
+const SpeakingAssignment = lazy(() => import("./pages/SpeakingAssignment"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -154,6 +155,7 @@ const App = () => {
               <Route path="/learn/video/:weekVideoId" element={<ProtectedRoute><WeekVideo /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/lesson/student/:id" element={<ProtectedRoute><StudentLesson /></ProtectedRoute>} />
+              <Route path="/speaking/:assignmentId" element={<ProtectedRoute><SpeakingAssignment /></ProtectedRoute>} />
               <Route path="/my-lessons" element={<ProtectedRoute><MyLessons /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

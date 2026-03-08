@@ -38,10 +38,19 @@ interface AssignmentRow {
   id: string;
   assignment_type: string;
   video_title: string | null;
-  speaking_topic: string | null;
-  speaking_level: string | null;
   due_date: string | null;
   note: string | null;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
+interface SpeakingAssignmentRow {
+  id: string;
+  topic_title: string;
+  cefr_level: string;
+  custom_instructions: string | null;
+  due_date: string | null;
   status: string;
   created_at: string;
   completed_at: string | null;
@@ -55,6 +64,7 @@ export default function TeacherStudentDetail() {
   const [student, setStudent] = useState<StudentRow | null>(null);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [speakingAssignments, setSpeakingAssignments] = useState<SpeakingAssignmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [videoBrowserOpen, setVideoBrowserOpen] = useState(false);
@@ -84,14 +94,24 @@ export default function TeacherStudentDetail() {
         .order("created_at", { ascending: false });
       setLessons((lData || []) as LessonRow[]);
 
-      // Fetch assignments
+      // Fetch video assignments
       const { data: aData } = await supabase
         .from("video_assignments" as any)
-        .select("id, assignment_type, video_title, speaking_topic, speaking_level, due_date, note, status, created_at, completed_at")
+        .select("id, assignment_type, video_title, due_date, note, status, created_at, completed_at")
+        .eq("teacher_id", user.id)
+        .eq("student_email", s.student_email)
+        .eq("assignment_type", "video")
+        .order("created_at", { ascending: false });
+      setAssignments((aData || []) as unknown as AssignmentRow[]);
+
+      // Fetch speaking assignments
+      const { data: saData } = await supabase
+        .from("speaking_assignments" as any)
+        .select("id, topic_title, cefr_level, custom_instructions, due_date, status, created_at, completed_at")
         .eq("teacher_id", user.id)
         .eq("student_email", s.student_email)
         .order("created_at", { ascending: false });
-      setAssignments((aData || []) as unknown as AssignmentRow[]);
+      setSpeakingAssignments((saData || []) as unknown as SpeakingAssignmentRow[]);
     }
 
     setLoading(false);
@@ -112,8 +132,7 @@ export default function TeacherStudentDetail() {
     );
   }
 
-  const completedCount = lessons.filter((l) => l.status === "completed").length;
-  const pct = lessons.length ? Math.round((completedCount / lessons.length) * 100) : 0;
+  const totalAssignments = assignments.length + speakingAssignments.length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -193,32 +212,25 @@ export default function TeacherStudentDetail() {
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-foreground">{assignments.length}</p>
+              <p className="text-2xl font-bold text-foreground">{totalAssignments}</p>
               <p className="text-xs text-muted-foreground">Assignments</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-foreground">{pct}%</p>
-              <p className="text-xs text-muted-foreground">Completion</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Assignments Section */}
+        {/* Video Assignments */}
         {assignments.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <CheckCircle className="h-5 w-5" />
-                Assignments
+                <Video className="h-5 w-5" />
+                Video Assignments
               </CardTitle>
             </CardHeader>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Content</TableHead>
+                  <TableHead>Video</TableHead>
                   <TableHead>Due</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -227,16 +239,7 @@ export default function TeacherStudentDetail() {
                 {assignments.map((a) => (
                   <TableRow key={a.id}>
                     <TableCell>
-                      {a.assignment_type === "video" ? (
-                        <Badge variant="outline" className="gap-1"><Video className="h-3 w-3" />Video</Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1"><MessageSquare className="h-3 w-3" />Speaking</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <p className="text-sm font-medium truncate">
-                        {a.assignment_type === "video" ? a.video_title : a.speaking_topic}
-                      </p>
+                      <p className="text-sm font-medium truncate max-w-[200px]">{a.video_title}</p>
                       {a.note && <p className="text-xs text-muted-foreground truncate">{a.note}</p>}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -244,6 +247,47 @@ export default function TeacherStudentDetail() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={a.status === "completed" ? "default" : "secondary"}>{a.status}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
+
+        {/* Speaking Assignments */}
+        {speakingAssignments.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Speaking Assignments
+              </CardTitle>
+            </CardHeader>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Topic</TableHead>
+                  <TableHead>Level</TableHead>
+                  <TableHead>Due</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {speakingAssignments.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell>
+                      <p className="text-sm font-medium truncate max-w-[200px]">{a.topic_title}</p>
+                      {a.custom_instructions && <p className="text-xs text-muted-foreground truncate">{a.custom_instructions}</p>}
+                    </TableCell>
+                    <TableCell><Badge variant="outline">{a.cefr_level}</Badge></TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {a.due_date ? format(new Date(a.due_date), "MMM d") : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={a.status === "completed" ? "default" : a.status === "reviewed" ? "outline" : "secondary"}>
+                        {a.status === "reviewed" ? "Prepared" : a.status}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}

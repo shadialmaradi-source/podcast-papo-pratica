@@ -43,13 +43,20 @@ interface AssignedLesson {
 
 interface VideoAssignment {
   id: string;
-  assignment_type: string;
   video_id: string | null;
   video_title: string | null;
-  speaking_topic: string | null;
-  speaking_level: string | null;
   due_date: string | null;
   note: string | null;
+  status: string;
+}
+
+interface SpeakingAssignment {
+  id: string;
+  topic_title: string;
+  cefr_level: string;
+  language: string;
+  custom_instructions: string | null;
+  due_date: string | null;
   status: string;
 }
 
@@ -67,6 +74,7 @@ export default function AppHome() {
   const [showQuickReview, setShowQuickReview] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState(0);
   const [videoAssignments, setVideoAssignments] = useState<VideoAssignment[]>([]);
+  const [speakingAssignments, setSpeakingAssignments] = useState<SpeakingAssignment[]>([]);
   
   // Upload quota state
   const [uploadQuota, setUploadQuota] = useState<{
@@ -88,6 +96,7 @@ export default function AppHome() {
       fetchAssignedLessons();
       fetchFlashcardCount();
       fetchVideoAssignments();
+      fetchSpeakingAssignments();
     }
   }, [user]);
 
@@ -125,11 +134,23 @@ export default function AppHome() {
     if (!user?.email) return;
     const { data } = await supabase
       .from("video_assignments" as any)
-      .select("id, assignment_type, video_id, video_title, speaking_topic, speaking_level, due_date, note, status")
+      .select("id, video_id, video_title, due_date, note, status")
       .eq("student_email", user.email)
       .eq("status", "assigned")
+      .eq("assignment_type", "video")
       .order("created_at", { ascending: false });
     if (data) setVideoAssignments(data as unknown as VideoAssignment[]);
+  };
+
+  const fetchSpeakingAssignments = async () => {
+    if (!user?.email) return;
+    const { data } = await supabase
+      .from("speaking_assignments" as any)
+      .select("id, topic_title, cefr_level, language, custom_instructions, due_date, status")
+      .eq("student_email", user.email)
+      .in("status", ["assigned", "reviewed"])
+      .order("created_at", { ascending: false });
+    if (data) setSpeakingAssignments(data as unknown as SpeakingAssignment[]);
   };
 
   const markAssignmentComplete = async (assignmentId: string) => {
@@ -452,12 +473,12 @@ export default function AppHome() {
             </div>
           </div>
 
-          {/* Teacher Assignments (video + speaking) */}
+          {/* Teacher Assignments - Videos */}
           {videoAssignments.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">Assignments</h3>
+                <Video className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Video Assignments</h3>
               </div>
               <div className="space-y-2">
                 {videoAssignments.slice(0, 5).map((a) => (
@@ -465,16 +486,10 @@ export default function AppHome() {
                     <CardContent className="px-4 py-3 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                          {a.assignment_type === "video" ? (
-                            <Video className="w-4 h-4 text-muted-foreground" />
-                          ) : (
-                            <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                          )}
+                          <Video className="w-4 h-4 text-muted-foreground" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium text-foreground text-sm truncate">
-                            {a.assignment_type === "video" ? a.video_title : a.speaking_topic}
-                          </p>
+                          <p className="font-medium text-foreground text-sm truncate">{a.video_title}</p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             {a.due_date && (
                               <span className="flex items-center gap-1">
@@ -487,26 +502,59 @@ export default function AppHome() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        {a.assignment_type === "video" && a.video_id && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                            onClick={() => navigate(`/library`)}
-                          >
+                        {a.video_id && (
+                          <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate(`/library`)}>
                             Watch
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-xs"
-                          onClick={() => markAssignmentComplete(a.id)}
-                        >
+                        <Button size="sm" variant="ghost" className="text-xs" onClick={() => markAssignmentComplete(a.id)}>
                           <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                           Done
                         </Button>
                       </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Teacher Assignments - Speaking */}
+          {speakingAssignments.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Speaking Practice</h3>
+              </div>
+              <div className="space-y-2">
+                {speakingAssignments.slice(0, 5).map((a) => (
+                  <Card key={a.id} className="border border-border">
+                    <CardContent className="px-4 py-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground text-sm truncate">{a.topic_title}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="outline" className="text-[10px] h-4">{a.cefr_level}</Badge>
+                            {a.due_date && (
+                              <span className="flex items-center gap-1">
+                                <CalendarDays className="h-3 w-3" />
+                                {format(new Date(a.due_date), "MMM d")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs shrink-0"
+                        onClick={() => navigate(`/speaking/${a.id}`)}
+                      >
+                        View Questions
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
