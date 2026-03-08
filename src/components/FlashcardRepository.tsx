@@ -176,6 +176,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
       phrase: fc.phrase,
       translation: fc.translation,
       why: fc.why,
+      cardLanguage: fc.video_language,
     }));
 
     if (shuffle) {
