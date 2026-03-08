@@ -626,7 +626,7 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                     </p>
                   </div>
                   
-                  <p className="text-muted-foreground">
+                  <p className="text-sm md:text-base text-muted-foreground">
                     {currentPhrase.translation}
                   </p>
                   
