@@ -221,7 +221,7 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden pt-16">
+      <section className="relative min-h-[85dvh] md:min-h-[90vh] flex items-center justify-center overflow-hidden pt-16">
         {/* Animated background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
           <div className="absolute inset-0 opacity-30">
