@@ -38,6 +38,7 @@ const TeacherLesson = lazy(() => import("./pages/TeacherLesson"));
 const StudentLesson = lazy(() => import("./pages/StudentLesson"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const MyLessons = lazy(() => import("./pages/MyLessons"));
+const SpeakingAssignment = lazy(() => import("./pages/SpeakingAssignment"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
