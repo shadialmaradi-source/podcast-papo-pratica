@@ -746,6 +746,7 @@ export type Database = {
       teacher_profiles: {
         Row: {
           bio: string | null
+          branding: Json | null
           created_at: string
           full_name: string | null
           id: string
@@ -756,6 +757,7 @@ export type Database = {
         }
         Insert: {
           bio?: string | null
+          branding?: Json | null
           created_at?: string
           full_name?: string | null
           id?: string
@@ -766,6 +768,7 @@ export type Database = {
         }
         Update: {
           bio?: string | null
+          branding?: Json | null
           created_at?: string
           full_name?: string | null
           id?: string

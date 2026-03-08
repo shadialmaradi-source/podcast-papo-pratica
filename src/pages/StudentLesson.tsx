@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTeacherBranding } from "@/hooks/useTeacherBranding";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +27,7 @@ interface Lesson {
   exercise_types: string[];
   language: string;
   translation_language: string;
+  teacher_id: string;
 }
 
 function extractYouTubeVideoId(url: string): string | null {
@@ -238,6 +240,9 @@ export default function StudentLesson() {
   const [teacherIndex, setTeacherIndex] = useState<number | null>(null);
   const [generatingType, setGeneratingType] = useState<string | null>(null);
 
+  const { branding, teacherName: brandTeacherName } = useTeacherBranding(lesson?.teacher_id ?? null);
+  const hasBranding = branding && (branding.logo_url || branding.primary_color);
+
   // Group exercises by type
   const exerciseGroups = useMemo(() => {
     const typeOrder: string[] = [];
@@ -270,19 +275,19 @@ export default function StudentLesson() {
     
     let lessonQuery = supabase
       .from("teacher_lessons")
-      .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language");
+      .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language, teacher_id");
     
     if (isUuid) {
       const { data: byToken } = await lessonQuery.eq("share_token", id).maybeSingle();
       if (byToken) {
         lessonQuery = supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language")
+          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language, teacher_id")
           .eq("id", byToken.id);
       } else {
         lessonQuery = supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language")
+          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language, teacher_id")
           .eq("id", id);
       }
     } else {
@@ -514,20 +519,36 @@ export default function StudentLesson() {
 
   const youtubeVideoId = lesson.youtube_url ? extractYouTubeVideoId(lesson.youtube_url) : null;
 
+  const brandStyle = hasBranding
+    ? { "--brand-primary": branding!.primary_color, "--brand-secondary": branding!.secondary_color } as React.CSSProperties
+    : {};
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={brandStyle}>
       {/* Header */}
-      <header className="border-b border-border bg-card">
+      <header
+        className="border-b border-border bg-card"
+        style={hasBranding ? { backgroundColor: branding!.primary_color + "10" } : {}}
+      >
         <div className="container mx-auto flex items-center justify-between px-4 py-4 max-w-2xl">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/app")}
-            className="text-muted-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Home
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/app")}
+              className="text-muted-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Home
+            </Button>
+            {hasBranding && branding!.logo_url ? (
+              <img src={branding!.logo_url} alt="Logo" className="h-7 max-w-[120px] object-contain" />
+            ) : hasBranding ? (
+              <span className="font-bold text-sm" style={{ color: branding!.primary_color }}>
+                {brandTeacherName || ""}
+              </span>
+            ) : null}
+          </div>
           <div className="flex items-center gap-2">
             {teacherIndex !== null && (
               <span className="flex items-center gap-1 text-xs text-primary font-medium">
@@ -535,7 +556,13 @@ export default function StudentLesson() {
                 Live
               </span>
             )}
-            <Badge variant="outline" className="capitalize">{lesson.cefr_level}</Badge>
+            <Badge
+              variant="outline"
+              className="capitalize"
+              style={hasBranding ? { borderColor: branding!.primary_color, color: branding!.primary_color } : {}}
+            >
+              {lesson.cefr_level}
+            </Badge>
           </div>
         </div>
       </header>
@@ -701,11 +728,19 @@ export default function StudentLesson() {
               onClick={() => setDone(true)}
               disabled={!allSubmitted}
               className="w-full"
+              style={hasBranding ? { backgroundColor: branding!.primary_color, color: "#fff" } : {}}
               size="lg"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Finish Lesson
             </Button>
+          )}
+
+          {/* Powered by footer */}
+          {hasBranding && branding!.show_powered_by !== false && (
+            <p className="text-center text-[10px] text-muted-foreground pt-4 border-t border-border">
+              Powered by <span className="font-semibold">{brandTeacherName}</span> · ListenFlow
+            </p>
           )}
         </div>
       </main>
