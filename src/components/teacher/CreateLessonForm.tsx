@@ -132,6 +132,8 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
   const [paragraphContent, setParagraphContent] = useState("");
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [communityShared, setCommunityShared] = useState(false);
+  const [togglingCommunity, setTogglingCommunity] = useState(false);
 
   // Inline result state
   const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
