@@ -76,8 +76,6 @@ const comparisonRows = [
   { feature: "Lesson types", free: "All", pro: "All", premium: "All" },
   { feature: "Analytics", free: "Basic", pro: "Advanced", premium: "Advanced" },
   { feature: "Branding", free: "ListenFlow", pro: "Removable", premium: "Your Brand" },
-  { feature: "Support", free: "Email", pro: "Priority", premium: "Dedicated" },
-  { feature: "API Access", free: false, pro: false, premium: true },
 ];
 
 const faqItems = [
