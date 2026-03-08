@@ -108,23 +108,28 @@ export function TranscriptLine({
     return result;
   };
 
+  const hasTimestamp = timeSeconds > 0 || (timestamp !== '0:00' && timestamp !== '0:00:00');
+
   return (
     <div
       className={cn(
-        "group flex gap-3 py-2 px-3 rounded-lg transition-colors select-text",
+        "group flex py-2 px-3 rounded-lg transition-colors select-text",
+        hasTimestamp && "gap-3",
         isHighlighted && "bg-primary/10 border-l-2 border-primary"
       )}
     >
-      <Badge
-        variant="outline"
-        className={cn(
-          "shrink-0 cursor-pointer font-mono text-xs h-6 hover:bg-primary hover:text-primary-foreground transition-colors",
-          isHighlighted && "bg-primary/20 border-primary/40"
-        )}
-        onClick={() => onTimestampClick(timeSeconds)}
-      >
-        {timestamp}
-      </Badge>
+      {hasTimestamp && (
+        <Badge
+          variant="outline"
+          className={cn(
+            "shrink-0 cursor-pointer font-mono text-xs h-6 hover:bg-primary hover:text-primary-foreground transition-colors",
+            isHighlighted && "bg-primary/20 border-primary/40"
+          )}
+          onClick={() => onTimestampClick(timeSeconds)}
+        >
+          {timestamp}
+        </Badge>
+      )}
       <span className="text-foreground leading-relaxed flex-1">
         {renderTextWithHighlights()}
       </span>
