@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { getUploadQuotaStatus } from "@/services/subscriptionService";
 import { trackEvent, trackPageLoad, trackPageView } from "@/lib/analytics";
 import { AssignVideoModal } from "@/components/teacher/AssignVideoModal";
+import { useStudentTour } from "@/hooks/useStudentTour";
 
 interface VideoTopic {
   topic: string;
