@@ -117,3 +117,9 @@ verify_jwt = false
 
 [functions.admin-import-video]
 verify_jwt = false
+
+[functions.generate-speaking-topics]
+verify_jwt = false
+
+[functions.translate-vocabulary]
+verify_jwt = false

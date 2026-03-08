@@ -12,12 +12,13 @@ import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
 import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
+import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreator";
 import { useUserRole } from "@/hooks/useUserRole";
 import { trackPageLoad, trackPageView } from "@/lib/analytics";
 
 
-type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse";
-type LessonType = "paragraph" | "youtube";
+type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse" | "speaking_form";
+type LessonType = "paragraph" | "youtube" | "speaking";
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
@@ -62,6 +63,8 @@ export default function TeacherDashboard() {
     setLessonType(type);
     if (type === "youtube") {
       setStep("youtube_source");
+    } else if (type === "speaking") {
+      setStep("speaking_form");
     } else {
       setPrefillYoutubeUrl(null);
       setStep("form");
@@ -87,6 +90,7 @@ export default function TeacherDashboard() {
     else if (step === "form") setStep("choose_type");
     else if (step === "youtube_browse") setStep("youtube_source");
     else if (step === "youtube_source") setStep("choose_type");
+    else if (step === "speaking_form") setStep("choose_type");
     else setStep("home");
   };
 
@@ -216,7 +220,7 @@ export default function TeacherDashboard() {
             <Card>
               <CardContent className="pt-6">
                 <CreateLessonForm
-                  lessonType={lessonType}
+                  lessonType={lessonType as "paragraph" | "youtube"}
                   onCreated={handleCreated}
                   onCancel={handleBack}
                   prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
@@ -224,6 +228,17 @@ export default function TeacherDashboard() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {step === "speaking_form" && (
+          <Card>
+            <CardContent className="pt-6">
+              <SpeakingLessonCreator
+                onCancel={handleBack}
+                onCreated={handleCreated}
+              />
+            </CardContent>
+          </Card>
         )}
       </main>
       <TeacherNav />

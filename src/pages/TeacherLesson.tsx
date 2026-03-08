@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { EXERCISE_TYPE_LABELS, TYPE_COLORS } from "@/components/teacher/ExercisePresenter";
 import type { Exercise } from "@/components/teacher/ExercisePresenter";
+import { TeacherSpeakingView } from "@/components/lesson/TeacherSpeakingView";
 import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight, X, Keyboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,6 +37,7 @@ interface Lesson {
   transcript: string | null;
   exercise_types: string[];
   language: string;
+  lesson_type: string;
 }
 
 export default function TeacherLesson() {
@@ -132,7 +134,7 @@ export default function TeacherLesson() {
       const [lessonRes, exercisesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, exercise_types, language")
+          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, exercise_types, language, lesson_type")
           .eq("id", id)
           .eq("teacher_id", user.id)
           .single(),
@@ -396,6 +398,11 @@ export default function TeacherLesson() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Speaking lesson view */}
+            {lesson.lesson_type === "speaking" ? (
+              <TeacherSpeakingView lessonId={lesson.id} />
+            ) : (
+            <>
             {/* YouTube video */}
             {youtubeVideoId && (
               <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
@@ -514,6 +521,8 @@ export default function TeacherLesson() {
               {completing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
               Complete Lesson
             </Button>
+          </>
+            )}
           </div>
         )}
       </main>

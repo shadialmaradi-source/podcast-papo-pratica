@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, Youtube } from "lucide-react";
+import { FileText, Youtube, MessageSquare } from "lucide-react";
 
-type LessonType = "paragraph" | "youtube";
+type LessonType = "paragraph" | "youtube" | "speaking";
 
 interface LessonTypeSelectorProps {
   onSelect: (type: LessonType) => void;
@@ -19,6 +19,12 @@ const options: { type: LessonType; icon: typeof FileText; title: string; descrip
     icon: Youtube,
     title: "YouTube / Video Link",
     description: "Use an existing video to build exercises",
+  },
+  {
+    type: "speaking",
+    icon: MessageSquare,
+    title: "Speaking Practice",
+    description: "Discussion topics with AI-generated questions and vocabulary",
   },
 ];
 

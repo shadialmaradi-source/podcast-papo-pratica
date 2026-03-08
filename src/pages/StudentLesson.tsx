@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { TranslationHint } from "@/components/exercises/TranslationHint";
+import { StudentSpeakingView } from "@/components/lesson/StudentSpeakingView";
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User, Radio, RefreshCw, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { trackEvent, trackPageView } from "@/lib/analytics";
@@ -587,6 +588,15 @@ export default function StudentLesson() {
           </div>
         </div>
 
+        {lesson.lesson_type === "speaking" ? (
+          <StudentSpeakingView
+            lessonId={lesson.id}
+            lessonTitle={lesson.title}
+            cefrLevel={lesson.cefr_level}
+            topic={lesson.topic}
+            language={lesson.language}
+          />
+        ) : (
         <div className="space-y-6">
           {/* YouTube video */}
           {youtubeVideoId && (
@@ -751,6 +761,7 @@ export default function StudentLesson() {
             </p>
           )}
         </div>
+        )}
       </main>
     </div>
   );
