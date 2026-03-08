@@ -322,7 +322,14 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
         }
       }
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      const msg = err.message || "";
+      if (msg.includes("LESSON_LIMIT_REACHED")) {
+        const cleanMsg = msg.split("LESSON_LIMIT_REACHED:")[1] || "You've reached your lesson limit.";
+        trackEvent("lesson_limit_reached", { source: "create_lesson_form" });
+        toast({ title: "Lesson Limit Reached", description: `${cleanMsg} Upgrade your plan for more lessons.`, variant: "destructive" });
+      } else {
+        toast({ title: "Error", description: msg, variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
