@@ -57,7 +57,7 @@ export default function TeacherNotifications() {
     if (filter === "completed") query = query.eq("type", "assignment_completed");
 
     const { data } = await query;
-    const items = (data ?? []) as Notification[];
+    const items = (data ?? []) as unknown as Notification[];
     setNotifications(items.slice(0, PAGE_SIZE));
     setHasMore(items.length > PAGE_SIZE);
     setLoading(false);
