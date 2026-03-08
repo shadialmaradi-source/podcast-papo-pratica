@@ -97,9 +97,11 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     };
 
     const createPlayer = () => {
-      if (!playerContainerRef.current || playerRef.current) return;
+      if (playerRef.current) return;
+      const el = document.getElementById(playerContainerId);
+      if (!el) return;
 
-      playerRef.current = new window.YT.Player(playerContainerRef.current, {
+      playerRef.current = new window.YT.Player(playerContainerId, {
         videoId: videoData.video_id,
         playerVars: {
           enablejsapi: 1,
