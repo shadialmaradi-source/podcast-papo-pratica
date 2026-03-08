@@ -20,7 +20,6 @@ export function DemoTooltip({
   actionLabel = "Next",
   onAction,
   onSkip,
-  position = "bottom",
   step,
   totalSteps,
 }: DemoTooltipProps) {
@@ -32,12 +31,6 @@ export function DemoTooltip({
     return () => clearTimeout(timer);
   }, [step]);
 
-  const positionClasses = {
-    top: "top-4 left-1/2 -translate-x-1/2",
-    bottom: "bottom-4 left-1/2 -translate-x-1/2",
-    center: "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-  };
-
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -45,8 +38,11 @@ export function DemoTooltip({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className={`absolute z-50 ${positionClasses[position]} w-[90%] max-w-sm`}
+        className="relative mt-4 w-full max-w-sm mx-auto"
       >
+        {/* Arrow pointing up toward the content above */}
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rotate-45 rounded-sm" />
+
         <div className="bg-primary text-primary-foreground rounded-xl p-4 shadow-2xl">
           {/* Step indicator */}
           <div className="flex items-center gap-1.5 mb-2">
@@ -95,14 +91,6 @@ export function DemoTooltip({
             )}
           </div>
         </div>
-
-        {/* Arrow */}
-        {position === "bottom" && (
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rotate-45 rounded-sm" />
-        )}
-        {position === "top" && (
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rotate-45 rounded-sm" />
-        )}
       </motion.div>
     </AnimatePresence>
   );

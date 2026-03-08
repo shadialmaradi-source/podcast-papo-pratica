@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Eye } from "lucide-react";
 import LessonIntro from "@/components/lesson/LessonIntro";
 import LessonVideoPlayer from "@/components/lesson/LessonVideoPlayer";
 import LessonExercises from "@/components/lesson/LessonExercises";
@@ -26,6 +28,8 @@ interface OnboardingVideo {
 
 const FirstLesson = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isTeacherPreview = searchParams.get("from") === "teacher-onboarding";
   const [step, setStep] = useState<LessonStep>(() => {
     const saved = localStorage.getItem('lesson_step') as LessonStep | null;
     const validSteps: LessonStep[] = ['intro', 'video', 'exercises', 'speaking', 'flashcards', 'complete'];
@@ -121,18 +125,37 @@ const FirstLesson = () => {
     localStorage.removeItem('lesson_step');
   };
 
+  const teacherBanner = isTeacherPreview ? (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground text-center text-sm py-2 px-4 flex items-center justify-center gap-2"
+    >
+      <Eye className="w-4 h-4" />
+      You're previewing as a student
+    </motion.div>
+  ) : null;
+
+  const wrapWithBanner = (content: React.ReactNode) => (
+    <>
+      {teacherBanner}
+      {isTeacherPreview && <div className="h-10" />}
+      {content}
+    </>
+  );
+
   switch (step) {
     case 'intro':
-      return <LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />;
+      return wrapWithBanner(<LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />);
     
     case 'video':
-      return <LessonVideoPlayer video={videoData} onComplete={() => setStep('exercises')} />;
+      return wrapWithBanner(<LessonVideoPlayer video={videoData} onComplete={() => setStep('exercises')} />);
     
     case 'exercises':
-      return <LessonExercises exercises={activeExercises} onComplete={handleExercisesComplete} />;
+      return wrapWithBanner(<LessonExercises exercises={activeExercises} onComplete={handleExercisesComplete} />);
     
     case 'speaking':
-      return (
+      return wrapWithBanner(
         <LessonSpeaking 
           level={userLevel} 
           phrases={activeSpeakingPhrases}
@@ -143,9 +166,14 @@ const FirstLesson = () => {
       );
     
     case 'flashcards':
-      return <LessonFlashcards flashcards={activeFlashcards} onComplete={handleFlashcardsComplete} nativeLanguage={nativeLanguage} />;
+      return wrapWithBanner(<LessonFlashcards flashcards={activeFlashcards} onComplete={handleFlashcardsComplete} nativeLanguage={nativeLanguage} />);
     
     case 'complete':
+      if (isTeacherPreview) {
+        // Redirect back to teacher dashboard
+        navigate("/teacher", { replace: true });
+        return null;
+      }
       return (
         <LessonComplete 
           exerciseScore={exerciseScore}
@@ -156,7 +184,7 @@ const FirstLesson = () => {
       );
     
     default:
-      return <LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />;
+      return wrapWithBanner(<LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />);
   }
 };
 

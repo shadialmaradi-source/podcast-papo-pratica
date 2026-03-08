@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import {
-  Users, ArrowRight, ArrowLeft, Check, ChevronRight
+  Users, ArrowRight, ArrowLeft, Check, ChevronRight, Play
 } from "lucide-react";
 import { TeacherDemoWalkthrough } from "@/components/teacher/TeacherDemoWalkthrough";
 
@@ -32,7 +32,6 @@ export default function TeacherOnboarding() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  // tourSlide removed - using TeacherDemoWalkthrough instead
 
   // Step 1 state
   const [fullName, setFullName] = useState("");
@@ -83,13 +82,11 @@ export default function TeacherOnboarding() {
     }
     setSaving(true);
     try {
-      // Update profiles.full_name
       await supabase
         .from("profiles")
         .update({ full_name: fullName.trim() })
         .eq("user_id", user!.id);
 
-      // Upsert teacher_profiles
       await supabase.from("teacher_profiles" as any).upsert(
         {
           teacher_id: user!.id,
@@ -134,6 +131,11 @@ export default function TeacherOnboarding() {
     setStep(2);
   };
 
+  const handleDemoComplete = () => {
+    trackFunnelStep("teacher_onboarding", "trial_lesson", 3);
+    setStep(3);
+  };
+
   const handleComplete = async () => {
     setSaving(true);
     try {
@@ -143,13 +145,27 @@ export default function TeacherOnboarding() {
         .eq("teacher_id", user!.id);
 
       trackEvent("teacher_onboarding_completed");
-      trackFunnelStep("teacher_onboarding", "completed", 3);
+      trackFunnelStep("teacher_onboarding", "completed", 4);
       navigate("/teacher", { replace: true });
     } catch {
       toast({ title: "Error completing onboarding", variant: "destructive" });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleTryLesson = async () => {
+    // Mark onboarding as completed before navigating to lesson
+    try {
+      await supabase
+        .from("teacher_profiles" as any)
+        .update({ onboarding_completed: true } as any)
+        .eq("teacher_id", user!.id);
+    } catch {
+      // Continue anyway
+    }
+    trackEvent("teacher_trial_lesson_started");
+    navigate("/lesson/first?from=teacher-onboarding");
   };
 
   if (authLoading) {
@@ -161,7 +177,7 @@ export default function TeacherOnboarding() {
       <div className="w-full max-w-lg">
         {/* Step indicator */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          {[0, 1, 2].map((s) => (
+          {[0, 1, 2, 3].map((s) => (
             <div
               key={s}
               className={`h-2 rounded-full transition-all ${
@@ -307,9 +323,44 @@ export default function TeacherOnboarding() {
               exit={{ opacity: 0, x: -30 }}
             >
               <TeacherDemoWalkthrough
-                onComplete={handleComplete}
-                onSkip={handleComplete}
+                onComplete={handleDemoComplete}
+                onSkip={handleDemoComplete}
               />
+            </motion.div>
+          )}
+
+          {/* STEP 4: Try a Real Lesson */}
+          {step === 3 && (
+            <motion.div
+              key="step4"
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }}
+            >
+              <Card className="border-0 shadow-2xl bg-background/80 backdrop-blur">
+                <CardContent className="flex flex-col items-center text-center gap-5 py-12 px-6">
+                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Play className="h-8 w-8 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-foreground">Try a Real Lesson 🎬</h3>
+                    <p className="text-muted-foreground mt-2 max-w-sm">
+                      See exactly what your students experience — watch a video, explore the interactive transcript, and complete exercises.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3 w-full max-w-xs">
+                    <Button onClick={handleTryLesson} size="lg" className="w-full gap-2">
+                      <Play className="h-4 w-4" />
+                      Try it now
+                    </Button>
+                    <Button variant="ghost" onClick={handleComplete} size="sm" className="text-muted-foreground">
+                      Skip & go to dashboard
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
         </AnimatePresence>
