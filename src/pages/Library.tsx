@@ -19,6 +19,7 @@ import { FeaturedRow } from "@/components/library/FeaturedRow";
 import { VideoCard } from "@/components/library/VideoCard";
 import { AddVideoCard } from "@/components/library/AddVideoCard";
 import { LearningPath } from "@/components/library/LearningPath";
+import { LibraryTourTooltip } from "@/components/library/LibraryTourTooltip";
 import { AppHeader } from "@/components/AppHeader";
 import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
