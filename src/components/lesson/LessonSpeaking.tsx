@@ -684,20 +684,20 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={isRecording ? stopRecording : startRecording}
-                      className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+                      className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all ${
                         isRecording 
                           ? 'bg-destructive animate-pulse' 
                           : 'bg-primary hover:bg-primary/90'
                       }`}
                     >
                       {isRecording ? (
-                        <Square className="w-8 h-8 text-destructive-foreground" />
+                        <Square className="w-6 h-6 md:w-8 md:h-8 text-destructive-foreground" />
                       ) : (
-                        <Mic className="w-8 h-8 text-primary-foreground" />
+                        <Mic className="w-6 h-6 md:w-8 md:h-8 text-primary-foreground" />
                       )}
                     </motion.button>
 
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       {isRecording ? 'Recording... (5 seconds)' : 'Tap to record your pronunciation'}
                     </p>
                   </div>
