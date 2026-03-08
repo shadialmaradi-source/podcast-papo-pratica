@@ -80,9 +80,43 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   useEffect(() => {
     if (!videoData) return;
 
+    let destroyed = false;
+    playerReadyRef.current = false;
+    setPlayerFailed(false);
+
+    const createPlayer = () => {
+      if (destroyed || playerRef.current) return;
+      const el = document.getElementById(playerContainerId);
+      if (!el) return;
+
+      try {
+        playerRef.current = new window.YT.Player(playerContainerId, {
+          videoId: videoData.video_id,
+          playerVars: {
+            enablejsapi: 1,
+            origin: window.location.origin,
+            rel: 0,
+          },
+          events: {
+            onReady: () => {
+              playerReadyRef.current = true;
+              onPlayerReady();
+            },
+            onStateChange: onPlayerStateChange,
+          },
+        });
+      } catch (e) {
+        console.error('YT.Player creation failed:', e);
+        if (!destroyed) setPlayerFailed(true);
+      }
+    };
+
     const loadAPI = () => {
       if (window.YT && window.YT.Player) {
-        createPlayer();
+        // API already loaded — delay to ensure DOM element exists
+        requestAnimationFrame(() => {
+          if (!destroyed) createPlayer();
+        });
         return;
       }
 
@@ -93,33 +127,26 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
         document.head.appendChild(tag);
       }
 
+      const prev = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => {
-        createPlayer();
+        prev?.();
+        if (!destroyed) createPlayer();
       };
-    };
-
-    const createPlayer = () => {
-      if (playerRef.current) return;
-      const el = document.getElementById(playerContainerId);
-      if (!el) return;
-
-      playerRef.current = new window.YT.Player(playerContainerId, {
-        videoId: videoData.video_id,
-        playerVars: {
-          enablejsapi: 1,
-          origin: window.location.origin,
-          rel: 0,
-        },
-        events: {
-          onReady: onPlayerReady,
-          onStateChange: onPlayerStateChange,
-        },
-      });
     };
 
     loadAPI();
 
+    // Fallback: if player hasn't initialized after 4s, show iframe fallback
+    const fallbackTimeout = setTimeout(() => {
+      if (!playerReadyRef.current && !destroyed) {
+        console.warn('YT player init timeout, switching to iframe fallback');
+        setPlayerFailed(true);
+      }
+    }, 4000);
+
     return () => {
+      destroyed = true;
+      clearTimeout(fallbackTimeout);
       if (timePollingRef.current) clearInterval(timePollingRef.current);
       if (playerRef.current?.destroy) {
         try { playerRef.current.destroy(); } catch {}
