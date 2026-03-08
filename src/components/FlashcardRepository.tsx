@@ -291,6 +291,41 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
           </Card>
         ) : (
           <>
+            {/* Language Selector - only when 2+ languages */}
+            {distinctLanguages.length >= 2 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    Select Language
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Select 
+                    value={selectedLanguage || ""} 
+                    onValueChange={(val) => {
+                      setSelectedLanguage(val);
+                      setFilter("all"); // Reset filter when changing language
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a language to study" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {distinctLanguages.map(lang => (
+                        <SelectItem key={lang} value={lang}>
+                          {getLanguageFlag(lang)} {getLanguageName(lang)} ({flashcards.filter(fc => fc.video_language === lang).length} cards)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Study Options - shown when language is selected (or only 1 language) */}
+            {selectedLanguage && (
+            <>
             {/* Filter & Actions */}
             <Card>
               <CardHeader>
