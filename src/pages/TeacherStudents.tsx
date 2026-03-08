@@ -426,6 +426,12 @@ export default function TeacherStudents() {
 
       <AddStudentModal open={addOpen} onOpenChange={setAddOpen} onAdded={fetchData} />
       <EditStudentModal open={!!editStudent} onOpenChange={(o) => !o && setEditStudent(null)} student={editStudent} onUpdated={fetchData} />
+      <VideoBrowserModal
+        open={!!assignStudentEmail}
+        onOpenChange={(o) => { if (!o) setAssignStudentEmail(null); }}
+        studentEmail={assignStudentEmail || ""}
+        onAssigned={fetchData}
+      />
 
       {/* Upgrade prompt modal */}
       <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
