@@ -9,6 +9,8 @@ import { useNavigate } from "react-router-dom";
 import { BookOpen, Users, ArrowLeft, Settings } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
+import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
+import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
 import { useUserRole } from "@/hooks/useUserRole";
 import { trackPageLoad } from "@/lib/analytics";
 
