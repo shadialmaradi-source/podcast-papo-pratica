@@ -312,7 +312,7 @@ export function TeacherDemoWalkthrough({ onComplete, onSkip }: TeacherDemoWalkth
                       }, 1200);
                     }}
                   >
-                    {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
