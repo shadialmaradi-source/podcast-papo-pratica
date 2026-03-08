@@ -40,6 +40,7 @@ serve(async (req) => {
 
     // Normalize level to lowercase
     const normalizedLevel = level.toLowerCase();
+    const nativeLangName = nativeLanguage || 'english';
 
     // Check if exercises already exist for this level + native language
     const { count: existingCount } = await supabase
