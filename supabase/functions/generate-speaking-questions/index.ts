@@ -35,7 +35,9 @@ Requirements:
 - Questions 4-6: Medium (difficulty 2) - descriptive, explanatory questions  
 - Questions 7-8: Difficult (difficulty 3) - analytical, opinion-based questions
 
-All questions should be in ${language} with natural phrasing appropriate for the ${level} level.`;
+All questions should be in ${language} with natural phrasing appropriate for the ${level} level.
+
+Return a JSON object with a "questions" array where each item has "question" (string) and "difficulty" (1, 2, or 3).`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -49,35 +51,7 @@ All questions should be in ${language} with natural phrasing appropriate for the
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "return_questions",
-              description: "Return generated speaking questions",
-              parameters: {
-                type: "object",
-                properties: {
-                  questions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        question: { type: "string" },
-                        difficulty: { type: "integer", enum: [1, 2, 3] },
-                      },
-                      required: ["question", "difficulty"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["questions"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "return_questions" } },
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -100,13 +74,13 @@ All questions should be in ${language} with natural phrasing appropriate for the
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const content = data.choices?.[0]?.message?.content;
 
-    if (!toolCall?.function?.arguments) {
-      throw new Error("No tool call response from AI");
+    if (!content) {
+      throw new Error("No content response from AI");
     }
 
-    const parsed = JSON.parse(toolCall.function.arguments);
+    const parsed = JSON.parse(content);
     const questions = parsed.questions || [];
 
     return new Response(JSON.stringify({ questions }), {
