@@ -6,7 +6,7 @@ import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
 import VideoFlashcards from "@/components/VideoFlashcards";
 import LessonCompleteScreen from "@/components/lesson/LessonCompleteScreen";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 
 type LessonState = "select-level" | "exercises" | "speaking" | "flashcards" | "complete";
 
