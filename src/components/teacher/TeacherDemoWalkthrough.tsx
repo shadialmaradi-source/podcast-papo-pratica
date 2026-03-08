@@ -250,8 +250,8 @@ export function TeacherDemoWalkthrough({ onComplete, onSkip }: TeacherDemoWalkth
                   </>
                 ) : (
                   <>
-                    <div className="h-14 w-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                      <Check className="h-7 w-7 text-green-600 dark:text-green-400" />
+                    <div className="h-14 w-14 rounded-full bg-primary/15 flex items-center justify-center">
+                      <Check className="h-7 w-7 text-primary" />
                     </div>
                     <div className="text-center">
                       <p className="font-semibold text-foreground">Lesson ready! 🎉</p>
