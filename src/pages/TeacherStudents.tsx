@@ -62,6 +62,14 @@ export default function TeacherStudents() {
     if (!user) return;
     setLoading(true);
 
+    // Fetch teacher plan
+    const { data: subData } = await supabase
+      .from("teacher_subscriptions" as any)
+      .select("plan")
+      .eq("teacher_id", user.id)
+      .maybeSingle();
+    setTeacherPlan((subData as any)?.plan || "free");
+
     // Fetch students
     const { data: studentsData } = await supabase
       .from("teacher_students" as any)
