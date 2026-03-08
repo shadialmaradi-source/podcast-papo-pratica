@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
 import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
@@ -21,6 +22,7 @@ export default function Lesson() {
   const navigate = useNavigate();
   const [lessonState, setLessonState] = useState<LessonState>("select-level");
   const [selectedLevel, setSelectedLevel] = useState("");
+  const [nextVideoLoading, setNextVideoLoading] = useState(false);
   const [lessonStats, setLessonStats] = useState<LessonStats>({
     exerciseScore: 0,
     totalExercises: 10,
@@ -75,7 +77,6 @@ export default function Lesson() {
   };
 
   const handleFlashcardsComplete = (count?: number) => {
-    // Update lesson stats with flashcard count
     setLessonStats(prev => ({
       ...prev,
       flashcardsCount: count || 5,
@@ -83,8 +84,87 @@ export default function Lesson() {
     setLessonState("complete");
   };
 
-  const handleNextVideo = () => {
-    navigate("/library");
+  const handleNextVideo = async () => {
+    if (!videoId) {
+      navigate("/library");
+      return;
+    }
+
+    setNextVideoLoading(true);
+    try {
+      // 1. Fetch current video metadata
+      const { data: currentVideo } = await supabase
+        .from('youtube_videos')
+        .select('id, category, is_short, difficulty_level')
+        .eq('video_id', videoId)
+        .single();
+
+      if (!currentVideo) {
+        navigate("/library");
+        return;
+      }
+
+      // 2. Get IDs of videos linked to the curated learning path (exclude them)
+      const { data: weekVideoLinks } = await supabase
+        .from('week_videos')
+        .select('linked_video_id')
+        .not('linked_video_id', 'is', null);
+
+      const excludeIds = new Set<string>(
+        (weekVideoLinks || []).map(wv => wv.linked_video_id).filter(Boolean) as string[]
+      );
+      excludeIds.add(currentVideo.id);
+
+      // 3. Fetch candidate community videos
+      const { data: candidates } = await supabase
+        .from('youtube_videos')
+        .select('id, video_id, category, is_short, difficulty_level')
+        .eq('status', 'ready')
+        .neq('video_id', videoId)
+        .limit(100);
+
+      if (!candidates || candidates.length === 0) {
+        navigate("/library");
+        return;
+      }
+
+      // Filter out curated learning path videos
+      const communityVideos = candidates.filter(v => !excludeIds.has(v.id));
+
+      if (communityVideos.length === 0) {
+        navigate("/library");
+        return;
+      }
+
+      // 4. Score each candidate by similarity
+      const scored = communityVideos.map(v => {
+        let score = 0;
+        if (v.category && v.category === currentVideo.category) score += 3;
+        if (v.is_short === currentVideo.is_short) score += 2;
+        if (v.difficulty_level === currentVideo.difficulty_level) score += 1;
+        // Add small random factor for variety
+        score += Math.random() * 0.5;
+        return { ...v, score };
+      });
+
+      scored.sort((a, b) => b.score - a.score);
+      const nextVideo = scored[0];
+
+      trackEvent('next_video_recommended', {
+        from_video: videoId,
+        to_video: nextVideo.video_id,
+        score: nextVideo.score,
+        same_category: nextVideo.category === currentVideo.category,
+        same_is_short: nextVideo.is_short === currentVideo.is_short,
+      });
+
+      navigate(`/lesson/${nextVideo.video_id}`);
+    } catch (error) {
+      console.error('Error finding next video:', error);
+      navigate("/library");
+    } finally {
+      setNextVideoLoading(false);
+    }
   };
 
   const handleViewProgress = () => {
@@ -156,6 +236,7 @@ export default function Lesson() {
           onViewProgress={handleViewProgress}
           onRetry={handleRetry}
           onBackToLibrary={handleBackToLibrary}
+          nextVideoLoading={nextVideoLoading}
         />
       )}
     </div>

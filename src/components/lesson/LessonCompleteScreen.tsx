@@ -15,6 +15,7 @@ interface LessonCompleteScreenProps {
   onViewProgress: () => void;
   onRetry: () => void;
   onBackToLibrary: () => void;
+  nextVideoLoading?: boolean;
 }
 
 const LessonCompleteScreen = ({
@@ -26,6 +27,7 @@ const LessonCompleteScreen = ({
   onViewProgress,
   onRetry,
   onBackToLibrary,
+  nextVideoLoading = false,
 }: LessonCompleteScreenProps) => {
   const xpEarned = Math.round(exerciseAccuracy * 0.5) + flashcardsCount * 2 + 10;
 
@@ -123,12 +125,22 @@ const LessonCompleteScreen = ({
           {/* Primary CTA */}
           <Button
             onClick={onNextVideo}
+            disabled={nextVideoLoading}
             size="lg"
             className="w-full bg-primary hover:bg-primary/90 rounded-full py-5 md:py-6 text-base md:text-lg gap-2"
           >
-            <Play className="w-5 h-5" />
-            🎯 Next Video
-            <ArrowRight className="w-5 h-5" />
+            {nextVideoLoading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                Finding similar video...
+              </>
+            ) : (
+              <>
+                <Play className="w-5 h-5" />
+                🎯 Next Video
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
           </Button>
 
           {/* Secondary options */}
