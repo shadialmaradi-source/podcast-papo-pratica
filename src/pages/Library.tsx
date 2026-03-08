@@ -27,7 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUploadQuotaStatus } from "@/services/subscriptionService";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageLoad } from "@/lib/analytics";
 
 interface VideoTopic {
   topic: string;
