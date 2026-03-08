@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { AppHeader } from "@/components/AppHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { trackPageView } from "@/lib/analytics";
 
 interface AssignedLesson {
   id: string;
