@@ -68,7 +68,7 @@ export default function AppHome() {
   const [showHints, setShowHints] = useState(() => tourPhase === "home");
   const [showQuickReview, setShowQuickReview] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState(0);
-  const [videoAssignments, setVideoAssignments] = useState<VideoAssignment[]>([]);
+  
   const [speakingAssignments, setSpeakingAssignments] = useState<SpeakingAssignment[]>([]);
   
   // Upload quota state
