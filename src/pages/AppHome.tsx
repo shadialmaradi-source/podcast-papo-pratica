@@ -40,6 +40,18 @@ interface AssignedLesson {
   status: string;
 }
 
+interface VideoAssignment {
+  id: string;
+  assignment_type: string;
+  video_id: string | null;
+  video_title: string | null;
+  speaking_topic: string | null;
+  speaking_level: string | null;
+  due_date: string | null;
+  note: string | null;
+  status: string;
+}
+
 export default function AppHome() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
