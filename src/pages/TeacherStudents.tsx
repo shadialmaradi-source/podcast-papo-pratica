@@ -176,7 +176,14 @@ export default function TeacherStudents() {
               </h1>
             </div>
           </div>
-          <Button onClick={() => setAddOpen(true)}>
+          <Button onClick={() => {
+            const nonArchived = students.filter(s => s.status !== "archived").length;
+            if (teacherPlan === "free" && nonArchived >= 3) {
+              setUpgradeOpen(true);
+            } else {
+              setAddOpen(true);
+            }
+          }}>
             <Plus className="mr-2 h-4 w-4" />
             Add Student
           </Button>
