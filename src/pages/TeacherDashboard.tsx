@@ -30,8 +30,8 @@ export default function TeacherDashboard() {
 
   // Redirect non-teachers away; redirect teachers who haven't onboarded
   useEffect(() => {
+    trackPageView("teacher_dashboard", "teacher");
     trackPageLoad("teacher_dashboard");
-    if (roleLoading) return;
     if (role !== "teacher") {
       navigate("/app");
       return;
