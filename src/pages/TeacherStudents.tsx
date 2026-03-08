@@ -377,6 +377,9 @@ export default function TeacherStudents() {
                             <Button variant="ghost" size="icon" onClick={() => setEditStudent(s)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setAssignStudentEmail(s.student_email)} title="Assign Video">
+                              <Video className="h-4 w-4" />
+                            </Button>
                             {s.status !== "archived" && (
                               <Button variant="ghost" size="icon" onClick={() => handleArchive(s)}>
                                 <Archive className="h-4 w-4" />
