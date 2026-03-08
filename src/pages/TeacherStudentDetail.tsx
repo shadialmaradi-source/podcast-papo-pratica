@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Pencil, Mail, Globe, BookOpen, GraduationCap } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ArrowLeft, Pencil, Mail, Globe, BookOpen, GraduationCap, Plus, Video, MessageSquare, CheckCircle } from "lucide-react";
 import { EditStudentModal } from "@/components/teacher/EditStudentModal";
+import { VideoBrowserModal } from "@/components/teacher/VideoBrowserModal";
+import { AssignSpeakingModal } from "@/components/teacher/AssignSpeakingModal";
 import { formatDistanceToNow, format } from "date-fns";
 
 interface StudentRow {
@@ -31,6 +34,19 @@ interface LessonRow {
   lesson_type: string;
 }
 
+interface AssignmentRow {
+  id: string;
+  assignment_type: string;
+  video_title: string | null;
+  speaking_topic: string | null;
+  speaking_level: string | null;
+  due_date: string | null;
+  note: string | null;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
 export default function TeacherStudentDetail() {
   const { studentId } = useParams<{ studentId: string }>();
   const { user } = useAuth();
@@ -38,8 +54,11 @@ export default function TeacherStudentDetail() {
 
   const [student, setStudent] = useState<StudentRow | null>(null);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [videoBrowserOpen, setVideoBrowserOpen] = useState(false);
+  const [speakingModalOpen, setSpeakingModalOpen] = useState(false);
 
   const fetchData = async () => {
     if (!user || !studentId) return;
@@ -56,14 +75,23 @@ export default function TeacherStudentDetail() {
     setStudent(s);
 
     if (s) {
+      // Fetch lessons
       const { data: lData } = await supabase
         .from("teacher_lessons")
         .select("id, title, status, cefr_level, created_at, lesson_type")
         .eq("teacher_id", user.id)
         .eq("student_email", s.student_email)
         .order("created_at", { ascending: false });
-
       setLessons((lData || []) as LessonRow[]);
+
+      // Fetch assignments
+      const { data: aData } = await supabase
+        .from("video_assignments" as any)
+        .select("id, assignment_type, video_title, speaking_topic, speaking_level, due_date, note, status, created_at, completed_at")
+        .eq("teacher_id", user.id)
+        .eq("student_email", s.student_email)
+        .order("created_at", { ascending: false });
+      setAssignments((aData || []) as unknown as AssignmentRow[]);
     }
 
     setLoading(false);
@@ -90,13 +118,34 @@ export default function TeacherStudentDetail() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="container mx-auto flex items-center gap-3 px-4 py-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/teacher/students")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-bold text-foreground">
-            {student.student_name || student.student_email}
-          </h1>
+        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/teacher/students")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-bold text-foreground">
+              {student.student_name || student.student_email}
+            </h1>
+          </div>
+          {/* Assign dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Assign
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setVideoBrowserOpen(true)}>
+                <Video className="mr-2 h-4 w-4" />
+                Assign Library Video
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSpeakingModalOpen(true)}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Assign Speaking Topic
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
@@ -139,13 +188,13 @@ export default function TeacherStudentDetail() {
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-foreground">{lessons.length}</p>
-              <p className="text-xs text-muted-foreground">Assigned</p>
+              <p className="text-xs text-muted-foreground">Lessons</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-foreground">{completedCount}</p>
-              <p className="text-xs text-muted-foreground">Completed</p>
+              <p className="text-2xl font-bold text-foreground">{assignments.length}</p>
+              <p className="text-xs text-muted-foreground">Assignments</p>
             </CardContent>
           </Card>
           <Card>
@@ -155,6 +204,53 @@ export default function TeacherStudentDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Assignments Section */}
+        {assignments.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" />
+                Assignments
+              </CardTitle>
+            </CardHeader>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Content</TableHead>
+                  <TableHead>Due</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {assignments.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell>
+                      {a.assignment_type === "video" ? (
+                        <Badge variant="outline" className="gap-1"><Video className="h-3 w-3" />Video</Badge>
+                      ) : (
+                        <Badge variant="outline" className="gap-1"><MessageSquare className="h-3 w-3" />Speaking</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-[200px]">
+                      <p className="text-sm font-medium truncate">
+                        {a.assignment_type === "video" ? a.video_title : a.speaking_topic}
+                      </p>
+                      {a.note && <p className="text-xs text-muted-foreground truncate">{a.note}</p>}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {a.due_date ? format(new Date(a.due_date), "MMM d") : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={a.status === "completed" ? "default" : "secondary"}>{a.status}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
 
         {/* Lessons Table */}
         <Card>
@@ -196,6 +292,20 @@ export default function TeacherStudentDetail() {
       </main>
 
       <EditStudentModal open={editOpen} onOpenChange={setEditOpen} student={student} onUpdated={fetchData} />
+      <VideoBrowserModal
+        open={videoBrowserOpen}
+        onOpenChange={setVideoBrowserOpen}
+        studentEmail={student.student_email}
+        onAssigned={fetchData}
+      />
+      <AssignSpeakingModal
+        open={speakingModalOpen}
+        onOpenChange={setSpeakingModalOpen}
+        studentEmail={student.student_email}
+        studentName={student.student_name}
+        studentLevel={student.level}
+        onAssigned={fetchData}
+      />
     </div>
   );
 }

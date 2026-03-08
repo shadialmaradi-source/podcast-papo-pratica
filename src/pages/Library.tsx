@@ -24,10 +24,12 @@ import { AppHeader } from "@/components/AppHeader";
 import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUploadQuotaStatus } from "@/services/subscriptionService";
 import { trackEvent, trackPageLoad } from "@/lib/analytics";
+import { AssignVideoModal } from "@/components/teacher/AssignVideoModal";
 
 interface VideoTopic {
   topic: string;
@@ -51,6 +53,8 @@ interface Video {
 export default function Library() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { role } = useUserRole();
+  const isTeacher = role === "teacher";
   
   // State
   const [selectedLevel, setSelectedLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
@@ -75,6 +79,9 @@ export default function Library() {
   } | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
+
+  // Assign modal state
+  const [assignVideo, setAssignVideo] = useState<{ id: string; title: string; videoId: string } | null>(null);
 
   // Tour state (1-4 steps, null = done)
   const [tourStep, setTourStep] = useState<number | null>(() => {
@@ -400,6 +407,7 @@ export default function Library() {
                           difficultyLevel={video.difficulty_level}
                           isCurated={video.is_curated}
                           onClick={() => handleVideoClick(video.id)}
+                          onAssign={isTeacher ? () => setAssignVideo({ id: video.id, title: video.title, videoId: video.video_id }) : undefined}
                         />
                         {index === 0 && tourStep === 4 && (
                           <LibraryTourTooltip
@@ -428,6 +436,7 @@ export default function Library() {
                           difficultyLevel={video.difficulty_level}
                           isCurated={video.is_curated}
                           onClick={() => handleVideoClick(video.id)}
+                          onAssign={isTeacher ? () => setAssignVideo({ id: video.id, title: video.title, videoId: video.video_id }) : undefined}
                         />
                       ))}
                     </div>
@@ -504,6 +513,16 @@ export default function Library() {
         quotaUsed={uploadQuota?.uploadsUsed}
         quotaLimit={uploadQuota?.uploadsLimit}
       />
+
+      {/* Assign Video Modal (teachers only) */}
+      {assignVideo && (
+        <AssignVideoModal
+          open={!!assignVideo}
+          onOpenChange={(o) => !o && setAssignVideo(null)}
+          videoTitle={assignVideo.title}
+          videoId={assignVideo.videoId}
+        />
+      )}
     </div>
   );
 }

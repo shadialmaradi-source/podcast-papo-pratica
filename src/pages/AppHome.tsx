@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Link2, Flame, Star, GraduationCap, X, RotateCw } from "lucide-react";
+import { BookOpen, Link2, Flame, Star, GraduationCap, X, RotateCw, Video, MessageSquare, CalendarDays, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,18 @@ interface AssignedLesson {
   status: string;
 }
 
+interface VideoAssignment {
+  id: string;
+  assignment_type: string;
+  video_id: string | null;
+  video_title: string | null;
+  speaking_topic: string | null;
+  speaking_level: string | null;
+  due_date: string | null;
+  note: string | null;
+  status: string;
+}
+
 export default function AppHome() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -53,6 +66,7 @@ export default function AppHome() {
   const [showHints, setShowHints] = useState(() => !localStorage.getItem("has_seen_home_hints"));
   const [showQuickReview, setShowQuickReview] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState(0);
+  const [videoAssignments, setVideoAssignments] = useState<VideoAssignment[]>([]);
   
   // Upload quota state
   const [uploadQuota, setUploadQuota] = useState<{
@@ -73,6 +87,7 @@ export default function AppHome() {
       fetchUploadQuota();
       fetchAssignedLessons();
       fetchFlashcardCount();
+      fetchVideoAssignments();
     }
   }, [user]);
 
@@ -104,6 +119,25 @@ export default function AppHome() {
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id);
     setFlashcardCount(count || 0);
+  };
+
+  const fetchVideoAssignments = async () => {
+    if (!user?.email) return;
+    const { data } = await supabase
+      .from("video_assignments" as any)
+      .select("id, assignment_type, video_id, video_title, speaking_topic, speaking_level, due_date, note, status")
+      .eq("student_email", user.email)
+      .eq("status", "assigned")
+      .order("created_at", { ascending: false });
+    if (data) setVideoAssignments(data as unknown as VideoAssignment[]);
+  };
+
+  const markAssignmentComplete = async (assignmentId: string) => {
+    await supabase
+      .from("video_assignments" as any)
+      .update({ status: "completed", completed_at: new Date().toISOString() } as any)
+      .eq("id", assignmentId);
+    fetchVideoAssignments();
   };
 
   const fetchUploadQuota = async () => {
@@ -417,6 +451,68 @@ export default function AppHome() {
               </div>
             </div>
           </div>
+
+          {/* Teacher Assignments (video + speaking) */}
+          {videoAssignments.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Assignments</h3>
+              </div>
+              <div className="space-y-2">
+                {videoAssignments.slice(0, 5).map((a) => (
+                  <Card key={a.id} className="border border-border">
+                    <CardContent className="px-4 py-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          {a.assignment_type === "video" ? (
+                            <Video className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground text-sm truncate">
+                            {a.assignment_type === "video" ? a.video_title : a.speaking_topic}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {a.due_date && (
+                              <span className="flex items-center gap-1">
+                                <CalendarDays className="h-3 w-3" />
+                                {format(new Date(a.due_date), "MMM d")}
+                              </span>
+                            )}
+                            {a.note && <span className="truncate max-w-[150px]">{a.note}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {a.assignment_type === "video" && a.video_id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => navigate(`/library`)}
+                          >
+                            Watch
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs"
+                          onClick={() => markAssignmentComplete(a.id)}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          Done
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Assigned Lessons from Teacher */}
           {assignedLessons.length > 0 && (

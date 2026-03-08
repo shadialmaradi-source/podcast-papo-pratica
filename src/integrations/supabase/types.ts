@@ -632,6 +632,30 @@ export type Database = {
           },
         ]
       }
+      speaking_topics: {
+        Row: {
+          cefr_level: string
+          created_at: string
+          id: string
+          language: string
+          topic: string
+        }
+        Insert: {
+          cefr_level: string
+          created_at?: string
+          id?: string
+          language?: string
+          topic: string
+        }
+        Update: {
+          cefr_level?: string
+          created_at?: string
+          id?: string
+          language?: string
+          topic?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string | null
@@ -1439,6 +1463,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      video_assignments: {
+        Row: {
+          assignment_type: string
+          completed_at: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          note: string | null
+          speaking_level: string | null
+          speaking_topic: string | null
+          status: string
+          student_email: string
+          teacher_id: string
+          video_id: string | null
+          video_title: string | null
+        }
+        Insert: {
+          assignment_type?: string
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          speaking_level?: string | null
+          speaking_topic?: string | null
+          status?: string
+          student_email: string
+          teacher_id: string
+          video_id?: string | null
+          video_title?: string | null
+        }
+        Update: {
+          assignment_type?: string
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          speaking_level?: string | null
+          speaking_topic?: string | null
+          status?: string
+          student_email?: string
+          teacher_id?: string
+          video_id?: string | null
+          video_title?: string | null
+        }
+        Relationships: []
       }
       video_topics: {
         Row: {
