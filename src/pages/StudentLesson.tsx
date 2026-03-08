@@ -12,6 +12,7 @@ import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { TranslationHint } from "@/components/exercises/TranslationHint";
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User, Radio, RefreshCw, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 
 interface Lesson {
   id: string;
