@@ -677,6 +677,41 @@ export type Database = {
         }
         Relationships: []
       }
+      speaking_lesson_questions: {
+        Row: {
+          created_at: string
+          difficulty: number
+          id: string
+          lesson_id: string
+          order_index: number
+          question_text: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: number
+          id?: string
+          lesson_id: string
+          order_index?: number
+          question_text: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: number
+          id?: string
+          lesson_id?: string
+          order_index?: number
+          question_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "speaking_lesson_questions_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       speaking_questions: {
         Row: {
           assignment_id: string
@@ -784,6 +819,41 @@ export type Database = {
         }
         Relationships: []
       }
+      speaking_vocabulary: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          target_word: string
+          teacher_note: string | null
+          translation: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          target_word: string
+          teacher_note?: string | null
+          translation?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          target_word?: string
+          teacher_note?: string | null
+          translation?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "speaking_vocabulary_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "speaking_lesson_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string | null
@@ -837,6 +907,8 @@ export type Database = {
           paragraph_content: string | null
           paragraph_prompt: string | null
           share_token: string | null
+          speaking_description: string | null
+          speaking_topic: string | null
           status: string
           student_email: string | null
           teacher_id: string
@@ -860,6 +932,8 @@ export type Database = {
           paragraph_content?: string | null
           paragraph_prompt?: string | null
           share_token?: string | null
+          speaking_description?: string | null
+          speaking_topic?: string | null
           status?: string
           student_email?: string | null
           teacher_id: string
@@ -883,6 +957,8 @@ export type Database = {
           paragraph_content?: string | null
           paragraph_prompt?: string | null
           share_token?: string | null
+          speaking_description?: string | null
+          speaking_topic?: string | null
           status?: string
           student_email?: string | null
           teacher_id?: string
