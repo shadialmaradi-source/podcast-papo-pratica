@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
@@ -19,6 +19,7 @@ import { FeaturedRow } from "@/components/library/FeaturedRow";
 import { VideoCard } from "@/components/library/VideoCard";
 import { AddVideoCard } from "@/components/library/AddVideoCard";
 import { LearningPath } from "@/components/library/LearningPath";
+import { LibraryTourTooltip } from "@/components/library/LibraryTourTooltip";
 import { AppHeader } from "@/components/AppHeader";
 import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
@@ -73,6 +74,27 @@ export default function Library() {
   } | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
+
+  // Tour state (1-4 steps, null = done)
+  const [tourStep, setTourStep] = useState<number | null>(() => {
+    return localStorage.getItem('library_tour_completed') ? null : 1;
+  });
+
+  const advanceTour = useCallback(() => {
+    setTourStep((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next === 3) {
+        // Auto-switch to community tab for step 3
+        setActiveTab('community');
+      }
+      if (next > 4) {
+        localStorage.setItem('library_tour_completed', 'true');
+        return null;
+      }
+      return next;
+    });
+  }, []);
 
   // Fetch curated video IDs (linked from week_videos)
   useEffect(() => {
@@ -278,8 +300,24 @@ export default function Library() {
       <div className="container mx-auto px-4 py-4 space-y-4">
         <Tabs value={activeTab} onValueChange={(v) => { const tab = v as 'curated' | 'community'; trackEvent('library_tab_switched', { tab }); setActiveTab(tab); }}>
           <TabsList className="grid w-full max-w-xs grid-cols-2">
-            <TabsTrigger value="curated">Curated</TabsTrigger>
-            <TabsTrigger value="community">Community</TabsTrigger>
+            <div className="relative">
+              <TabsTrigger value="curated" className="w-full">Learning Path</TabsTrigger>
+              {tourStep === 1 && (
+                <LibraryTourTooltip
+                  message="This is your Learning Path — a structured series of lessons curated by level to guide your progress step by step."
+                  onClose={advanceTour}
+                />
+              )}
+            </div>
+            <div className="relative">
+              <TabsTrigger value="community" className="w-full">Community</TabsTrigger>
+              {tourStep === 2 && (
+                <LibraryTourTooltip
+                  message="Explore videos added by other learners, or add your own!"
+                  onClose={advanceTour}
+                />
+              )}
+            </div>
           </TabsList>
         </Tabs>
 
@@ -311,7 +349,15 @@ export default function Library() {
               >
                 {/* Always show Add Video card even when no videos */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  <AddVideoCard onClick={() => setImportDialogOpen(true)} />
+                  <div className="relative">
+                    <AddVideoCard onClick={() => setImportDialogOpen(true)} />
+                    {tourStep === 3 && (
+                      <LibraryTourTooltip
+                        message="Paste any YouTube link to create a personalized lesson with exercises and flashcards."
+                        onClose={advanceTour}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="text-center py-8">
                   <p className="text-muted-foreground">
@@ -332,19 +378,34 @@ export default function Library() {
                 <div>
                   <h2 className="text-lg font-semibold text-foreground mb-3">Featured</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    <AddVideoCard onClick={() => setImportDialogOpen(true)} />
-                    {featuredVideos.map((video) => (
-                      <VideoCard
-                        key={video.id}
-                        id={video.id}
-                        title={video.title}
-                        thumbnailUrl={video.thumbnail_url}
-                        topics={video.topics}
-                        duration={video.duration}
-                        difficultyLevel={video.difficulty_level}
-                        isCurated={video.is_curated}
-                        onClick={() => handleVideoClick(video.id)}
-                      />
+                    <div className="relative">
+                      <AddVideoCard onClick={() => setImportDialogOpen(true)} />
+                      {tourStep === 3 && (
+                        <LibraryTourTooltip
+                          message="Paste any YouTube link to create a personalized lesson with exercises and flashcards."
+                          onClose={advanceTour}
+                        />
+                      )}
+                    </div>
+                    {featuredVideos.map((video, index) => (
+                      <div key={video.id} className="relative">
+                        <VideoCard
+                          id={video.id}
+                          title={video.title}
+                          thumbnailUrl={video.thumbnail_url}
+                          topics={video.topics}
+                          duration={video.duration}
+                          difficultyLevel={video.difficulty_level}
+                          isCurated={video.is_curated}
+                          onClick={() => handleVideoClick(video.id)}
+                        />
+                        {index === 0 && tourStep === 4 && (
+                          <LibraryTourTooltip
+                            message="Tap any video to start a lesson with transcript, exercises, and speaking practice."
+                            onClose={advanceTour}
+                          />
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
