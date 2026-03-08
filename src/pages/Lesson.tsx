@@ -297,6 +297,9 @@ export default function Lesson() {
       ...prev,
       flashcardsCount: count || 5,
     }));
+    if (isAssignment && videoId) {
+      markAssignmentCompleted(videoId);
+    }
     setLessonState("complete");
   };
 

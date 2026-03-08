@@ -164,6 +164,7 @@ const App = () => {
               <Route path="/lesson/student/:id" element={<ProtectedRoute><StudentLesson /></ProtectedRoute>} />
               <Route path="/speaking/:assignmentId" element={<ProtectedRoute><SpeakingAssignment /></ProtectedRoute>} />
               <Route path="/my-lessons" element={<ProtectedRoute><MyLessons /></ProtectedRoute>} />
+              <Route path="/my-assignments" element={<ProtectedRoute><MyAssignments /></ProtectedRoute>} />
               <Route path="/admin/import" element={<ProtectedRoute><AdminImport /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
