@@ -15,6 +15,7 @@ interface LessonCompleteScreenProps {
   onViewProgress: () => void;
   onRetry: () => void;
   onBackToLibrary: () => void;
+  nextVideoLoading?: boolean;
 }
 
 const LessonCompleteScreen = ({
