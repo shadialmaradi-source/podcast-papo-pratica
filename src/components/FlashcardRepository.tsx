@@ -342,11 +342,11 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
                         <SelectValue placeholder="Filter flashcards" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Flashcards ({flashcards.length})</SelectItem>
+                        <SelectItem value="all">All Flashcards ({languageFilteredFlashcards.length})</SelectItem>
                         <SelectItem value="unmastered">
-                          Unmastered ({flashcards.filter(fc => !fc.is_mastered).length})
+                          Unmastered ({languageFilteredFlashcards.filter(fc => !fc.is_mastered).length})
                         </SelectItem>
-                        {videoGroups.map(group => (
+                        {filteredVideoGroups.map(group => (
                           <SelectItem key={group.video_id} value={group.video_id}>
                             {group.video_title.substring(0, 40)}... ({group.flashcard_count})
                           </SelectItem>
