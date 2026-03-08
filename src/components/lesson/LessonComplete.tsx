@@ -26,44 +26,45 @@ const LessonComplete = ({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8 flex items-center justify-center"
+      className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
     >
-      <div className="max-w-lg w-full space-y-6">
-        {/* Celebration header */}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-          className="text-center space-y-4"
-        >
-          <div className="relative inline-block">
-            <motion.div
-              animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="w-24 h-24 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg"
-            >
-              <Trophy className="w-12 h-12 text-primary-foreground" />
-            </motion.div>
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.8 }}
-              className="absolute -top-2 -right-2"
-            >
-              <Sparkles className="w-8 h-8 text-amber-500" />
-            </motion.div>
-          </div>
+      <div className="flex-1 flex items-center justify-center overflow-auto p-3 md:p-8">
+        <div className="max-w-lg w-full space-y-4 md:space-y-6">
+          {/* Celebration header */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+            className="text-center space-y-3 md:space-y-4"
+          >
+            <div className="relative inline-block">
+              <motion.div
+                animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className="w-16 h-16 md:w-24 md:h-24 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg"
+              >
+                <Trophy className="w-8 h-8 md:w-12 md:h-12 text-primary-foreground" />
+              </motion.div>
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.8 }}
+                className="absolute -top-1 -right-1 md:-top-2 md:-right-2"
+              >
+                <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-amber-500" />
+              </motion.div>
+            </div>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-            Lesson Complete!
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            You're making amazing progress 🎉
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Create a free account to unlock unlimited lessons
-          </p>
-        </motion.div>
+            <h1 className="text-2xl md:text-4xl font-bold text-foreground">
+              Lesson Complete!
+            </h1>
+            <p className="text-muted-foreground text-base md:text-lg">
+              You're making amazing progress 🎉
+            </p>
+            <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2">
+              Create a free account to unlock unlimited lessons
+            </p>
+          </motion.div>
 
         {/* Stats card */}
         <motion.div
