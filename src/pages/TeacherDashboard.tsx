@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Users, ArrowLeft, Settings } from "lucide-react";
+import { BookOpen, Users, ArrowLeft, Settings, AlertTriangle } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
@@ -15,6 +16,7 @@ import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelecto
 import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
 import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreator";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useTeacherQuota } from "@/hooks/useTeacherQuota";
 import { trackPageLoad, trackPageView } from "@/lib/analytics";
 
 
@@ -25,6 +27,7 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { role, loading: roleLoading } = useUserRole();
+  const { quota, loading: quotaLoading, refresh: refreshQuota } = useTeacherQuota();
   const [step, setStep] = useState<FlowStep>("home");
   const [lessonType, setLessonType] = useState<LessonType>("paragraph");
   const [refresh, setRefresh] = useState(0);
@@ -56,8 +59,8 @@ export default function TeacherDashboard() {
 
 
   const handleCreated = (_lessonId: string) => {
-    // Stay on the form page — the inline result is shown in CreateLessonForm
     setRefresh((r) => r + 1);
+    refreshQuota();
   };
 
   const handleSelectType = (type: LessonType) => {
@@ -152,11 +155,33 @@ export default function TeacherDashboard() {
 
         {step === "home" && (
           <>
+            {/* Quota Indicator */}
+            {quota && (
+              <div className="mb-6 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Lessons this month: <span className="font-semibold text-foreground">{quota.lessonsUsed}/{quota.lessonsLimit}</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground capitalize">{quota.plan} plan</span>
+                </div>
+                <Progress value={(quota.lessonsUsed / quota.lessonsLimit) * 100} className="h-2" />
+                {!quota.canCreateLesson && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>You've reached your monthly lesson limit.</span>
+                    <Button variant="link" size="sm" className="p-0 h-auto text-destructive underline" onClick={() => navigate("/teacher/pricing")}>
+                      Upgrade
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Hero Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               <Card
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => setStep("choose_type")}
+                className={`cursor-pointer transition-all hover:border-primary hover:shadow-md ${!quota?.canCreateLesson ? 'opacity-50 pointer-events-none' : ''}`}
+                onClick={() => quota?.canCreateLesson && setStep("choose_type")}
               >
                 <CardContent className="flex flex-col items-center text-center gap-3 p-8">
                   <BookOpen className="h-12 w-12 text-primary" />
@@ -228,6 +253,7 @@ export default function TeacherDashboard() {
                   onCreated={handleCreated}
                   onCancel={handleBack}
                   prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
+                  maxVideoMinutes={quota?.maxVideoMinutes}
                 />
               </CardContent>
             </Card>

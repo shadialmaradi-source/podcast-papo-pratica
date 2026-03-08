@@ -28,10 +28,10 @@ const tiers = [
     icon: Zap,
     features: [
       "3 students max",
-      "Assign library videos",
-      "Track progress",
+      "10 lessons/month",
+      "Videos up to 5 min",
+      "All lesson types",
       "Basic analytics",
-      "Email support",
       "ListenFlow branding",
     ],
   },
@@ -44,10 +44,9 @@ const tiers = [
     recommended: true,
     features: [
       "Unlimited students",
-      "Custom learning paths",
+      "60 lessons/month",
+      "Videos up to 10 min",
       "Advanced analytics",
-      "Student notifications",
-      "In-app messaging",
       "Priority support",
       "Remove branding",
     ],
@@ -60,22 +59,23 @@ const tiers = [
     icon: Building2,
     features: [
       "Everything in Pro",
+      "160 lessons/month",
+      "Videos up to 15 min",
       "White-label (your branding)",
-      "Custom video uploads",
       "API access",
-      "Dedicated onboarding call",
-      "Premium support",
+      "Dedicated support",
     ],
   },
 ];
 
 const comparisonRows = [
   { feature: "Students", free: "3", pro: "Unlimited", premium: "Unlimited" },
-  { feature: "Learning Paths", free: false, pro: true, premium: true },
+  { feature: "Lessons/month", free: "10", pro: "60", premium: "160" },
+  { feature: "Max video length", free: "5 min", pro: "10 min", premium: "15 min" },
+  { feature: "Lesson types", free: "All", pro: "All", premium: "All" },
   { feature: "Analytics", free: "Basic", pro: "Advanced", premium: "Advanced" },
   { feature: "Branding", free: "ListenFlow", pro: "Removable", premium: "Your Brand" },
   { feature: "Support", free: "Email", pro: "Priority", premium: "Dedicated" },
-  { feature: "Custom Video Uploads", free: false, pro: false, premium: true },
   { feature: "API Access", free: false, pro: false, premium: true },
 ];
 
@@ -95,6 +95,10 @@ const faqItems = [
   {
     q: "Can I switch plans later?",
     a: "Absolutely. You can upgrade or downgrade at any time. When upgrading, you'll be charged the prorated difference.",
+  },
+  {
+    q: "What are the lesson limits?",
+    a: "Each plan has a monthly lesson creation limit that resets at the start of each month. Free: 10 lessons, Pro: 60 lessons, Premium: 160 lessons. Video duration limits also apply to prevent excessive transcription costs.",
   },
 ];
 
