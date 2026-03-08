@@ -15,7 +15,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { trackPageLoad } from "@/lib/analytics";
 
 
-type FlowStep = "home" | "choose_type" | "form";
+type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse";
 type LessonType = "paragraph" | "youtube";
 
 export default function TeacherDashboard() {
