@@ -400,7 +400,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
             <Card>
               <CardContent className="p-0">
                 <div className="aspect-video w-full">
-                  <div ref={playerContainerRef} className="w-full h-full" />
+                  <div key={videoData.video_id} id={playerContainerId} className="w-full h-full" />
                 </div>
               </CardContent>
             </Card>
