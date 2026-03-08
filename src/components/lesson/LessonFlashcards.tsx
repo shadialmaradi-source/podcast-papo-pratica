@@ -115,12 +115,12 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
               transition={{ duration: 0.3 }}
             >
               <Card 
-                className={`shadow-xl rounded-2xl border-0 cursor-pointer min-h-[300px] transition-all duration-300 ${
+                className={`shadow-xl rounded-2xl border-0 cursor-pointer min-h-[220px] md:min-h-[300px] transition-all duration-300 ${
                   learned[currentIndex] ? 'ring-2 ring-primary ring-offset-2' : ''
                 }`}
                 onClick={handleFlip}
               >
-                <CardContent className="p-8 h-full flex flex-col items-center justify-center text-center">
+                <CardContent className="p-5 md:p-8 h-full flex flex-col items-center justify-center text-center">
                   <motion.div
                     animate={{ rotateY: isFlipped ? 180 : 0 }}
                     transition={{ duration: 0.4 }}
