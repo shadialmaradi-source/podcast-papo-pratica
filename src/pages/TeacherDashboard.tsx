@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Users, ArrowLeft, Settings } from "lucide-react";
+import { BookOpen, Users, ArrowLeft, Settings, AlertTriangle } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
@@ -15,6 +16,7 @@ import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelecto
 import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
 import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreator";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useTeacherQuota } from "@/hooks/useTeacherQuota";
 import { trackPageLoad, trackPageView } from "@/lib/analytics";
 
 
