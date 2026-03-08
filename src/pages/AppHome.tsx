@@ -134,11 +134,23 @@ export default function AppHome() {
     if (!user?.email) return;
     const { data } = await supabase
       .from("video_assignments" as any)
-      .select("id, assignment_type, video_id, video_title, speaking_topic, speaking_level, due_date, note, status")
+      .select("id, video_id, video_title, due_date, note, status")
       .eq("student_email", user.email)
       .eq("status", "assigned")
+      .eq("assignment_type", "video")
       .order("created_at", { ascending: false });
     if (data) setVideoAssignments(data as unknown as VideoAssignment[]);
+  };
+
+  const fetchSpeakingAssignments = async () => {
+    if (!user?.email) return;
+    const { data } = await supabase
+      .from("speaking_assignments" as any)
+      .select("id, topic_title, cefr_level, language, custom_instructions, due_date, status")
+      .eq("student_email", user.email)
+      .in("status", ["assigned", "reviewed"])
+      .order("created_at", { ascending: false });
+    if (data) setSpeakingAssignments(data as unknown as SpeakingAssignment[]);
   };
 
   const markAssignmentComplete = async (assignmentId: string) => {
