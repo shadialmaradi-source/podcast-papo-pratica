@@ -1,124 +1,80 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Speaking Practice Lesson Type
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## Analysis
 
-## Summary of Changes
+A speaking assignment system already exists (`speaking_assignments` + `speaking_questions` tables, `AssignSpeakingModal`, `generate-speaking-questions` edge function). However, that flow is a lightweight "assign topic to student" shortcut from the students page. This feature adds a richer **lesson creation flow** with AI topic generation, vocabulary support, and integration into the `teacher_lessons` framework.
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+## What Exists and Can Be Reused
+- `generate-speaking-questions` edge function (generates 8 graded questions)
+- `speaking_questions` table structure (model for new lesson-based questions)
+- `analyze-word` edge function (can serve as vocabulary translation)
+- `teacher_lessons` table already has `lesson_type` column
 
----
+## What Needs to Be Built
 
-## Phase 1: Simplified Student Onboarding
+### Database (2 new tables, 1 column addition)
 
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+**Add columns to `teacher_lessons`:**
+- `speaking_topic` TEXT (nullable)
+- `speaking_description` TEXT (nullable)
 
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+**New table: `speaking_lesson_questions`**
+- Stores questions tied to a `teacher_lessons` record (separate from the existing `speaking_questions` which ties to `speaking_assignments`)
+- Columns: id, lesson_id (FK to teacher_lessons), question_text, difficulty, order_index, created_at
+- RLS: teachers manage own (via lesson_id join), students view assigned (via student_email join)
 
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+**New table: `speaking_vocabulary`**
+- Columns: id, question_id (FK to speaking_lesson_questions), target_word, translation, teacher_note, created_at
+- RLS: same pattern as questions
 
----
+### Edge Functions (2 new)
 
-## Phase 2: Remove image_discussion, Update Exercise Types
+**`generate-speaking-topics`** — Generates 3 topic suggestions given language + level. Uses Lovable AI gateway. Returns `{ topics: [{ title, description, suggested_level }] }`.
 
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
+**`translate-vocabulary`** — Translates a word/phrase given source language, target language, and context sentence. Returns `{ translation, note }`. Uses Lovable AI gateway.
 
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+The existing `generate-speaking-questions` edge function is reused as-is.
 
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+### Frontend Components
 
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+**`SpeakingLessonCreator.tsx`** (new) — Multi-step wizard:
+1. Select language + level → click Next
+2. AI generates 3 topics (calls `generate-speaking-topics`) → teacher picks one or enters custom → click Next
+3. AI generates questions (calls `generate-speaking-questions`) → teacher reviews, can regenerate → click Next
+4. Per-question vocabulary editor (inline expand, type word → auto-translate via `translate-vocabulary`) → click Next
+5. Review + title + optional student assignment → Create
 
----
+**`LessonTypeSelector.tsx`** (update) — Add "Speaking Practice" as third option with `MessageSquare` icon. Update type to `"paragraph" | "youtube" | "speaking"`.
 
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
+**`TeacherDashboard.tsx`** (update) — Handle `speaking` type: when selected, show `SpeakingLessonCreator` instead of `CreateLessonForm`. Add new flow step `"speaking_form"`.
 
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+**`StudentLesson.tsx`** (update) — Detect `lesson_type === 'speaking'` and render a speaking-specific view: one question at a time, vocabulary flashcards per question, note-taking textarea, progress indicator.
 
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+**`TeacherLesson.tsx`** (update) — Detect speaking lessons and show questions list with vocabulary counts and student notes.
 
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+### Routing
+No new routes needed — speaking lessons use existing `/lesson/student/:shareToken` and `/teacher/lesson/:id` routes, just with different rendering based on `lesson_type`.
 
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
-```
+## Files Changed
 
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
-
----
-
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
-
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
-
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
-
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
-
----
+| File | Change |
+|------|--------|
+| `supabase/functions/generate-speaking-topics/index.ts` | New edge function |
+| `supabase/functions/translate-vocabulary/index.ts` | New edge function |
+| `supabase/config.toml` | Register 2 new functions |
+| Database migration | Add columns + 2 new tables + RLS |
+| `src/components/teacher/LessonTypeSelector.tsx` | Add speaking option |
+| `src/components/teacher/SpeakingLessonCreator.tsx` | New multi-step wizard |
+| `src/pages/TeacherDashboard.tsx` | Handle speaking type flow |
+| `src/pages/StudentLesson.tsx` | Render speaking lesson view |
+| `src/pages/TeacherLesson.tsx` | Render speaking lesson detail |
 
 ## Technical Details
 
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+- Topic generation prompt asks for 3 topics with title, description, and suggested CEFR range
+- Vocabulary auto-translation uses debounced calls (500ms) to `translate-vocabulary` edge function
+- Questions stored separately from the existing `speaking_questions` table (which is tied to `speaking_assignments`) to avoid coupling the two systems
+- Student vocabulary from speaking lessons can later be synced to flashcard repository
 
