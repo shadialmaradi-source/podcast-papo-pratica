@@ -37,6 +37,7 @@ interface Lesson {
   transcript: string | null;
   exercise_types: string[];
   language: string;
+  lesson_type: string;
 }
 
 export default function TeacherLesson() {
