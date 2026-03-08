@@ -76,32 +76,33 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+      className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
     >
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            <BookOpen className="w-8 h-8 inline-block mr-2 text-primary" />
-            Flashcards
-          </h1>
-          <p className="text-muted-foreground">
-            Review key phrases from the lesson
-          </p>
-        </div>
+      <div className="flex-1 overflow-auto p-3 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+          <div className="text-center space-y-1 md:space-y-2">
+            <h1 className="text-xl md:text-3xl font-bold text-foreground">
+              <BookOpen className="w-6 h-6 md:w-8 md:h-8 inline-block mr-2 text-primary" />
+              Flashcards
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground">
+              Review key phrases from the lesson
+            </p>
+          </div>
 
-        {/* Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Card {currentIndex + 1} of {flashcards.length}</span>
-            <span>{Object.keys(learned).length} learned</span>
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs md:text-sm text-muted-foreground">
+              <span>Card {currentIndex + 1} of {flashcards.length}</span>
+              <span>{Object.keys(learned).length} learned</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div 
+                className="h-full bg-primary rounded-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full bg-muted rounded-full h-2">
-            <div 
-              className="h-full bg-primary rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
 
         {/* Flashcard */}
         <div className="perspective-1000">
@@ -114,12 +115,12 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
               transition={{ duration: 0.3 }}
             >
               <Card 
-                className={`shadow-xl rounded-2xl border-0 cursor-pointer min-h-[300px] transition-all duration-300 ${
+                className={`shadow-xl rounded-2xl border-0 cursor-pointer min-h-[220px] md:min-h-[300px] transition-all duration-300 ${
                   learned[currentIndex] ? 'ring-2 ring-primary ring-offset-2' : ''
                 }`}
                 onClick={handleFlip}
               >
-                <CardContent className="p-8 h-full flex flex-col items-center justify-center text-center">
+                <CardContent className="p-5 md:p-8 h-full flex flex-col items-center justify-center text-center">
                   <motion.div
                     animate={{ rotateY: isFlipped ? 180 : 0 }}
                     transition={{ duration: 0.4 }}
@@ -128,14 +129,14 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
                   >
                     {!isFlipped ? (
                       // Front - Target language phrase
-                      <div className="space-y-6">
-                        <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">{getLanguageFlag(language)}</span>
+                      <div className="space-y-4 md:space-y-6">
+                        <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
+                          <span className="text-xl md:text-2xl">{getLanguageFlag(language)}</span>
                         </div>
-                        <p className="text-2xl md:text-3xl font-bold text-foreground">
+                        <p className="text-xl md:text-3xl font-bold text-foreground">
                           {currentCard.phrase}
                         </p>
-                        <p className="text-muted-foreground text-sm">
+                        <p className="text-muted-foreground text-xs md:text-sm">
                           Tap to reveal translation
                         </p>
                       </div>
@@ -144,17 +145,17 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="space-y-6"
+                        className="space-y-4 md:space-y-6"
                         style={{ transform: 'rotateY(180deg)' }}
                       >
-                        <div className="w-12 h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">{getNativeLanguageFlag(nativeLanguage)}</span>
+                        <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
+                          <span className="text-xl md:text-2xl">{getNativeLanguageFlag(nativeLanguage)}</span>
                         </div>
-                         <p className="text-2xl md:text-3xl font-bold text-foreground">
+                         <p className="text-xl md:text-3xl font-bold text-foreground">
                            {getLocalizedText(currentCard.translation, nativeLanguage)}
                          </p>
-                         <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
-                           <p className="text-sm text-muted-foreground">
+                         <div className="bg-primary/5 rounded-xl p-3 md:p-4 border border-primary/20">
+                           <p className="text-xs md:text-sm text-muted-foreground">
                              <span className="text-primary font-medium">Why this matters:</span><br />
                              {getLocalizedText(currentCard.why, nativeLanguage)}
                            </p>
@@ -166,38 +167,62 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
               </Card>
             </motion.div>
           </AnimatePresence>
-        </div>
+          </div>
 
-        {/* Action buttons */}
-        <div className="flex justify-center gap-4">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={handleFlip}
-            className="gap-2 rounded-full"
-          >
-            <RotateCw className="w-5 h-5" />
-            Flip Card
-          </Button>
-
-          {isFlipped && !learned[currentIndex] && (
+          {/* Action buttons */}
+          <div className="flex justify-center gap-3 md:gap-4">
             <Button
+              variant="outline"
               size="lg"
-              onClick={handleMarkLearned}
-              className="bg-primary hover:bg-primary/90 gap-2 rounded-full"
+              onClick={handleFlip}
+              className="gap-2 rounded-full text-sm md:text-base"
             >
-              <Check className="w-5 h-5" />
-              Mark as Learned
+              <RotateCw className="w-4 h-4 md:w-5 md:h-5" />
+              Flip
             </Button>
-          )}
-        </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between">
+            {isFlipped && !learned[currentIndex] && (
+              <Button
+                size="lg"
+                onClick={handleMarkLearned}
+                className="bg-primary hover:bg-primary/90 gap-2 rounded-full text-sm md:text-base"
+              >
+                <Check className="w-4 h-4 md:w-5 md:h-5" />
+                Learned
+              </Button>
+            )}
+          </div>
+
+          {/* Progress dots */}
+          <div className="flex justify-center gap-1 md:gap-2 pt-2 md:pt-4">
+            {flashcards.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setIsFlipped(false);
+                  setCurrentIndex(idx);
+                }}
+                className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full transition-all ${
+                  learned[idx]
+                    ? 'bg-primary'
+                    : idx === currentIndex
+                      ? 'bg-primary/50 scale-125'
+                      : 'bg-muted hover:bg-muted-foreground/30'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky Navigation */}
+      <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+        <div className="max-w-2xl mx-auto flex justify-between">
           <Button
             variant="ghost"
             onClick={handlePrevious}
             disabled={currentIndex === 0}
+            size="sm"
           >
             Previous
           </Button>
@@ -206,39 +231,20 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
             <Button
               variant="ghost"
               onClick={handleNext}
+              size="sm"
             >
               Skip
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="w-4 h-4 ml-1 md:ml-2" />
             </Button>
           ) : (
             <Button
               onClick={onComplete}
-              className="bg-primary hover:bg-primary/90 gap-2"
+              className="bg-primary hover:bg-primary/90 gap-1 md:gap-2"
             >
               Complete Lesson
               <ArrowRight className="w-4 h-4" />
             </Button>
           )}
-        </div>
-
-        {/* Progress dots */}
-        <div className="flex justify-center gap-2 pt-4">
-          {flashcards.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                setIsFlipped(false);
-                setCurrentIndex(idx);
-              }}
-              className={`w-3 h-3 rounded-full transition-all ${
-                learned[idx]
-                  ? 'bg-primary'
-                  : idx === currentIndex
-                    ? 'bg-primary/50 scale-125'
-                    : 'bg-muted hover:bg-muted-foreground/30'
-              }`}
-            />
-          ))}
         </div>
       </div>
     </motion.div>

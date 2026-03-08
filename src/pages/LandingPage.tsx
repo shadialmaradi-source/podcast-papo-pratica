@@ -200,7 +200,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background">
       {/* Fixed Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border/50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -221,7 +221,7 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden pt-16">
+      <section className="relative min-h-[85dvh] md:min-h-[90vh] flex items-center justify-center overflow-hidden pt-16">
         {/* Animated background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
           <div className="absolute inset-0 opacity-30">
@@ -256,14 +256,14 @@ export default function LandingPage() {
             </h2>
 
             {/* Subheadline */}
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-base md:text-xl text-muted-foreground mb-6 md:mb-8 max-w-2xl mx-auto">
               {t.heroSubtitle}
             </p>
 
             {/* Language Picker */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 mb-6 md:mb-8">
               <Select value={selectedLanguage} onValueChange={(v) => setSelectedLanguage(v as LandingLanguage)}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-44 md:w-48">
                   <SelectValue placeholder={t.selectLanguage} />
                 </SelectTrigger>
                 <SelectContent>
@@ -282,12 +282,12 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <Button
-                size="lg"
-                onClick={handleStartLesson}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105"
-              >
-                {t.tryCTA}
+                <Button
+                  size="lg"
+                  onClick={handleStartLesson}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 md:px-8 py-5 md:py-6 text-base md:text-lg rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                >
+                  {t.tryCTA}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </motion.div>

@@ -144,9 +144,10 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+      className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
     >
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex-1 overflow-auto p-3 md:p-8">
+        <div className="max-w-3xl mx-auto space-y-3 md:space-y-6">
         <div className="space-y-2">
           <Button
             variant="ghost"
@@ -231,32 +232,32 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
           </CardContent>
         </Card>
 
-        <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
-          <p className="text-sm text-muted-foreground text-center">
-            <span className="text-primary font-medium">Tip:</span> Don't worry if you don't understand everything. Focus on the main ideas!
-          </p>
+          <div className="bg-primary/5 rounded-xl p-3 md:p-4 border border-primary/20">
+            <p className="text-xs md:text-sm text-muted-foreground text-center">
+              <span className="text-primary font-medium">Tip:</span> Don't worry if you don't understand everything. Focus on the main ideas!
+            </p>
+          </div>
         </div>
+      </div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: canContinue ? 1 : 0.5 }}
-          className="text-center"
-        >
+      {/* Sticky CTA */}
+      <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+        <div className="max-w-3xl mx-auto text-center">
           <Button
             onClick={onComplete}
             disabled={!canContinue}
             size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-8 py-5 md:py-6 text-base md:text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
           >
             Continue to Exercises
             <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
           {!canContinue && isPlaying && (
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-xs md:text-sm text-muted-foreground mt-2">
               Watch the video to continue...
             </p>
           )}
-        </motion.div>
+        </div>
       </div>
     </motion.div>
   );

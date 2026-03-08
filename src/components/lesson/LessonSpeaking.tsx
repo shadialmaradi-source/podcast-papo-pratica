@@ -360,57 +360,59 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+        className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
       >
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Speaking Practice
-            </h1>
-            <p className="text-muted-foreground">
-              You've used your free tries
-            </p>
+        <div className="flex-1 overflow-auto p-3 md:p-8">
+          <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+            <div className="text-center space-y-2">
+              <h1 className="text-xl md:text-3xl font-bold text-foreground">
+                Speaking Practice
+              </h1>
+              <p className="text-sm md:text-base text-muted-foreground">
+                You've used your free tries
+              </p>
+            </div>
+            <SignupPrompt />
           </div>
-          <SignupPrompt />
         </div>
       </motion.div>
     );
   }
 
-  // Summary mode for intermediate/advanced
   if (isSummaryMode) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+        className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
       >
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                Speaking Practice
-              </h1>
-              <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-sm">
-                Skip <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
-            </div>
-            <p className="text-muted-foreground">
-              Summarize what happened in the video
-            </p>
-          </div>
-
-          <RemainingTriesIndicator />
-
-          <Card className="shadow-xl rounded-2xl border-0">
-            <CardContent className="p-6 md:p-8 space-y-6">
-              <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
-                <h3 className="font-semibold text-foreground mb-2">Your task:</h3>
-                <p className="text-muted-foreground">
-                  Summarize what happened in the video in {isAuthenticated ? '20-30' : '5'} seconds using {language.charAt(0).toUpperCase() + language.slice(1)}. 
-                  Include the main characters, setting, and key events.
-                </p>
+        <div className="flex-1 overflow-auto p-3 md:p-8">
+          <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+            <div className="text-center space-y-1 md:space-y-2">
+              <div className="flex items-center justify-center gap-2 md:gap-3">
+                <h1 className="text-xl md:text-3xl font-bold text-foreground">
+                  Speaking Practice
+                </h1>
+                <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-xs md:text-sm">
+                  Skip <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
               </div>
+              <p className="text-sm md:text-base text-muted-foreground">
+                Summarize what happened in the video
+              </p>
+            </div>
+
+            <RemainingTriesIndicator />
+
+            <Card className="shadow-xl rounded-2xl border-0">
+              <CardContent className="p-4 md:p-8 space-y-4 md:space-y-6">
+                <div className="bg-primary/5 rounded-xl p-3 md:p-4 border border-primary/20">
+                  <h3 className="font-semibold text-foreground mb-1 md:mb-2 text-sm md:text-base">Your task:</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Summarize what happened in the video in {isAuthenticated ? '20-30' : '5'} seconds using {language.charAt(0).toUpperCase() + language.slice(1)}. 
+                    Include the main characters, setting, and key events.
+                  </p>
+                </div>
 
               {/* Error display */}
               {error && (
@@ -443,9 +445,9 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
               )}
 
               {!summaryRecorded && !isAnalyzing && !error ? (
-                <div className="text-center space-y-6">
+                <div className="text-center space-y-4 md:space-y-6">
                   {/* Timer */}
-                  <div className={`text-5xl font-bold ${summaryTime <= 10 ? 'text-destructive' : 'text-foreground'}`}>
+                  <div className={`text-4xl md:text-5xl font-bold ${summaryTime <= 10 ? 'text-destructive' : 'text-foreground'}`}>
                     {summaryTime}s
                   </div>
 
@@ -453,20 +455,20 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={isRecording ? stopRecording : startRecording}
-                    className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto transition-all ${
+                    className={`w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center mx-auto transition-all ${
                       isRecording 
                         ? 'bg-destructive animate-pulse' 
                         : 'bg-primary hover:bg-primary/90'
                     }`}
                   >
                     {isRecording ? (
-                      <Square className="w-10 h-10 text-destructive-foreground" />
+                      <Square className="w-8 h-8 md:w-10 md:h-10 text-destructive-foreground" />
                     ) : (
-                      <Mic className="w-10 h-10 text-primary-foreground" />
+                      <Mic className="w-8 h-8 md:w-10 md:h-10 text-primary-foreground" />
                     )}
                   </motion.button>
 
-                  <p className="text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {isRecording ? 'Tap to stop' : 'Tap to start recording'}
                   </p>
                 </div>
@@ -554,9 +556,9 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                   </div>
                 </motion.div>
               ) : null}
-            </CardContent>
-          </Card>
-
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </motion.div>
     );
@@ -569,26 +571,27 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+      className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
     >
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-3">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Speaking Practice
-            </h1>
-            {!allPhrasesRecorded && (
-              <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-sm">
-                Skip <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
-            )}
+      <div className="flex-1 overflow-auto p-3 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+          <div className="text-center space-y-1 md:space-y-2">
+            <div className="flex items-center justify-center gap-2 md:gap-3">
+              <h1 className="text-xl md:text-3xl font-bold text-foreground">
+                Speaking Practice
+              </h1>
+              {!allPhrasesRecorded && (
+                <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-xs md:text-sm">
+                  Skip <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              )}
+            </div>
+            <p className="text-sm md:text-base text-muted-foreground">
+              Repeat each phrase after listening
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            Repeat each phrase after listening
-          </p>
-        </div>
 
-        <RemainingTriesIndicator />
+          <RemainingTriesIndicator />
 
         {/* Progress */}
         <div className="flex justify-center gap-2">
@@ -614,21 +617,21 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
             exit={{ opacity: 0, x: -20 }}
           >
             <Card className="shadow-xl rounded-2xl border-0">
-              <CardContent className="p-6 md:p-8 space-y-6">
+              <CardContent className="p-4 md:p-8 space-y-4 md:space-y-6">
                 {/* Phrase display */}
-                <div className="text-center space-y-3">
-                  <div className="bg-primary/5 rounded-2xl p-6 border border-primary/20">
-                    <p className="text-2xl md:text-3xl font-bold text-foreground">
+                <div className="text-center space-y-2 md:space-y-3">
+                  <div className="bg-primary/5 rounded-2xl p-4 md:p-6 border border-primary/20">
+                    <p className="text-xl md:text-3xl font-bold text-foreground">
                       {currentPhrase.phrase}
                     </p>
                   </div>
                   
-                  <p className="text-muted-foreground">
+                  <p className="text-sm md:text-base text-muted-foreground">
                     {currentPhrase.translation}
                   </p>
                   
-                  <div className="bg-muted/50 rounded-lg p-3">
-                    <p className="text-sm text-muted-foreground">
+                  <div className="bg-muted/50 rounded-lg p-2 md:p-3">
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       <strong>Why learn this:</strong> {currentPhrase.why}
                     </p>
                   </div>
@@ -681,20 +684,20 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={isRecording ? stopRecording : startRecording}
-                      className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+                      className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all ${
                         isRecording 
                           ? 'bg-destructive animate-pulse' 
                           : 'bg-primary hover:bg-primary/90'
                       }`}
                     >
                       {isRecording ? (
-                        <Square className="w-8 h-8 text-destructive-foreground" />
+                        <Square className="w-6 h-6 md:w-8 md:h-8 text-destructive-foreground" />
                       ) : (
-                        <Mic className="w-8 h-8 text-primary-foreground" />
+                        <Mic className="w-6 h-6 md:w-8 md:h-8 text-primary-foreground" />
                       )}
                     </motion.button>
 
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs md:text-sm text-muted-foreground">
                       {isRecording ? 'Recording... (5 seconds)' : 'Tap to record your pronunciation'}
                     </p>
                   </div>
@@ -774,26 +777,24 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
             </Card>
           </motion.div>
         </AnimatePresence>
+        </div>
+      </div>
 
-        {/* Complete button when all done */}
-        {allPhrasesRecorded && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
+      {/* Sticky CTA when all done */}
+      {allPhrasesRecorded && (
+        <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+          <div className="max-w-2xl mx-auto">
             <Button
               size="lg"
               onClick={onComplete}
-              className="bg-primary hover:bg-primary/90 px-8"
+              className="w-full bg-primary hover:bg-primary/90 py-5 md:py-6 rounded-full"
             >
               Continue to Flashcards
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-          </motion.div>
-        )}
-
-      </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

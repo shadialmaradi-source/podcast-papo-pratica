@@ -142,23 +142,23 @@ export default function Onboarding() {
     : [t('onboardingStep1'), t('onboardingStep2'), t('onboardingStep3')];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col">
       {/* Header */}
-      <header className="p-4">
+      <header className="p-3 md:p-4">
         <div className="container mx-auto flex items-center gap-2">
-          <Headphones className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+          <Headphones className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+          <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
             ListenFlow
           </span>
         </div>
       </header>
 
       {/* Progress Indicator */}
-      <div className="container mx-auto px-4 pt-4">
-        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+      <div className="container mx-auto px-4 pt-2 md:pt-4">
+        <div className="flex items-center justify-center gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground">
           {stepLabels.map((label, i) => (
-            <span key={i} className="flex items-center gap-2">
-              {i > 0 && <ArrowRight className="h-4 w-4" />}
+            <span key={i} className="flex items-center gap-1 md:gap-2">
+              {i > 0 && <ArrowRight className="h-3 w-3 md:h-4 md:w-4" />}
               <span className={currentStepIndex === i ? 'text-primary font-medium' : currentStepIndex > i ? 'text-primary/60' : ''}>
                 {label}
               </span>
@@ -168,15 +168,15 @@ export default function Onboarding() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center p-4">
+      <main className="flex-1 flex items-center justify-center p-3 md:p-4 overflow-auto">
         <AnimatePresence mode="wait">
           {step === 'language' && (
             <motion.div key="language" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-lg">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingLangTitle')}</h1>
-                <p className="text-muted-foreground">{t('onboardingLangSubtitle')}</p>
+              <div className="text-center mb-4 md:mb-8">
+                <h1 className="text-xl md:text-3xl font-bold text-foreground mb-1 md:mb-2">{t('onboardingLangTitle')}</h1>
+                <p className="text-sm md:text-base text-muted-foreground">{t('onboardingLangSubtitle')}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="grid grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-8">
                 {targetLanguages.map((lang) => (
                   <Card
                     key={lang.code}
@@ -185,39 +185,39 @@ export default function Onboarding() {
                       selectedLanguage === lang.code ? 'ring-2 ring-primary border-primary bg-primary/5' : lang.available ? 'hover:border-primary/50' : 'opacity-60'
                     }`}
                   >
-                    <CardContent className="p-6 text-center relative">
+                    <CardContent className="p-3 md:p-6 text-center relative">
                       {selectedLanguage === lang.code && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2">
-                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary-foreground" />
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-1 right-1 md:top-2 md:right-2">
+                          <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
                           </div>
                         </motion.div>
                       )}
                       {!lang.available && (
                         <div className="absolute inset-0 bg-muted/40 rounded-lg flex items-center justify-center z-10">
-                          <Badge variant="secondary" className="bg-muted-foreground/80 text-background">{t('soon')}</Badge>
+                          <Badge variant="secondary" className="bg-muted-foreground/80 text-background text-xs">{t('soon')}</Badge>
                         </div>
                       )}
-                      <span className="text-4xl mb-3 block">{lang.flag}</span>
-                      <h3 className="font-bold text-foreground">{lang.name}</h3>
-                      <p className="text-sm text-muted-foreground">{lang.native}</p>
+                      <span className="text-3xl md:text-4xl mb-2 md:mb-3 block">{lang.flag}</span>
+                      <h3 className="font-bold text-foreground text-sm md:text-base">{lang.name}</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">{lang.native}</p>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-              <Button onClick={handleContinueToNative} disabled={!selectedLanguage} size="lg" className="w-full py-6 text-lg rounded-full">
-                {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
+              <Button onClick={handleContinueToNative} disabled={!selectedLanguage} size="lg" className="w-full py-4 md:py-6 text-base md:text-lg rounded-full">
+                {t('continue')} <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
               </Button>
             </motion.div>
           )}
 
           {step === 'native' && (
             <motion.div key="native" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-lg">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingNativeTitle')}</h1>
-                <p className="text-muted-foreground">{t('onboardingNativeSubtitle')}</p>
+              <div className="text-center mb-4 md:mb-8">
+                <h1 className="text-xl md:text-3xl font-bold text-foreground mb-1 md:mb-2">{t('onboardingNativeTitle')}</h1>
+                <p className="text-sm md:text-base text-muted-foreground">{t('onboardingNativeSubtitle')}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="grid grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-8">
                 {filteredNativeLanguages.map((lang) => (
                   <Card
                     key={lang.code}
@@ -226,32 +226,32 @@ export default function Onboarding() {
                       selectedNativeLanguage === lang.code ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'
                     }`}
                   >
-                    <CardContent className="p-6 text-center relative">
+                    <CardContent className="p-3 md:p-6 text-center relative">
                       {selectedNativeLanguage === lang.code && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2">
-                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary-foreground" />
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-1 right-1 md:top-2 md:right-2">
+                          <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
                           </div>
                         </motion.div>
                       )}
-                      <span className="text-4xl mb-3 block">{lang.flag}</span>
-                      <h3 className="font-bold text-foreground">{lang.name}</h3>
-                      <p className="text-sm text-muted-foreground">{lang.native}</p>
+                      <span className="text-3xl md:text-4xl mb-2 md:mb-3 block">{lang.flag}</span>
+                      <h3 className="font-bold text-foreground text-sm md:text-base">{lang.name}</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">{lang.native}</p>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-              <div className="flex gap-3">
-                <Button onClick={handleBack} variant="outline" size="lg" className="py-6 text-lg rounded-full">
-                  <ArrowLeft className="mr-2 h-5 w-5" /> {t('back')}
+              <div className="flex gap-2 md:gap-3">
+                <Button onClick={handleBack} variant="outline" size="lg" className="py-4 md:py-6 text-base md:text-lg rounded-full">
+                  <ArrowLeft className="mr-1 md:mr-2 h-4 w-4 md:h-5 md:w-5" /> {t('back')}
                 </Button>
                 {isLessonOnboarding ? (
-                  <Button onClick={handleLessonOnboardingComplete} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-6 text-lg rounded-full">
-                    Start Lesson <ArrowRight className="ml-2 h-5 w-5" />
+                  <Button onClick={handleLessonOnboardingComplete} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-4 md:py-6 text-base md:text-lg rounded-full">
+                    Start Lesson <ArrowRight className="ml-1 md:ml-2 h-4 w-4 md:h-5 md:w-5" />
                   </Button>
                 ) : (
-                  <Button onClick={handleContinueToLevel} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-6 text-lg rounded-full">
-                    {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
+                  <Button onClick={handleContinueToLevel} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-4 md:py-6 text-base md:text-lg rounded-full">
+                    {t('continue')} <ArrowRight className="ml-1 md:ml-2 h-4 w-4 md:h-5 md:w-5" />
                   </Button>
                 )}
               </div>
@@ -260,11 +260,11 @@ export default function Onboarding() {
 
           {step === 'level' && !isLessonOnboarding && (
             <motion.div key="level" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="w-full max-w-lg">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingLevelTitle')}</h1>
-                <p className="text-muted-foreground">{t('onboardingLevelSubtitle')}</p>
+              <div className="text-center mb-4 md:mb-8">
+                <h1 className="text-xl md:text-3xl font-bold text-foreground mb-1 md:mb-2">{t('onboardingLevelTitle')}</h1>
+                <p className="text-sm md:text-base text-muted-foreground">{t('onboardingLevelSubtitle')}</p>
               </div>
-              <div className="space-y-3 mb-8">
+              <div className="space-y-2 md:space-y-3 mb-4 md:mb-8">
                 {proficiencyLevels.map((level) => {
                   const IconComponent = level.icon;
                   return (
@@ -275,20 +275,20 @@ export default function Onboarding() {
                         selectedLevel === level.code ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'
                       }`}
                     >
-                      <CardContent className="p-4 flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                      <CardContent className="p-3 md:p-4 flex items-center gap-3 md:gap-4">
+                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shrink-0 ${
                           selectedLevel === level.code ? 'bg-primary/20' : 'bg-muted'
                         }`}>
-                          <IconComponent className={`h-6 w-6 ${selectedLevel === level.code ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <IconComponent className={`h-5 w-5 md:h-6 md:w-6 ${selectedLevel === level.code ? 'text-primary' : 'text-muted-foreground'}`} />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-foreground">{level.label}</h3>
-                          <p className="text-sm text-muted-foreground">{level.description}</p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-foreground text-sm md:text-base">{level.label}</h3>
+                          <p className="text-xs md:text-sm text-muted-foreground truncate">{level.description}</p>
                         </div>
                         {selectedLevel === level.code && (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                              <Check className="h-4 w-4 text-primary-foreground" />
+                            <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
                             </div>
                           </motion.div>
                         )}
@@ -297,12 +297,12 @@ export default function Onboarding() {
                   );
                 })}
               </div>
-              <div className="flex gap-3">
-                <Button onClick={handleBack} variant="outline" size="lg" className="py-6 text-lg rounded-full">
-                  <ArrowLeft className="mr-2 h-5 w-5" /> {t('back')}
+              <div className="flex gap-2 md:gap-3">
+                <Button onClick={handleBack} variant="outline" size="lg" className="py-4 md:py-6 text-base md:text-lg rounded-full">
+                  <ArrowLeft className="mr-1 md:mr-2 h-4 w-4 md:h-5 md:w-5" /> {t('back')}
                 </Button>
-                <Button onClick={handleFinalContinue} disabled={!selectedLevel} size="lg" className="flex-1 py-6 text-lg rounded-full">
-                  {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
+                <Button onClick={handleFinalContinue} disabled={!selectedLevel} size="lg" className="flex-1 py-4 md:py-6 text-base md:text-lg rounded-full">
+                  {t('continue')} <ArrowRight className="ml-1 md:ml-2 h-4 w-4 md:h-5 md:w-5" />
                 </Button>
               </div>
             </motion.div>

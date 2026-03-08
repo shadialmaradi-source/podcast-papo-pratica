@@ -277,15 +277,16 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8 flex items-center justify-center"
+        className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
       >
-        <Card className="max-w-md w-full shadow-xl rounded-2xl border-0">
-          <CardContent className="p-8 text-center space-y-6">
-            <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center ${
-              passed ? 'bg-primary/10' : 'bg-amber-500/10'
-            }`}>
-              <Award className={`w-12 h-12 ${passed ? 'text-primary' : 'text-amber-500'}`} />
-            </div>
+        <div className="flex-1 flex items-center justify-center p-3 md:p-8">
+          <Card className="max-w-md w-full shadow-xl rounded-2xl border-0">
+            <CardContent className="p-5 md:p-8 text-center space-y-4 md:space-y-6">
+              <div className={`w-16 h-16 md:w-24 md:h-24 mx-auto rounded-full flex items-center justify-center ${
+                passed ? 'bg-primary/10' : 'bg-amber-500/10'
+              }`}>
+                <Award className={`w-8 h-8 md:w-12 md:h-12 ${passed ? 'text-primary' : 'text-amber-500'}`} />
+              </div>
             
             <div>
               <h2 className="text-3xl font-bold text-foreground">
@@ -311,16 +312,23 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
                 : "Try watching the video again for better comprehension."}
             </p>
 
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sticky CTA */}
+        <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+          <div className="max-w-md mx-auto">
             <Button
               onClick={() => onComplete(score, exercises.length)}
               size="lg"
-              className="w-full bg-primary hover:bg-primary/90 rounded-full"
+              className="w-full bg-primary hover:bg-primary/90 rounded-full py-5 md:py-6"
             >
               {passed ? 'Continue to Speaking' : 'Continue Anyway'}
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
     );
   }
@@ -329,9 +337,10 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+      className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
     >
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="flex-1 overflow-auto p-3 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
         {/* Progress */}
         <div className="space-y-2">
           {isResuming && (
@@ -366,7 +375,7 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
             exit={{ opacity: 0, x: -20 }}
           >
             <Card className="shadow-xl rounded-2xl border-0">
-              <CardContent className="p-6 md:p-8 space-y-6">
+              <CardContent className="p-4 md:p-8 space-y-4 md:space-y-6">
                 <div className="space-y-2">
                   <span className="text-xs font-medium text-primary uppercase tracking-wide">
                     {currentExercise.type.replace('_', ' ')}
@@ -415,23 +424,26 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
             </Card>
           </motion.div>
         </AnimatePresence>
+        </div>
+      </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between">
+      {/* Sticky Navigation */}
+      <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+        <div className="max-w-2xl mx-auto flex justify-between">
           <Button
             variant="ghost"
             onClick={handlePrevious}
             disabled={currentIndex === 0}
-            className="gap-2"
+            className="gap-1 md:gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Previous
+            <span className="hidden sm:inline">Previous</span>
           </Button>
 
           {showFeedback && (
             <Button
               onClick={handleNext}
-              className="bg-primary hover:bg-primary/90 gap-2"
+              className="bg-primary hover:bg-primary/90 gap-1 md:gap-2"
             >
               {currentIndex === exercises.length - 1 ? 'See Results' : 'Next'}
               <ArrowRight className="w-4 h-4" />
