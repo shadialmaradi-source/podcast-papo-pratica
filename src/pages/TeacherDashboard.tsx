@@ -48,10 +48,6 @@ export default function TeacherDashboard() {
     }
   }, [role, roleLoading, navigate, user]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
-  };
 
   const handleCreated = (_lessonId: string) => {
     // Stay on the form page — the inline result is shown in CreateLessonForm
