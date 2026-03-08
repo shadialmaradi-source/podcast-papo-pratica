@@ -407,6 +407,7 @@ export default function Library() {
                           difficultyLevel={video.difficulty_level}
                           isCurated={video.is_curated}
                           onClick={() => handleVideoClick(video.id)}
+                          onAssign={isTeacher ? () => setAssignVideo({ id: video.id, title: video.title, videoId: video.video_id }) : undefined}
                         />
                         {index === 0 && tourStep === 4 && (
                           <LibraryTourTooltip
