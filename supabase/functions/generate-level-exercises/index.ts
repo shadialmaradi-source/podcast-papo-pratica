@@ -365,7 +365,8 @@ ${formatInstructions}`;
           intensity: 'intense',
           xp_reward: xpReward,
           order_index: index,
-          native_language: nativeLangName
+          native_language: nativeLangName,
+          scene_id: sceneId || null
         };
       });
 
