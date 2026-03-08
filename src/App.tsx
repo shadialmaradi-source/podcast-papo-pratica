@@ -39,6 +39,7 @@ const TeacherLesson = lazy(() => import("./pages/TeacherLesson"));
 const StudentLesson = lazy(() => import("./pages/StudentLesson"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const MyLessons = lazy(() => import("./pages/MyLessons"));
+const MyAssignments = lazy(() => import("./pages/MyAssignments"));
 const SpeakingAssignment = lazy(() => import("./pages/SpeakingAssignment"));
 const AdminImport = lazy(() => import("./pages/AdminImport"));
 
