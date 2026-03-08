@@ -175,7 +175,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
       translation_language: "english",
       ...(isParagraph
         ? { paragraph_prompt: "", language: "italian", paragraph_length: "medium" }
-        : { topic: "", youtube_url: "", language: "italian" }),
+        : { topic: "", youtube_url: prefillYoutubeUrl || "", language: "italian" }),
     },
   });
 
