@@ -67,6 +67,34 @@ export default function TeacherDashboard() {
     else setStep("home");
   };
 
+  if (roleLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-card">
+          <div className="container mx-auto flex items-center justify-between px-4 py-4">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-8 w-24" />
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8 max-w-2xl">
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-5 w-80 mb-8" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-px w-full mb-6" />
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
