@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
