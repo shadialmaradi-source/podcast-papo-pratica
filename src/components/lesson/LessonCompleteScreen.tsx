@@ -27,6 +27,7 @@ const LessonCompleteScreen = ({
   onViewProgress,
   onRetry,
   onBackToLibrary,
+  nextVideoLoading = false,
 }: LessonCompleteScreenProps) => {
   const xpEarned = Math.round(exerciseAccuracy * 0.5) + flashcardsCount * 2 + 10;
 
