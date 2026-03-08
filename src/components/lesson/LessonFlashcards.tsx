@@ -34,7 +34,7 @@ const getNativeLanguageFlag = (code: string): string => {
   return flags[code?.toLowerCase()] || '🌐';
 };
 
-const LessonFlashcards = ({ flashcards, onComplete, language = "english", nativeLanguage = "en" }: LessonFlashcardsProps) => {
+const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english", nativeLanguage = "en" }: LessonFlashcardsProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [learned, setLearned] = useState<Record<number, boolean>>({});
