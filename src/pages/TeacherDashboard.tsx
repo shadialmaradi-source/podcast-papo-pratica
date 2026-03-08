@@ -6,10 +6,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, LogOut, Users, ArrowLeft, BarChart3, CreditCard, Globe, Palette } from "lucide-react";
+import { BookOpen, Users, ArrowLeft, Settings } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
-import { LessonList } from "@/components/teacher/LessonList";
 import { useUserRole } from "@/hooks/useUserRole";
 import { trackPageLoad } from "@/lib/analytics";
 

@@ -30,6 +30,7 @@ const TeacherCommunity = lazy(() => import("./pages/TeacherCommunity"));
 const TeacherBranding = lazy(() => import("./pages/TeacherBranding"));
 const TeacherPricing = lazy(() => import("./pages/TeacherPricing"));
 const TeacherAnalytics = lazy(() => import("./pages/TeacherAnalytics"));
+const TeacherSettings = lazy(() => import("./pages/TeacherSettings"));
 const TeacherOnboarding = lazy(() => import("./pages/TeacherOnboarding"));
 const TeacherStudents = lazy(() => import("./pages/TeacherStudents"));
 const TeacherStudentDetail = lazy(() => import("./pages/TeacherStudentDetail"));
