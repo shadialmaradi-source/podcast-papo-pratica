@@ -27,6 +27,7 @@ interface Lesson {
   exercise_types: string[];
   language: string;
   translation_language: string;
+  teacher_id: string;
 }
 
 function extractYouTubeVideoId(url: string): string | null {
