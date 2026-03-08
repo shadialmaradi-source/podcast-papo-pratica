@@ -43,13 +43,20 @@ interface AssignedLesson {
 
 interface VideoAssignment {
   id: string;
-  assignment_type: string;
   video_id: string | null;
   video_title: string | null;
-  speaking_topic: string | null;
-  speaking_level: string | null;
   due_date: string | null;
   note: string | null;
+  status: string;
+}
+
+interface SpeakingAssignment {
+  id: string;
+  topic_title: string;
+  cefr_level: string;
+  language: string;
+  custom_instructions: string | null;
+  due_date: string | null;
   status: string;
 }
 
