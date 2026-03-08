@@ -1,5 +1,5 @@
 // Translation system for the entire application
-export type LanguageCode = 'en' | 'it' | 'pt' | 'es' | 'fr';
+export type LanguageCode = 'en' | 'it' | 'pt' | 'es' | 'fr' | 'de' | 'zh' | 'ja' | 'ko' | 'ar' | 'hi' | 'ru' | 'nl' | 'tr' | 'pl' | 'sv' | 'no' | 'da' | 'el' | 'th';
 
 export const translations = {
   en: {
