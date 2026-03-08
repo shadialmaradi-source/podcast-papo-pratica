@@ -10,7 +10,7 @@ const corsHeaders = {
 // Hardcoded founder allow-list
 const FOUNDER_IDS = [
   '4019daee-273d-48e5-8128-fa3332e9acb0',
-  // Add more founder UUIDs here
+  'd16921f2-9385-4bcb-9052-5fd9902956fd',
 ];
 
 const TOPICS = [
