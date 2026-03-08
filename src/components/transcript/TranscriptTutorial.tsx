@@ -180,7 +180,7 @@ export function TranscriptTutorial({ step, onAdvance, onSkip, onComplete }: Tran
             className={cn(
               'fixed left-3 right-3 z-[101] pointer-events-auto',
               config.position === 'bottom' && 'bottom-4',
-              config.position === 'top' && 'top-4'
+              config.position === 'top' && 'top-16'
             )}
           >
             <div className="bg-card border rounded-xl shadow-xl p-4 space-y-3 max-w-md mx-auto">
