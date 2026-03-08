@@ -24,6 +24,7 @@ import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { trackEvent, trackPageLoad, trackPageView } from "@/lib/analytics";
 import { QuickReviewSession } from "@/components/QuickReviewSession";
+import { useStudentTour } from "@/hooks/useStudentTour";
 
 interface UserProfile {
   full_name: string | null;
