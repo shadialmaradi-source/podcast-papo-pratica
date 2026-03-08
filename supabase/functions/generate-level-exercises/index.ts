@@ -97,7 +97,6 @@ serve(async (req) => {
     // Get language name for prompt
     const languageName = language || 'italian';
     const languageDisplay = languageName.charAt(0).toUpperCase() + languageName.slice(1);
-    const nativeLangName = nativeLanguage || 'english';
     const nativeLangDisplay = nativeLangName.charAt(0).toUpperCase() + nativeLangName.slice(1);
 
     // XP based on level
