@@ -226,17 +226,17 @@ export default function Onboarding() {
                       selectedNativeLanguage === lang.code ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'
                     }`}
                   >
-                    <CardContent className="p-6 text-center relative">
+                    <CardContent className="p-3 md:p-6 text-center relative">
                       {selectedNativeLanguage === lang.code && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2">
-                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary-foreground" />
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-1 right-1 md:top-2 md:right-2">
+                          <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
                           </div>
                         </motion.div>
                       )}
-                      <span className="text-4xl mb-3 block">{lang.flag}</span>
-                      <h3 className="font-bold text-foreground">{lang.name}</h3>
-                      <p className="text-sm text-muted-foreground">{lang.native}</p>
+                      <span className="text-3xl md:text-4xl mb-2 md:mb-3 block">{lang.flag}</span>
+                      <h3 className="font-bold text-foreground text-sm md:text-base">{lang.name}</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">{lang.native}</p>
                     </CardContent>
                   </Card>
                 ))}
