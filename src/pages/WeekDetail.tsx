@@ -37,6 +37,7 @@ export default function WeekDetail() {
 
   useEffect(() => {
     if (!weekId) return;
+    trackPageView("week_detail", "student");
     trackEvent('week_detail_viewed', { week_id: weekId });
     loadData();
   }, [weekId, user]);

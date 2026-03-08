@@ -235,10 +235,11 @@ export default function WeekVideo() {
           <VideoFlashcards
             videoId={linkedVideoId!}
             level="beginner"
-            onComplete={() => {
-              handleComplete();
-              setLessonStep("complete");
-            }}
+              onComplete={() => {
+                handleComplete();
+                trackFunnelStep("lesson", "complete", 4, { video_id: weekVideoId });
+                setLessonStep("complete");
+              }}
             onBack={() => setLessonStep("speaking")}
           />
         )}

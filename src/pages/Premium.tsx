@@ -35,6 +35,7 @@ export default function Premium() {
 
   // Track page view
   useEffect(() => {
+    trackPageView("premium", "student");
     trackEvent('premium_viewed', {
       source: searchParams.get('source') || 'direct',
       timestamp: new Date().toISOString()

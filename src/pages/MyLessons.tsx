@@ -27,6 +27,7 @@ export default function MyLessons() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    trackPageView("my_lessons", "student");
     if (!user?.email) return;
     const fetch = async () => {
       const { data } = await supabase
