@@ -3,8 +3,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sparkles, BookOpen, Loader2 } from 'lucide-react';
+import { Sparkles, BookOpen } from 'lucide-react';
 import { type WordAnalysis } from '@/services/wordAnalysisService';
+import { cn } from '@/lib/utils';
+import type { TutorialStep } from './TranscriptTutorial';
 
 interface WordExplorerPanelProps {
   open: boolean;
@@ -14,6 +16,8 @@ interface WordExplorerPanelProps {
   analysis: WordAnalysis | null;
   loading: boolean;
   onSaveFlashcard: () => void;
+  tutorialActive?: boolean;
+  tutorialStep?: TutorialStep;
 }
 
 const PRONOUN_LABELS: Record<string, string> = {
@@ -33,7 +37,11 @@ export function WordExplorerPanel({
   analysis,
   loading,
   onSaveFlashcard,
+  tutorialActive = false,
+  tutorialStep,
 }: WordExplorerPanelProps) {
+  const highlightSaveButton = tutorialActive && tutorialStep === 'save-from-explorer';
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-[440px] overflow-y-auto">
@@ -154,10 +162,20 @@ export function WordExplorerPanel({
             )}
 
             {/* Save as flashcard */}
-            <Button onClick={onSaveFlashcard} className="w-full gap-2">
-              <Sparkles className="w-4 h-4" />
-              Save as Flashcard
-            </Button>
+            <div className={cn(
+              'relative',
+              highlightSaveButton && 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-lg'
+            )}>
+              <Button onClick={onSaveFlashcard} className="w-full gap-2">
+                <Sparkles className="w-4 h-4" />
+                Save as Flashcard
+              </Button>
+              {highlightSaveButton && (
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded whitespace-nowrap">
+                  ↓ Tap here!
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <p className="text-muted-foreground text-center py-8">
