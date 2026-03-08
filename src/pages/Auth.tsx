@@ -17,7 +17,9 @@ import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff } from "lucide-re
 export default function Auth() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const searchParams = new URLSearchParams(window.location.search);
+  const preselectedRole = searchParams.get("role");
+  const [isSignUp, setIsSignUp] = useState(preselectedRole === "teacher");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
