@@ -114,3 +114,6 @@ verify_jwt = true
 
 [functions.segment-video-scenes]
 verify_jwt = false
+
+[functions.admin-import-video]
+verify_jwt = false

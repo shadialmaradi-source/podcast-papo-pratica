@@ -39,6 +39,7 @@ const StudentLesson = lazy(() => import("./pages/StudentLesson"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const MyLessons = lazy(() => import("./pages/MyLessons"));
 const SpeakingAssignment = lazy(() => import("./pages/SpeakingAssignment"));
+const AdminImport = lazy(() => import("./pages/AdminImport"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -161,6 +162,7 @@ const App = () => {
               <Route path="/lesson/student/:id" element={<ProtectedRoute><StudentLesson /></ProtectedRoute>} />
               <Route path="/speaking/:assignmentId" element={<ProtectedRoute><SpeakingAssignment /></ProtectedRoute>} />
               <Route path="/my-lessons" element={<ProtectedRoute><MyLessons /></ProtectedRoute>} />
+              <Route path="/admin/import" element={<ProtectedRoute><AdminImport /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
