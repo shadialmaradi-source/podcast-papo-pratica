@@ -42,16 +42,24 @@ serve(async (req) => {
     const normalizedLevel = level.toLowerCase();
     const nativeLangName = nativeLanguage || 'english';
 
-    // Check if exercises already exist for this level + native language
-    const { count: existingCount } = await supabase
+    // Check if exercises already exist for this level + native language (+ scene if provided)
+    let existingQuery = supabase
       .from('youtube_exercises')
       .select('id', { count: 'exact', head: true })
       .eq('video_id', videoId)
       .eq('difficulty', normalizedLevel)
       .eq('native_language', nativeLangName);
 
+    if (sceneId) {
+      existingQuery = existingQuery.eq('scene_id', sceneId);
+    } else {
+      existingQuery = existingQuery.is('scene_id', null);
+    }
+
+    const { count: existingCount } = await existingQuery;
+
     if (existingCount && existingCount > 0) {
-      console.log(`[generate-level-exercises] Exercises already exist for ${normalizedLevel} level: ${existingCount}`);
+      console.log(`[generate-level-exercises] Exercises already exist for ${normalizedLevel} level${sceneId ? ` scene ${sceneId}` : ''}: ${existingCount}`);
       return new Response(JSON.stringify({ 
         success: true, 
         message: 'Exercises already exist',
