@@ -213,11 +213,11 @@ export default function Onboarding() {
 
           {step === 'native' && (
             <motion.div key="native" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-lg">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingNativeTitle')}</h1>
-                <p className="text-muted-foreground">{t('onboardingNativeSubtitle')}</p>
+              <div className="text-center mb-4 md:mb-8">
+                <h1 className="text-xl md:text-3xl font-bold text-foreground mb-1 md:mb-2">{t('onboardingNativeTitle')}</h1>
+                <p className="text-sm md:text-base text-muted-foreground">{t('onboardingNativeSubtitle')}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="grid grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-8">
                 {filteredNativeLanguages.map((lang) => (
                   <Card
                     key={lang.code}
