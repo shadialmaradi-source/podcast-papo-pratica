@@ -22,12 +22,27 @@ export default function TeacherDashboard() {
   const [lessonType, setLessonType] = useState<LessonType>("paragraph");
   const [refresh, setRefresh] = useState(0);
 
-  // Redirect non-teachers away from this dashboard
+  // Redirect non-teachers away; redirect teachers who haven't onboarded
   useEffect(() => {
-    if (!roleLoading && role !== "teacher") {
+    if (roleLoading) return;
+    if (role !== "teacher") {
       navigate("/app");
+      return;
     }
-  }, [role, roleLoading, navigate]);
+    // Check onboarding status
+    if (user) {
+      supabase
+        .from("teacher_profiles" as any)
+        .select("onboarding_completed")
+        .eq("teacher_id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!data || !(data as any).onboarding_completed) {
+            navigate("/teacher/onboarding", { replace: true });
+          }
+        });
+    }
+  }, [role, roleLoading, navigate, user]);
 
   const handleSignOut = async () => {
     await signOut();
