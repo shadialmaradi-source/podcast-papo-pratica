@@ -80,6 +80,65 @@ export type Database = {
         }
         Relationships: []
       }
+      community_lessons: {
+        Row: {
+          cefr_level: string
+          copy_count: number
+          created_at: string
+          description: string | null
+          exercise_types: string[]
+          id: string
+          language: string
+          lesson_type: string
+          source_lesson_id: string
+          teacher_id: string
+          teacher_name: string
+          title: string
+          topic: string | null
+          translation_language: string
+        }
+        Insert: {
+          cefr_level?: string
+          copy_count?: number
+          created_at?: string
+          description?: string | null
+          exercise_types?: string[]
+          id?: string
+          language?: string
+          lesson_type?: string
+          source_lesson_id: string
+          teacher_id: string
+          teacher_name?: string
+          title: string
+          topic?: string | null
+          translation_language?: string
+        }
+        Update: {
+          cefr_level?: string
+          copy_count?: number
+          created_at?: string
+          description?: string | null
+          exercise_types?: string[]
+          id?: string
+          language?: string
+          lesson_type?: string
+          source_lesson_id?: string
+          teacher_id?: string
+          teacher_name?: string
+          title?: string
+          topic?: string | null
+          translation_language?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_lessons_source_lesson_id_fkey"
+            columns: ["source_lesson_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_activities: {
         Row: {
           activities_completed: number | null
@@ -620,6 +679,7 @@ export type Database = {
           description: string | null
           exercise_types: string[]
           id: string
+          is_community_shared: boolean
           language: string
           lesson_type: string
           paragraph_content: string | null
@@ -642,6 +702,7 @@ export type Database = {
           description?: string | null
           exercise_types?: string[]
           id?: string
+          is_community_shared?: boolean
           language?: string
           lesson_type?: string
           paragraph_content?: string | null
@@ -664,6 +725,7 @@ export type Database = {
           description?: string | null
           exercise_types?: string[]
           id?: string
+          is_community_shared?: boolean
           language?: string
           lesson_type?: string
           paragraph_content?: string | null
@@ -2035,6 +2097,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_community_copy_count: {
+        Args: { lesson_id: string }
+        Returns: undefined
       }
       update_vocabulary_progress: {
         Args: {
