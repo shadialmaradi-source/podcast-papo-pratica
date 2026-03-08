@@ -52,6 +52,8 @@ export default function TeacherLesson() {
 
   interface GroupState { currentIndex: number; revealed: boolean; }
   const [groupStates, setGroupStates] = useState<Record<string, GroupState>>({});
+  const [activeGroupType, setActiveGroupType] = useState<string | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(true);
 
   const exerciseGroups = useMemo(() => {
     const typeOrder: string[] = [];
