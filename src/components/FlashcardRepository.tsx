@@ -44,7 +44,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   const [filter, setFilter] = useState<string>("all");
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [videoGroups, setVideoGroups] = useState<VideoGroup[]>([]);
-  const [studyFlashcards, setStudyFlashcards] = useState<{ phrase: string; translation: string; why: string }[]>([]);
+  const [studyFlashcards, setStudyFlashcards] = useState<{ phrase: string; translation: string; why: string; cardLanguage?: string }[]>([]);
   const [studyLanguage, setStudyLanguage] = useState<string>("english");
 
   // Detect distinct languages
