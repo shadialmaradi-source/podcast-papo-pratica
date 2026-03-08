@@ -298,7 +298,7 @@ export default function TeacherOnboarding() {
             </motion.div>
           )}
 
-          {/* STEP 3: Quick Tour */}
+          {/* STEP 3: Interactive Demo */}
           {step === 2 && (
             <motion.div
               key="step3"
@@ -306,85 +306,10 @@ export default function TeacherOnboarding() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -30 }}
             >
-              <Card className="border-0 shadow-2xl bg-background/80 backdrop-blur">
-                <CardHeader className="text-center">
-                  <CardTitle className="text-xl">Here's how it works</CardTitle>
-                  <CardDescription>3 simple steps to teach smarter</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Tour slide */}
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={tourSlide}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="text-center space-y-3 min-h-[140px] flex flex-col items-center justify-center"
-                    >
-                      <div className="mx-auto h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-                        {(() => {
-                          const Icon = TOUR_SLIDES[tourSlide].icon;
-                          return <Icon className="h-7 w-7 text-primary" />;
-                        })()}
-                      </div>
-                      <h3 className="font-semibold text-lg text-foreground">
-                        {TOUR_SLIDES[tourSlide].title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground max-w-sm">
-                        {TOUR_SLIDES[tourSlide].description}
-                      </p>
-                    </motion.div>
-                  </AnimatePresence>
-
-                  {/* Slide dots */}
-                  <div className="flex justify-center gap-2">
-                    {TOUR_SLIDES.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setTourSlide(i)}
-                        className={`h-2 w-2 rounded-full transition-all ${
-                          i === tourSlide ? "bg-primary w-4" : "bg-muted"
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2">
-                    {tourSlide < TOUR_SLIDES.length - 1 ? (
-                      <>
-                        <Button
-                          variant="ghost"
-                          onClick={handleComplete}
-                          disabled={saving}
-                          className="flex-1"
-                        >
-                          <SkipForward className="mr-2 h-4 w-4" />
-                          Skip
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            trackEvent(`teacher_onboarding_step_3`);
-                            setTourSlide(tourSlide + 1);
-                          }}
-                          className="flex-1"
-                        >
-                          Next
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        onClick={handleComplete}
-                        disabled={saving}
-                        className="w-full"
-                      >
-                        {saving ? "Finishing..." : "Got it, take me to dashboard"}
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <TeacherDemoWalkthrough
+                onComplete={handleComplete}
+                onSkip={handleComplete}
+              />
             </motion.div>
           )}
         </AnimatePresence>
