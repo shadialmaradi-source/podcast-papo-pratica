@@ -50,7 +50,7 @@ const tiers = [
       "60 lessons/month",
       "Videos up to 10 min",
       "Advanced analytics",
-      "Priority support",
+      
       "Remove branding",
     ],
   },
@@ -65,8 +65,6 @@ const tiers = [
       "160 lessons/month",
       "Videos up to 15 min",
       "White-label (your branding)",
-      "API access",
-      "Dedicated support",
     ],
   },
 ];
@@ -78,8 +76,6 @@ const comparisonRows = [
   { feature: "Lesson types", free: "All", pro: "All", premium: "All" },
   { feature: "Analytics", free: "Basic", pro: "Advanced", premium: "Advanced" },
   { feature: "Branding", free: "ListenFlow", pro: "Removable", premium: "Your Brand" },
-  { feature: "Support", free: "Email", pro: "Priority", premium: "Dedicated" },
-  { feature: "API Access", free: false, pro: false, premium: true },
 ];
 
 const faqItems = [
@@ -315,14 +311,6 @@ export default function TeacherPricing() {
                         ) : (
                           "Upgrade to Premium"
                         )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => window.open("mailto:support@listenflow.app?subject=Premium Plan Inquiry", "_blank")}
-                      >
-                        Contact Sales
                       </Button>
                     </div>
                   ) : (
