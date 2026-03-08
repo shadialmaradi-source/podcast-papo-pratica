@@ -241,17 +241,17 @@ export default function Onboarding() {
                   </Card>
                 ))}
               </div>
-              <div className="flex gap-3">
-                <Button onClick={handleBack} variant="outline" size="lg" className="py-6 text-lg rounded-full">
-                  <ArrowLeft className="mr-2 h-5 w-5" /> {t('back')}
+              <div className="flex gap-2 md:gap-3">
+                <Button onClick={handleBack} variant="outline" size="lg" className="py-4 md:py-6 text-base md:text-lg rounded-full">
+                  <ArrowLeft className="mr-1 md:mr-2 h-4 w-4 md:h-5 md:w-5" /> {t('back')}
                 </Button>
                 {isLessonOnboarding ? (
-                  <Button onClick={handleLessonOnboardingComplete} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-6 text-lg rounded-full">
-                    Start Lesson <ArrowRight className="ml-2 h-5 w-5" />
+                  <Button onClick={handleLessonOnboardingComplete} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-4 md:py-6 text-base md:text-lg rounded-full">
+                    Start Lesson <ArrowRight className="ml-1 md:ml-2 h-4 w-4 md:h-5 md:w-5" />
                   </Button>
                 ) : (
-                  <Button onClick={handleContinueToLevel} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-6 text-lg rounded-full">
-                    {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
+                  <Button onClick={handleContinueToLevel} disabled={!selectedNativeLanguage} size="lg" className="flex-1 py-4 md:py-6 text-base md:text-lg rounded-full">
+                    {t('continue')} <ArrowRight className="ml-1 md:ml-2 h-4 w-4 md:h-5 md:w-5" />
                   </Button>
                 )}
               </div>
