@@ -1,124 +1,63 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Fix Onboarding UI + Add Real Lesson Trial for Teachers
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
-
-## Summary of Changes
-
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
-
----
-
-## Phase 1: Simplified Student Onboarding
+## Part 1: Fix Tooltip Overlapping Issues
 
 ### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+Tooltips use absolute/relative positioning that causes them to overlap the interactive content the user needs to click (visible in screenshot: DemoTooltip covers the "YouTube / Video Link" card).
+
+### Fixes
+
+**`src/components/teacher/DemoTooltip.tsx`**
+- Change from `absolute` overlay to a **static inline block** rendered below content. Remove `absolute z-50` positioning entirely. Render as a `relative mt-4` div so the tooltip sits beneath the demo cards, never covering them. Keep the arrow pointing up toward the content.
+
+**`src/pages/AppHome.tsx`**
+- Move the two hint tooltips from `absolute -bottom-20` (which overlaps the neighboring card) to a **single consolidated banner below the grid** (`relative mt-4`). Combine both messages into one hint card with a "Got it" dismiss button. Remove the separate `pt-16` "Got it" button section.
+
+**`src/components/library/LibraryTourTooltip.tsx`**
+- On mobile, change `fixed bottom-4` to `fixed top-4` so the tooltip doesn't cover the video cards at the bottom of the screen.
+
+**`src/components/transcript/TranscriptTutorial.tsx`**
+- For floating tooltips (`position: 'top'`), shift from `top-4` to `top-16` to clear the video player controls. No other changes needed — it already uses `pointer-events-none` on the backdrop.
+
+---
+
+## Part 2: Add Real Lesson Trial to Teacher Onboarding
+
+### Problem
+The current teacher onboarding (Step 3) is a simulated walkthrough with fake data. Teachers never experience the actual student lesson flow (video + transcript + exercises + flashcards) so they don't understand what their students will see.
 
 ### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+After the existing demo walkthrough (or replacing the celebration step), add a **Step 4: "Try a Real Lesson"** that navigates the teacher to `/lesson/first` — the same First Lesson that students experience. This uses pre-loaded content (no API calls needed) and gives the teacher a hands-on experience of the video player, interactive transcript, exercises, speaking, and flashcards.
 
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+### Changes
 
----
+**`src/pages/TeacherOnboarding.tsx`**
+- Add step 3 (total steps: 0-3 instead of 0-2). After the demo walkthrough completes, show a new card: "Experience a lesson as your student would" with a CTA button.
+- Update step indicators from `[0,1,2]` to `[0,1,2,3]`.
+- Step 3 card: icon (Play), title "Try a Real Lesson", description "See exactly what your students experience — watch a video, explore the transcript, and complete exercises.", two buttons: "Try it now" (navigates to `/lesson/first?from=teacher-onboarding`) and "Skip & go to dashboard".
 
-## Phase 2: Remove image_discussion, Update Exercise Types
+**`src/pages/FirstLesson.tsx`**
+- Detect `?from=teacher-onboarding` query param. When lesson completes, instead of navigating to `/onboarding` or `/app`, redirect back to `/teacher` and mark teacher onboarding as completed. Show a small banner "You're previewing as a student" at the top.
 
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
+**`src/components/teacher/TeacherDemoWalkthrough.tsx`**
+- Change `onComplete` callback on the celebration step (step 6) to signal "advance to trial step" instead of finishing onboarding entirely. The parent (`TeacherOnboarding`) handles routing to step 3.
 
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
-
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
-
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
-
----
-
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
-
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
-
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
-
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
-
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
+### Flow
+```text
+Step 0: Profile → Step 1: Add Student → Step 2: Demo Walkthrough → Step 3: Real Lesson Trial → Dashboard
 ```
 
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
+## Files Changed
 
----
-
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
-
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
-
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
-
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
-
----
-
-## Technical Details
-
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+| File | Change |
+|------|--------|
+| `src/components/teacher/DemoTooltip.tsx` | Static inline positioning instead of absolute overlay |
+| `src/pages/AppHome.tsx` | Consolidated hint banner below grid |
+| `src/components/library/LibraryTourTooltip.tsx` | Mobile: top instead of bottom |
+| `src/components/transcript/TranscriptTutorial.tsx` | Top tooltips shifted down to clear controls |
+| `src/pages/TeacherOnboarding.tsx` | Add step 3 "Try a Real Lesson" card |
+| `src/pages/FirstLesson.tsx` | Handle `?from=teacher-onboarding` redirect + preview banner |
+| `src/components/teacher/TeacherDemoWalkthrough.tsx` | Celebration step signals parent instead of completing |
 
