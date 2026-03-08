@@ -7,6 +7,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
 };
 
+async function sendPaymentFailureEmail(email: string, name: string) {
+  const resendKey = Deno.env.get('RESEND_API_KEY');
+  if (!resendKey) {
+    console.warn('RESEND_API_KEY not set, skipping payment failure email');
+    return;
+  }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'ListenFlow <notifications@listenflow.app>',
+        to: [email],
+        subject: '⚠️ Payment failed — your ListenFlow access is at risk',
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 16px;">
+            <h2 style="color: #1a1a1a; margin-bottom: 16px;">Hi ${name},</h2>
+            <p style="color: #444; line-height: 1.6;">We were unable to process your latest payment for your ListenFlow teacher subscription.</p>
+            <p style="color: #444; line-height: 1.6;"><strong>Lesson creation has been paused</strong> until this is resolved. Your existing lessons and students are not affected.</p>
+            <p style="color: #444; line-height: 1.6;">Please update your payment method to restore full access:</p>
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="https://listenflow.lovable.app/teacher/pricing" style="display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Update Payment Method</a>
+            </div>
+            <p style="color: #888; font-size: 14px; line-height: 1.5;">If you believe this is an error, please contact us at support@listenflow.app.</p>
+            <p style="color: #888; font-size: 14px;">— The ListenFlow Team</p>
+          </div>
+        `,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      console.error('Resend email failed:', res.status, body);
+    } else {
+      console.log('Payment failure email sent to:', email);
+    }
+  } catch (err) {
+    console.error('Failed to send payment failure email:', err);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
