@@ -10,6 +10,7 @@ import { BookOpen, Users, ArrowLeft, Settings } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
+import { TeacherNotificationBell } from "@/components/teacher/TeacherNotificationBell";
 import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
 import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
 import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreator";
