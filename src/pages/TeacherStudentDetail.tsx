@@ -12,6 +12,7 @@ import { EditStudentModal } from "@/components/teacher/EditStudentModal";
 import { VideoBrowserModal } from "@/components/teacher/VideoBrowserModal";
 import { AssignSpeakingModal } from "@/components/teacher/AssignSpeakingModal";
 import { formatDistanceToNow, format } from "date-fns";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 
 interface StudentRow {
   id: string;
