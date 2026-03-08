@@ -32,6 +32,7 @@ export default function TeacherDashboard() {
   useEffect(() => {
     trackPageView("teacher_dashboard", "teacher");
     trackPageLoad("teacher_dashboard");
+    if (roleLoading) return;
     if (role !== "teacher") {
       navigate("/app");
       return;
