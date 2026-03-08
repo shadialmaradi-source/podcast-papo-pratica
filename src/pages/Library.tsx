@@ -349,7 +349,15 @@ export default function Library() {
               >
                 {/* Always show Add Video card even when no videos */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  <AddVideoCard onClick={() => setImportDialogOpen(true)} />
+                  <div className="relative">
+                    <AddVideoCard onClick={() => setImportDialogOpen(true)} />
+                    {tourStep === 3 && (
+                      <LibraryTourTooltip
+                        message="Paste any YouTube link to create a personalized lesson with exercises and flashcards."
+                        onClose={advanceTour}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="text-center py-8">
                   <p className="text-muted-foreground">
