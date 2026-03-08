@@ -6,6 +6,8 @@ export interface TeacherQuota {
   maxVideoMinutes: number;
   canCreateLesson: boolean;
   plan: string;
+  status: string;
+  currentPeriodEnd: string | null;
 }
 
 const PLAN_LIMITS: Record<string, { lessons: number; videoMinutes: number }> = {
@@ -15,14 +17,16 @@ const PLAN_LIMITS: Record<string, { lessons: number; videoMinutes: number }> = {
 };
 
 export async function fetchTeacherQuota(teacherId: string): Promise<TeacherQuota> {
-  // Get subscription plan
+  // Get subscription plan and status
   const { data: sub } = await supabase
     .from("teacher_subscriptions" as any)
-    .select("plan")
+    .select("plan, status, current_period_end")
     .eq("teacher_id", teacherId)
     .maybeSingle();
 
   const plan = (sub as any)?.plan || "free";
+  const status = (sub as any)?.status || "active";
+  const currentPeriodEnd = (sub as any)?.current_period_end || null;
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
   // Count lessons created this month
@@ -37,12 +41,17 @@ export async function fetchTeacherQuota(teacherId: string): Promise<TeacherQuota
 
   const lessonsUsed = count ?? 0;
 
+  // Block lesson creation if past_due
+  const canCreateLesson = status !== "past_due" && lessonsUsed < limits.lessons;
+
   return {
     lessonsUsed,
     lessonsLimit: limits.lessons,
     maxVideoMinutes: limits.videoMinutes,
-    canCreateLesson: lessonsUsed < limits.lessons,
+    canCreateLesson,
     plan,
+    status,
+    currentPeriodEnd,
   };
 }
 

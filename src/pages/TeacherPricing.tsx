@@ -3,20 +3,23 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useTeacherQuota } from "@/hooks/useTeacherQuota";
 import { trackEvent, trackPageView } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Check, X, Crown, Zap, Building2, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, X, Crown, Zap, Building2, Loader2, AlertTriangle, CalendarDays } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface TeacherSub {
   plan: string;
   status: string;
   stripe_customer_id: string | null;
+  current_period_end: string | null;
 }
 
 const tiers = [
@@ -105,6 +108,7 @@ const faqItems = [
 export default function TeacherPricing() {
   const { user } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
+  const { quota, loading: quotaLoading } = useTeacherQuota();
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState<TeacherSub | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,7 +128,7 @@ export default function TeacherPricing() {
     if (!user) return;
     supabase
       .from("teacher_subscriptions" as any)
-      .select("plan, status, stripe_customer_id")
+      .select("plan, status, stripe_customer_id, current_period_end")
       .eq("teacher_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -178,6 +182,9 @@ export default function TeacherPricing() {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>;
   }
 
+  const isPastDue = subscription?.status === "past_due";
+  const usagePercent = quota ? Math.round((quota.lessonsUsed / quota.lessonsLimit) * 100) : 0;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -190,6 +197,55 @@ export default function TeacherPricing() {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-12">
+        {/* Payment failure banner */}
+        {isPastDue && (
+          <Card className="border-destructive bg-destructive/5">
+            <CardContent className="flex items-center gap-3 py-4">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium text-destructive">Payment failed</p>
+                <p className="text-sm text-muted-foreground">
+                  Your last payment didn't go through. Lesson creation is paused until this is resolved.
+                </p>
+              </div>
+              {subscription?.stripe_customer_id && (
+                <Button variant="destructive" size="sm" onClick={handleManageSubscription}>
+                  Update Payment
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Current subscription summary */}
+        {currentPlan !== "free" && quota && !quotaLoading && (
+          <Card>
+            <CardContent className="py-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Current Plan</p>
+                  <p className="text-lg font-semibold text-foreground capitalize">
+                    {currentPlan} — ${currentPlan === "pro" ? 19 : 39}/month
+                  </p>
+                </div>
+                {subscription?.current_period_end && (
+                  <div className="text-right flex items-center gap-2 text-sm text-muted-foreground">
+                    <CalendarDays className="h-4 w-4" />
+                    Next billing: {new Date(subscription.current_period_end).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Lessons this month</span>
+                  <span className="font-medium text-foreground">{quota.lessonsUsed} / {quota.lessonsLimit}</span>
+                </div>
+                <Progress value={usagePercent} className="h-2" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Hero */}
         <div className="text-center space-y-2">
           <h2 className="text-3xl font-bold text-foreground">Choose Your Plan</h2>

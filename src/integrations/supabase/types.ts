@@ -1088,6 +1088,7 @@ export type Database = {
       teacher_subscriptions: {
         Row: {
           created_at: string | null
+          current_period_end: string | null
           id: string
           plan: string
           status: string
@@ -1098,6 +1099,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          current_period_end?: string | null
           id?: string
           plan?: string
           status?: string
@@ -1108,6 +1110,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          current_period_end?: string | null
           id?: string
           plan?: string
           status?: string
