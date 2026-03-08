@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { initAnalytics, trackSessionStart, trackSessionEnd } from "@/lib/analytics";
+import { StudentTourProvider } from "@/hooks/useStudentTour";
 
 // Eager imports — critical entry paths
 import LandingPage from "./pages/LandingPage";
