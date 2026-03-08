@@ -10,6 +10,7 @@ interface Flashcard {
   phrase: string;
   translation: string | Record<string, string>;
   why: string | Record<string, string>;
+  cardLanguage?: string;
 }
 
 const getLocalizedText = (field: string | Record<string, string>, lang: string): string => {
@@ -20,6 +21,7 @@ const getLocalizedText = (field: string | Record<string, string>, lang: string):
 interface LessonFlashcardsProps {
   flashcards: Flashcard[];
   onComplete: () => void;
+  onExit?: () => void;
   language?: string;
   nativeLanguage?: string;
 }
