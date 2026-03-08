@@ -387,9 +387,14 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
       >
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="text-center space-y-2">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Speaking Practice
-            </h1>
+            <div className="flex items-center justify-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                Speaking Practice
+              </h1>
+              <Button variant="ghost" size="sm" onClick={onComplete} className="text-muted-foreground text-sm">
+                Skip <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
             <p className="text-muted-foreground">
               Summarize what happened in the video
             </p>
