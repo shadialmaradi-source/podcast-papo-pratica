@@ -145,18 +145,16 @@ const LessonComplete = ({
             </CardContent>
           </Card>
         </motion.div>
+        </div>
+      </div>
 
-        {/* Action buttons */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="space-y-3"
-        >
+      {/* Sticky CTA */}
+      <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+        <div className="max-w-lg mx-auto space-y-2 md:space-y-3">
           <Button
             onClick={() => navigate('/auth')}
             size="lg"
-            className="w-full bg-primary hover:bg-primary/90 rounded-full py-6 text-lg gap-2"
+            className="w-full bg-primary hover:bg-primary/90 rounded-full py-5 md:py-6 text-base md:text-lg gap-2"
           >
             <ArrowRight className="w-5 h-5" />
             Create Free Account
@@ -166,21 +164,11 @@ const LessonComplete = ({
             onClick={() => navigate('/auth')}
             variant="ghost"
             size="sm"
-            className="text-muted-foreground"
+            className="w-full text-muted-foreground text-xs md:text-sm"
           >
             Already have an account? Sign in
           </Button>
-        </motion.div>
-
-        {/* Footer message */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="text-center text-sm text-muted-foreground"
-        >
-          Keep your streak going! Come back tomorrow for more lessons.
-        </motion.p>
+        </div>
       </div>
     </motion.div>
   );

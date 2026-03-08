@@ -117,18 +117,14 @@ const LessonCompleteScreen = ({
         </div>
       </div>
 
-        {/* Action buttons */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="space-y-4"
-        >
+      {/* Sticky CTA */}
+      <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+        <div className="max-w-lg mx-auto space-y-3 md:space-y-4">
           {/* Primary CTA */}
           <Button
             onClick={onNextVideo}
             size="lg"
-            className="w-full bg-primary hover:bg-primary/90 rounded-full py-6 text-lg gap-2"
+            className="w-full bg-primary hover:bg-primary/90 rounded-full py-5 md:py-6 text-base md:text-lg gap-2"
           >
             <Play className="w-5 h-5" />
             🎯 Next Video
@@ -141,31 +137,31 @@ const LessonCompleteScreen = ({
               variant="outline"
               onClick={onViewProgress}
               size="sm"
-              className="flex flex-col items-center gap-1 h-auto py-3"
+              className="flex flex-col items-center gap-1 h-auto py-2 md:py-3"
             >
               <BarChart3 className="w-4 h-4" />
-              <span className="text-xs">Progress</span>
+              <span className="text-[10px] md:text-xs">Progress</span>
             </Button>
             <Button
               variant="outline"
               onClick={onRetry}
               size="sm"
-              className="flex flex-col items-center gap-1 h-auto py-3"
+              className="flex flex-col items-center gap-1 h-auto py-2 md:py-3"
             >
               <RotateCcw className="w-4 h-4" />
-              <span className="text-xs">Retry</span>
+              <span className="text-[10px] md:text-xs">Retry</span>
             </Button>
             <Button
               variant="outline"
               onClick={onBackToLibrary}
               size="sm"
-              className="flex flex-col items-center gap-1 h-auto py-3"
+              className="flex flex-col items-center gap-1 h-auto py-2 md:py-3"
             >
               <Home className="w-4 h-4" />
-              <span className="text-xs">Library</span>
+              <span className="text-[10px] md:text-xs">Library</span>
             </Button>
           </div>
-        </motion.div>
+        </div>
       </div>
     </motion.div>
   );
