@@ -286,15 +286,17 @@ export default function Library() {
       {/* Header */}
       <AppHeader title="Video Library" showBackButton backTo="/app" />
 
-      {/* Level Selector */}
-      <div className="sticky top-[57px] z-40 bg-background border-b">
-        <div className="container mx-auto px-4">
-          <LevelSelector
-            selectedLevel={selectedLevel}
-            onLevelChange={setSelectedLevel}
-          />
+      {/* Level Selector — only on Learning Path */}
+      {activeTab === 'curated' && (
+        <div className="sticky top-[57px] z-40 bg-background border-b">
+          <div className="container mx-auto px-4">
+            <LevelSelector
+              selectedLevel={selectedLevel}
+              onLevelChange={setSelectedLevel}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tabs and Filters */}
       <div className="container mx-auto px-4 py-4 space-y-4">
