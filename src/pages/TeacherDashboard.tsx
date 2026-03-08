@@ -10,6 +10,7 @@ import { BookOpen, Users, ArrowLeft, Settings } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
+import { TeacherNotificationBell } from "@/components/teacher/TeacherNotificationBell";
 import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
 import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
 import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreator";
@@ -130,9 +131,12 @@ export default function TeacherDashboard() {
             <BookOpen className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold text-foreground">Teacher Dashboard</h1>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => navigate("/teacher/settings")}>
-            <Settings className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <TeacherNotificationBell />
+            <Button variant="ghost" size="icon" onClick={() => navigate("/teacher/settings")}>
+              <Settings className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </header>
 

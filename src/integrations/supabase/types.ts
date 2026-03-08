@@ -971,6 +971,42 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          student_email: string | null
+          teacher_id: string
+          title: string
+          type: string
+          video_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          student_email?: string | null
+          teacher_id: string
+          title: string
+          type: string
+          video_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          student_email?: string | null
+          teacher_id?: string
+          title?: string
+          type?: string
+          video_id?: string | null
+        }
+        Relationships: []
+      }
       teacher_profiles: {
         Row: {
           bio: string | null
@@ -979,6 +1015,7 @@ export type Database = {
           full_name: string | null
           id: string
           languages_taught: string[] | null
+          notification_preferences: Json | null
           onboarding_completed: boolean
           specialties: string[] | null
           teacher_id: string
@@ -990,6 +1027,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           languages_taught?: string[] | null
+          notification_preferences?: Json | null
           onboarding_completed?: boolean
           specialties?: string[] | null
           teacher_id: string
@@ -1001,6 +1039,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           languages_taught?: string[] | null
+          notification_preferences?: Json | null
           onboarding_completed?: boolean
           specialties?: string[] | null
           teacher_id?: string

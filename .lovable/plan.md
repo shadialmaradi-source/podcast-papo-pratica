@@ -1,89 +1,124 @@
 
 
-# Plan: Teacher Notifications for Assignment Completion
+# Plan: Teacher YouTube Lesson Overhaul
 
-## Overview
+This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
 
-Create a `teacher_notifications` table with a database trigger on `video_assignments` status changes. Build a notification bell component in the teacher header and a full notifications page. Use Supabase Realtime for live updates. Scope limited to in-app notifications only (no email in this iteration — can be added later with Resend).
+## Summary of Changes
 
-## Database Changes (1 migration)
+1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
+2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
+3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
+4. **Student lesson view update** -- same grouped-by-type sequential layout
 
-**New table: `teacher_notifications`**
-- `id` UUID PK
-- `teacher_id` UUID NOT NULL (references auth.users)
-- `type` TEXT NOT NULL (`assignment_completed`, `assignment_started`, `assignment_overdue`)
-- `title` TEXT NOT NULL
-- `message` TEXT NOT NULL
-- `video_id` TEXT (YouTube string ID, nullable)
-- `student_email` TEXT (nullable)
-- `read` BOOLEAN DEFAULT FALSE
-- `created_at` TIMESTAMPTZ DEFAULT NOW()
-- Indexes on `(teacher_id, read, created_at DESC)`
+---
 
-**RLS:**
-- Teachers SELECT own rows (`teacher_id = auth.uid()`)
-- Teachers UPDATE own rows (for mark-as-read)
-- INSERT via SECURITY DEFINER trigger function (no open insert policy needed)
+## Phase 1: Simplified Student Onboarding
 
-**Trigger function: `notify_teacher_assignment_completed()`**
-- SECURITY DEFINER, fires AFTER UPDATE on `video_assignments`
-- When `NEW.status = 'completed' AND (OLD.status IS DISTINCT FROM 'completed')`:
-  - Looks up student name from `teacher_students`
-  - Uses `NEW.video_title` (already on the row)
-  - Inserts into `teacher_notifications`
+### Problem
+Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
 
-**Enable Realtime** on `teacher_notifications` via `alter publication supabase_realtime add table teacher_notifications`.
+### Solution
+- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
+- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
+- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
 
-**Add `notification_preferences` JSONB column to `teacher_profiles`** (default: all enabled, realtime frequency).
+### Files changed
+- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
+- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
+- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
 
-## Frontend Components
+---
 
-### 1. `TeacherNotificationBell.tsx` (new)
-- Renders bell icon with red unread count badge
-- On mount: fetches unread count from `teacher_notifications`
-- Subscribes to Supabase Realtime INSERT events filtered by `teacher_id`
-- On new notification: increment count, show sonner toast with message
-- Click → opens Popover/DropdownMenu with latest 5 notifications
-- Each item: icon by type, message, relative time, read/unread styling
-- "Mark all read" button
-- "View all" link → `/teacher/notifications`
+## Phase 2: Remove image_discussion, Update Exercise Types
 
-### 2. `TeacherNotifications.tsx` (new page)
-- Full list with filter tabs: All / Unread / Completed
-- Each row: type icon, message, relative time, read/unread dot
-- Click row → mark as read + navigate to `/teacher/students` (or student detail if available)
-- "Mark All Read" button
-- Empty state when no notifications
-- Pagination (20 per page)
+### DB migration
+- No schema changes needed (exercise_types is a text array, content is JSONB)
 
-### 3. Update `TeacherDashboard.tsx`
-- Add `TeacherNotificationBell` to the header bar (next to Settings icon)
+### Edge function: `generate-lesson-exercises`
+- Remove `image_discussion` from `EXERCISE_PROMPTS`
+- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
+- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
+- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
 
-### 4. Update `TeacherNav.tsx`
-- Add a 4th nav item: Bell icon with badge for notifications at `/teacher/notifications`
+### Frontend: `CreateLessonForm.tsx`
+- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
 
-### 5. Update `TeacherSettings.tsx`
-- Add "Notifications" item to settings list → `/teacher/notifications/settings` (future, for now just the nav item linking to the notifications page)
+### Files changed
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
+- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
 
-### 6. Update `App.tsx`
-- Add `/teacher/notifications` route
+---
 
-## Files Changed
+## Phase 3: Teacher Post-Creation View (YouTube lessons)
 
-| File | Change |
-|------|--------|
-| Migration SQL | New table, trigger function, RLS, realtime |
-| `src/components/teacher/TeacherNotificationBell.tsx` | New — bell + dropdown |
-| `src/pages/TeacherNotifications.tsx` | New — full notifications page |
-| `src/pages/TeacherDashboard.tsx` | Add bell to header |
-| `src/components/teacher/TeacherNav.tsx` | Add notifications nav item |
-| `src/App.tsx` | Add route |
+### Current state
+After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
 
-## What's Deferred
+### New design
+After creation, the teacher sees:
+1. **Share link** (unchanged)
+2. **YouTube video embed** at the top
+3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
+4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
 
-- Email notifications (requires Resend integration — separate feature)
-- Daily digest cron job
-- Notification preferences settings page
-- Assignment overdue trigger (requires cron, separate feature)
-- Push notifications
+### Transcript fetching approach
+- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
+- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+
+### DB migration
+```sql
+ALTER TABLE teacher_lessons ADD COLUMN transcript text;
+```
+
+### Files changed
+- **DB migration** -- add `transcript` column
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
+- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
+
+---
+
+## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
+
+Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
+- Show video at top
+- Show transcript below (same interactive component)
+- Exercise sections grouped by type, each with its own prev/next within 5 questions
+
+### Files changed
+- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
+- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
+
+---
+
+## Phase 5: Student Lesson View (`StudentLesson.tsx`)
+
+Mirror the teacher's layout for the student:
+- Video at top
+- Transcript (read-only or interactive if we want students to also explore words)
+- Exercise sections grouped by type, sequential, with submit per question
+
+### Files changed
+- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
+
+---
+
+## Technical Details
+
+### Exercise generation counts
+| Type | Count |
+|------|-------|
+| fill_in_blank | 5 |
+| multiple_choice | 5 |
+| spot_the_mistake | 5 |
+| role_play | 2-3 scenarios |
+
+### Role-play prompt update
+The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
+
+### Transcript storage
+Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
+
+### RLS
+No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
 
