@@ -632,6 +632,134 @@ export type Database = {
           },
         ]
       }
+      speaking_assignments: {
+        Row: {
+          cefr_level: string
+          completed_at: string | null
+          created_at: string
+          custom_instructions: string | null
+          due_date: string | null
+          id: string
+          language: string
+          status: string
+          student_email: string
+          teacher_id: string
+          topic_description: string | null
+          topic_title: string
+        }
+        Insert: {
+          cefr_level?: string
+          completed_at?: string | null
+          created_at?: string
+          custom_instructions?: string | null
+          due_date?: string | null
+          id?: string
+          language?: string
+          status?: string
+          student_email: string
+          teacher_id: string
+          topic_description?: string | null
+          topic_title: string
+        }
+        Update: {
+          cefr_level?: string
+          completed_at?: string | null
+          created_at?: string
+          custom_instructions?: string | null
+          due_date?: string | null
+          id?: string
+          language?: string
+          status?: string
+          student_email?: string
+          teacher_id?: string
+          topic_description?: string | null
+          topic_title?: string
+        }
+        Relationships: []
+      }
+      speaking_questions: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          difficulty: number
+          id: string
+          order_index: number
+          question_text: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          difficulty?: number
+          id?: string
+          order_index?: number
+          question_text: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          difficulty?: number
+          id?: string
+          order_index?: number
+          question_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "speaking_questions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "speaking_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      speaking_responses: {
+        Row: {
+          assignment_id: string
+          id: string
+          is_prepared: boolean
+          question_id: string
+          response_text: string | null
+          response_type: string
+          student_id: string
+          submitted_at: string
+        }
+        Insert: {
+          assignment_id: string
+          id?: string
+          is_prepared?: boolean
+          question_id: string
+          response_text?: string | null
+          response_type?: string
+          student_id: string
+          submitted_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          id?: string
+          is_prepared?: boolean
+          question_id?: string
+          response_text?: string | null
+          response_type?: string
+          student_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "speaking_responses_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "speaking_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "speaking_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "speaking_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       speaking_topics: {
         Row: {
           cefr_level: string
