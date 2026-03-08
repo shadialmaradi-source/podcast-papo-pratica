@@ -43,6 +43,7 @@ export default function AppHome() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [streakData, setStreakData] = useState<{ current_streak: number; longest_streak: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
@@ -64,10 +65,21 @@ export default function AppHome() {
   useEffect(() => {
     if (user) {
       fetchProfile();
+      fetchStreakData();
       fetchUploadQuota();
       fetchAssignedLessons();
     }
   }, [user]);
+
+  const fetchStreakData = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("user_streak_data")
+      .select("current_streak, longest_streak")
+      .eq("user_id", user.id)
+      .single();
+    if (data) setStreakData(data);
+  };
 
   const fetchAssignedLessons = async () => {
     if (!user?.email) return;
@@ -342,7 +354,7 @@ export default function AppHome() {
                 <Flame className="w-4 h-4 text-accent-foreground" />
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">{profile?.current_streak || 0}</p>
+                <p className="text-sm font-medium text-foreground">{streakData?.current_streak || 0}</p>
                 <p className="text-xs text-muted-foreground">Day streak</p>
               </div>
             </div>
