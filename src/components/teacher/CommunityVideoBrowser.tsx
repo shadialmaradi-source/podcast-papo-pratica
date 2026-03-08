@@ -96,7 +96,7 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
 
       const { data, error } = await query;
       if (!error && data) {
-        setVideos(data as VideoRow[]);
+        setVideos(data as unknown as VideoRow[]);
       }
       setLoading(false);
     };
