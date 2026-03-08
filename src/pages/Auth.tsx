@@ -29,21 +29,45 @@ export default function Auth() {
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already authenticated, check onboarding status
+  // Redirect if already authenticated, check role + onboarding status
   useEffect(() => {
-    if (user) {
-      supabase.from('profiles')
-        .select('native_language')
-        .eq('user_id', user.id)
-        .single()
-        .then(({ data }) => {
-          if (!data?.native_language) {
-            navigate("/onboarding");
-          } else {
-            navigate("/app");
-          }
-        });
-    }
+    if (!user) return;
+    // Check if teacher
+    supabase
+      .from("user_roles" as any)
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data: roleData }) => {
+        if (roleData && (roleData as any).role === "teacher") {
+          // Check teacher onboarding
+          supabase
+            .from("teacher_profiles" as any)
+            .select("onboarding_completed")
+            .eq("teacher_id", user.id)
+            .maybeSingle()
+            .then(({ data: tp }) => {
+              if (!tp || !(tp as any).onboarding_completed) {
+                navigate("/teacher/onboarding");
+              } else {
+                navigate("/teacher");
+              }
+            });
+        } else {
+          // Student flow
+          supabase.from('profiles')
+            .select('native_language')
+            .eq('user_id', user.id)
+            .single()
+            .then(({ data }) => {
+              if (!data?.native_language) {
+                navigate("/onboarding");
+              } else {
+                navigate("/app");
+              }
+            });
+        }
+      });
   }, [user, navigate]);
 
   const handleGoogleSignIn = async () => {

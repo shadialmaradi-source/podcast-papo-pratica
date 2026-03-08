@@ -1,46 +1,124 @@
 
 
-# Plan: Teacher Onboarding Flow
+# Plan: Teacher YouTube Lesson Overhaul
 
-## Overview
-Create a 3-step onboarding flow at `/teacher/onboarding` that runs once after teacher signup. Includes profile setup, optional first student addition, and a quick tour.
+This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
 
-## Database Changes
+## Summary of Changes
 
-### 1. `teacher_profiles` table
-- `id`, `teacher_id` (unique, references auth.users), `full_name`, `languages_taught` (text[]), `bio`, `specialties` (text[]), `onboarding_completed` (boolean, default false), `created_at`
-- RLS: teachers can CRUD own row (using `auth.uid() = teacher_id`)
+1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
+2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
+3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
+4. **Student lesson view update** -- same grouped-by-type sequential layout
 
-### 2. `teacher_students` table
-- `id`, `teacher_id`, `student_email`, `student_name`, `level`, `native_language`, `notes`, `status` (default 'invited'), `invited_at`, `last_active`
-- Unique constraint on `(teacher_id, student_email)`
-- RLS: teachers can CRUD own students
+---
 
-## Files to Create/Modify
+## Phase 1: Simplified Student Onboarding
 
-### New: `src/pages/TeacherOnboarding.tsx`
-3-step flow using local state (no router per step):
+### Problem
+Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
 
-**Step 1 - Welcome & Profile**: Name input, multi-select for languages taught. Saves to `profiles.full_name` and creates `teacher_profiles` row.
+### Solution
+- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
+- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
+- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
 
-**Step 2 - First Student** (optional): Student email, CEFR level (A1-C2), native language. Skip button. If filled, inserts into `teacher_students`.
+### Files changed
+- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
+- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
+- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
 
-**Step 3 - Quick Tour**: 3 slides explaining assign/share/track workflow. "Got it" button sets `onboarding_completed = true` and redirects to `/teacher`.
+---
 
-Design: Clean card-based UI with step progress indicator, framer-motion transitions. Consistent with existing onboarding style.
+## Phase 2: Remove image_discussion, Update Exercise Types
 
-### Modify: `src/App.tsx`
-- Add route: `/teacher/onboarding` → `<ProtectedRoute><TeacherOnboarding /></ProtectedRoute>`
+### DB migration
+- No schema changes needed (exercise_types is a text array, content is JSONB)
 
-### Modify: `src/pages/TeacherDashboard.tsx`
-- After role check, also check `teacher_profiles.onboarding_completed`. If false/missing, redirect to `/teacher/onboarding`.
+### Edge function: `generate-lesson-exercises`
+- Remove `image_discussion` from `EXERCISE_PROMPTS`
+- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
+- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
+- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
 
-### Modify: `src/components/auth/AuthPage.tsx`
-- After teacher login redirect, check onboarding status. If not completed, redirect to `/teacher/onboarding` instead of `/teacher`.
+### Frontend: `CreateLessonForm.tsx`
+- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
 
-### Modify: `src/pages/Auth.tsx`
-- Same: when user is authenticated and role is teacher, check onboarding before redirecting.
+### Files changed
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
+- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
 
-### Analytics
-- Track `teacher_onboarding_started`, `teacher_onboarding_step_1/2/3`, `teacher_onboarding_completed` via existing `trackEvent`.
+---
+
+## Phase 3: Teacher Post-Creation View (YouTube lessons)
+
+### Current state
+After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+
+### New design
+After creation, the teacher sees:
+1. **Share link** (unchanged)
+2. **YouTube video embed** at the top
+3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
+4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+
+### Transcript fetching approach
+- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
+- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+
+### DB migration
+```sql
+ALTER TABLE teacher_lessons ADD COLUMN transcript text;
+```
+
+### Files changed
+- **DB migration** -- add `transcript` column
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
+- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
+
+---
+
+## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
+
+Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
+- Show video at top
+- Show transcript below (same interactive component)
+- Exercise sections grouped by type, each with its own prev/next within 5 questions
+
+### Files changed
+- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
+- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
+
+---
+
+## Phase 5: Student Lesson View (`StudentLesson.tsx`)
+
+Mirror the teacher's layout for the student:
+- Video at top
+- Transcript (read-only or interactive if we want students to also explore words)
+- Exercise sections grouped by type, sequential, with submit per question
+
+### Files changed
+- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
+
+---
+
+## Technical Details
+
+### Exercise generation counts
+| Type | Count |
+|------|-------|
+| fill_in_blank | 5 |
+| multiple_choice | 5 |
+| spot_the_mistake | 5 |
+| role_play | 2-3 scenarios |
+
+### Role-play prompt update
+The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
+
+### Transcript storage
+Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
+
+### RLS
+No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
 
