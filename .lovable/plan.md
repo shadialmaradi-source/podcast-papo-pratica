@@ -1,124 +1,81 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Guided Transcript Tutorial for First-Time Users
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## Overview
 
-## Summary of Changes
+Create a multi-step guided onboarding tutorial that teaches users how to use the transcript, word explorer, and flashcard features. The tutorial triggers once (first visit to any video lesson page), programmatically pauses the video at ~20s, and walks users through each feature with tooltip overlays and forced interactions (skippable after 3s).
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+## Changes to Free User Transcript Access
 
----
+**Current**: Free users see 2 sentences + full lock screen (LockedTranscript component).
+**New**: Free users always see first 2 transcript sentences with explore/flashcard functionality enabled on those 2 sentences. The rest remains locked with upgrade CTA. During the first-time tutorial only, the full transcript is temporarily accessible.
 
-## Phase 1: Simplified Student Onboarding
+## Tutorial Flow (7 Steps)
 
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+1. **Video pauses at ~20s** -- Overlay popup: "Now scroll down to the transcript!" with animated arrow pointing down. User clicks "Go to Transcript" to continue.
+2. **Scroll to transcript** -- Auto-scroll to transcript section. A sentence is pre-highlighted based on user's level (beginner = simpler sentence, advanced = complex). Tooltip: "Tap this highlighted word to explore it!"
+3. **Force explore** -- The highlighted word is pre-selected, showing the TextSelectionPopover. User must click "Explore" (or skip after 3s).
+4. **Word Explorer opens** -- WordExplorerPanel opens with the analysis. Tooltip overlay: "This is the Word Explorer! See translations, conjugations, and more." User reads it, then tooltip: "Now save it as a flashcard!" pointing at the "Save as Flashcard" button.
+5. **Save flashcard from explorer** -- User clicks "Save as Flashcard" (or skips). FlashcardCreatorModal opens.
+6. **Flashcard modal** -- Tooltip: "Review and save your flashcard!" User saves or closes.
+7. **Return to video** -- Popup: "Great! Now continue watching the video." Video resumes.
 
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+## Technical Approach
 
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+### New Component: `TranscriptTutorial.tsx`
+A state-machine component managing the 7 tutorial steps. Renders tooltip overlays positioned relative to target elements using refs/IDs. Uses `localStorage` key `transcript_tutorial_completed` to track completion.
 
----
+Each step renders:
+- A semi-transparent backdrop
+- A tooltip/popup pointing at the relevant UI element
+- A "Skip" link that appears after 3 seconds
+- Step-specific action buttons
 
-## Phase 2: Remove image_discussion, Update Exercise Types
+### Modified Files
 
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
+1. **`TranscriptViewer.tsx`**:
+   - Accept new prop `tutorialActive: boolean` and `tutorialStep` to control which sentence is highlighted and whether explore is forced
+   - When tutorial is active + user is free: show ALL segments (not just 2), but revert to 2 after tutorial completes
+   - Expose refs for key elements (transcript container, suggested word) via callback props
 
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+2. **`YouTubeVideoExercises.tsx`** (the lesson video page):
+   - Add tutorial state machine
+   - Use YouTube IFrame API (`postMessage`) to pause video at ~20s
+   - Mount `TranscriptTutorial` overlay component
+   - Pass tutorial props down to `TranscriptViewer`
 
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+3. **`LockedTranscript.tsx`**:
+   - No longer rendered during tutorial for free users
+   - After tutorial: show 2 functional sentences + locked rest (modify TranscriptViewer to render 2 interactive lines + LockedTranscript for the rest)
 
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+4. **`WordExplorerPanel.tsx`**:
+   - Add optional `tutorialHighlight` prop to show tooltip overlay on the "Save as Flashcard" button
 
----
+### Video Pause Implementation
 
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
+In `YouTubeVideoExercises.tsx`, switch from a plain `<iframe>` to the YouTube IFrame Player API (similar to `LessonVideoPlayer.tsx`). This allows:
+- Monitoring `getCurrentTime()` via polling
+- Calling `player.pauseVideo()` at ~20s
+- Calling `player.playVideo()` when tutorial ends
 
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+### localStorage Keys
+- `transcript_tutorial_completed`: marks tutorial as done (never show again)
+- Existing `transcript_onboarding_seen`: the simpler tip banner (keep as-is for premium users)
 
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+### Free User Transcript Logic (post-tutorial)
 
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+Change the `if (!isPremium)` check in `TranscriptViewer` from rendering `LockedTranscript` to:
+- Render the first 2 segments with full interactivity (explore + flashcard)
+- Below them, render a condensed lock/upgrade CTA
+- Suggested words only loaded for those 2 segments
 
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
-```
+## Files to Create
+- `src/components/transcript/TranscriptTutorial.tsx` -- tutorial overlay component
 
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
-
----
-
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
-
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
-
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
-
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
-
----
-
-## Technical Details
-
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+## Files to Edit
+- `src/components/YouTubeVideoExercises.tsx` -- add YT API player, tutorial state, pause at 20s
+- `src/components/transcript/TranscriptViewer.tsx` -- free user 2-sentence access, tutorial props
+- `src/components/transcript/WordExplorerPanel.tsx` -- tutorial highlight prop
+- `src/components/transcript/LockedTranscript.tsx` -- minor: used as inline CTA after 2 sentences
 
