@@ -23,7 +23,7 @@ import { getUploadQuotaStatus } from "@/services/subscriptionService";
 import { QuotaIndicator } from "@/components/subscription/QuotaIndicator";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { trackEvent, trackPageLoad, trackPageView } from "@/lib/analytics";
-import { QuickReviewSession } from "@/components/QuickReviewSession";
+import { FlashcardRepository } from "@/components/FlashcardRepository";
 import { useStudentTour } from "@/hooks/useStudentTour";
 
 interface UserProfile {
