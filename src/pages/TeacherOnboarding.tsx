@@ -78,7 +78,9 @@ export default function TeacherOnboarding() {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
+    trackPageView("teacher_onboarding", "teacher");
     trackEvent("teacher_onboarding_started");
+    trackFunnelStep("teacher_onboarding", "profile", 0);
   }, []);
 
   const toggleLanguage = (lang: string) => {
