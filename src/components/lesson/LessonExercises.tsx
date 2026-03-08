@@ -312,16 +312,23 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
                 : "Try watching the video again for better comprehension."}
             </p>
 
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sticky CTA */}
+        <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+          <div className="max-w-md mx-auto">
             <Button
               onClick={() => onComplete(score, exercises.length)}
               size="lg"
-              className="w-full bg-primary hover:bg-primary/90 rounded-full"
+              className="w-full bg-primary hover:bg-primary/90 rounded-full py-5 md:py-6"
             >
               {passed ? 'Continue to Speaking' : 'Continue Anyway'}
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
     );
   }
