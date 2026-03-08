@@ -4,12 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, MessageSquare } from "lucide-react";
+import { CalendarIcon, MessageSquare, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -23,7 +24,7 @@ interface AssignSpeakingModalProps {
   onAssigned?: () => void;
 }
 
-interface SpeakingTopic {
+interface PredefinedTopic {
   id: string;
   topic: string;
   cefr_level: string;
@@ -31,6 +32,15 @@ interface SpeakingTopic {
 }
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+const LANGUAGES = [
+  { value: "italian", label: "Italian" },
+  { value: "spanish", label: "Spanish" },
+  { value: "portuguese", label: "Portuguese" },
+  { value: "french", label: "French" },
+  { value: "german", label: "German" },
+  { value: "english", label: "English" },
+];
 
 export function AssignSpeakingModal({
   open,
@@ -41,12 +51,14 @@ export function AssignSpeakingModal({
   onAssigned,
 }: AssignSpeakingModalProps) {
   const { user } = useAuth();
-  const [predefinedTopics, setPredefinedTopics] = useState<SpeakingTopic[]>([]);
+  const [predefinedTopics, setPredefinedTopics] = useState<PredefinedTopic[]>([]);
   const [selectedLevel, setSelectedLevel] = useState(studentLevel || "A1");
+  const [selectedLanguage, setSelectedLanguage] = useState("italian");
   const [selectedTopicId, setSelectedTopicId] = useState("");
   const [customTopic, setCustomTopic] = useState("");
+  const [customDescription, setCustomDescription] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>();
-  const [note, setNote] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [tabValue, setTabValue] = useState("predefined");
 
@@ -57,7 +69,7 @@ export function AssignSpeakingModal({
       .select("*")
       .order("cefr_level")
       .then(({ data }) => {
-        setPredefinedTopics((data || []) as unknown as SpeakingTopic[]);
+        setPredefinedTopics((data || []) as unknown as PredefinedTopic[]);
       });
   }, [open]);
 
@@ -66,43 +78,86 @@ export function AssignSpeakingModal({
   const handleSubmit = async () => {
     if (!user) return;
 
-    const topicText =
+    const topicTitle =
       tabValue === "predefined"
         ? predefinedTopics.find((t) => t.id === selectedTopicId)?.topic
         : customTopic.trim();
 
-    if (!topicText) {
+    if (!topicTitle) {
       toast.error("Please select or enter a speaking topic");
       return;
     }
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("video_assignments" as any).insert({
-        teacher_id: user.id,
-        student_email: studentEmail,
-        assignment_type: "speaking",
-        speaking_topic: topicText,
-        speaking_level: selectedLevel,
-        due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
-        note: note || null,
-        status: "assigned",
-      } as any);
+      // 1. Create the speaking assignment
+      const { data: assignment, error: aError } = await supabase
+        .from("speaking_assignments" as any)
+        .insert({
+          teacher_id: user.id,
+          student_email: studentEmail,
+          topic_title: topicTitle,
+          topic_description: tabValue === "custom" ? customDescription || null : null,
+          cefr_level: selectedLevel,
+          language: selectedLanguage,
+          custom_instructions: instructions || null,
+          due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
+          status: "assigned",
+        } as any)
+        .select("id")
+        .single();
 
-      if (error) throw error;
+      if (aError) throw aError;
+      const assignmentId = (assignment as any).id;
+
+      // 2. Generate questions via edge function
+      toast.info("Generating discussion questions...");
+      const { data: fnData, error: fnError } = await supabase.functions.invoke(
+        "generate-speaking-questions",
+        {
+          body: { topic: topicTitle, level: selectedLevel, language: selectedLanguage },
+        }
+      );
+
+      if (fnError) {
+        console.error("Question generation error:", fnError);
+        toast.warning("Assignment created but question generation failed. You can retry later.");
+      } else if (fnData?.questions?.length) {
+        // 3. Insert questions
+        const questionRows = fnData.questions.map((q: any, i: number) => ({
+          assignment_id: assignmentId,
+          question_text: q.question,
+          difficulty: q.difficulty,
+          order_index: i,
+        }));
+
+        const { error: qError } = await supabase
+          .from("speaking_questions" as any)
+          .insert(questionRows as any);
+
+        if (qError) {
+          console.error("Insert questions error:", qError);
+          toast.warning("Assignment created but failed to save some questions.");
+        }
+      }
 
       toast.success(`Speaking topic assigned to ${studentName || studentEmail}!`);
       onOpenChange(false);
-      setCustomTopic("");
-      setSelectedTopicId("");
-      setNote("");
-      setDueDate(undefined);
+      resetForm();
       onAssigned?.();
     } catch (err: any) {
       toast.error(err.message || "Failed to assign speaking topic");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const resetForm = () => {
+    setCustomTopic("");
+    setCustomDescription("");
+    setSelectedTopicId("");
+    setInstructions("");
+    setDueDate(undefined);
   };
 
   return (
@@ -119,22 +174,33 @@ export function AssignSpeakingModal({
         </p>
 
         <div className="space-y-4 pt-2">
-          {/* Level selector */}
-          <div className="space-y-2">
-            <Label>CEFR Level</Label>
-            <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CEFR_LEVELS.map((l) => (
-                  <SelectItem key={l} value={l}>{l}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Level + Language */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Level</Label>
+              <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CEFR_LEVELS.map((l) => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Language</Label>
+              <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Topic selection tabs */}
+          {/* Topic tabs */}
           <Tabs value={tabValue} onValueChange={setTabValue}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="predefined">Predefined</TabsTrigger>
@@ -167,13 +233,24 @@ export function AssignSpeakingModal({
               )}
             </TabsContent>
 
-            <TabsContent value="custom" className="space-y-2">
-              <Textarea
-                placeholder="E.g., Describe your morning routine using past tense"
-                value={customTopic}
-                onChange={(e) => setCustomTopic(e.target.value)}
-                rows={3}
-              />
+            <TabsContent value="custom" className="space-y-3">
+              <div className="space-y-2">
+                <Label>Topic Title</Label>
+                <Input
+                  placeholder="E.g., Food & Cooking"
+                  value={customTopic}
+                  onChange={(e) => setCustomTopic(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description (optional)</Label>
+                <Textarea
+                  placeholder="Brief description of what to discuss..."
+                  value={customDescription}
+                  onChange={(e) => setCustomDescription(e.target.value)}
+                  rows={2}
+                />
+              </div>
             </TabsContent>
           </Tabs>
 
@@ -203,13 +280,13 @@ export function AssignSpeakingModal({
             </Popover>
           </div>
 
-          {/* Note */}
+          {/* Instructions */}
           <div className="space-y-2">
-            <Label>Teacher Note (optional)</Label>
+            <Label>Instructions for Student (optional)</Label>
             <Textarea
-              placeholder="Additional instructions..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
+              placeholder='E.g., "Prepare questions 1-4. We\'ll discuss in our lesson tomorrow."'
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
               rows={2}
             />
           </div>
@@ -220,7 +297,14 @@ export function AssignSpeakingModal({
               Cancel
             </Button>
             <Button className="flex-1" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Assigning..." : "Assign Topic"}
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                "Assign Topic"
+              )}
             </Button>
           </div>
         </div>
