@@ -96,6 +96,10 @@ const faqItems = [
     q: "Can I switch plans later?",
     a: "Absolutely. You can upgrade or downgrade at any time. When upgrading, you'll be charged the prorated difference.",
   },
+  {
+    q: "What are the lesson limits?",
+    a: "Each plan has a monthly lesson creation limit that resets at the start of each month. Free: 10 lessons, Pro: 60 lessons, Premium: 160 lessons. Video duration limits also apply to prevent excessive transcription costs.",
+  },
 ];
 
 export default function TeacherPricing() {
