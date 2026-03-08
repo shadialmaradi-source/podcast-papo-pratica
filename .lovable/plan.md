@@ -1,124 +1,47 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Fix Google OAuth "Continue to" Domain
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## The Problem
 
-## Summary of Changes
+When users click "Sign in with Google," the Google consent screen shows **"to continue to fezpzihnvblzjrdzgioq.supabase.co"** — the raw Supabase project URL. This looks untrustworthy and unprofessional.
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+## The Solution
 
----
+This is a **Supabase + Google Cloud Console configuration change** — no code changes needed. There are two approaches:
 
-## Phase 1: Simplified Student Onboarding
+### Option A: Custom Domain on Supabase (Recommended)
 
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+1. **Set up a custom domain in Supabase** (e.g., `auth.listenflow.app` or `api.listenflow.app`)
+   - Go to **Supabase Dashboard → Settings → Custom Domains**
+   - Add your custom domain and configure DNS (CNAME record)
+   - Once verified, Supabase auth will use this domain instead of `fezpzihnvblzjrdzgioq.supabase.co`
 
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+2. **Update Google Cloud Console OAuth credentials**:
+   - Go to **Google Cloud Console → APIs & Services → Credentials**
+   - Edit your OAuth 2.0 Client ID
+   - Update **Authorized redirect URIs** from `https://fezpzihnvblzjrdzgioq.supabase.co/auth/v1/callback` to `https://auth.listenflow.app/auth/v1/callback`
+   - Under **Authorized JavaScript origins**, add your custom domain
 
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+3. **Update Supabase Auth settings**:
+   - Go to **Supabase Dashboard → Authentication → URL Configuration**
+   - Ensure the **Site URL** is set to your production URL (`https://listenflow.lovable.app` or your custom domain)
 
----
+After this, Google's consent screen will show **"to continue to listenflow.app"** (or whatever custom domain you choose).
 
-## Phase 2: Remove image_discussion, Update Exercise Types
+### Option B: Without Custom Domain (Partial Fix)
 
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
+Without a Supabase custom domain, you cannot change what Google shows on the consent screen — it will always display the Supabase project URL. However, you can improve trust by:
+- Adding your app logo and name in the **Google Cloud Console → OAuth Consent Screen**
+- Adding privacy policy and terms of service URLs
 
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+## Important Notes
 
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+- Custom domains on Supabase require a **Pro plan or higher** on Supabase (not the app's internal subscription tier)
+- The Supabase custom domain feature handles SSL automatically
+- No code changes are needed in the app — the `redirectTo` in `Auth.tsx` already uses `window.location.origin` correctly
 
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+## Recommendation
 
----
-
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
-
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
-
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
-
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
-
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
-```
-
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
-
----
-
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
-
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
-
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
-
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
-
----
-
-## Technical Details
-
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+Set up a Supabase custom domain. This is the only way to replace the raw Supabase URL on Google's consent screen with your own branded domain.
 
