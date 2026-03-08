@@ -386,7 +386,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {videoGroups.map(group => (
+                  {filteredVideoGroups.map(group => (
                     <motion.div
                       key={group.video_id}
                       whileHover={{ scale: 1.02 }}
