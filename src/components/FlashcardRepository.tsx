@@ -42,9 +42,39 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
   const [loading, setLoading] = useState(true);
   const [isStudying, setIsStudying] = useState(false);
   const [filter, setFilter] = useState<string>("all");
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [videoGroups, setVideoGroups] = useState<VideoGroup[]>([]);
   const [studyFlashcards, setStudyFlashcards] = useState<{ phrase: string; translation: string; why: string }[]>([]);
   const [studyLanguage, setStudyLanguage] = useState<string>("english");
+
+  // Detect distinct languages
+  const distinctLanguages = useMemo(() => {
+    const langs = [...new Set(flashcards.map(fc => fc.video_language))];
+    return langs;
+  }, [flashcards]);
+
+  // Auto-select language when there's only one
+  useEffect(() => {
+    if (distinctLanguages.length === 1) {
+      setSelectedLanguage(distinctLanguages[0]);
+    } else if (distinctLanguages.length >= 2 && !selectedLanguage) {
+      setSelectedLanguage(null);
+    }
+  }, [distinctLanguages]);
+
+  // Get language-filtered flashcards and video groups
+  const languageFilteredFlashcards = useMemo(() => {
+    if (!selectedLanguage) return flashcards;
+    return flashcards.filter(fc => fc.video_language === selectedLanguage);
+  }, [flashcards, selectedLanguage]);
+
+  const filteredVideoGroups = useMemo(() => {
+    if (!selectedLanguage) return videoGroups;
+    return videoGroups.filter(g => {
+      const groupCards = flashcards.filter(fc => fc.video_id === g.video_id);
+      return groupCards.some(fc => fc.video_language === selectedLanguage);
+    });
+  }, [videoGroups, flashcards, selectedLanguage]);
 
   useEffect(() => {
     loadFlashcards();
