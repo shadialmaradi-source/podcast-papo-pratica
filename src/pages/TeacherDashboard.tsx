@@ -90,6 +90,7 @@ export default function TeacherDashboard() {
     else if (step === "form") setStep("choose_type");
     else if (step === "youtube_browse") setStep("youtube_source");
     else if (step === "youtube_source") setStep("choose_type");
+    else if (step === "speaking_form") setStep("choose_type");
     else setStep("home");
   };
 
