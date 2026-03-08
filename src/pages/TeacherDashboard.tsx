@@ -3,13 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, LogOut, Users, ArrowLeft, BarChart3, CreditCard, Globe, Palette } from "lucide-react";
+import { BookOpen, Users, ArrowLeft, Settings } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
-import { LessonList } from "@/components/teacher/LessonList";
 import { useUserRole } from "@/hooks/useUserRole";
 import { trackPageLoad } from "@/lib/analytics";
 
@@ -18,7 +17,7 @@ type FlowStep = "home" | "choose_type" | "form";
 type LessonType = "paragraph" | "youtube";
 
 export default function TeacherDashboard() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { role, loading: roleLoading } = useUserRole();
   const [dashboardReady, setDashboardReady] = useState(false);
@@ -49,10 +48,6 @@ export default function TeacherDashboard() {
     }
   }, [role, roleLoading, navigate, user]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
-  };
 
   const handleCreated = (_lessonId: string) => {
     // Stay on the form page — the inline result is shown in CreateLessonForm
@@ -105,9 +100,8 @@ export default function TeacherDashboard() {
             <BookOpen className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold text-foreground">Teacher Dashboard</h1>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+          <Button variant="ghost" size="icon" onClick={() => navigate("/teacher/settings")}>
+            <Settings className="h-5 w-5" />
           </Button>
         </div>
       </header>
@@ -153,64 +147,7 @@ export default function TeacherDashboard() {
                   </div>
                 </CardContent>
               </Card>
-
-              <Card
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => navigate("/teacher/analytics")}
-              >
-                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
-                  <BarChart3 className="h-12 w-12 text-primary" />
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Analytics</p>
-                    <p className="text-sm text-muted-foreground mt-1">Track student progress</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => navigate("/teacher/pricing")}
-              >
-                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
-                  <CreditCard className="h-12 w-12 text-primary" />
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Pricing</p>
-                    <p className="text-sm text-muted-foreground mt-1">Manage your subscription</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => navigate("/teacher/community")}
-              >
-                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
-                  <Globe className="h-12 w-12 text-primary" />
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Community</p>
-                    <p className="text-sm text-muted-foreground mt-1">Discover & share lessons</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card
-                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => navigate("/teacher/branding")}
-              >
-                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
-                  <Palette className="h-12 w-12 text-primary" />
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Branding</p>
-                    <p className="text-sm text-muted-foreground mt-1">White-label your lessons</p>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
-
-            <Separator className="mb-6" />
-
-            {/* Lesson List */}
-            <LessonList refresh={refresh} />
           </>
         )}
 
