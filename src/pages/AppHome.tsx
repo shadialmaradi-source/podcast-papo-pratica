@@ -51,6 +51,8 @@ export default function AppHome() {
   const [importing, setImporting] = useState(false);
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [showHints, setShowHints] = useState(() => !localStorage.getItem("has_seen_home_hints"));
+  const [showQuickReview, setShowQuickReview] = useState(false);
+  const [flashcardCount, setFlashcardCount] = useState(0);
   
   // Upload quota state
   const [uploadQuota, setUploadQuota] = useState<{
