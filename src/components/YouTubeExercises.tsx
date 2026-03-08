@@ -74,17 +74,43 @@ const getNextLevel = (currentLevel: string): string | null => {
 
 
 
+// Levenshtein distance for fuzzy matching
+const levenshteinDistance = (a: string, b: string): number => {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+  return dp[m][n];
+};
+
+const isFuzzyMatch = (userAnswer: string, correctAnswer: string): boolean => {
+  const a = userAnswer.toLowerCase().trim();
+  const b = correctAnswer.toLowerCase().trim();
+  if (a === b) return true;
+  const len = b.length;
+  if (len <= 3) return false; // too short for fuzzy
+  const maxDist = len <= 6 ? 1 : 2;
+  return levenshteinDistance(a, b) <= maxDist;
+};
+
 // Helper function to check answer correctness for different exercise types
 const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean => {
   if (!userAnswer) return false;
   
   switch (exercise.type) {
+    case "Cloze":
+    case "fill_blank":
+      return isFuzzyMatch(userAnswer, exercise.correctAnswer);
+
     case "MCQ":
     case "TF":
-    case "Cloze":
     case "SpotError":
     case "multiple_choice":
-    case "fill_blank":
     case "word_recognition":
     case "emoji_match":
     case "comprehension_check":
