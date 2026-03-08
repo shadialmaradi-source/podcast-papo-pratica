@@ -277,15 +277,16 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8 flex items-center justify-center"
+        className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
       >
-        <Card className="max-w-md w-full shadow-xl rounded-2xl border-0">
-          <CardContent className="p-8 text-center space-y-6">
-            <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center ${
-              passed ? 'bg-primary/10' : 'bg-amber-500/10'
-            }`}>
-              <Award className={`w-12 h-12 ${passed ? 'text-primary' : 'text-amber-500'}`} />
-            </div>
+        <div className="flex-1 flex items-center justify-center p-3 md:p-8">
+          <Card className="max-w-md w-full shadow-xl rounded-2xl border-0">
+            <CardContent className="p-5 md:p-8 text-center space-y-4 md:space-y-6">
+              <div className={`w-16 h-16 md:w-24 md:h-24 mx-auto rounded-full flex items-center justify-center ${
+                passed ? 'bg-primary/10' : 'bg-amber-500/10'
+              }`}>
+                <Award className={`w-8 h-8 md:w-12 md:h-12 ${passed ? 'text-primary' : 'text-amber-500'}`} />
+              </div>
             
             <div>
               <h2 className="text-3xl font-bold text-foreground">
