@@ -777,26 +777,24 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
             </Card>
           </motion.div>
         </AnimatePresence>
+        </div>
+      </div>
 
-        {/* Complete button when all done */}
-        {allPhrasesRecorded && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
+      {/* Sticky CTA when all done */}
+      {allPhrasesRecorded && (
+        <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+          <div className="max-w-2xl mx-auto">
             <Button
               size="lg"
               onClick={onComplete}
-              className="bg-primary hover:bg-primary/90 px-8"
+              className="w-full bg-primary hover:bg-primary/90 py-5 md:py-6 rounded-full"
             >
               Continue to Flashcards
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-          </motion.div>
-        )}
-
-      </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

@@ -167,38 +167,62 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
               </Card>
             </motion.div>
           </AnimatePresence>
-        </div>
+          </div>
 
-        {/* Action buttons */}
-        <div className="flex justify-center gap-4">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={handleFlip}
-            className="gap-2 rounded-full"
-          >
-            <RotateCw className="w-5 h-5" />
-            Flip Card
-          </Button>
-
-          {isFlipped && !learned[currentIndex] && (
+          {/* Action buttons */}
+          <div className="flex justify-center gap-3 md:gap-4">
             <Button
+              variant="outline"
               size="lg"
-              onClick={handleMarkLearned}
-              className="bg-primary hover:bg-primary/90 gap-2 rounded-full"
+              onClick={handleFlip}
+              className="gap-2 rounded-full text-sm md:text-base"
             >
-              <Check className="w-5 h-5" />
-              Mark as Learned
+              <RotateCw className="w-4 h-4 md:w-5 md:h-5" />
+              Flip
             </Button>
-          )}
-        </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between">
+            {isFlipped && !learned[currentIndex] && (
+              <Button
+                size="lg"
+                onClick={handleMarkLearned}
+                className="bg-primary hover:bg-primary/90 gap-2 rounded-full text-sm md:text-base"
+              >
+                <Check className="w-4 h-4 md:w-5 md:h-5" />
+                Learned
+              </Button>
+            )}
+          </div>
+
+          {/* Progress dots */}
+          <div className="flex justify-center gap-1 md:gap-2 pt-2 md:pt-4">
+            {flashcards.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setIsFlipped(false);
+                  setCurrentIndex(idx);
+                }}
+                className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full transition-all ${
+                  learned[idx]
+                    ? 'bg-primary'
+                    : idx === currentIndex
+                      ? 'bg-primary/50 scale-125'
+                      : 'bg-muted hover:bg-muted-foreground/30'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky Navigation */}
+      <div className="sticky bottom-0 p-3 md:p-6 bg-background/80 backdrop-blur border-t md:border-0">
+        <div className="max-w-2xl mx-auto flex justify-between">
           <Button
             variant="ghost"
             onClick={handlePrevious}
             disabled={currentIndex === 0}
+            size="sm"
           >
             Previous
           </Button>
@@ -207,39 +231,20 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
             <Button
               variant="ghost"
               onClick={handleNext}
+              size="sm"
             >
               Skip
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="w-4 h-4 ml-1 md:ml-2" />
             </Button>
           ) : (
             <Button
               onClick={onComplete}
-              className="bg-primary hover:bg-primary/90 gap-2"
+              className="bg-primary hover:bg-primary/90 gap-1 md:gap-2"
             >
               Complete Lesson
               <ArrowRight className="w-4 h-4" />
             </Button>
           )}
-        </div>
-
-        {/* Progress dots */}
-        <div className="flex justify-center gap-2 pt-4">
-          {flashcards.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                setIsFlipped(false);
-                setCurrentIndex(idx);
-              }}
-              className={`w-3 h-3 rounded-full transition-all ${
-                learned[idx]
-                  ? 'bg-primary'
-                  : idx === currentIndex
-                    ? 'bg-primary/50 scale-125'
-                    : 'bg-muted hover:bg-muted-foreground/30'
-              }`}
-            />
-          ))}
         </div>
       </div>
     </motion.div>
