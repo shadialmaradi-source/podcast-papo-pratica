@@ -1,10 +1,15 @@
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { BookOpen, Users, Settings } from "lucide-react";
+import { BookOpen, Users, Settings, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { path: "/teacher", label: "Dashboard", icon: BookOpen },
   { path: "/teacher/students", label: "Students", icon: Users },
+  { path: "/teacher/notifications", label: "Alerts", icon: Bell, hasBadge: true },
   { path: "/teacher/settings", label: "Settings", icon: Settings },
 ];
 
