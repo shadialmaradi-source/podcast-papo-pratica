@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, BookOpen, Filter, Loader2, Shuffle } from "lucide-react";
+import { ArrowLeft, BookOpen, Filter, Globe, Loader2, Shuffle } from "lucide-react";
 import { motion } from "framer-motion";
 import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import { toast } from "sonner";
+import { getLanguageFlag, getLanguageName } from "@/utils/languageUtils";
 
 interface FlashcardRepositoryProps {
   userId: string;
