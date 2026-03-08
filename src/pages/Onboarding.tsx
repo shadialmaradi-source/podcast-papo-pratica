@@ -185,22 +185,22 @@ export default function Onboarding() {
                       selectedLanguage === lang.code ? 'ring-2 ring-primary border-primary bg-primary/5' : lang.available ? 'hover:border-primary/50' : 'opacity-60'
                     }`}
                   >
-                    <CardContent className="p-6 text-center relative">
+                    <CardContent className="p-3 md:p-6 text-center relative">
                       {selectedLanguage === lang.code && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2">
-                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary-foreground" />
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-1 right-1 md:top-2 md:right-2">
+                          <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
                           </div>
                         </motion.div>
                       )}
                       {!lang.available && (
                         <div className="absolute inset-0 bg-muted/40 rounded-lg flex items-center justify-center z-10">
-                          <Badge variant="secondary" className="bg-muted-foreground/80 text-background">{t('soon')}</Badge>
+                          <Badge variant="secondary" className="bg-muted-foreground/80 text-background text-xs">{t('soon')}</Badge>
                         </div>
                       )}
-                      <span className="text-4xl mb-3 block">{lang.flag}</span>
-                      <h3 className="font-bold text-foreground">{lang.name}</h3>
-                      <p className="text-sm text-muted-foreground">{lang.native}</p>
+                      <span className="text-3xl md:text-4xl mb-2 md:mb-3 block">{lang.flag}</span>
+                      <h3 className="font-bold text-foreground text-sm md:text-base">{lang.name}</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">{lang.native}</p>
                     </CardContent>
                   </Card>
                 ))}
