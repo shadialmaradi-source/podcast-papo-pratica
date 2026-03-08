@@ -152,6 +152,7 @@ export default function SpeakingAssignment() {
       .update({ status: "reviewed" } as any)
       .eq("id", assignmentId);
 
+    trackEvent("student_speaking_marked_prepared", { assignment_id: assignmentId, answers_count: Object.values(drafts).filter(d => d.trim()).length });
     toast.success("Marked as prepared!");
     setAssignment((prev) => (prev ? { ...prev, status: "reviewed" } : prev));
     setSaving(false);

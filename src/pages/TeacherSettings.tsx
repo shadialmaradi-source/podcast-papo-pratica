@@ -20,7 +20,8 @@ export default function TeacherSettings() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    trackPageLoad("teacher_settings");
+    trackPageView("teacher_settings", "teacher");
+    trackEvent("teacher_settings_viewed");
   }, []);
 
   const handleSignOut = async () => {

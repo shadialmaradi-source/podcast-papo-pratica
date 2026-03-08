@@ -82,6 +82,7 @@ export function AssignVideoModal({
 
       const studentName = students.find(s => s.student_email === selectedEmail)?.student_name;
       const name = studentName || selectedEmail;
+      trackEvent("teacher_video_assigned", { video_title: videoTitle, student_email: selectedEmail });
       toast.success(`Video assigned to ${name}!`);
       onOpenChange(false);
       setNote("");

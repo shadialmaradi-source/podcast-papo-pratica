@@ -154,6 +154,7 @@ export default function TeacherStudents() {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
+      trackEvent("teacher_student_archived", { student_id: student.id });
       toast({ title: "Student archived" });
       fetchData();
     }

@@ -405,6 +405,11 @@ export default function StudentLesson() {
     }
 
     setSubmitted((prev) => ({ ...prev, [exerciseId]: true }));
+    trackEvent("student_exercise_answered", {
+      lesson_id: lesson.id,
+      exercise_id: exerciseId,
+      exercise_type: exercise.exercise_type,
+    });
     toast.success("Answer saved!");
   };
 

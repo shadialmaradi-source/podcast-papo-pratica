@@ -63,6 +63,7 @@ export function AddStudentModal({ open, onOpenChange, onAdded }: AddStudentModal
       return;
     }
 
+    trackEvent("teacher_student_added", { level: level || "unset" });
     toast({ title: "Student added!", description: "Now assign them lessons." });
     resetForm();
     onOpenChange(false);

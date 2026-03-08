@@ -134,7 +134,7 @@ export default function TeacherPricing() {
   const handleCheckout = async (plan: "pro" | "premium") => {
     if (!user) return;
     setCheckoutLoading(plan);
-    trackEvent("upgrade_clicked", { plan });
+    trackEvent("teacher_upgrade_clicked", { plan });
 
     try {
       const { data, error } = await supabase.functions.invoke("teacher-stripe-checkout", {

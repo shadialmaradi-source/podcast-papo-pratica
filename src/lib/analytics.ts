@@ -1,7 +1,11 @@
 const POSTHOG_API_KEY = "phc_p7UUw6GZ8h3JsZmK82XMKt9KTjJ40oqkZ4Un9vtNeRm";
 const POSTHOG_HOST = "https://us.i.posthog.com";
+const APP_VERSION = "1.0.0";
+
+type Section = "student" | "teacher" | "shared";
 
 let distinctId: string | null = null;
+let currentSection: Section = "shared";
 
 const getDistinctId = (): string => {
   if (distinctId) return distinctId;
@@ -28,6 +32,8 @@ const postCapture = (event: string, properties: Record<string, unknown> = {}) =>
         $current_url: window.location.href,
         $host: window.location.host,
         $pathname: window.location.pathname,
+        section: currentSection,
+        app_version: APP_VERSION,
         ...properties,
       },
       timestamp: new Date().toISOString(),
@@ -41,6 +47,11 @@ export const initAnalytics = () => {
   postCapture("$pageview");
 };
 
+// Set the current macro section (student / teacher / shared)
+export const setSection = (section: Section) => {
+  currentSection = section;
+};
+
 // Identify user (call on login/signup)
 export const identifyUser = (userId: string, email?: string) => {
   distinctId = userId;
@@ -50,16 +61,30 @@ export const identifyUser = (userId: string, email?: string) => {
   });
 };
 
+// Set person properties (role, plan, level, etc.)
+export const setUserProperties = (props: Record<string, unknown>) => {
+  postCapture("$identify", {
+    $set: props,
+  });
+};
+
 // Reset on logout
 export const resetAnalytics = () => {
   localStorage.removeItem("ph_distinct_id");
   distinctId = null;
+  currentSection = "shared";
   getDistinctId(); // generate new anonymous id
 };
 
 // Track events with properties
 export const trackEvent = (event: string, properties?: Record<string, unknown>) => {
   postCapture(event, properties || {});
+};
+
+// Track page views with section context
+export const trackPageView = (page: string, section?: Section) => {
+  if (section) currentSection = section;
+  postCapture("$pageview", { page });
 };
 
 // Track page load performance

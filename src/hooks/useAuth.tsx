@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { identifyUser, trackEvent, resetAnalytics } from "@/lib/analytics";
+import { identifyUser, setUserProperties, setSection, trackEvent, resetAnalytics } from "@/lib/analytics";
 
 interface AuthContextType {
   user: User | null;
@@ -18,27 +18,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Track auth events for analytics
         if (event === 'SIGNED_IN' && session?.user) {
           identifyUser(session.user.id, session.user.email);
           trackEvent('user_login', {
             method: session.user.app_metadata?.provider || 'email',
             timestamp: new Date().toISOString()
           });
+
+          // Fetch role + profile to enrich PostHog person properties
+          setTimeout(async () => {
+            const uid = session.user.id;
+
+            const [roleRes, profileRes] = await Promise.all([
+              supabase
+                .from("user_roles" as any)
+                .select("role")
+                .eq("user_id", uid)
+                .limit(1)
+                .maybeSingle(),
+              supabase
+                .from("profiles")
+                .select("current_level, selected_language, native_language")
+                .eq("user_id", uid)
+                .maybeSingle(),
+            ]);
+
+            const role = (roleRes.data as any)?.role || "student";
+            const profile = profileRes.data;
+
+            const props: Record<string, unknown> = {
+              role,
+              email: session.user.email,
+            };
+
+            if (profile) {
+              if (profile.current_level) props.cefr_level = profile.current_level;
+              if (profile.selected_language) props.target_language = profile.selected_language;
+              if (profile.native_language) props.native_language = profile.native_language;
+            }
+
+            // For teachers, fetch plan
+            if (role === "teacher") {
+              const { data: subData } = await supabase
+                .from("teacher_subscriptions" as any)
+                .select("plan")
+                .eq("teacher_id", uid)
+                .maybeSingle();
+              props.plan = (subData as any)?.plan || "free";
+              setSection("teacher");
+            } else {
+              setSection("student");
+            }
+
+            setUserProperties(props);
+          }, 0);
         } else if (event === 'SIGNED_OUT') {
           resetAnalytics();
         }
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -52,15 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const value = {
-    user,
-    session,
-    loading,
-    signOut,
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -551,7 +551,7 @@ export default function AppHome() {
                         size="sm"
                         variant="outline"
                         className="text-xs shrink-0"
-                        onClick={() => navigate(`/speaking/${a.id}`)}
+                        onClick={() => { trackEvent("student_speaking_assignment_clicked", { assignment_id: a.id }); navigate(`/speaking/${a.id}`); }}
                       >
                         View Questions
                       </Button>

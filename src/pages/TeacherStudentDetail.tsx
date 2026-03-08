@@ -118,7 +118,11 @@ export default function TeacherStudentDetail() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [user, studentId]);
+  useEffect(() => {
+    trackPageView("teacher_student_detail", "teacher");
+    if (studentId) trackEvent("teacher_student_detail_viewed", { student_id: studentId });
+    fetchData();
+  }, [user, studentId]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading...</div>;

@@ -142,6 +142,12 @@ export function AssignSpeakingModal({
         }
       }
 
+      trackEvent("teacher_speaking_assigned", {
+        topic: topicTitle,
+        level: selectedLevel,
+        language: selectedLanguage,
+        is_custom: tabValue === "custom",
+      });
       toast.success(`Speaking topic assigned to ${studentName || studentEmail}!`);
       onOpenChange(false);
       resetForm();
