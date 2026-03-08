@@ -347,6 +347,30 @@ export default function AppHome() {
             </motion.div>
           </div>
 
+          {/* Quick Review Button */}
+          {flashcardCount > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Button
+                variant="ghost"
+                className="w-full justify-between border border-border rounded-xl px-4 py-3 h-auto hover:border-primary/40 transition-colors"
+                onClick={() => {
+                  trackEvent("quick_review_opened", { flashcard_count: flashcardCount });
+                  setShowQuickReview(true);
+                }}
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <RotateCw className="w-4 h-4 text-primary" />
+                  Review Flashcards
+                </span>
+                <span className="text-xs text-muted-foreground">{flashcardCount} cards</span>
+              </Button>
+            </motion.div>
+          )}
+
           {/* Got it dismiss button */}
           <AnimatePresence>
             {showHints && (
