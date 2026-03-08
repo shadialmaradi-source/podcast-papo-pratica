@@ -156,6 +156,17 @@ export function VideoCard({
             </Badge>
           )}
         </div>
+
+        {/* Assign button for teachers */}
+        {onAssign && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onAssign(); }}
+            className="mt-2 w-full text-xs font-medium text-primary hover:text-primary/80 border border-primary/30 rounded-md py-1 transition-colors hover:bg-primary/5"
+          >
+            Assign to Student
+          </button>
+        )}
       </CardContent>
     </Card>
   );
