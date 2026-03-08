@@ -378,19 +378,34 @@ export default function Library() {
                 <div>
                   <h2 className="text-lg font-semibold text-foreground mb-3">Featured</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    <AddVideoCard onClick={() => setImportDialogOpen(true)} />
-                    {featuredVideos.map((video) => (
-                      <VideoCard
-                        key={video.id}
-                        id={video.id}
-                        title={video.title}
-                        thumbnailUrl={video.thumbnail_url}
-                        topics={video.topics}
-                        duration={video.duration}
-                        difficultyLevel={video.difficulty_level}
-                        isCurated={video.is_curated}
-                        onClick={() => handleVideoClick(video.id)}
-                      />
+                    <div className="relative">
+                      <AddVideoCard onClick={() => setImportDialogOpen(true)} />
+                      {tourStep === 3 && (
+                        <LibraryTourTooltip
+                          message="Paste any YouTube link to create a personalized lesson with exercises and flashcards."
+                          onClose={advanceTour}
+                        />
+                      )}
+                    </div>
+                    {featuredVideos.map((video, index) => (
+                      <div key={video.id} className="relative">
+                        <VideoCard
+                          id={video.id}
+                          title={video.title}
+                          thumbnailUrl={video.thumbnail_url}
+                          topics={video.topics}
+                          duration={video.duration}
+                          difficultyLevel={video.difficulty_level}
+                          isCurated={video.is_curated}
+                          onClick={() => handleVideoClick(video.id)}
+                        />
+                        {index === 0 && tourStep === 4 && (
+                          <LibraryTourTooltip
+                            message="Tap any video to start a lesson with transcript, exercises, and speaking practice."
+                            onClose={advanceTour}
+                          />
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
