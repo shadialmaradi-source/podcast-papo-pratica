@@ -229,6 +229,16 @@ export default function AppHome() {
     );
   }
 
+  if (showQuickReview) {
+    return (
+      <QuickReviewSession
+        userId={user!.id}
+        language={profile?.selected_language || "english"}
+        onClose={() => setShowQuickReview(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
