@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive, Crown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive, Crown, ChevronLeft, ChevronRight, Video } from "lucide-react";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { AddStudentModal } from "@/components/teacher/AddStudentModal";
 import { EditStudentModal } from "@/components/teacher/EditStudentModal";
+import { VideoBrowserModal } from "@/components/teacher/VideoBrowserModal";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { trackEvent, trackPageView } from "@/lib/analytics";
