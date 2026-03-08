@@ -59,8 +59,8 @@ export default function TeacherDashboard() {
 
 
   const handleCreated = (_lessonId: string) => {
-    // Stay on the form page — the inline result is shown in CreateLessonForm
     setRefresh((r) => r + 1);
+    refreshQuota();
   };
 
   const handleSelectType = (type: LessonType) => {
