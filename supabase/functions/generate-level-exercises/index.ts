@@ -69,8 +69,8 @@ serve(async (req) => {
       });
     }
 
-    // Get transcript if not provided
-    let transcriptText = transcript;
+    // Use scene transcript if provided, otherwise fall back to full transcript
+    let transcriptText = sceneTranscript || transcript;
     if (!transcriptText) {
       console.log(`[generate-level-exercises] No transcript provided, fetching from DB...`);
       
