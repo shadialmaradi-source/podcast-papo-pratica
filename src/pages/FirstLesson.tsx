@@ -65,7 +65,19 @@ const FirstLesson = () => {
   }, [targetLanguage, userLevel]);
 
   useEffect(() => {
+    trackPageView("first_lesson", "student");
     trackEvent('first_lesson_started', { language: targetLanguage, level: userLevel });
+    trackFunnelStep("first_lesson", "intro", 0, { language: targetLanguage, level: userLevel });
+
+    // Track abandonment on page leave
+    const handleBeforeUnload = () => {
+      const currentStep = localStorage.getItem('lesson_step') || 'intro';
+      if (currentStep !== 'complete') {
+        trackEvent('first_lesson_abandoned', { last_step: currentStep, language: targetLanguage, level: userLevel });
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
   useEffect(() => {
