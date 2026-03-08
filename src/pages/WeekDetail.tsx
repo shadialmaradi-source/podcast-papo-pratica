@@ -23,7 +23,7 @@ import {
   type LearningWeek,
   type WeekVideoWithProgress,
 } from "@/services/learningPathService";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 
 export default function WeekDetail() {
   const { weekId } = useParams<{ weekId: string }>();
