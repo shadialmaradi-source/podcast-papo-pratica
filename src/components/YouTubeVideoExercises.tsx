@@ -9,6 +9,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import TranscriptViewer from "@/components/transcript/TranscriptViewer";
 import TranscriptTutorial, { type TutorialStep } from "@/components/transcript/TranscriptTutorial";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
+import { useStudentTour } from "@/hooks/useStudentTour";
 
 interface YouTubeVideoExercisesProps {
   videoId: string;
