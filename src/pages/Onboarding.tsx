@@ -260,11 +260,11 @@ export default function Onboarding() {
 
           {step === 'level' && !isLessonOnboarding && (
             <motion.div key="level" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="w-full max-w-lg">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t('onboardingLevelTitle')}</h1>
-                <p className="text-muted-foreground">{t('onboardingLevelSubtitle')}</p>
+              <div className="text-center mb-4 md:mb-8">
+                <h1 className="text-xl md:text-3xl font-bold text-foreground mb-1 md:mb-2">{t('onboardingLevelTitle')}</h1>
+                <p className="text-sm md:text-base text-muted-foreground">{t('onboardingLevelSubtitle')}</p>
               </div>
-              <div className="space-y-3 mb-8">
+              <div className="space-y-2 md:space-y-3 mb-4 md:mb-8">
                 {proficiencyLevels.map((level) => {
                   const IconComponent = level.icon;
                   return (
