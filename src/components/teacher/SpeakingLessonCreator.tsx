@@ -332,7 +332,14 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
       navigate(`/teacher/lesson/${lessonId}`);
       onCreated(lessonId);
     } catch (err: any) {
-      toast.error(err.message || "Failed to create lesson.");
+      const msg = err.message || "";
+      if (msg.includes("LESSON_LIMIT_REACHED")) {
+        const cleanMsg = msg.split("LESSON_LIMIT_REACHED:")[1] || "You've reached your lesson limit.";
+        trackEvent("lesson_limit_reached", { source: "speaking_lesson_creator" });
+        toast.error(`${cleanMsg} Upgrade your plan for more lessons.`);
+      } else {
+        toast.error(msg || "Failed to create lesson.");
+      }
     } finally {
       setCreating(false);
     }
