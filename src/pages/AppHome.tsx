@@ -451,6 +451,68 @@ export default function AppHome() {
             </div>
           </div>
 
+          {/* Teacher Assignments (video + speaking) */}
+          {videoAssignments.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Assignments</h3>
+              </div>
+              <div className="space-y-2">
+                {videoAssignments.slice(0, 5).map((a) => (
+                  <Card key={a.id} className="border border-border">
+                    <CardContent className="px-4 py-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          {a.assignment_type === "video" ? (
+                            <Video className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground text-sm truncate">
+                            {a.assignment_type === "video" ? a.video_title : a.speaking_topic}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {a.due_date && (
+                              <span className="flex items-center gap-1">
+                                <CalendarDays className="h-3 w-3" />
+                                {format(new Date(a.due_date), "MMM d")}
+                              </span>
+                            )}
+                            {a.note && <span className="truncate max-w-[150px]">{a.note}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {a.assignment_type === "video" && a.video_id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => navigate(`/library`)}
+                          >
+                            Watch
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs"
+                          onClick={() => markAssignmentComplete(a.id)}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          Done
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Assigned Lessons from Teacher */}
           {assignedLessons.length > 0 && (
             <div className="space-y-3">
