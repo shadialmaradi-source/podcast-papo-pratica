@@ -262,9 +262,8 @@ export default function Library() {
       if (selectedLength && video.duration) {
         const duration = video.duration;
         switch (selectedLength) {
-          case '0-60': lengthMatch = duration <= 60; break;
-          case '60-180': lengthMatch = duration > 60 && duration <= 180; break;
-          case '180+': lengthMatch = duration > 180; break;
+          case 'short': lengthMatch = duration <= 60; break;
+          case 'long': lengthMatch = duration > 60; break;
         }
       }
       return levelMatch && tabMatch && topicMatch && lengthMatch;

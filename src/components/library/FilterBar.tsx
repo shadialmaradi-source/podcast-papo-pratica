@@ -35,9 +35,8 @@ const topics = [
 
 const lengths = [
   { id: null, label: 'Any Length' },
-  { id: '0-60', label: '0-1 min' },
-  { id: '60-180', label: '1-3 min' },
-  { id: '180+', label: '3+ min' },
+  { id: 'short', label: '📱 Short Video' },
+  { id: 'long', label: '🎬 Long Video' },
 ];
 
 export function FilterBar({
