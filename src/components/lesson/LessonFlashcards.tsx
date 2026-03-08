@@ -76,32 +76,33 @@ const LessonFlashcards = ({ flashcards, onComplete, language = "english", native
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 md:p-8"
+      className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col"
     >
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            <BookOpen className="w-8 h-8 inline-block mr-2 text-primary" />
-            Flashcards
-          </h1>
-          <p className="text-muted-foreground">
-            Review key phrases from the lesson
-          </p>
-        </div>
+      <div className="flex-1 overflow-auto p-3 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+          <div className="text-center space-y-1 md:space-y-2">
+            <h1 className="text-xl md:text-3xl font-bold text-foreground">
+              <BookOpen className="w-6 h-6 md:w-8 md:h-8 inline-block mr-2 text-primary" />
+              Flashcards
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground">
+              Review key phrases from the lesson
+            </p>
+          </div>
 
-        {/* Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Card {currentIndex + 1} of {flashcards.length}</span>
-            <span>{Object.keys(learned).length} learned</span>
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs md:text-sm text-muted-foreground">
+              <span>Card {currentIndex + 1} of {flashcards.length}</span>
+              <span>{Object.keys(learned).length} learned</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div 
+                className="h-full bg-primary rounded-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full bg-muted rounded-full h-2">
-            <div 
-              className="h-full bg-primary rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
 
         {/* Flashcard */}
         <div className="perspective-1000">
