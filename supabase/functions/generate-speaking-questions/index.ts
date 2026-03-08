@@ -49,35 +49,7 @@ All questions should be in ${language} with natural phrasing appropriate for the
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "return_questions",
-              description: "Return generated speaking questions",
-              parameters: {
-                type: "object",
-                properties: {
-                  questions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        question: { type: "string" },
-                        difficulty: { type: "integer", enum: [1, 2, 3] },
-                      },
-                      required: ["question", "difficulty"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["questions"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "return_questions" } },
+        response_format: { type: "json_object" },
       }),
     });
 
