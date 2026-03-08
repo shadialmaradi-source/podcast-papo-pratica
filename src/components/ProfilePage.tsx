@@ -29,7 +29,8 @@ import {
   CreditCard,
   Loader2,
   GraduationCap,
-  Globe
+  Globe,
+  RotateCcw
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
@@ -1027,10 +1028,26 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                 </Select>
               </div>
               
+              {/* Reset Guided Tour */}
+              <Button 
+                variant="outline" 
+                className="w-full mt-4"
+                onClick={() => {
+                  localStorage.removeItem("has_seen_home_hints");
+                  localStorage.removeItem("library_tour_completed");
+                  localStorage.removeItem("transcript_tutorial_completed");
+                  toast.success("Tour reset! Navigate to Home to see it again.");
+                  trackEvent("tour_reset");
+                }}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset Guided Tour
+              </Button>
+
               {/* Logout */}
               <Button 
                 variant="outline" 
-                className="w-full mt-4 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                className="w-full mt-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
                 onClick={handleLogout}
               >
                 <LogOut className="h-4 w-4 mr-2" />
