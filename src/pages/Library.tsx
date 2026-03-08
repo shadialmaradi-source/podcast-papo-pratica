@@ -513,6 +513,16 @@ export default function Library() {
         quotaUsed={uploadQuota?.uploadsUsed}
         quotaLimit={uploadQuota?.uploadsLimit}
       />
+
+      {/* Assign Video Modal (teachers only) */}
+      {assignVideo && (
+        <AssignVideoModal
+          open={!!assignVideo}
+          onOpenChange={(o) => !o && setAssignVideo(null)}
+          videoTitle={assignVideo.title}
+          videoId={assignVideo.videoId}
+        />
+      )}
     </div>
   );
 }
