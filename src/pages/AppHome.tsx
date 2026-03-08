@@ -65,6 +65,7 @@ export default function AppHome() {
   const [showHints, setShowHints] = useState(() => !localStorage.getItem("has_seen_home_hints"));
   const [showQuickReview, setShowQuickReview] = useState(false);
   const [flashcardCount, setFlashcardCount] = useState(0);
+  const [videoAssignments, setVideoAssignments] = useState<VideoAssignment[]>([]);
   
   // Upload quota state
   const [uploadQuota, setUploadQuota] = useState<{
