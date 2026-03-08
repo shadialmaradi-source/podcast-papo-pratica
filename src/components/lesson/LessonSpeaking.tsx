@@ -557,13 +557,6 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
             </CardContent>
           </Card>
 
-          {/* Skip speaking button */}
-          <div className="text-center pt-2">
-            <Button variant="ghost" onClick={onComplete} className="text-muted-foreground">
-              Skip Speaking Practice
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
         </div>
       </motion.div>
     );
