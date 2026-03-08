@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Users, BookOpen, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackPageView } from "@/lib/analytics";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays, isAfter, differenceInWeeks, differenceInDays } from "date-fns";
 import { RetentionMetrics } from "@/components/teacher/analytics/RetentionMetrics";
