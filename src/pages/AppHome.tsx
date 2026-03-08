@@ -120,6 +120,25 @@ export default function AppHome() {
     setFlashcardCount(count || 0);
   };
 
+  const fetchVideoAssignments = async () => {
+    if (!user?.email) return;
+    const { data } = await supabase
+      .from("video_assignments" as any)
+      .select("id, assignment_type, video_id, video_title, speaking_topic, speaking_level, due_date, note, status")
+      .eq("student_email", user.email)
+      .eq("status", "assigned")
+      .order("created_at", { ascending: false });
+    if (data) setVideoAssignments(data as unknown as VideoAssignment[]);
+  };
+
+  const markAssignmentComplete = async (assignmentId: string) => {
+    await supabase
+      .from("video_assignments" as any)
+      .update({ status: "completed", completed_at: new Date().toISOString() } as any)
+      .eq("id", assignmentId);
+    fetchVideoAssignments();
+  };
+
   const fetchUploadQuota = async () => {
     if (!user) return;
     try {
