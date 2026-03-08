@@ -35,7 +35,9 @@ Requirements:
 - Questions 4-6: Medium (difficulty 2) - descriptive, explanatory questions  
 - Questions 7-8: Difficult (difficulty 3) - analytical, opinion-based questions
 
-All questions should be in ${language} with natural phrasing appropriate for the ${level} level.`;
+All questions should be in ${language} with natural phrasing appropriate for the ${level} level.
+
+Return a JSON object with a "questions" array where each item has "question" (string) and "difficulty" (1, 2, or 3).`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
