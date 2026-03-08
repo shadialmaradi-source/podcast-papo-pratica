@@ -1,124 +1,109 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Add Teacher Community Features
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## Overview
+Create a `/teacher/community` page where teachers can browse, search, and copy publicly shared lessons from other teachers. Add a "share with community" toggle to lesson creation, and display top contributors.
 
-## Summary of Changes
+## Database Changes (Migration)
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+### New table: `community_lessons`
+Stores references to shared lessons with denormalized metadata for fast browsing.
 
----
-
-## Phase 1: Simplified Student Onboarding
-
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
-
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
-
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
-
----
-
-## Phase 2: Remove image_discussion, Update Exercise Types
-
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
-
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
-
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
-
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
-
----
-
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
-
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
-
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
-
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
-
-### DB migration
 ```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
+CREATE TABLE public.community_lessons (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_lesson_id uuid NOT NULL REFERENCES teacher_lessons(id) ON DELETE CASCADE,
+  teacher_id uuid NOT NULL,
+  teacher_name text NOT NULL DEFAULT '',
+  title text NOT NULL,
+  description text,
+  lesson_type text NOT NULL DEFAULT 'paragraph',
+  language text NOT NULL DEFAULT 'italian',
+  translation_language text NOT NULL DEFAULT 'english',
+  cefr_level text NOT NULL DEFAULT 'A1',
+  topic text,
+  exercise_types text[] NOT NULL DEFAULT '{}',
+  copy_count integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE community_lessons ENABLE ROW LEVEL SECURITY;
+
+-- Anyone authenticated can browse
+CREATE POLICY "Authenticated can view community lessons"
+  ON community_lessons FOR SELECT TO authenticated
+  USING (true);
+
+-- Teachers can publish their own
+CREATE POLICY "Teachers can insert own community lessons"
+  ON community_lessons FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = teacher_id AND has_role(auth.uid(), 'teacher'::app_role));
+
+-- Teachers can remove their own
+CREATE POLICY "Teachers can delete own community lessons"
+  ON community_lessons FOR DELETE TO authenticated
+  USING (auth.uid() = teacher_id);
+
+-- Service role + owner can update (for copy_count increments)
+CREATE POLICY "Teachers can update own community lessons"
+  ON community_lessons FOR UPDATE TO authenticated
+  USING (auth.uid() = teacher_id);
+
+CREATE INDEX idx_community_lessons_level ON community_lessons(cefr_level);
+CREATE INDEX idx_community_lessons_language ON community_lessons(language);
+CREATE INDEX idx_community_lessons_copy_count ON community_lessons(copy_count DESC);
 ```
 
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
+Also add `is_community_shared` boolean column to `teacher_lessons`:
+```sql
+ALTER TABLE teacher_lessons ADD COLUMN is_community_shared boolean NOT NULL DEFAULT false;
+```
 
----
+## Files to Create
 
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
+### `src/pages/TeacherCommunity.tsx`
+Main community page with:
+- **Search bar** (text input filtering title/topic)
+- **Filters**: Language dropdown, CEFR level dropdown, sort by (Most Copied / Newest)
+- **Lesson cards grid**: Title, teacher name, level, language, exercise count, copy count, "Copy to My Lessons" button
+- **Top Contributors sidebar/section**: Top 5 teachers by total copy_count this month
+- **Copy action**: Duplicates the `teacher_lessons` row + its `lesson_exercises` into the current teacher's account
+- Fetches from `community_lessons` table with filters
+- Tracks `community_viewed` on mount, `lesson_copied` on copy
 
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
+### `src/components/teacher/CommunityLessonCard.tsx`
+Card component for a community lesson: title, teacher name, level badge, language, copy count, copy button.
 
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
+## Files to Modify
 
----
+### `src/components/teacher/CreateLessonForm.tsx`
+- Add "Share with Community" Switch toggle after lesson creation success (alongside the share link)
+- On toggle: insert/delete from `community_lessons` and update `teacher_lessons.is_community_shared`
 
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
+### `src/pages/TeacherDashboard.tsx`
+- Add a 5th hero card: "Community" with Globe icon, navigates to `/teacher/community`
 
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
+### `src/App.tsx`
+- Add route: `/teacher/community` -> `<ProtectedRoute><TeacherCommunity /></ProtectedRoute>`
 
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
+## Copy Logic (in TeacherCommunity)
+When a teacher clicks "Copy":
+1. Fetch source `teacher_lessons` row by `source_lesson_id`
+2. Insert new row into `teacher_lessons` with current teacher's ID, new share_token, `is_community_shared = false`
+3. Fetch and duplicate all `lesson_exercises` for the source lesson
+4. Increment `copy_count` on `community_lessons` via RPC or direct update
+5. Show toast: "Lesson copied to your dashboard!"
 
----
+## Technical Notes
+- The `community_lessons` table uses denormalized fields (title, teacher_name, etc.) to avoid cross-teacher JOINs that RLS would block
+- Copy count updates require the source teacher to own the row; we'll use an RPC function `increment_copy_count` with SECURITY DEFINER to allow any authenticated teacher to increment
 
-## Technical Details
-
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+### Additional RPC function:
+```sql
+CREATE OR REPLACE FUNCTION public.increment_community_copy_count(lesson_id uuid)
+RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  UPDATE community_lessons SET copy_count = copy_count + 1 WHERE id = lesson_id;
+$$;
+```
 
