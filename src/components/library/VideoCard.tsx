@@ -12,6 +12,7 @@ interface VideoCardProps {
   difficultyLevel: string;
   isCurated: boolean;
   onClick: () => void;
+  onAssign?: () => void;
 }
 
 function formatDuration(seconds: number | null): string {
