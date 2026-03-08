@@ -82,6 +82,7 @@ export default function Onboarding() {
   const handleLanguageSelect = (langCode: string, available: boolean) => {
     if (!available) return;
     setSelectedLanguage(langCode);
+    trackFunnelStep("onboarding_funnel", "language_selected", 0, { language: langCode });
   };
 
   const handleContinueToNative = () => {
@@ -90,6 +91,7 @@ export default function Onboarding() {
       setSelectedNativeLanguage(null);
     }
     trackEvent('onboarding_step_changed', { step_name: 'native' });
+    trackFunnelStep("onboarding_funnel", "native_selected", 1);
     setStep('native');
   };
 
