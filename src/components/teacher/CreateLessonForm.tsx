@@ -896,7 +896,12 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
                   <FormItem>
                     <FormLabel>YouTube Video URL</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://youtube.com/watch?v=... or youtube.com/shorts/..." {...field} />
+                      <Input
+                        placeholder="https://youtube.com/watch?v=... or youtube.com/shorts/..."
+                        {...field}
+                        readOnly={!!prefillYoutubeUrl}
+                        className={prefillYoutubeUrl ? "bg-muted" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
