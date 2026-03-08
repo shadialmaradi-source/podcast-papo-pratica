@@ -45,6 +45,8 @@ interface YouTubeExercisesProps {
   intensity: string;
   source?: string;
   language?: string;
+  sceneId?: string;
+  sceneTranscript?: string;
   onBack: () => void;
   onComplete: () => void;
   onContinueToSpeaking?: (videoId: string, level: string) => void;
@@ -144,7 +146,7 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
   }
 };
 
-export function YouTubeExercises({ videoId, level, intensity, source, language, onBack, onComplete, onContinueToSpeaking, onTryNextLevel, onSkipToFlashcards }: YouTubeExercisesProps) {
+export function YouTubeExercises({ videoId, level, intensity, source, language, sceneId, sceneTranscript, onBack, onComplete, onContinueToSpeaking, onTryNextLevel, onSkipToFlashcards }: YouTubeExercisesProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -286,32 +288,66 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
 
         if (videoData) {
           setDbVideoId(videoData.id);
-          // Load pre-generated exercises from database using secure RPC function
           const dbDifficulty = mapLevelToDbDifficulty(level);
-          const { data: dbExercises, error: dbError } = await supabase
-            .rpc('get_youtube_exercises_with_answers', { 
-              video_id_param: videoData.id,
-              difficulty_param: dbDifficulty,
-              native_language_param: userNativeLanguage
-            });
 
-          if (dbError) {
-            console.error('Error fetching exercises:', dbError);
-            
-            // Auth error - direct table fallback removed for security
-            if (dbError.message?.includes('Authentication required')) {
-              console.error('Authentication required for exercises RPC. User must be logged in.');
+          // If scene-specific, first try to generate exercises for this scene
+          if (sceneId && sceneTranscript) {
+            // Try generating scene exercises (will skip if already exist)
+            try {
+              let userNativeLangForGen = userNativeLanguage;
+              await supabase.functions.invoke('generate-level-exercises', {
+                body: {
+                  videoId: videoData.id,
+                  level: dbDifficulty,
+                  transcript: sceneTranscript,
+                  sceneId,
+                  sceneTranscript,
+                  nativeLanguage: userNativeLangForGen,
+                }
+              });
+            } catch (genErr) {
+              console.error('Scene exercise generation error:', genErr);
             }
           }
 
+          // Load exercises - filter by scene_id if applicable
+          let dbExercises: any[] | null = null;
+          let dbError: any = null;
+
+          if (sceneId) {
+            // Direct query filtered by scene_id
+            const result = await supabase
+              .from('youtube_exercises')
+              .select('*')
+              .eq('video_id', videoData.id)
+              .eq('difficulty', dbDifficulty)
+              .eq('scene_id', sceneId)
+              .eq('native_language', userNativeLanguage)
+              .order('order_index', { ascending: true });
+            dbExercises = result.data;
+            dbError = result.error;
+          } else {
+            // Use existing RPC for non-scene exercises
+            const result = await supabase
+              .rpc('get_youtube_exercises_with_answers', { 
+                video_id_param: videoData.id,
+                difficulty_param: dbDifficulty,
+                native_language_param: userNativeLanguage
+              });
+            dbExercises = result.data;
+            dbError = result.error;
+          }
+
+          if (dbError) {
+            console.error('Error fetching exercises:', dbError);
+          }
+
           if (dbExercises && dbExercises.length > 0) {
-            console.log(`Loaded ${dbExercises.length} exercises from database`);
+            console.log(`Loaded ${dbExercises.length} exercises from database${sceneId ? ' (scene-filtered)' : ''}`);
             
-            // Shuffle and select up to 10 exercises
             const shuffled = [...dbExercises].sort(() => Math.random() - 0.5);
             const selected = shuffled.slice(0, 10);
             
-            // Format DB exercises to match Exercise interface
             const formattedExercises: Exercise[] = selected.map((ex, idx) => ({
               id: ex.id,
               type: mapDbTypeToExerciseType(ex.exercise_type) as Exercise['type'],
@@ -333,14 +369,13 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
             
             toast({
               title: "Exercises Ready! 🎯",
-              description: `${formattedExercises.length} AI-generated exercises for ${level} level.`,
+              description: `${formattedExercises.length} exercises${sceneId ? ' for this scene' : ''}.`,
             });
             setIsLoading(false);
             return;
           }
         }
 
-        // No exercises found - show error (exercises should be generated from YouTubeVideoExercises)
         console.error('No exercises found in database');
         setError("Esercizi non trovati. Torna indietro e seleziona nuovamente il livello per generarli.");
       } catch (err) {
@@ -352,7 +387,7 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
     };
 
     loadExercises();
-  }, [videoId, level, intensity]);
+  }, [videoId, level, intensity, sceneId]);
 
   // Check vocal quota when results are shown
   useEffect(() => {

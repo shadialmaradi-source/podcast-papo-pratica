@@ -1,110 +1,124 @@
 
 
-# Plan: Smart Scene Segmentation (Trial on Single Video)
+# Plan: Teacher YouTube Lesson Overhaul
 
-## Summary
+This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
 
-Add scene segmentation that splits videos longer than 2 minutes into ~60s micro-lessons. Each scene gets its own exercises. Start with a single trial video, then roll out as a standard feature.
+## Summary of Changes
 
-## Architecture
+1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
+2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
+3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
+4. **Student lesson view update** -- same grouped-by-type sequential layout
 
-### 1. Database: Two New Tables
+---
 
-**`video_scenes`** -- stores AI-generated scene segments per video:
-- `id` (uuid PK), `video_id` (FK → youtube_videos), `scene_index` (int), `start_time` (numeric), `end_time` (numeric), `scene_title` (text), `scene_transcript` (text), `created_at` (timestamptz)
-- Unique constraint on `(video_id, scene_index)`
-- RLS: authenticated can SELECT; service_role can ALL
+## Phase 1: Simplified Student Onboarding
 
-**`user_scene_progress`** -- tracks per-user resumable progress:
-- `id` (uuid PK), `user_id` (uuid), `video_id` (uuid FK → youtube_videos), `current_scene` (int default 0), `completed_scenes` (int[] default '{}'), `last_timestamp` (numeric default 0), `updated_at` (timestamptz)
-- Unique constraint on `(user_id, video_id)`
-- RLS: users can SELECT/INSERT/UPDATE own rows
+### Problem
+Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
 
-**Add column to `youtube_exercises`:**
-- `scene_id` (uuid, nullable, FK → video_scenes) -- links exercises to a specific scene
+### Solution
+- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
+- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
+- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
 
-### 2. Edge Function: `segment-video-scenes`
+### Files changed
+- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
+- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
+- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
 
-- Input: `{ videoId (DB uuid) }`
-- Fetches transcript from `youtube_transcripts` and duration from `youtube_videos`
-- If duration <= 120s or no timed transcript, returns empty (no segmentation)
-- Uses OpenAI (via LOVABLE_API_KEY) to split the timed transcript into scenes
-- AI prompt instructs: split at topic changes, dialogue boundaries, natural pauses, speaker changes, punctuation breaks; target ~60s, min 20s, max 120s; generate a short descriptive title per scene
-- Fallback: if AI fails, split by time every 60s at nearest segment boundary
-- Inserts scenes into `video_scenes`, returns the array
-- Caches: if scenes already exist for the video, returns them without re-generating
+---
 
-### 3. Update `generate-level-exercises` Edge Function
+## Phase 2: Remove image_discussion, Update Exercise Types
 
-- Accept optional `sceneId` and `sceneTranscript` parameters
-- When `sceneId` is provided, save it on the inserted exercises as `scene_id`
-- When `sceneTranscript` is provided, use it instead of the full transcript
-- No changes to the AI generation prompt itself
+### DB migration
+- No schema changes needed (exercise_types is a text array, content is JSONB)
 
-### 4. Frontend: Refactor `Lesson.tsx`
+### Edge function: `generate-lesson-exercises`
+- Remove `image_discussion` from `EXERCISE_PROMPTS`
+- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
+- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
+- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
 
-Current flow: `select-level` → `exercises` → `speaking` → `flashcards` → `complete`
+### Frontend: `CreateLessonForm.tsx`
+- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
 
-New flow for segmented videos:
-- After level selection, check if video duration > 120s
-- If yes, call `segment-video-scenes` (or load cached scenes)
-- Track `currentSceneIndex` and `scenes[]` in state
-- Per scene: `exercises` → (optional speaking on last scene) → next scene
-- After all scenes: `speaking` → `flashcards` → `complete`
-- Load/save progress to `user_scene_progress` so user can resume
+### Files changed
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
+- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
 
-### 5. New Component: `SceneNavigator.tsx`
+---
 
-Renders a compact scene list shown during exercises:
-- Each scene shows: index, title, duration
-- Completed scenes: checkmark icon, muted style
-- Current scene: highlighted with primary color border
-- Future scenes: locked/dimmed
-- Clicking a completed/current scene jumps to it (updates `currentSceneIndex`)
+## Phase 3: Teacher Post-Creation View (YouTube lessons)
 
-### 6. Update `YouTubeVideoExercises.tsx`
+### Current state
+After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
 
-- Accept optional `sceneTranscript` and `sceneId` props
-- When generating exercises, pass `sceneTranscript` and `sceneId` to `generate-level-exercises`
-- Display current scene title in the header
+### New design
+After creation, the teacher sees:
+1. **Share link** (unchanged)
+2. **YouTube video embed** at the top
+3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
+4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
 
-### 7. Update `YouTubeExercises.tsx`
+### Transcript fetching approach
+- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
+- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
 
-- Accept optional `sceneId` prop
-- When loading exercises via `get_youtube_exercises_with_answers`, also filter by `scene_id` if provided
-- Requires a small update to the RPC function or a direct query fallback
+### DB migration
+```sql
+ALTER TABLE teacher_lessons ADD COLUMN transcript text;
+```
 
-### 8. Trial Approach
+### Files changed
+- **DB migration** -- add `transcript` column
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
+- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
 
-- The segmentation triggers automatically based on video duration (> 120s)
-- Pick one existing long video in the library to test with
-- No manual configuration needed -- any video > 2 min will auto-segment on first load
-- Once validated, it works for all videos by default
+---
 
-## Files Changed
+## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
 
-| File | Change |
-|---|---|
-| Migration SQL | Create `video_scenes`, `user_scene_progress` tables; add `scene_id` column to `youtube_exercises` |
-| `supabase/functions/segment-video-scenes/index.ts` | New edge function for AI scene segmentation |
-| `supabase/functions/generate-level-exercises/index.ts` | Accept optional `sceneId`/`sceneTranscript`, save `scene_id` on exercises |
-| `supabase/config.toml` | Add `segment-video-scenes` function config |
-| `src/pages/Lesson.tsx` | Scene-aware lesson flow with multi-scene progression + resume |
-| `src/components/lesson/SceneNavigator.tsx` | New scene list UI component |
-| `src/components/YouTubeVideoExercises.tsx` | Accept scene props, pass scene transcript to exercise generation |
-| `src/components/YouTubeExercises.tsx` | Accept `sceneId`, filter exercises by scene |
+Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
+- Show video at top
+- Show transcript below (same interactive component)
+- Exercise sections grouped by type, each with its own prev/next within 5 questions
 
-## User Flow
+### Files changed
+- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
+- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
 
-1. User opens `/lesson/:videoId` for a 5-minute video
-2. Selects difficulty level
-3. App calls `segment-video-scenes` → returns 5 scenes with titles
-4. Exercises generated for Scene 1 only (using scene transcript)
-5. User completes Scene 1 exercises → SceneNavigator updates with checkmark
-6. Scene 2 loads automatically → new exercises generated for Scene 2
-7. After all scenes: speaking practice → flashcards (full video) → complete
-8. If user leaves mid-way, progress is saved in `user_scene_progress`
-9. On return, resumes at the last incomplete scene
+---
 
-Videos ≤ 2 minutes keep the current single-lesson behavior unchanged.
+## Phase 5: Student Lesson View (`StudentLesson.tsx`)
+
+Mirror the teacher's layout for the student:
+- Video at top
+- Transcript (read-only or interactive if we want students to also explore words)
+- Exercise sections grouped by type, sequential, with submit per question
+
+### Files changed
+- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
+
+---
+
+## Technical Details
+
+### Exercise generation counts
+| Type | Count |
+|------|-------|
+| fill_in_blank | 5 |
+| multiple_choice | 5 |
+| spot_the_mistake | 5 |
+| role_play | 2-3 scenarios |
+
+### Role-play prompt update
+The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
+
+### Transcript storage
+Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
+
+### RLS
+No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
 

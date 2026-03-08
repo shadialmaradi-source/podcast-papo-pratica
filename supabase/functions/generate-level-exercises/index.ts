@@ -29,7 +29,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { videoId, level, transcript, language, nativeLanguage, source } = await req.json();
+    const { videoId, level, transcript, language, nativeLanguage, source, sceneId, sceneTranscript } = await req.json();
 
     if (!videoId || !level) {
       throw new Error('videoId and level are required');
@@ -42,16 +42,24 @@ serve(async (req) => {
     const normalizedLevel = level.toLowerCase();
     const nativeLangName = nativeLanguage || 'english';
 
-    // Check if exercises already exist for this level + native language
-    const { count: existingCount } = await supabase
+    // Check if exercises already exist for this level + native language (+ scene if provided)
+    let existingQuery = supabase
       .from('youtube_exercises')
       .select('id', { count: 'exact', head: true })
       .eq('video_id', videoId)
       .eq('difficulty', normalizedLevel)
       .eq('native_language', nativeLangName);
 
+    if (sceneId) {
+      existingQuery = existingQuery.eq('scene_id', sceneId);
+    } else {
+      existingQuery = existingQuery.is('scene_id', null);
+    }
+
+    const { count: existingCount } = await existingQuery;
+
     if (existingCount && existingCount > 0) {
-      console.log(`[generate-level-exercises] Exercises already exist for ${normalizedLevel} level: ${existingCount}`);
+      console.log(`[generate-level-exercises] Exercises already exist for ${normalizedLevel} level${sceneId ? ` scene ${sceneId}` : ''}: ${existingCount}`);
       return new Response(JSON.stringify({ 
         success: true, 
         message: 'Exercises already exist',
@@ -61,8 +69,8 @@ serve(async (req) => {
       });
     }
 
-    // Get transcript if not provided
-    let transcriptText = transcript;
+    // Use scene transcript if provided, otherwise fall back to full transcript
+    let transcriptText = sceneTranscript || transcript;
     if (!transcriptText) {
       console.log(`[generate-level-exercises] No transcript provided, fetching from DB...`);
       
@@ -357,7 +365,8 @@ ${formatInstructions}`;
           intensity: 'intense',
           xp_reward: xpReward,
           order_index: index,
-          native_language: nativeLangName
+          native_language: nativeLangName,
+          scene_id: sceneId || null
         };
       });
 

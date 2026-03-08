@@ -1335,6 +1335,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_scene_progress: {
+        Row: {
+          completed_scenes: number[]
+          current_scene: number
+          id: string
+          last_timestamp: number
+          updated_at: string
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          completed_scenes?: number[]
+          current_scene?: number
+          id?: string
+          last_timestamp?: number
+          updated_at?: string
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          completed_scenes?: number[]
+          current_scene?: number
+          id?: string
+          last_timestamp?: number
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_scene_progress_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_streak_data: {
         Row: {
           created_at: string
@@ -1640,6 +1678,47 @@ export type Database = {
         }
         Relationships: []
       }
+      video_scenes: {
+        Row: {
+          created_at: string
+          end_time: number
+          id: string
+          scene_index: number
+          scene_title: string
+          scene_transcript: string
+          start_time: number
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_time?: number
+          id?: string
+          scene_index?: number
+          scene_title?: string
+          scene_transcript?: string
+          start_time?: number
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: number
+          id?: string
+          scene_index?: number
+          scene_title?: string
+          scene_transcript?: string
+          start_time?: number
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_scenes_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "youtube_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_topics: {
         Row: {
           created_at: string | null
@@ -1868,6 +1947,7 @@ export type Database = {
           order_index: number | null
           question: string
           question_translation: string | null
+          scene_id: string | null
           video_id: string
           vocabulary_words: Json | null
           xp_reward: number | null
@@ -1886,6 +1966,7 @@ export type Database = {
           order_index?: number | null
           question: string
           question_translation?: string | null
+          scene_id?: string | null
           video_id: string
           vocabulary_words?: Json | null
           xp_reward?: number | null
@@ -1904,11 +1985,19 @@ export type Database = {
           order_index?: number | null
           question?: string
           question_translation?: string | null
+          scene_id?: string | null
           video_id?: string
           vocabulary_words?: Json | null
           xp_reward?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "youtube_exercises_scene_id_fkey"
+            columns: ["scene_id"]
+            isOneToOne: false
+            referencedRelation: "video_scenes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "youtube_exercises_video_id_fkey"
             columns: ["video_id"]
