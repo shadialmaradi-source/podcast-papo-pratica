@@ -617,10 +617,10 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
             exit={{ opacity: 0, x: -20 }}
           >
             <Card className="shadow-xl rounded-2xl border-0">
-              <CardContent className="p-6 md:p-8 space-y-6">
+              <CardContent className="p-4 md:p-8 space-y-4 md:space-y-6">
                 {/* Phrase display */}
-                <div className="text-center space-y-3">
-                  <div className="bg-primary/5 rounded-2xl p-6 border border-primary/20">
+                <div className="text-center space-y-2 md:space-y-3">
+                  <div className="bg-primary/5 rounded-2xl p-4 md:p-6 border border-primary/20">
                     <p className="text-2xl md:text-3xl font-bold text-foreground">
                       {currentPhrase.phrase}
                     </p>
