@@ -81,31 +81,31 @@ const LessonCompleteScreen = ({
           transition={{ delay: 0.4 }}
         >
           <Card className="shadow-xl rounded-2xl border-0">
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
               {/* Summary stats */}
-              <div className="space-y-3">
-                <h3 className="font-medium text-center text-foreground">You completed:</h3>
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-3 text-muted-foreground">
-                    <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+              <div className="space-y-2 md:space-y-3">
+                <h3 className="font-medium text-center text-foreground text-sm md:text-base">You completed:</h3>
+                <ul className="space-y-1 md:space-y-2">
+                  <li className="flex items-center gap-2 md:gap-3 text-sm text-muted-foreground">
+                    <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
                     <span>{totalExercises} exercises</span>
                   </li>
-                  <li className="flex items-center gap-3 text-muted-foreground">
-                    <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                  <li className="flex items-center gap-2 md:gap-3 text-sm text-muted-foreground">
+                    <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
                     <span>Speaking practice</span>
                   </li>
-                  <li className="flex items-center gap-3 text-muted-foreground">
-                    <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                  <li className="flex items-center gap-2 md:gap-3 text-sm text-muted-foreground">
+                    <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
                     <span>{flashcardsCount} flashcards</span>
                   </li>
                 </ul>
               </div>
 
               {/* Score display */}
-              <div className="text-center pt-4 border-t">
-                <div className="text-4xl font-bold text-primary">
+              <div className="text-center pt-3 md:pt-4 border-t">
+                <div className="text-3xl md:text-4xl font-bold text-primary">
                   {exerciseAccuracy}%
-                  <span className="text-lg ml-2 text-muted-foreground">⚡ +{xpEarned} XP</span>
+                  <span className="text-sm md:text-lg ml-2 text-muted-foreground">⚡ +{xpEarned} XP</span>
                 </div>
               </div>
 
@@ -114,6 +114,8 @@ const LessonCompleteScreen = ({
             </CardContent>
           </Card>
         </motion.div>
+        </div>
+      </div>
 
         {/* Action buttons */}
         <motion.div
