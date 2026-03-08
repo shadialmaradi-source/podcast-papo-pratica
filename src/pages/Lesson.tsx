@@ -236,6 +236,7 @@ export default function Lesson() {
           onViewProgress={handleViewProgress}
           onRetry={handleRetry}
           onBackToLibrary={handleBackToLibrary}
+          nextVideoLoading={nextVideoLoading}
         />
       )}
     </div>
