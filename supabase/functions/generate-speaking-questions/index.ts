@@ -74,13 +74,13 @@ Return a JSON object with a "questions" array where each item has "question" (st
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const content = data.choices?.[0]?.message?.content;
 
-    if (!toolCall?.function?.arguments) {
-      throw new Error("No tool call response from AI");
+    if (!content) {
+      throw new Error("No content response from AI");
     }
 
-    const parsed = JSON.parse(toolCall.function.arguments);
+    const parsed = JSON.parse(content);
     const questions = parsed.questions || [];
 
     return new Response(JSON.stringify({ questions }), {
