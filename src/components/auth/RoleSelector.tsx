@@ -13,15 +13,15 @@ export default function RoleSelector({ selectedRole, onRoleChange }: RoleSelecto
   const roles: { value: AppRole; label: string; icon: React.ReactNode; desc: string }[] = [
     {
       value: "student",
-      label: "Studente",
+      label: "Student",
       icon: <GraduationCap className="h-6 w-6" />,
-      desc: "Impara con lezioni interattive",
+      desc: "Learn with interactive lessons",
     },
     {
       value: "teacher",
-      label: "Insegnante",
+      label: "Teacher",
       icon: <Users className="h-6 w-6" />,
-      desc: "Crea lezioni per i tuoi studenti",
+      desc: "Create lessons for your students",
     },
   ];
 
