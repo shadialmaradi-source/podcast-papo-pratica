@@ -45,6 +45,8 @@ export default function TeacherStudents() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [teacherPlan, setTeacherPlan] = useState("free");
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("all");
