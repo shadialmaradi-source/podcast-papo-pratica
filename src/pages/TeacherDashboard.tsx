@@ -134,6 +134,19 @@ export default function TeacherDashboard() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card
+                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
+                onClick={() => navigate("/teacher/pricing")}
+              >
+                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
+                  <CreditCard className="h-12 w-12 text-primary" />
+                  <div>
+                    <p className="text-lg font-semibold text-foreground">Pricing</p>
+                    <p className="text-sm text-muted-foreground mt-1">Manage your subscription</p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             <Separator className="mb-6" />
