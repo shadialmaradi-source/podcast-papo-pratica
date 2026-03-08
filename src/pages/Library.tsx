@@ -300,8 +300,24 @@ export default function Library() {
       <div className="container mx-auto px-4 py-4 space-y-4">
         <Tabs value={activeTab} onValueChange={(v) => { const tab = v as 'curated' | 'community'; trackEvent('library_tab_switched', { tab }); setActiveTab(tab); }}>
           <TabsList className="grid w-full max-w-xs grid-cols-2">
-            <TabsTrigger value="curated">Curated</TabsTrigger>
-            <TabsTrigger value="community">Community</TabsTrigger>
+            <div className="relative">
+              <TabsTrigger value="curated" className="w-full">Learning Path</TabsTrigger>
+              {tourStep === 1 && (
+                <LibraryTourTooltip
+                  message="This is your Learning Path — a structured series of lessons curated by level to guide your progress step by step."
+                  onClose={advanceTour}
+                />
+              )}
+            </div>
+            <div className="relative">
+              <TabsTrigger value="community" className="w-full">Community</TabsTrigger>
+              {tourStep === 2 && (
+                <LibraryTourTooltip
+                  message="Explore videos added by other learners, or add your own!"
+                  onClose={advanceTour}
+                />
+              )}
+            </div>
           </TabsList>
         </Tabs>
 
