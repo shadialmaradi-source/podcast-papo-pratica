@@ -118,6 +118,7 @@ export default function Onboarding() {
       native_language: selectedNativeLanguage,
       lesson_onboarding: true,
     });
+    trackFunnelStep("onboarding_funnel", "completed", 3, { lesson_onboarding: true });
 
     if (user) {
       await supabase.from('profiles').update({
