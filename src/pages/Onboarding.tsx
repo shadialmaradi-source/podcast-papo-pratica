@@ -14,7 +14,7 @@ const targetLanguages = [
   { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: true },
   { code: 'english', name: 'English', flag: '🇺🇸', native: 'English', available: true },
   { code: 'french', name: 'French', flag: '🇫🇷', native: 'Français', available: false },
-  { code: 'italian', name: 'Italian', flag: '🇮🇹', native: 'Italiano', available: false },
+  { code: 'italian', name: 'Italian', flag: '🇮🇹', native: 'Italiano', available: true },
   { code: 'german', name: 'German', flag: '🇩🇪', native: 'Deutsch', available: false },
 ];
 

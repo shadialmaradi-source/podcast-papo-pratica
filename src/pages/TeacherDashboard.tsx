@@ -22,7 +22,6 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { role, loading: roleLoading } = useUserRole();
-  const [dashboardReady, setDashboardReady] = useState(false);
   const [step, setStep] = useState<FlowStep>("home");
   const [lessonType, setLessonType] = useState<LessonType>("paragraph");
   const [refresh, setRefresh] = useState(0);
