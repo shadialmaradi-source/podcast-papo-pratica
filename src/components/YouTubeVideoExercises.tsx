@@ -169,7 +169,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
         // Tutorial trigger: pause at ~20s if tutorial not completed
         if (
-          !isTutorialCompleted &&
+          shouldRunTutorial &&
           !tutorialTriggered &&
           time >= 20 &&
           transcript
