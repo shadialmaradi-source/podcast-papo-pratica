@@ -226,7 +226,7 @@ export default function WeekVideo() {
           <YouTubeSpeaking
             videoId={linkedVideoId!}
             level="beginner"
-            onComplete={() => setLessonStep("flashcards")}
+            onComplete={() => { trackFunnelStep("lesson", "flashcards", 3, { video_id: weekVideoId }); setLessonStep("flashcards"); }}
             onBack={() => setLessonStep("exercises")}
           />
         )}
