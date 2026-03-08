@@ -1,124 +1,74 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Pricing Adjustments — Lesson Limits, Updated Tiers, and Documentation
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## Overview
 
-## Summary of Changes
+Update the teacher pricing page and backend to reflect cost-based lesson limits per tier, add lesson usage tracking, and enforce limits during lesson creation. Also create a pricing analysis document.
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+## What Exists
+- `teacher_subscriptions` table with `plan` field (`free`, `pro`, `premium`)
+- `teacher-stripe-checkout` edge function with $19/pro, $39/premium pricing
+- `TeacherPricing.tsx` with 3 tier cards and comparison table
+- `teacher_lessons` table tracks all lessons per teacher
+- No lesson count limits are currently enforced
 
----
+## Changes
 
-## Phase 1: Simplified Student Onboarding
+### 1. Database Migration
+- Add `teacher_lesson_usage` view or just query `teacher_lessons` by `teacher_id` + current month
+- No new table needed — count lessons from `teacher_lessons` using `created_at >= start_of_month`
 
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+### 2. Create `/docs/pricing-analysis.md`
+Static documentation with cost breakdowns, break-even analysis, and margin calculations as specified.
 
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+### 3. Update `TeacherPricing.tsx`
+Update tier cards and comparison table to reflect lesson limits:
 
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+| Feature | Free | Pro | Premium |
+|---------|------|-----|---------|
+| Students | 3 | Unlimited | Unlimited |
+| Lessons/month | 10 | 60 | 160 |
+| Max video length | 5 min | 10 min | 15 min |
+| Lesson types | All | All | All |
+| Analytics | Basic | Advanced | Advanced |
+| Branding | ListenFlow | Removable | Your Brand |
 
----
+### 4. Create `src/services/teacherQuotaService.ts`
+New service that:
+- Fetches current month's lesson count from `teacher_lessons`
+- Fetches teacher's subscription plan from `teacher_subscriptions`
+- Returns `{ lessonsUsed, lessonsLimit, maxVideoMinutes, canCreateLesson }`
+- Limits: Free=10, Pro=60, Premium=160
 
-## Phase 2: Remove image_discussion, Update Exercise Types
+### 5. Create `src/hooks/useTeacherQuota.ts`
+Hook wrapping the quota service, returns quota state + `refresh()`.
 
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
+### 6. Update `TeacherDashboard.tsx`
+- Show quota indicator (e.g., "3/10 lessons this month") on home screen
+- Before entering lesson creation flow, check quota — if at limit, show upgrade prompt
 
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+### 7. Update `CreateLessonForm.tsx` (YouTube lessons)
+- Check video duration against tier limit (5/10/15 min)
+- If too long, show error with upgrade CTA
 
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+### 8. Update `SpeakingLessonCreator.tsx`
+- Check quota before allowing creation
 
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+### 9. Update FAQ in `TeacherPricing.tsx`
+Add question about lesson limits.
 
----
+## Files Changed
 
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
+| File | Change |
+|------|--------|
+| `docs/pricing-analysis.md` | New — cost analysis document |
+| `src/services/teacherQuotaService.ts` | New — quota checking logic |
+| `src/hooks/useTeacherQuota.ts` | New — React hook for quota |
+| `src/pages/TeacherPricing.tsx` | Update tiers, comparison table, FAQ |
+| `src/pages/TeacherDashboard.tsx` | Add quota indicator + gate |
+| `src/components/teacher/CreateLessonForm.tsx` | Add video duration limit check |
+| `src/components/teacher/SpeakingLessonCreator.tsx` | Add quota check before create |
 
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
-
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
-
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
-
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
-```
-
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
-
----
-
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
-
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
-
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
-
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
-
----
-
-## Technical Details
-
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+No database migration needed — lesson counts derived from existing `teacher_lessons` table. No edge function changes needed — limits enforced client-side with server-side backup via RLS if desired later.
 
