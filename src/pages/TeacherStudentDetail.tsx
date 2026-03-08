@@ -38,10 +38,19 @@ interface AssignmentRow {
   id: string;
   assignment_type: string;
   video_title: string | null;
-  speaking_topic: string | null;
-  speaking_level: string | null;
   due_date: string | null;
   note: string | null;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
+interface SpeakingAssignmentRow {
+  id: string;
+  topic_title: string;
+  cefr_level: string;
+  custom_instructions: string | null;
+  due_date: string | null;
   status: string;
   created_at: string;
   completed_at: string | null;
