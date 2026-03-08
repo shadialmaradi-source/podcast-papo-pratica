@@ -71,6 +71,7 @@ export default function AppHome() {
       fetchStreakData();
       fetchUploadQuota();
       fetchAssignedLessons();
+      fetchFlashcardCount();
     }
   }, [user]);
 
