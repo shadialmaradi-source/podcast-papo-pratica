@@ -29,7 +29,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { videoId, level, transcript, language, nativeLanguage, source } = await req.json();
+    const { videoId, level, transcript, language, nativeLanguage, source, sceneId, sceneTranscript } = await req.json();
 
     if (!videoId || !level) {
       throw new Error('videoId and level are required');
