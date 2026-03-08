@@ -146,7 +146,7 @@ const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): boolean
   }
 };
 
-export function YouTubeExercises({ videoId, level, intensity, source, language, onBack, onComplete, onContinueToSpeaking, onTryNextLevel, onSkipToFlashcards }: YouTubeExercisesProps) {
+export function YouTubeExercises({ videoId, level, intensity, source, language, sceneId, sceneTranscript, onBack, onComplete, onContinueToSpeaking, onTryNextLevel, onSkipToFlashcards }: YouTubeExercisesProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
