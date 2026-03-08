@@ -7,6 +7,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const PLAN_VIDEO_LIMITS: Record<string, number> = {
+  free: 5,
+  pro: 10,
+  premium: 15,
+};
+
 const EXERCISE_PROMPTS: Record<string, string> = {
   fill_in_blank: `Generate a fill-in-the-blank exercise. Return JSON: { "sentence": "string with ___ for the blank", "answer": "string", "hint": "string (optional grammar note)", "question_translation": "string", "answer_translation": "string" }`,
   multiple_choice: `Generate a multiple-choice quiz question. Return JSON: { "question": "string", "options": ["A", "B", "C", "D"], "correct": "A|B|C|D", "explanation": "string", "question_translation": "string", "answer_translation": "string (translation of the correct option)" }`,
@@ -25,6 +31,54 @@ function extractVideoId(url: string): string | null {
   match = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
   if (match) return match[1];
   return null;
+}
+
+function parseISO8601Duration(duration: string): number {
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const hours = parseInt(match[1] || '0', 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const seconds = parseInt(match[3] || '0', 10);
+  return hours * 60 + minutes + seconds / 60;
+}
+
+async function checkVideoDurationLimit(videoId: string, teacherId: string): Promise<string | null> {
+  const apiKey = Deno.env.get('YOUTUBE_DATA_API_KEY');
+  if (!apiKey) return null;
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoId}&key=${apiKey}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const iso = data.items?.[0]?.contentDetails?.duration;
+    if (!iso) return null;
+
+    const durationMinutes = parseISO8601Duration(iso);
+
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+    const { data: sub } = await supabaseAdmin
+      .from('teacher_subscriptions')
+      .select('plan')
+      .eq('teacher_id', teacherId)
+      .maybeSingle();
+    const plan = (sub as any)?.plan || 'free';
+    const maxMinutes = PLAN_VIDEO_LIMITS[plan] || PLAN_VIDEO_LIMITS.free;
+
+    console.log(`[duration] Video: ${durationMinutes.toFixed(1)}min, plan: ${plan}, limit: ${maxMinutes}min`);
+
+    if (durationMinutes > maxMinutes) {
+      return `VIDEO_TOO_LONG:This video is ${Math.ceil(durationMinutes)} minutes long. Your ${plan} plan allows videos up to ${maxMinutes} minutes. Upgrade your plan for longer videos.`;
+    }
+    return null;
+  } catch (e) {
+    console.error('[duration] check failed:', e);
+    return null;
+  }
 }
 
 async function fetchTranscript(youtubeUrl: string): Promise<string | null> {
@@ -88,6 +142,20 @@ serve(async (req) => {
     const { data: userEmail } = await supabase.rpc("get_auth_user_email");
     const isStudent = lesson.student_email === userEmail;
     if (!isTeacher && !isStudent) throw new Error("Access denied");
+
+    // Video duration check for teacher's YouTube lessons
+    if (isTeacher && lesson.youtube_url) {
+      const ytId = extractVideoId(lesson.youtube_url);
+      if (ytId) {
+        const durationError = await checkVideoDurationLimit(ytId, user.id);
+        if (durationError) {
+          return new Response(
+            JSON.stringify({ error: durationError }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("AI key not configured");
