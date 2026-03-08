@@ -60,7 +60,7 @@ export default function Onboarding() {
   const [selectedNativeLanguage, setSelectedNativeLanguage] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
-  // Check if coming from a shared lesson link
+  useEffect(() => { trackPageView("onboarding", "shared"); }, []);
   const pendingLessonToken = localStorage.getItem('pending_lesson_token');
   const isLessonOnboarding = !!pendingLessonToken;
 
