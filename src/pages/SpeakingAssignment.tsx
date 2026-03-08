@@ -50,6 +50,8 @@ export default function SpeakingAssignment() {
 
   useEffect(() => {
     if (!user || !assignmentId) return;
+    trackPageView("speaking_assignment", "student");
+    trackEvent("student_speaking_opened", { assignment_id: assignmentId });
     fetchData();
   }, [user, assignmentId]);
 
