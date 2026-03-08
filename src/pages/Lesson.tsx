@@ -22,6 +22,8 @@ interface LessonStats {
 export default function Lesson() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isAssignment = searchParams.get("assignment") === "true";
   const [lessonState, setLessonState] = useState<LessonState>("select-level");
   const [selectedLevel, setSelectedLevel] = useState("");
   const [nextVideoLoading, setNextVideoLoading] = useState(false);
