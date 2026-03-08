@@ -25,6 +25,7 @@ import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { trackEvent, trackPageLoad, trackPageView } from "@/lib/analytics";
 import { FlashcardRepository } from "@/components/FlashcardRepository";
 import { useStudentTour } from "@/hooks/useStudentTour";
+import AssignedVideosSection from "@/components/AssignedVideosSection";
 
 interface UserProfile {
   full_name: string | null;
