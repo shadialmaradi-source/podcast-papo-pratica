@@ -191,6 +191,19 @@ export default function TeacherStudents() {
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-5xl space-y-6">
+        {/* Free tier banner */}
+        {teacherPlan === "free" && (
+          <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <p className="text-sm text-foreground">
+              You're using <strong>{students.filter(s => s.status !== "archived").length}</strong> of <strong>3</strong> free student slots.
+            </p>
+            <Button size="sm" variant="outline" onClick={() => navigate("/teacher/pricing")}>
+              <Crown className="mr-1.5 h-3.5 w-3.5" />
+              Upgrade
+            </Button>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
