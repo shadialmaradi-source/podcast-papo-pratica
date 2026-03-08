@@ -32,7 +32,7 @@ export default function TeacherOnboarding() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const [tourSlide, setTourSlide] = useState(0);
+  // tourSlide removed - using TeacherDemoWalkthrough instead
 
   // Step 1 state
   const [fullName, setFullName] = useState("");
