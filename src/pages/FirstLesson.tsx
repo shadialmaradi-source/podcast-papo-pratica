@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Eye } from "lucide-react";
 import LessonIntro from "@/components/lesson/LessonIntro";
 import LessonVideoPlayer from "@/components/lesson/LessonVideoPlayer";
 import LessonExercises from "@/components/lesson/LessonExercises";
