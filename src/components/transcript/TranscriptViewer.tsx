@@ -1,10 +1,9 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { FileText, Minus, Plus, Sparkles, Loader2, X } from 'lucide-react';
-import { parseTranscript, getCurrentSegmentIndex, type TranscriptSegment } from '@/utils/transcriptUtils';
+import { FileText, Minus, Plus, Sparkles, Loader2, X, Lock, Star } from 'lucide-react';
+import { parseTranscript, getCurrentSegmentIndex } from '@/utils/transcriptUtils';
 import { useTextSelection } from '@/hooks/useTextSelection';
 import { getSavedPhrasesForVideo } from '@/services/flashcardService';
 import { getTranscriptSuggestions, analyzeWord, type TranscriptWordSuggestion, type WordAnalysis } from '@/services/wordAnalysisService';
@@ -13,10 +12,10 @@ import TranscriptLine from './TranscriptLine';
 import TextSelectionPopover from './TextSelectionPopover';
 import FlashcardCreatorModal from './FlashcardCreatorModal';
 import WordExplorerPanel from './WordExplorerPanel';
-import LockedTranscript from './LockedTranscript';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { TutorialStep } from './TranscriptTutorial';
 
 interface TranscriptViewerProps {
   videoId: string;
@@ -27,6 +26,13 @@ interface TranscriptViewerProps {
   currentTime?: number;
   onSeek?: (timeSeconds: number) => void;
   onUpgradeClick: () => void;
+  // Tutorial props
+  tutorialActive?: boolean;
+  tutorialStep?: TutorialStep;
+  onTutorialExploreComplete?: () => void;
+  onTutorialFlashcardSaved?: () => void;
+  onTutorialExplorerOpened?: () => void;
+  transcriptRef?: React.RefObject<HTMLDivElement>;
 }
 
 type TextSize = 'small' | 'medium' | 'large';
@@ -37,6 +43,8 @@ const TEXT_SIZE_CLASSES: Record<TextSize, string> = {
   large: 'text-lg',
 };
 
+const FREE_USER_SENTENCE_LIMIT = 2;
+
 export function TranscriptViewer({
   videoId,
   transcript,
@@ -46,12 +54,23 @@ export function TranscriptViewer({
   currentTime = 0,
   onSeek,
   onUpgradeClick,
+  tutorialActive = false,
+  tutorialStep,
+  onTutorialExploreComplete,
+  onTutorialFlashcardSaved,
+  onTutorialExplorerOpened,
+  transcriptRef,
 }: TranscriptViewerProps) {
   const { user } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const segments = parseTranscript(transcript);
+  const allSegments = parseTranscript(transcript);
+
+  // Free users: show only first 2 sentences (unless tutorial is active)
+  const isFreeUser = !isPremium;
+  const showAllSegments = isPremium || tutorialActive;
+  const segments = showAllSegments ? allSegments : allSegments.slice(0, FREE_USER_SENTENCE_LIMIT);
 
   // State
   const [autoScroll, setAutoScroll] = useState(true);
@@ -79,6 +98,9 @@ export function TranscriptViewer({
   const [explorerAnalysis, setExplorerAnalysis] = useState<WordAnalysis | null>(null);
   const [explorerLoading, setExplorerLoading] = useState(false);
 
+  // Tutorial highlight state
+  const [tutorialHighlightIndex, setTutorialHighlightIndex] = useState<number | null>(null);
+
   const currentSegmentIndex = getCurrentSegmentIndex(segments, currentTime);
 
   // Text selection hook
@@ -89,24 +111,33 @@ export function TranscriptViewer({
     },
   });
 
+  // Pick a tutorial word when tutorial activates at highlight-word step
+  useEffect(() => {
+    if (tutorialActive && tutorialStep === 'highlight-word' && suggestedWords.length > 0) {
+      // Pick the first suggested word
+      const firstSuggestion = suggestedWords[0];
+      setTutorialHighlightIndex(firstSuggestion.segmentIndex);
+    }
+  }, [tutorialActive, tutorialStep, suggestedWords]);
+
   // Load saved phrases
   const loadSavedPhrases = useCallback(async () => {
-    if (!user?.id || !isPremium) return;
+    if (!user?.id) return;
     try {
       const phrases = await getSavedPhrasesForVideo(user.id, videoId);
       setSavedPhrases(phrases);
     } catch (error) {
       console.error('Error loading saved phrases:', error);
     }
-  }, [user?.id, videoId, isPremium]);
+  }, [user?.id, videoId]);
 
   useEffect(() => {
     loadSavedPhrases();
   }, [loadSavedPhrases]);
 
-  // Load AI-suggested words
+  // Load AI-suggested words (for free users too, but only for visible segments)
   useEffect(() => {
-    if (!isPremium || segments.length === 0) return;
+    if (allSegments.length === 0) return;
 
     setSuggestionsLoading(true);
     getTranscriptSuggestions(videoId, transcript, language)
@@ -115,12 +146,11 @@ export function TranscriptViewer({
       })
       .catch((error) => {
         console.error('Error loading suggested words:', error);
-        // Silent fail — suggestions are a nice-to-have
       })
       .finally(() => {
         setSuggestionsLoading(false);
       });
-  }, [videoId, transcript, language, isPremium, segments.length]);
+  }, [videoId, transcript, language, allSegments.length]);
 
   // Auto-scroll to current segment
   useEffect(() => {
@@ -180,6 +210,11 @@ export function TranscriptViewer({
     setExplorerLoading(true);
     clearSelection();
 
+    // Notify tutorial that explorer opened
+    if (tutorialActive) {
+      onTutorialExplorerOpened?.();
+    }
+
     try {
       const analysis = await analyzeWord(word, language, contextSentence);
       setExplorerAnalysis(analysis);
@@ -209,6 +244,22 @@ export function TranscriptViewer({
     });
   };
 
+  // Handle flashcard modal close — notify tutorial
+  const handleModalOpenChange = (open: boolean) => {
+    setIsModalOpen(open);
+    if (!open && tutorialActive) {
+      onTutorialFlashcardSaved?.();
+    }
+  };
+
+  // Handle explorer close — notify tutorial
+  const handleExplorerOpenChange = (open: boolean) => {
+    setIsExplorerOpen(open);
+    if (!open && tutorialActive && tutorialStep === 'explorer-open') {
+      onTutorialExploreComplete?.();
+    }
+  };
+
   // Auto-dismiss onboarding after 8 seconds
   useEffect(() => {
     if (showOnboarding && suggestedWords.length > 0) {
@@ -229,6 +280,13 @@ export function TranscriptViewer({
   const handleSuggestedWordClick = (suggestion: TranscriptWordSuggestion) => {
     dismissOnboarding();
     const segment = segments[suggestion.segmentIndex] || segments[0];
+
+    // During tutorial force-explore step, open explorer instead of flashcard modal
+    if (tutorialActive && (tutorialStep === 'highlight-word' || tutorialStep === 'force-explore')) {
+      openExplorer(suggestion.phrase, segment?.text || suggestion.phrase);
+      return;
+    }
+
     openFlashcardModal(suggestion.phrase, segment?.text || suggestion.phrase, segment?.timestamp || '0:00', {
       translation: suggestion.translation,
       partOfSpeech: suggestion.partOfSpeech,
@@ -241,6 +299,9 @@ export function TranscriptViewer({
 
   const handleFlashcardSuccess = () => {
     loadSavedPhrases();
+    if (tutorialActive) {
+      onTutorialFlashcardSaved?.();
+    }
   };
 
   const cycleTextSize = () => {
@@ -249,14 +310,8 @@ export function TranscriptViewer({
     setTextSize(sizes[(currentIndex + 1) % sizes.length]);
   };
 
-  // Show locked state for non-premium users
-  if (!isPremium) {
-    const previewText = segments.slice(0, 2).map((s) => `(${s.timestamp}) ${s.text}`).join('\n');
-    return <LockedTranscript previewText={previewText} onUpgradeClick={onUpgradeClick} />;
-  }
-
   // Show message if no transcript available
-  if (segments.length === 0) {
+  if (allSegments.length === 0) {
     return (
       <Card className="mt-4">
         <CardContent className="py-8 text-center text-muted-foreground">
@@ -269,7 +324,7 @@ export function TranscriptViewer({
 
   return (
     <>
-      <Card className="mt-4">
+      <Card className="mt-4" ref={transcriptRef}>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center justify-between">
             <span className="flex items-center gap-2">
@@ -311,41 +366,43 @@ export function TranscriptViewer({
         </CardHeader>
 
         <CardContent className="pt-0">
-          {/* Onboarding tooltip for first-time users */}
-          <AnimatePresence>
-            {showOnboarding && suggestedWords.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.3 }}
-                className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-3 flex items-start gap-2"
-              >
+          {/* Onboarding tooltip for first-time users (only for premium) */}
+          {isPremium && (
+            <AnimatePresence>
+              {showOnboarding && suggestedWords.length > 0 && (
                 <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-3 flex items-start gap-2"
                 >
-                  <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                  >
+                    <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  </motion.div>
+                  <p className="text-sm text-foreground flex-1">
+                    <strong>Tip:</strong> Tap any{' '}
+                    <span className="border-b-2 border-dashed border-primary/50">underlined word</span>{' '}
+                    to save it as a flashcard, or select text to explore vocabulary!
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 shrink-0"
+                    onClick={dismissOnboarding}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
                 </motion.div>
-                <p className="text-sm text-foreground flex-1">
-                  <strong>Tip:</strong> Tap any{' '}
-                  <span className="border-b-2 border-dashed border-primary/50">underlined word</span>{' '}
-                  to save it as a flashcard, or select text to explore vocabulary!
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 shrink-0"
-                  onClick={dismissOnboarding}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>
+          )}
 
-          {/* Persistent hint banner (shown after onboarding dismissed) */}
-          {!showOnboarding && !hintDismissed && (
+          {/* Persistent hint banner (shown after onboarding dismissed, premium only) */}
+          {isPremium && !showOnboarding && !hintDismissed && (
             <div className="bg-muted/50 border border-border rounded-lg p-2.5 mb-3 flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <p className="text-xs sm:text-sm text-muted-foreground flex-1">
@@ -371,7 +428,13 @@ export function TranscriptViewer({
             )}
           >
             {segments.map((segment, index) => (
-              <div key={`${segment.timestamp}-${index}`} ref={(el) => (lineRefs.current[index] = el)}>
+              <div
+                key={`${segment.timestamp}-${index}`}
+                ref={(el) => (lineRefs.current[index] = el)}
+                className={cn(
+                  tutorialActive && tutorialHighlightIndex === index && 'ring-2 ring-primary rounded-lg'
+                )}
+              >
                 <TranscriptLine
                   timestamp={segment.timestamp}
                   text={segment.text}
@@ -385,6 +448,25 @@ export function TranscriptViewer({
               </div>
             ))}
           </div>
+
+          {/* Inline upgrade CTA for free users (after visible sentences) */}
+          {isFreeUser && !tutorialActive && allSegments.length > FREE_USER_SENTENCE_LIMIT && (
+            <div className="mt-4 border border-dashed border-border rounded-lg p-4 text-center space-y-3">
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Lock className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  +{allSegments.length - FREE_USER_SENTENCE_LIMIT} more sentences
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Upgrade to Premium to unlock the full transcript with flashcard creation
+              </p>
+              <Button size="sm" onClick={onUpgradeClick} className="gap-2">
+                <Star className="w-3.5 h-3.5" />
+                Unlock Full Transcript
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -402,7 +484,7 @@ export function TranscriptViewer({
       {/* Flashcard creation modal */}
       <FlashcardCreatorModal
         open={isModalOpen}
-        onOpenChange={setIsModalOpen}
+        onOpenChange={handleModalOpenChange}
         selectedText={selectedTextForModal}
         fullSentence={selectedSentence}
         timestamp={selectedTimestamp}
@@ -416,12 +498,14 @@ export function TranscriptViewer({
       {/* Word explorer panel */}
       <WordExplorerPanel
         open={isExplorerOpen}
-        onOpenChange={setIsExplorerOpen}
+        onOpenChange={handleExplorerOpenChange}
         word={explorerWord}
         language={language}
         analysis={explorerAnalysis}
         loading={explorerLoading}
         onSaveFlashcard={handleExplorerSaveFlashcard}
+        tutorialActive={tutorialActive}
+        tutorialStep={tutorialStep}
       />
     </>
   );

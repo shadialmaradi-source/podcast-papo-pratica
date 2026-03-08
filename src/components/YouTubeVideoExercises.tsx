@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import TranscriptViewer from "@/components/transcript/TranscriptViewer";
+import TranscriptTutorial, { type TutorialStep } from "@/components/transcript/TranscriptTutorial";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 
 interface YouTubeVideoExercisesProps {
@@ -27,25 +28,22 @@ interface VideoData {
   language?: string;
 }
 
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: (() => void) | undefined;
+  }
+}
+
 const mapDifficultyLevel = (level: string): string => {
   switch (level?.toUpperCase()) {
-    case 'A1':
-    case 'A2':
-      return 'Beginner';
-    case 'B1':
-    case 'B2':
-      return 'Intermediate';
-    case 'C1':
-    case 'C2':
-      return 'Advanced';
-    case 'BEGINNER':
-      return 'Beginner';
-    case 'INTERMEDIATE':
-      return 'Intermediate';
-    case 'ADVANCED':
-      return 'Advanced';
-    default:
-      return level || 'Unknown';
+    case 'A1': case 'A2': return 'Beginner';
+    case 'B1': case 'B2': return 'Intermediate';
+    case 'C1': case 'C2': return 'Advanced';
+    case 'BEGINNER': return 'Beginner';
+    case 'INTERMEDIATE': return 'Intermediate';
+    case 'ADVANCED': return 'Advanced';
+    default: return level || 'Unknown';
   }
 };
 
@@ -58,24 +56,181 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const [generatingLevel, setGeneratingLevel] = useState<string | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // YouTube IFrame API
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<any>(null);
+  const timePollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Tutorial state
+  const isTutorialCompleted = localStorage.getItem('transcript_tutorial_completed') === 'true';
+  const [tutorialStep, setTutorialStep] = useState<TutorialStep>(isTutorialCompleted ? 'completed' : 'completed');
+  const [tutorialTriggered, setTutorialTriggered] = useState(false);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+
+  const tutorialActive = tutorialStep !== 'completed';
 
   useEffect(() => {
     loadVideoData();
   }, [videoId]);
 
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (!videoData) return;
+
+    const loadAPI = () => {
+      if (window.YT && window.YT.Player) {
+        createPlayer();
+        return;
+      }
+
+      // Load the API script
+      if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+      }
+
+      window.onYouTubeIframeAPIReady = () => {
+        createPlayer();
+      };
+    };
+
+    const createPlayer = () => {
+      if (!playerContainerRef.current || playerRef.current) return;
+
+      playerRef.current = new window.YT.Player(playerContainerRef.current, {
+        videoId: videoData.video_id,
+        playerVars: {
+          enablejsapi: 1,
+          origin: window.location.origin,
+          rel: 0,
+        },
+        events: {
+          onReady: onPlayerReady,
+          onStateChange: onPlayerStateChange,
+        },
+      });
+    };
+
+    loadAPI();
+
+    return () => {
+      if (timePollingRef.current) clearInterval(timePollingRef.current);
+      if (playerRef.current?.destroy) {
+        try { playerRef.current.destroy(); } catch {}
+      }
+      playerRef.current = null;
+    };
+  }, [videoData]);
+
+  const onPlayerReady = () => {
+    // Start polling current time
+    timePollingRef.current = setInterval(() => {
+      if (playerRef.current?.getCurrentTime) {
+        const time = playerRef.current.getCurrentTime();
+        setCurrentVideoTime(time);
+
+        // Tutorial trigger: pause at ~20s if tutorial not completed
+        if (
+          !isTutorialCompleted &&
+          !tutorialTriggered &&
+          time >= 20 &&
+          transcript
+        ) {
+          playerRef.current.pauseVideo();
+          setTutorialTriggered(true);
+          setTutorialStep('video-pause');
+        }
+      }
+    }, 500);
+  };
+
+  const onPlayerStateChange = () => {
+    // No-op for now; polling handles time tracking
+  };
+
+  const handleSeekVideo = useCallback((timeSeconds: number) => {
+    if (playerRef.current?.seekTo) {
+      playerRef.current.seekTo(timeSeconds, true);
+    }
+  }, []);
+
+  // Tutorial handlers
+  const handleTutorialAdvance = useCallback(() => {
+    setTutorialStep((prev) => {
+      switch (prev) {
+        case 'video-pause':
+          // Scroll to transcript
+          setTimeout(() => {
+            transcriptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+          return 'highlight-word';
+        case 'highlight-word':
+          return 'force-explore';
+        case 'force-explore':
+          return 'explorer-open';
+        case 'explorer-open':
+          return 'save-from-explorer';
+        case 'save-from-explorer':
+          return 'flashcard-modal';
+        case 'flashcard-modal':
+          return 'resume-video';
+        case 'resume-video':
+          return 'completed';
+        default:
+          return 'completed';
+      }
+    });
+  }, []);
+
+  const handleTutorialSkip = useCallback(() => {
+    setTutorialStep('completed');
+    localStorage.setItem('transcript_tutorial_completed', 'true');
+    // Resume video
+    if (playerRef.current?.playVideo) {
+      playerRef.current.playVideo();
+    }
+  }, []);
+
+  const handleTutorialComplete = useCallback(() => {
+    setTutorialStep('completed');
+    localStorage.setItem('transcript_tutorial_completed', 'true');
+    // Resume video
+    if (playerRef.current?.playVideo) {
+      playerRef.current.playVideo();
+    }
+  }, []);
+
+  // Callbacks from TranscriptViewer during tutorial
+  const handleTutorialExplorerOpened = useCallback(() => {
+    if (tutorialStep === 'highlight-word' || tutorialStep === 'force-explore') {
+      setTutorialStep('explorer-open');
+    }
+  }, [tutorialStep]);
+
+  const handleTutorialExploreComplete = useCallback(() => {
+    if (tutorialStep === 'explorer-open') {
+      setTutorialStep('save-from-explorer');
+    }
+  }, [tutorialStep]);
+
+  const handleTutorialFlashcardSaved = useCallback(() => {
+    if (tutorialStep === 'save-from-explorer' || tutorialStep === 'flashcard-modal') {
+      setTutorialStep('resume-video');
+    }
+  }, [tutorialStep]);
+
   const loadVideoData = async () => {
     try {
       setIsLoading(true);
       
-      // Try to find by YouTube video_id first
       let { data, error } = await supabase
         .from('youtube_videos')
         .select('*')
         .eq('video_id', videoId)
         .single();
 
-      // If not found, try by database UUID
       if (error || !data) {
         const { data: dataById, error: errorById } = await supabase
           .from('youtube_videos')
@@ -91,17 +246,12 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
       if (error || !data) {
         console.error('Video not found:', error);
-        toast({
-          title: "Error",
-          description: "Video not found",
-          variant: "destructive"
-        });
+        toast({ title: "Error", description: "Video not found", variant: "destructive" });
         return;
       }
       
       setVideoData(data);
 
-      // Fetch transcript for the TranscriptViewer
       const { data: transcriptData } = await supabase
         .from('youtube_transcripts')
         .select('transcript')
@@ -113,25 +263,11 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
       }
     } catch (error) {
       console.error('Error loading video:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load video data",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Failed to load video data", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
-
-  const handleSeekVideo = useCallback((timeSeconds: number) => {
-    // Note: YouTube iframe API requires postMessage for seek
-    // For a basic implementation, we can append ?start= but that requires reload
-    // Full implementation would use YouTube IFrame Player API
-    if (iframeRef.current && videoData) {
-      const newSrc = `https://www.youtube.com/embed/${videoData.video_id}?start=${Math.floor(timeSeconds)}&autoplay=1`;
-      iframeRef.current.src = newSrc;
-    }
-  }, [videoData]);
 
   const handleStartExercises = async (level: string) => {
     if (!videoData) return;
@@ -142,15 +278,12 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     const dbLevel = level.toLowerCase();
     
     try {
-      // Always delete existing exercises and regenerate fresh ones
-      console.log(`[YouTubeVideoExercises] Deleting existing exercises for ${dbLevel}...`);
       await supabase
         .from('youtube_exercises')
         .delete()
         .eq('video_id', videoData.id)
         .eq('difficulty', dbLevel);
 
-      // Fetch transcript from DB
       const { data: transcriptData, error: transcriptError } = await supabase
         .from('youtube_transcripts')
         .select('transcript')
@@ -158,20 +291,12 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
         .single();
 
       if (transcriptError || !transcriptData?.transcript) {
-        console.error('[YouTubeVideoExercises] No transcript found:', transcriptError);
-        toast({ 
-          title: "Error", 
-          description: "No transcript available for this video",
-          variant: "destructive"
-        });
+        toast({ title: "Error", description: "No transcript available for this video", variant: "destructive" });
         setIsGenerating(false);
         setGeneratingLevel(null);
         return;
       }
 
-      console.log(`[YouTubeVideoExercises] Transcript found, generating exercises...`);
-
-      // Resolve native language for translation hints
       let userNativeLanguage = '';
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -180,84 +305,56 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
           .select('native_language')
           .eq('user_id', user.id)
           .single();
-        if (profile?.native_language) {
-          userNativeLanguage = profile.native_language;
-        }
+        if (profile?.native_language) userNativeLanguage = profile.native_language;
       }
       if (!userNativeLanguage) {
         const stored = localStorage.getItem('onboarding_native_language');
         if (stored) userNativeLanguage = stored;
       }
       if (!userNativeLanguage) {
-        // Detect from browser language
         const browserLang = navigator.language.split('-')[0].toLowerCase();
         const langMap: Record<string, string> = { en: 'english', it: 'italian', es: 'spanish', pt: 'portuguese', fr: 'french' };
         userNativeLanguage = langMap[browserLang] || 'english';
       }
-      // Guard: if native language matches video language, pick a useful fallback
       const videoLang = (videoData.language || 'italian').toLowerCase();
       if (userNativeLanguage.toLowerCase() === videoLang) {
         userNativeLanguage = videoLang === 'english' ? 'italian' : 'english';
       }
 
-      // Generate exercises via edge function
       const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
         body: { 
-          videoId: videoData.id, 
-          level: dbLevel, 
-          transcript: transcriptData.transcript,
-          language: videoData.language || 'italian',
-          nativeLanguage: userNativeLanguage,
+          videoId: videoData.id, level: dbLevel, transcript: transcriptData.transcript,
+          language: videoData.language || 'italian', nativeLanguage: userNativeLanguage,
           source: source || undefined
         }
       });
 
       if (error) {
-        console.error('[YouTubeVideoExercises] Edge function error:', error);
-        toast({ 
-          title: "Generation error", 
-          description: error.message || "Unable to generate exercises",
-          variant: "destructive"
-        });
+        toast({ title: "Generation error", description: error.message || "Unable to generate exercises", variant: "destructive" });
         setIsGenerating(false);
         setGeneratingLevel(null);
         return;
       }
 
       if (data?.error) {
-        console.error('[YouTubeVideoExercises] Generation error:', data.error);
-        toast({ 
-          title: "Generation error", 
-          description: data.error,
-          variant: "destructive"
-        });
+        toast({ title: "Generation error", description: data.error, variant: "destructive" });
         setIsGenerating(false);
         setGeneratingLevel(null);
         return;
       }
 
-      console.log(`[YouTubeVideoExercises] Generation successful:`, data);
-      toast({
-        title: "Exercises generated! 🎯",
-        description: `${data?.count || 10} exercises created for ${level} level`,
-      });
-
+      toast({ title: "Exercises generated! 🎯", description: `${data?.count || 10} exercises created for ${level} level` });
       setIsGenerating(false);
       setGeneratingLevel(null);
       onStartExercises(level);
       
     } catch (err) {
       console.error('[YouTubeVideoExercises] Unexpected error:', err);
-      toast({ 
-        title: "Error", 
-        description: "An unexpected error occurred",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "An unexpected error occurred", variant: "destructive" });
       setIsGenerating(false);
       setGeneratingLevel(null);
     }
   };
-
 
   if (isLoading) {
     return (
@@ -285,8 +382,8 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-3 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={onBack}>
@@ -295,23 +392,13 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Video Player Section */}
           <div className="lg:col-span-2 space-y-4">
             <Card>
               <CardContent className="p-0">
                 <div className="aspect-video w-full">
-                  <iframe
-                    ref={iframeRef}
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube.com/embed/${videoData.video_id}?enablejsapi=1`}
-                    title={videoData.title}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="rounded-t-lg"
-                  ></iframe>
+                  <div ref={playerContainerRef} className="w-full h-full" />
                 </div>
               </CardContent>
             </Card>
@@ -320,7 +407,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-2xl mb-2">{videoData.title}</CardTitle>
+                    <CardTitle className="text-xl md:text-2xl mb-2">{videoData.title}</CardTitle>
                     <Badge className="mb-4">
                       {mapDifficultyLevel(videoData.difficulty_level)}
                     </Badge>
@@ -332,7 +419,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
               </CardHeader>
             </Card>
 
-            {/* Transcript Viewer - Premium Feature */}
+            {/* Transcript Viewer */}
             {transcript && (
               <TranscriptViewer
                 videoId={videoData.id}
@@ -343,6 +430,12 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
                 currentTime={currentVideoTime}
                 onSeek={handleSeekVideo}
                 onUpgradeClick={() => setShowUpgradePrompt(true)}
+                tutorialActive={tutorialActive}
+                tutorialStep={tutorialStep}
+                onTutorialExploreComplete={handleTutorialExploreComplete}
+                onTutorialFlashcardSaved={handleTutorialFlashcardSaved}
+                onTutorialExplorerOpened={handleTutorialExplorerOpened}
+                transcriptRef={transcriptRef}
               />
             )}
           </div>
@@ -443,6 +536,16 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
           </div>
         </div>
       </div>
+
+      {/* Tutorial overlay */}
+      {tutorialActive && (
+        <TranscriptTutorial
+          step={tutorialStep}
+          onAdvance={handleTutorialAdvance}
+          onSkip={handleTutorialSkip}
+          onComplete={handleTutorialComplete}
+        />
+      )}
 
       {/* Upgrade Prompt Modal */}
       <UpgradePrompt
