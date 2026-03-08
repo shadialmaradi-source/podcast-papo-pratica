@@ -407,7 +407,7 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
               <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
                 <h3 className="font-semibold text-foreground mb-2">Your task:</h3>
                 <p className="text-muted-foreground">
-                  Summarize what happened in the video in {isAuthenticated ? '20-30' : '5'} seconds using Spanish. 
+                  Summarize what happened in the video in {isAuthenticated ? '20-30' : '5'} seconds using {language.charAt(0).toUpperCase() + language.slice(1)}. 
                   Include the main characters, setting, and key events.
                 </p>
               </div>
