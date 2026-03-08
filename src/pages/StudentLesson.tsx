@@ -275,19 +275,19 @@ export default function StudentLesson() {
     
     let lessonQuery = supabase
       .from("teacher_lessons")
-      .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language");
+      .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language, teacher_id");
     
     if (isUuid) {
       const { data: byToken } = await lessonQuery.eq("share_token", id).maybeSingle();
       if (byToken) {
         lessonQuery = supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language")
+          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language, teacher_id")
           .eq("id", byToken.id);
       } else {
         lessonQuery = supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language")
+          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language, teacher_id")
           .eq("id", id);
       }
     } else {
