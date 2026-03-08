@@ -125,12 +125,22 @@ const LessonCompleteScreen = ({
           {/* Primary CTA */}
           <Button
             onClick={onNextVideo}
+            disabled={nextVideoLoading}
             size="lg"
             className="w-full bg-primary hover:bg-primary/90 rounded-full py-5 md:py-6 text-base md:text-lg gap-2"
           >
-            <Play className="w-5 h-5" />
-            🎯 Next Video
-            <ArrowRight className="w-5 h-5" />
+            {nextVideoLoading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                Finding similar video...
+              </>
+            ) : (
+              <>
+                <Play className="w-5 h-5" />
+                🎯 Next Video
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
           </Button>
 
           {/* Secondary options */}
