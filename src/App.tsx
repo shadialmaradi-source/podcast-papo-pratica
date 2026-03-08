@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { initAnalytics, trackSessionStart, trackSessionEnd } from "@/lib/analytics";
+import { StudentTourProvider } from "@/hooks/useStudentTour";
 
 // Eager imports — critical entry paths
 import LandingPage from "./pages/LandingPage";
@@ -152,10 +153,10 @@ const App = () => {
               <Route path="/teacher/branding" element={<ProtectedRoute><TeacherBranding /></ProtectedRoute>} />
               <Route path="/teacher/lesson/:id" element={<ProtectedRoute><TeacherLesson /></ProtectedRoute>} />
 
-              {/* Protected app routes */}
-              <Route path="/app" element={<ProtectedRoute><AppHome /></ProtectedRoute>} />
-              <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
-              <Route path="/lesson/:videoId" element={<ProtectedRoute><Lesson /></ProtectedRoute>} />
+              {/* Protected app routes — wrapped with StudentTourProvider */}
+              <Route path="/app" element={<ProtectedRoute><StudentTourProvider><AppHome /></StudentTourProvider></ProtectedRoute>} />
+              <Route path="/library" element={<ProtectedRoute><StudentTourProvider><Library /></StudentTourProvider></ProtectedRoute>} />
+              <Route path="/lesson/:videoId" element={<ProtectedRoute><StudentTourProvider><Lesson /></StudentTourProvider></ProtectedRoute>} />
               <Route path="/learn/week/:weekId" element={<ProtectedRoute><WeekDetail /></ProtectedRoute>} />
               <Route path="/learn/video/:weekVideoId" element={<ProtectedRoute><WeekVideo /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
