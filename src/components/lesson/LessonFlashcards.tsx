@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, RotateCw, Check, BookOpen } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCw, Check, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getLanguageFlag } from "@/utils/languageUtils";
 import { trackEvent } from "@/lib/analytics";
