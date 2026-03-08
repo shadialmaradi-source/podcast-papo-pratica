@@ -82,6 +82,14 @@ const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english"
     >
       <div className="flex-1 overflow-auto p-3 md:p-8">
         <div className="max-w-2xl mx-auto space-y-4 md:space-y-6">
+          {/* Exit button */}
+          {onExit && (
+            <Button variant="ghost" size="sm" onClick={onExit} className="gap-1">
+              <ArrowLeft className="w-4 h-4" />
+              Exit
+            </Button>
+          )}
+
           <div className="text-center space-y-1 md:space-y-2">
             <h1 className="text-xl md:text-3xl font-bold text-foreground">
               <BookOpen className="w-6 h-6 md:w-8 md:h-8 inline-block mr-2 text-primary" />
