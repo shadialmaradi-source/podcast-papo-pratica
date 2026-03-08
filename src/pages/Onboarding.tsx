@@ -98,6 +98,7 @@ export default function Onboarding() {
   const handleContinueToLevel = () => {
     if (!selectedNativeLanguage) return;
     trackEvent('onboarding_step_changed', { step_name: 'level' });
+    trackFunnelStep("onboarding_funnel", "level_selected", 2);
     setStep('level');
   };
 
