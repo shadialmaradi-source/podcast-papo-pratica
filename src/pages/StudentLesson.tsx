@@ -519,20 +519,36 @@ export default function StudentLesson() {
 
   const youtubeVideoId = lesson.youtube_url ? extractYouTubeVideoId(lesson.youtube_url) : null;
 
+  const brandStyle = hasBranding
+    ? { "--brand-primary": branding!.primary_color, "--brand-secondary": branding!.secondary_color } as React.CSSProperties
+    : {};
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={brandStyle}>
       {/* Header */}
-      <header className="border-b border-border bg-card">
+      <header
+        className="border-b border-border bg-card"
+        style={hasBranding ? { backgroundColor: branding!.primary_color + "10" } : {}}
+      >
         <div className="container mx-auto flex items-center justify-between px-4 py-4 max-w-2xl">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/app")}
-            className="text-muted-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Home
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/app")}
+              className="text-muted-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Home
+            </Button>
+            {hasBranding && branding!.logo_url ? (
+              <img src={branding!.logo_url} alt="Logo" className="h-7 max-w-[120px] object-contain" />
+            ) : hasBranding ? (
+              <span className="font-bold text-sm" style={{ color: branding!.primary_color }}>
+                {brandTeacherName || ""}
+              </span>
+            ) : null}
+          </div>
           <div className="flex items-center gap-2">
             {teacherIndex !== null && (
               <span className="flex items-center gap-1 text-xs text-primary font-medium">
@@ -540,7 +556,13 @@ export default function StudentLesson() {
                 Live
               </span>
             )}
-            <Badge variant="outline" className="capitalize">{lesson.cefr_level}</Badge>
+            <Badge
+              variant="outline"
+              className="capitalize"
+              style={hasBranding ? { borderColor: branding!.primary_color, color: branding!.primary_color } : {}}
+            >
+              {lesson.cefr_level}
+            </Badge>
           </div>
         </div>
       </header>
