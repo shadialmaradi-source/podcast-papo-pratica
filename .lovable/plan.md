@@ -1,124 +1,85 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Plan: Deep PostHog Analytics -- Student & Teacher Macro Sections
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## Summary
 
-## Summary of Changes
+Enhance the analytics module to systematically track all user actions across two macro sections (Student and Teacher), using PostHog's `$set` person properties to segment users by role. Add a `section` property to every event, structured event naming conventions, and comprehensive tracking across all pages and key interactions that currently lack it.
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+## Analytics Architecture
 
----
+### Person Properties (set via `$identify`)
 
-## Phase 1: Simplified Student Onboarding
+Every identified user gets:
+- `role`: "student" or "teacher" (set on login via user_roles lookup)
+- `plan`: "free" / "pro" (for teachers)
+- `cefr_level`: current level
+- `target_language`: learning language
+- `native_language`: native language
 
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+This enables PostHog dashboards to filter all events by Student vs Teacher sections.
 
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+### Event Naming Convention
 
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+All events prefixed by section:
+- **Student events**: `student_*` (e.g. `student_lesson_started`, `student_exercise_answered`)
+- **Teacher events**: `teacher_*` (e.g. `teacher_lesson_created`, `teacher_student_added`)
+- **Shared events**: `auth_*`, `onboarding_*` (keep existing names)
 
----
+Every event gets a `section: "student" | "teacher" | "shared"` property automatically.
 
-## Phase 2: Remove image_discussion, Update Exercise Types
+## Changes to `src/lib/analytics.ts`
 
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
+- Add `setUserProperties(props)` function that sends `$set` via `$identify`
+- Add `setSection(section)` that stores current section in memory, auto-attached to all events
+- Update `postCapture` to always include `section` and `app_version` properties
+- Add `trackPageView(page, section)` combining pageview + section tracking
 
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+## New Tracking Points
 
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+### Student Section (pages missing tracking)
 
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+| Page/Component | Events to Add |
+|---|---|
+| `SpeakingAssignment.tsx` | `student_speaking_opened`, `student_speaking_response_saved`, `student_speaking_marked_prepared` |
+| `StudentLesson.tsx` | `student_lesson_opened`, `student_exercise_answered` (per question with correct/incorrect), `student_lesson_completed`, `student_speaking_submitted` |
+| `AppHome.tsx` | `student_speaking_assignment_clicked`, `student_video_assignment_clicked` (already has some, add speaking) |
+| `Library.tsx` | `student_video_searched`, `student_video_filtered` |
+| `VocabularyManager` | `student_vocab_added`, `student_vocab_reviewed` |
 
----
+### Teacher Section (pages missing tracking)
 
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
+| Page/Component | Events to Add |
+|---|---|
+| `TeacherStudents.tsx` | `teacher_students_viewed`, `teacher_student_added`, `teacher_student_archived`, `teacher_student_edited` |
+| `TeacherStudentDetail.tsx` | `teacher_student_detail_viewed`, `teacher_video_assigned`, `teacher_speaking_assigned` |
+| `TeacherSettings.tsx` | `teacher_settings_viewed`, `teacher_settings_updated` |
+| `AssignSpeakingModal.tsx` | `teacher_speaking_topic_selected`, `teacher_speaking_custom_topic` |
+| `AssignVideoModal.tsx` | `teacher_video_assigned` |
+| `CreateLessonForm.tsx` | `teacher_lesson_created` (already has some, add type/language) |
+| `AddStudentModal.tsx` | `teacher_student_invited` |
+| `TeacherPricing.tsx` | `teacher_pricing_viewed`, `teacher_upgrade_clicked` |
 
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+### Enhanced Identity on Login
 
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+Update `useAuth.tsx` `onAuthStateChange` handler:
+- After `SIGNED_IN`, fetch `user_roles` to get role
+- Call `identifyUser` with role, email, and person properties
+- This ensures PostHog knows if the user is a student or teacher from the first event
 
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+## Files Changed
 
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
-```
-
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
-
----
-
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
-
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
-
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
-
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
-
----
-
-## Technical Details
-
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
-
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
-
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
-
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+| File | Change |
+|---|---|
+| `src/lib/analytics.ts` | Add `setUserProperties`, `setSection`, `trackPageView`, auto-attach section to all events |
+| `src/hooks/useAuth.tsx` | Fetch role on sign-in, send person properties to PostHog |
+| `src/pages/SpeakingAssignment.tsx` | Add 3 student speaking events |
+| `src/pages/StudentLesson.tsx` | Add lesson opened/completed/exercise events |
+| `src/pages/TeacherStudents.tsx` | Add page view + student management events |
+| `src/pages/TeacherStudentDetail.tsx` | Add detail view + assignment events |
+| `src/pages/TeacherSettings.tsx` | Add settings view/update events |
+| `src/pages/TeacherPricing.tsx` | Add pricing view/upgrade events |
+| `src/components/teacher/AssignSpeakingModal.tsx` | Add topic selection events |
+| `src/components/teacher/AssignVideoModal.tsx` | Add video assigned event |
+| `src/components/teacher/AddStudentModal.tsx` | Add student invited event |
 
