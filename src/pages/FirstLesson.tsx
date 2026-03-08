@@ -28,6 +28,8 @@ interface OnboardingVideo {
 
 const FirstLesson = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isTeacherPreview = searchParams.get("from") === "teacher-onboarding";
   const [step, setStep] = useState<LessonStep>(() => {
     const saved = localStorage.getItem('lesson_step') as LessonStep | null;
     const validSteps: LessonStep[] = ['intro', 'video', 'exercises', 'speaking', 'flashcards', 'complete'];
