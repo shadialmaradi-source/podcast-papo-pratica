@@ -429,7 +429,17 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
             <Card>
               <CardContent className="p-0">
                 <div className="aspect-video w-full">
-                  <div key={videoData.video_id} id={playerContainerId} className="w-full h-full" />
+                  {playerFailed ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${videoData.video_id}?rel=0&enablejsapi=0`}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title={videoData.title}
+                    />
+                  ) : (
+                    <div id={playerContainerId} className="w-full h-full" />
+                  )}
                 </div>
               </CardContent>
             </Card>
