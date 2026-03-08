@@ -556,9 +556,9 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
                   </div>
                 </motion.div>
               ) : null}
-            </CardContent>
-          </Card>
-
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </motion.div>
     );
