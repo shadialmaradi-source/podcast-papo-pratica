@@ -27,23 +27,6 @@ const NATIVE_LANGUAGES = [
   "German", "Japanese", "Korean", "Chinese", "Arabic", "Russian"
 ];
 
-const TOUR_SLIDES = [
-  {
-    icon: BookOpen,
-    title: "Assign lessons from our library or create custom ones",
-    description: "Choose from 100+ curated videos or paste any YouTube link. AI generates exercises automatically.",
-  },
-  {
-    icon: Share2,
-    title: "Students get a link to access the lesson",
-    description: "Share a simple link — no app download needed. Students open it and start learning immediately.",
-  },
-  {
-    icon: BarChart3,
-    title: "Track their progress in real-time",
-    description: "See which exercises they completed, their scores, and where they need more practice.",
-  },
-];
 
 export default function TeacherOnboarding() {
   const { user, loading: authLoading } = useAuth();
