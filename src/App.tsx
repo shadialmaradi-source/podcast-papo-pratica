@@ -145,6 +145,7 @@ const App = () => {
                   <TeacherPricing />
                 </ProtectedRoute>
               }
+            />
             <Route
               path="/teacher/analytics"
               element={
