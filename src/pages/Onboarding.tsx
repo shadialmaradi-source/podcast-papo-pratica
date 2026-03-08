@@ -205,8 +205,8 @@ export default function Onboarding() {
                   </Card>
                 ))}
               </div>
-              <Button onClick={handleContinueToNative} disabled={!selectedLanguage} size="lg" className="w-full py-6 text-lg rounded-full">
-                {t('continue')} <ArrowRight className="ml-2 h-5 w-5" />
+              <Button onClick={handleContinueToNative} disabled={!selectedLanguage} size="lg" className="w-full py-4 md:py-6 text-base md:text-lg rounded-full">
+                {t('continue')} <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
               </Button>
             </motion.div>
           )}
