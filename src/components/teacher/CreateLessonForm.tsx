@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,7 +26,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Copy, Check, ArrowLeft, Share2, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Sparkles, Copy, Check, ArrowLeft, Share2, Eye, EyeOff, ChevronLeft, ChevronRight, Globe } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { trackEvent } from "@/lib/analytics";
 import { useTextSelection } from "@/hooks/useTextSelection";
 import { TextSelectionPopover } from "@/components/transcript/TextSelectionPopover";
 import { WordExplorerPanel } from "@/components/transcript/WordExplorerPanel";
@@ -129,6 +132,8 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
   const [paragraphContent, setParagraphContent] = useState("");
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [communityShared, setCommunityShared] = useState(false);
+  const [togglingCommunity, setTogglingCommunity] = useState(false);
 
   // Inline result state
   const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
@@ -372,6 +377,61 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
     }
   };
 
+  const handleToggleCommunityShare = useCallback(async (checked: boolean) => {
+    if (!createdLessonId || !user) return;
+    setTogglingCommunity(true);
+    try {
+      if (checked) {
+        // Fetch teacher name
+        const { data: profile } = await supabase
+          .from("teacher_profiles" as any)
+          .select("full_name")
+          .eq("teacher_id", user.id)
+          .maybeSingle();
+
+        const teacherName = (profile as any)?.full_name || user.email?.split("@")[0] || "";
+        const values = form.getValues();
+
+        await supabase.from("community_lessons" as any).insert({
+          source_lesson_id: createdLessonId,
+          teacher_id: user.id,
+          teacher_name: teacherName,
+          title: values.title,
+          description: null,
+          lesson_type: lessonType,
+          language: values.language || "italian",
+          translation_language: values.translation_language || "english",
+          cefr_level: values.cefr_level,
+          topic: values.topic || null,
+          exercise_types: values.exercise_types,
+        } as any);
+
+        await supabase
+          .from("teacher_lessons")
+          .update({ is_community_shared: true } as any)
+          .eq("id", createdLessonId);
+
+        trackEvent("path_made_public", { lesson_id: createdLessonId });
+      } else {
+        await supabase
+          .from("community_lessons" as any)
+          .delete()
+          .eq("source_lesson_id", createdLessonId)
+          .eq("teacher_id", user.id);
+
+        await supabase
+          .from("teacher_lessons")
+          .update({ is_community_shared: false } as any)
+          .eq("id", createdLessonId);
+      }
+      setCommunityShared(checked);
+    } catch (err: any) {
+      console.error("Community share toggle failed:", err);
+    } finally {
+      setTogglingCommunity(false);
+    }
+  }, [createdLessonId, user, form, lessonType]);
+
   const currentLanguage = form.watch("language") || "italian";
 
   // Group exercises by type
@@ -511,7 +571,26 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel }: CreateLess
             </Card>
           )}
 
-          {/* YouTube video embed */}
+          {/* Share with Community toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-border p-4">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="community-share" className="text-sm font-medium text-foreground cursor-pointer">
+                Share with Community
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                (Other teachers can discover &amp; copy)
+              </span>
+            </div>
+            <Switch
+              id="community-share"
+              checked={communityShared}
+              onCheckedChange={handleToggleCommunityShare}
+              disabled={togglingCommunity}
+            />
+          </div>
+
+
           {youtubeVideoId && (
             <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
               <iframe

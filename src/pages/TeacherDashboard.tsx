@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, LogOut, Users, ArrowLeft, BarChart3, CreditCard } from "lucide-react";
+import { BookOpen, LogOut, Users, ArrowLeft, BarChart3, CreditCard, Globe } from "lucide-react";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { LessonList } from "@/components/teacher/LessonList";
@@ -174,6 +174,19 @@ export default function TeacherDashboard() {
                   <div>
                     <p className="text-lg font-semibold text-foreground">Pricing</p>
                     <p className="text-sm text-muted-foreground mt-1">Manage your subscription</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card
+                className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
+                onClick={() => navigate("/teacher/community")}
+              >
+                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
+                  <Globe className="h-12 w-12 text-primary" />
+                  <div>
+                    <p className="text-lg font-semibold text-foreground">Community</p>
+                    <p className="text-sm text-muted-foreground mt-1">Discover & share lessons</p>
                   </div>
                 </CardContent>
               </Card>
