@@ -312,14 +312,6 @@ export default function TeacherPricing() {
                           "Upgrade to Premium"
                         )}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => window.open("mailto:support@listenflow.app?subject=Premium Plan Inquiry", "_blank")}
-                      >
-                        Contact Sales
-                      </Button>
                     </div>
                   ) : (
                     <Button
