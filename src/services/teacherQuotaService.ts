@@ -22,10 +22,10 @@ const PLAN_LIMITS: Record<string, { lessons: number; videoMinutes: number }> = {
 };
 
 export async function fetchTeacherQuota(teacherId: string): Promise<TeacherQuota> {
-  // Get subscription plan and status
+  // Get subscription plan, status, and trial fields
   const { data: sub } = await supabase
     .from("teacher_subscriptions" as any)
-    .select("plan, status, current_period_end")
+    .select("plan, status, current_period_end, trial_started_at, trial_ends_at, trial_used")
     .eq("teacher_id", teacherId)
     .maybeSingle();
 
@@ -33,6 +33,27 @@ export async function fetchTeacherQuota(teacherId: string): Promise<TeacherQuota
   const status = (sub as any)?.status || "active";
   const currentPeriodEnd = (sub as any)?.current_period_end || null;
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+  // Calculate trial status
+  const isTrialing = plan === "trial" && status === "trialing";
+  let trialDaysRemaining = 0;
+  let trialExpired = false;
+
+  if (isTrialing && (sub as any)?.trial_ends_at) {
+    const trialEnd = new Date((sub as any).trial_ends_at);
+    const now = new Date();
+    trialDaysRemaining = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (trialDaysRemaining <= 0) {
+      trialDaysRemaining = 0;
+      trialExpired = true;
+    }
+  } else if (plan === "trial") {
+    trialExpired = true;
+  }
+
+  // Check email verification
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const emailVerified = !!authUser?.email_confirmed_at;
 
   // Count lessons created this month
   const now = new Date();
@@ -46,8 +67,8 @@ export async function fetchTeacherQuota(teacherId: string): Promise<TeacherQuota
 
   const lessonsUsed = count ?? 0;
 
-  // Block lesson creation if past_due
-  const canCreateLesson = status !== "past_due" && lessonsUsed < limits.lessons;
+  // Block lesson creation if past_due, trial expired, email not verified, or limit reached
+  const canCreateLesson = emailVerified && status !== "past_due" && !trialExpired && lessonsUsed < limits.lessons;
 
   return {
     lessonsUsed,
@@ -57,6 +78,10 @@ export async function fetchTeacherQuota(teacherId: string): Promise<TeacherQuota
     plan,
     status,
     currentPeriodEnd,
+    isTrialing,
+    trialDaysRemaining,
+    trialExpired,
+    emailVerified,
   };
 }
 
