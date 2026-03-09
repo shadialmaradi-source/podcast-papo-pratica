@@ -12,6 +12,7 @@ export interface TeacherQuota {
 
 const PLAN_LIMITS: Record<string, { lessons: number; videoMinutes: number }> = {
   free: { lessons: 10, videoMinutes: 5 },
+  trial: { lessons: 60, videoMinutes: 10 },
   pro: { lessons: 60, videoMinutes: 10 },
   premium: { lessons: 160, videoMinutes: 15 },
 };
