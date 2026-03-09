@@ -141,9 +141,30 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
   const [communityShared, setCommunityShared] = useState(false);
   const [togglingCommunity, setTogglingCommunity] = useState(false);
 
+  // Check email verification and trial status on mount
   useEffect(() => {
     trackEvent("teacher_lesson_creation_started", { type: lessonType });
-  }, [lessonType]);
+    
+    const checkAccess = async () => {
+      const { data: { user: freshUser } } = await supabase.auth.getUser();
+      setEmailVerified(!!freshUser?.email_confirmed_at);
+
+      if (user) {
+        const { data: sub } = await supabase
+          .from("teacher_subscriptions" as any)
+          .select("plan, status, trial_ends_at")
+          .eq("teacher_id", user.id)
+          .maybeSingle();
+
+        const plan = (sub as any)?.plan || "free";
+        if (plan === "trial" && (sub as any)?.trial_ends_at) {
+          const trialEnd = new Date((sub as any).trial_ends_at);
+          if (trialEnd < new Date()) setTrialExpired(true);
+        }
+      }
+    };
+    checkAccess();
+  }, [lessonType, user]);
 
   // Inline result state
   const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
