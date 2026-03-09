@@ -7,7 +7,9 @@ import { Progress } from "@/components/ui/progress";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Users, ArrowLeft, Settings, AlertTriangle } from "lucide-react";
+import { BookOpen, Users, ArrowLeft, Settings, AlertTriangle, Mail, Clock, Sparkles } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
