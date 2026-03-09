@@ -8,6 +8,10 @@ export interface TeacherQuota {
   plan: string;
   status: string;
   currentPeriodEnd: string | null;
+  isTrialing: boolean;
+  trialDaysRemaining: number;
+  trialExpired: boolean;
+  emailVerified: boolean;
 }
 
 const PLAN_LIMITS: Record<string, { lessons: number; videoMinutes: number }> = {
