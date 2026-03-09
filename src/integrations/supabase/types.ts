@@ -1095,6 +1095,9 @@ export type Database = {
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           teacher_id: string
+          trial_ends_at: string | null
+          trial_started_at: string | null
+          trial_used: boolean | null
           updated_at: string | null
         }
         Insert: {
@@ -1106,6 +1109,9 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           teacher_id: string
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+          trial_used?: boolean | null
           updated_at?: string | null
         }
         Update: {
@@ -1117,6 +1123,9 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           teacher_id?: string
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+          trial_used?: boolean | null
           updated_at?: string | null
         }
         Relationships: []
