@@ -1,78 +1,124 @@
 
 
-# 14-Day Free Trial System for Teacher Subscriptions
+# Plan: Teacher YouTube Lesson Overhaul
 
-## Overview
+This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
 
-Replace the Free tier with a 14-day trial on Pro limits. After trial expiry, teachers must subscribe to Pro ($19/mo) or Premium ($39/mo) to continue creating lessons. Email verification is required to create lessons.
+## Summary of Changes
 
-## Database Changes
+1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
+2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
+3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
+4. **Student lesson view update** -- same grouped-by-type sequential layout
 
-**Migration: Add trial fields to `teacher_subscriptions`**
+---
 
+## Phase 1: Simplified Student Onboarding
+
+### Problem
+Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
+
+### Solution
+- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
+- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
+- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
+
+### Files changed
+- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
+- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
+- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
+
+---
+
+## Phase 2: Remove image_discussion, Update Exercise Types
+
+### DB migration
+- No schema changes needed (exercise_types is a text array, content is JSONB)
+
+### Edge function: `generate-lesson-exercises`
+- Remove `image_discussion` from `EXERCISE_PROMPTS`
+- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
+- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
+- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
+
+### Frontend: `CreateLessonForm.tsx`
+- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
+
+### Files changed
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
+- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
+
+---
+
+## Phase 3: Teacher Post-Creation View (YouTube lessons)
+
+### Current state
+After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
+
+### New design
+After creation, the teacher sees:
+1. **Share link** (unchanged)
+2. **YouTube video embed** at the top
+3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
+4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
+
+### Transcript fetching approach
+- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
+- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
+
+### DB migration
 ```sql
-ALTER TABLE teacher_subscriptions 
-ADD COLUMN trial_started_at TIMESTAMPTZ,
-ADD COLUMN trial_ends_at TIMESTAMPTZ,
-ADD COLUMN trial_used BOOLEAN DEFAULT FALSE;
-
-CREATE INDEX idx_teacher_trial_expiry ON teacher_subscriptions(trial_ends_at) 
-WHERE trial_ends_at IS NOT NULL;
+ALTER TABLE teacher_lessons ADD COLUMN transcript text;
 ```
 
-**Update `enforce_teacher_lesson_limit` function** to recognize `trial` plan with Pro-level limits (60 lessons, 10 min video).
+### Files changed
+- **DB migration** -- add `transcript` column
+- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
+- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
 
-## Code Changes
+---
 
-### 1. New Hook: `src/hooks/useTeacherTrial.ts`
-- Fetches `teacher_subscriptions` trial fields + `auth.getUser()` for `email_confirmed_at`
-- Returns: `isTrialing`, `daysRemaining`, `emailVerified`, `canCreateLessons`, `trialExpired`
-- Used by dashboard, create lesson form, and quota service
+## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
 
-### 2. Update `src/services/teacherQuotaService.ts`
-- Add `trial` plan to `PLAN_LIMITS` with same limits as `pro` (60 lessons, 10 min)
-- Add `isTrialing`, `trialDaysRemaining`, `emailVerified` to `TeacherQuota` interface
-- Fetch trial fields from subscription + email_confirmed_at from auth
-- Block lesson creation if email not verified OR trial expired
+Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
+- Show video at top
+- Show transcript below (same interactive component)
+- Exercise sections grouped by type, each with its own prev/next within 5 questions
 
-### 3. Update `src/pages/Auth.tsx`
-- After teacher signup (line 126-131): insert `teacher_subscriptions` with `plan: 'trial'`, `status: 'trialing'`, `trial_started_at`, `trial_ends_at` (now + 14 days), `trial_used: true`
-- Update toast message to mention trial
+### Files changed
+- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
+- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
 
-### 4. Update `src/pages/TeacherDashboard.tsx`
-- Add trial banner showing days remaining (blue info card)
-- Add email verification warning banner (yellow card) with resend button
-- Add trial expired banner (red card) with upgrade CTA
-- Use data from `useTeacherQuota` (which now includes trial info)
+---
 
-### 5. Update `src/pages/TeacherPricing.tsx`
-- Remove Free tier from `tiers` array
-- Change Pro/Premium CTAs to "Start 14-Day Free Trial" for non-subscribers
-- Add trial FAQ items (how trial works, email verification, what happens after)
-- Update comparison table to remove Free column
-- Update hero text
+## Phase 5: Student Lesson View (`StudentLesson.tsx`)
 
-### 6. Update `src/components/teacher/CreateLessonForm.tsx`
-- Add email verification gate at top of component (check `email_confirmed_at`)
-- Show verification UI with resend button if not verified
-- Show trial expired UI with upgrade CTA if trial ended
+Mirror the teacher's layout for the student:
+- Video at top
+- Transcript (read-only or interactive if we want students to also explore words)
+- Exercise sections grouped by type, sequential, with submit per question
 
-### 7. Update `enforce_teacher_lesson_limit` DB function
-- Add `'trial'` case with limit of 60 (same as pro)
+### Files changed
+- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
 
-### 8. Analytics Events
-- `trial_started` on signup
-- `trial_expired_view` when teacher sees expired banner
-- `email_verification_resent` on resend click
+---
 
-## Files Modified
-- `src/services/teacherQuotaService.ts` -- trial plan limits + trial/email fields
-- `src/hooks/useTeacherQuota.ts` -- fetch expanded fields
-- `src/pages/Auth.tsx` -- trial initialization on teacher signup
-- `src/pages/TeacherDashboard.tsx` -- trial/email banners
-- `src/pages/TeacherPricing.tsx` -- remove Free tier, trial CTAs
-- `src/components/teacher/CreateLessonForm.tsx` -- verification + trial gates
+## Technical Details
 
-## Files Created
-- Migration SQL for trial columns + index + updated enforce function
+### Exercise generation counts
+| Type | Count |
+|------|-------|
+| fill_in_blank | 5 |
+| multiple_choice | 5 |
+| spot_the_mistake | 5 |
+| role_play | 2-3 scenarios |
+
+### Role-play prompt update
+The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
+
+### Transcript storage
+Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
+
+### RLS
+No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
 

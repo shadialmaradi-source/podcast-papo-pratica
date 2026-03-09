@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -129,6 +130,9 @@ interface CreateLessonFormProps {
 export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutubeUrl, maxVideoMinutes }: CreateLessonFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
+  const [trialExpired, setTrialExpired] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generatingParagraph, setGeneratingParagraph] = useState(false);
   const [paragraphContent, setParagraphContent] = useState("");
@@ -137,9 +141,30 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
   const [communityShared, setCommunityShared] = useState(false);
   const [togglingCommunity, setTogglingCommunity] = useState(false);
 
+  // Check email verification and trial status on mount
   useEffect(() => {
     trackEvent("teacher_lesson_creation_started", { type: lessonType });
-  }, [lessonType]);
+    
+    const checkAccess = async () => {
+      const { data: { user: freshUser } } = await supabase.auth.getUser();
+      setEmailVerified(!!freshUser?.email_confirmed_at);
+
+      if (user) {
+        const { data: sub } = await supabase
+          .from("teacher_subscriptions" as any)
+          .select("plan, status, trial_ends_at")
+          .eq("teacher_id", user.id)
+          .maybeSingle();
+
+        const plan = (sub as any)?.plan || "free";
+        if (plan === "trial" && (sub as any)?.trial_ends_at) {
+          const trialEnd = new Date((sub as any).trial_ends_at);
+          if (trialEnd < new Date()) setTrialExpired(true);
+        }
+      }
+    };
+    checkAccess();
+  }, [lessonType, user]);
 
   // Inline result state
   const [createdLessonId, setCreatedLessonId] = useState<string | null>(null);
@@ -568,6 +593,54 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
 
   // Determine which types have been generated
   const generatedTypes = new Set(exercises.map(e => e.exercise_type));
+
+  // Email verification gate
+  if (emailVerified === false) {
+    return (
+      <div className="max-w-2xl mx-auto p-8 text-center">
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-6">
+          <h2 className="text-xl font-bold mb-3 text-foreground">📧 Verify Your Email</h2>
+          <p className="text-muted-foreground mb-4">
+            Please verify your email address to start creating lessons.
+          </p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Check your inbox for a verification link from ListenFlow.
+          </p>
+          <Button onClick={async () => {
+            const { error } = await supabase.auth.resend({ type: 'signup', email: user?.email || '' });
+            if (!error) {
+              trackEvent("email_verification_resent", { source: "create_lesson_form" });
+              toast({ title: "Verification email sent!", description: "Check your inbox." });
+            } else {
+              toast({ title: "Error", description: error.message, variant: "destructive" });
+            }
+          }}>
+            Resend Verification Email
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Trial expired gate
+  if (trialExpired) {
+    return (
+      <div className="max-w-2xl mx-auto p-8 text-center">
+        <div className="rounded-lg border border-destructive bg-destructive/5 p-6">
+          <h2 className="text-xl font-bold mb-3 text-foreground">⏰ Trial Expired</h2>
+          <p className="text-muted-foreground mb-4">
+            Your 14-day free trial has ended. Upgrade to continue creating lessons.
+          </p>
+          <Button onClick={() => {
+            trackEvent("trial_expired_view", { source: "create_lesson_form" });
+            navigate("/teacher/pricing");
+          }}>
+            View Pricing Plans
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // If lesson was created, show the inline result
   if (createdLessonId) {

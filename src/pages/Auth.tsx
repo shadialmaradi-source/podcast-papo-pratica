@@ -128,6 +128,26 @@ export default function Auth() {
               .from("user_roles" as any)
               .update({ role: "teacher" } as any)
               .eq("user_id", signUpData.user.id);
+
+            // Initialize 14-day trial subscription
+            const trialEndsAt = new Date();
+            trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
+            await supabase
+              .from("teacher_subscriptions" as any)
+              .insert({
+                teacher_id: signUpData.user.id,
+                plan: "trial",
+                status: "trialing",
+                trial_started_at: new Date().toISOString(),
+                trial_ends_at: trialEndsAt.toISOString(),
+                trial_used: true,
+              } as any);
+
+            trackEvent("trial_started", {
+              teacher_id: signUpData.user.id,
+              plan_selected: "trial",
+            });
           }
           // Track successful signup
           trackEvent('user_signup', {
@@ -137,7 +157,9 @@ export default function Auth() {
           });
           toast({
             title: "Registration Complete",
-            description: "Check your email to confirm your account",
+            description: preselectedRole === "teacher"
+              ? "Your 14-day free trial has started! Check your email to verify your account."
+              : "Check your email to confirm your account",
           });
         }
       } else {
