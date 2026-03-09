@@ -1402,6 +1402,7 @@ export type Database = {
       user_notification_preferences: {
         Row: {
           created_at: string
+          email_assignment_notifications: boolean
           email_daily_reminders: boolean
           email_leaderboard_alerts: boolean
           email_weekly_recaps: boolean
@@ -1412,6 +1413,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email_assignment_notifications?: boolean
           email_daily_reminders?: boolean
           email_leaderboard_alerts?: boolean
           email_weekly_recaps?: boolean
@@ -1422,6 +1424,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email_assignment_notifications?: boolean
           email_daily_reminders?: boolean
           email_leaderboard_alerts?: boolean
           email_weekly_recaps?: boolean
