@@ -129,6 +129,9 @@ interface CreateLessonFormProps {
 export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutubeUrl, maxVideoMinutes }: CreateLessonFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
+  const [trialExpired, setTrialExpired] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generatingParagraph, setGeneratingParagraph] = useState(false);
   const [paragraphContent, setParagraphContent] = useState("");

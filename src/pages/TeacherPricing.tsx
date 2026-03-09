@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Check, X, Crown, Zap, Building2, Loader2, AlertTriangle, CalendarDays } from "lucide-react";
+import { ArrowLeft, Check, Crown, Building2, Loader2, AlertTriangle, CalendarDays } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface TeacherSub {
@@ -20,24 +20,10 @@ interface TeacherSub {
   status: string;
   stripe_customer_id: string | null;
   current_period_end: string | null;
+  trial_ends_at: string | null;
 }
 
 const tiers = [
-  {
-    id: "free",
-    name: "Free",
-    price: 0,
-    description: "Get started with the basics",
-    icon: Zap,
-    features: [
-      "3 students max",
-      "10 lessons/month",
-      "Videos up to 5 min",
-      "All lesson types",
-      "Basic analytics",
-      "ListenFlow branding",
-    ],
-  },
   {
     id: "pro",
     name: "Pro",
@@ -50,9 +36,9 @@ const tiers = [
       "60 lessons/month",
       "Videos up to 10 min",
       "Advanced analytics",
-      
       "Remove branding",
     ],
+    trialText: "14-day free trial • No credit card required",
   },
   {
     id: "premium",
@@ -66,26 +52,35 @@ const tiers = [
       "Videos up to 15 min",
       "White-label (your branding)",
     ],
+    trialText: "14-day free trial • No credit card required",
   },
 ];
 
 const comparisonRows = [
-  { feature: "Students", free: "3", pro: "Unlimited", premium: "Unlimited" },
-  { feature: "Lessons/month", free: "10", pro: "60", premium: "160" },
-  { feature: "Max video length", free: "5 min", pro: "10 min", premium: "15 min" },
-  { feature: "Lesson types", free: "All", pro: "All", premium: "All" },
-  { feature: "Analytics", free: "Basic", pro: "Advanced", premium: "Advanced" },
-  { feature: "Branding", free: "ListenFlow", pro: "Removable", premium: "Your Brand" },
+  { feature: "Students", pro: "Unlimited", premium: "Unlimited" },
+  { feature: "Lessons/month", pro: "60", premium: "160" },
+  { feature: "Max video length", pro: "10 min", premium: "15 min" },
+  { feature: "Lesson types", pro: "All", premium: "All" },
+  { feature: "Analytics", pro: "Advanced", premium: "Advanced" },
+  { feature: "Branding", pro: "Removable", premium: "Your Brand" },
 ];
 
 const faqItems = [
   {
-    q: "Can I cancel anytime?",
-    a: "Yes! There are no long-term contracts. You can cancel your subscription at any time and it will remain active until the end of your billing period.",
+    q: "How does the free trial work?",
+    a: "Sign up and get 14 days to create up to 60 lessons with Pro-level features. No credit card required. After 14 days, choose Pro or Premium to continue.",
   },
   {
-    q: "What happens to my students if I downgrade?",
-    a: "Your students keep their access to existing lessons. However, on the Free plan you can only actively manage up to 3 students. You won't be able to add new students until you're under the limit.",
+    q: "Do I need to verify my email?",
+    a: "Yes. You'll receive a verification link after signup. Verify your email to start creating lessons during your trial. Google sign-in users are verified automatically.",
+  },
+  {
+    q: "What happens after my trial ends?",
+    a: "You'll need to upgrade to Pro ($19/month) or Premium ($39/month) to continue creating lessons. Your existing lessons and students stay active.",
+  },
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes! There are no long-term contracts. You can cancel your subscription at any time and it will remain active until the end of your billing period.",
   },
   {
     q: "Do students need to pay?",
@@ -94,10 +89,6 @@ const faqItems = [
   {
     q: "Can I switch plans later?",
     a: "Absolutely. You can upgrade or downgrade at any time. When upgrading, you'll be charged the prorated difference.",
-  },
-  {
-    q: "What are the lesson limits?",
-    a: "Each plan has a monthly lesson creation limit that resets at the start of each month. Free: 10 lessons, Pro: 60 lessons, Premium: 160 lessons. Video duration limits also apply to prevent excessive transcription costs.",
   },
 ];
 
@@ -124,7 +115,7 @@ export default function TeacherPricing() {
     if (!user) return;
     supabase
       .from("teacher_subscriptions" as any)
-      .select("plan, status, stripe_customer_id, current_period_end")
+      .select("plan, status, stripe_customer_id, current_period_end, trial_ends_at")
       .eq("teacher_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -134,6 +125,8 @@ export default function TeacherPricing() {
   }, [user]);
 
   const currentPlan = subscription?.plan || "free";
+  const isTrialing = currentPlan === "trial";
+  const isActivePaid = ["pro", "premium"].includes(currentPlan);
 
   const handleCheckout = async (plan: "pro" | "premium") => {
     if (!user) return;
@@ -214,7 +207,7 @@ export default function TeacherPricing() {
         )}
 
         {/* Current subscription summary */}
-        {currentPlan !== "free" && quota && !quotaLoading && (
+        {isActivePaid && quota && !quotaLoading && (
           <Card>
             <CardContent className="py-5 space-y-4">
               <div className="flex items-center justify-between">
@@ -242,14 +235,37 @@ export default function TeacherPricing() {
           </Card>
         )}
 
+        {/* Trial summary */}
+        {isTrialing && quota && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Current Plan</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    🎉 Free Trial — {quota.trialDaysRemaining} day{quota.trialDaysRemaining !== 1 ? "s" : ""} remaining
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Lessons this month</span>
+                  <span className="font-medium text-foreground">{quota.lessonsUsed} / {quota.lessonsLimit}</span>
+                </div>
+                <Progress value={usagePercent} className="h-2" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Hero */}
         <div className="text-center space-y-2">
           <h2 className="text-3xl font-bold text-foreground">Choose Your Plan</h2>
-          <p className="text-muted-foreground text-lg">Start free, upgrade anytime. No credit card required.</p>
+          <p className="text-muted-foreground text-lg">Start with a 14-day free trial. No credit card required.</p>
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
           {tiers.map((tier) => {
             const isCurrent = currentPlan === tier.id;
             const Icon = tier.icon;
@@ -295,36 +311,26 @@ export default function TeacherPricing() {
                         </Button>
                       )}
                     </div>
-                  ) : tier.id === "free" ? (
-                    <Button variant="outline" className="w-full" disabled={currentPlan !== "free"}>
-                      {currentPlan === "free" ? "Current Plan" : "Downgrade via Portal"}
-                    </Button>
-                  ) : tier.id === "premium" ? (
-                    <div className="space-y-2">
+                  ) : (
+                    <div className="space-y-2 text-center">
                       <Button
                         className="w-full"
-                        onClick={() => handleCheckout("premium")}
+                        size="lg"
+                        onClick={() => handleCheckout(tier.id as "pro" | "premium")}
                         disabled={!!checkoutLoading}
                       >
-                        {checkoutLoading === "premium" ? (
+                        {checkoutLoading === tier.id ? (
                           <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                        ) : isTrialing || currentPlan === "free" || !isActivePaid ? (
+                          `Start 14-Day Free Trial`
                         ) : (
-                          "Upgrade to Premium"
+                          `Upgrade to ${tier.name}`
                         )}
                       </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      className="w-full"
-                      onClick={() => handleCheckout("pro")}
-                      disabled={!!checkoutLoading}
-                    >
-                      {checkoutLoading === "pro" ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
-                      ) : (
-                        "Upgrade to Pro"
+                      {(isTrialing || !isActivePaid) && (
+                        <p className="text-xs text-muted-foreground">{tier.trialText}</p>
                       )}
-                    </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -340,7 +346,6 @@ export default function TeacherPricing() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[200px]">Feature</TableHead>
-                  <TableHead className="text-center">Free</TableHead>
                   <TableHead className="text-center">Pro</TableHead>
                   <TableHead className="text-center">Premium</TableHead>
                 </TableRow>
@@ -349,17 +354,9 @@ export default function TeacherPricing() {
                 {comparisonRows.map((row) => (
                   <TableRow key={row.feature}>
                     <TableCell className="font-medium text-foreground">{row.feature}</TableCell>
-                    {(["free", "pro", "premium"] as const).map((plan) => (
+                    {(["pro", "premium"] as const).map((plan) => (
                       <TableCell key={plan} className="text-center">
-                        {typeof row[plan] === "boolean" ? (
-                          row[plan] ? (
-                            <Check className="h-4 w-4 text-primary mx-auto" />
-                          ) : (
-                            <X className="h-4 w-4 text-muted-foreground mx-auto" />
-                          )
-                        ) : (
-                          <span className="text-sm text-foreground">{row[plan]}</span>
-                        )}
+                        <span className="text-sm text-foreground">{row[plan]}</span>
                       </TableCell>
                     ))}
                   </TableRow>

@@ -157,6 +157,71 @@ export default function TeacherDashboard() {
 
         {step === "home" && (
           <>
+            {/* Trial active banner */}
+            {quota?.isTrialing && !quota.trialExpired && (
+              <Card className="mb-6 border-primary/30 bg-primary/5">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <Sparkles className="h-5 w-5 text-primary shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">🎉 Free Trial Active</p>
+                    <p className="text-sm text-muted-foreground">
+                      {quota.trialDaysRemaining} day{quota.trialDaysRemaining !== 1 ? 's' : ''} remaining • Create up to 60 lessons during your trial
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => navigate("/teacher/pricing")}>
+                    View Plans
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Trial expired banner */}
+            {quota?.trialExpired && (
+              <Card className="mb-6 border-destructive bg-destructive/5">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <Clock className="h-5 w-5 text-destructive shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-destructive">⏰ Trial Expired</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your 14-day free trial has ended. Upgrade to continue creating lessons.
+                    </p>
+                  </div>
+                  <Button variant="destructive" size="sm" onClick={() => {
+                    trackEvent("trial_expired_view", { source: "dashboard_banner" });
+                    navigate("/teacher/pricing");
+                  }}>
+                    Upgrade Now
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Email verification warning */}
+            {quota && !quota.emailVerified && (
+              <Card className="mb-6 border-yellow-500/30 bg-yellow-500/5">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <Mail className="h-5 w-5 text-yellow-600 shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-yellow-700 dark:text-yellow-400">📧 Verify your email to start creating lessons</p>
+                    <p className="text-sm text-muted-foreground">
+                      Check your inbox for a verification link from ListenFlow.
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={async () => {
+                    const { error } = await supabase.auth.resend({ type: 'signup', email: user?.email || '' });
+                    if (!error) {
+                      trackEvent("email_verification_resent", { source: "dashboard" });
+                      toast({ title: "Verification email sent!", description: "Check your inbox." });
+                    } else {
+                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                    }
+                  }}>
+                    Resend Email
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Payment failure banner */}
             {quota?.status === "past_due" && (
               <Card className="mb-6 border-destructive bg-destructive/5">
@@ -182,10 +247,12 @@ export default function TeacherDashboard() {
                   <span className="text-muted-foreground">
                     Lessons this month: <span className="font-semibold text-foreground">{quota.lessonsUsed}/{quota.lessonsLimit}</span>
                   </span>
-                  <span className="text-xs text-muted-foreground capitalize">{quota.plan} plan</span>
+                  <span className="text-xs text-muted-foreground capitalize">
+                    {quota.isTrialing ? "Trial (Pro limits)" : `${quota.plan} plan`}
+                  </span>
                 </div>
                 <Progress value={(quota.lessonsUsed / quota.lessonsLimit) * 100} className="h-2" />
-                {!quota.canCreateLesson && quota.status !== "past_due" && (
+                {!quota.canCreateLesson && quota.status !== "past_due" && !quota.trialExpired && quota.emailVerified && (
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
                     <span>You've reached your monthly lesson limit.</span>
