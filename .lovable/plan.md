@@ -1,124 +1,78 @@
 
 
-# Student Email Flow Analysis & Recommendations
+# 14-Day Free Trial System for Teacher Subscriptions
 
-## Current State
+## Overview
 
-### Auth Emails (Currently Broken - Going to Spam)
-- **Problem**: Using default Supabase emails from `fezpzihnvblzjrdzgioq.supabase.co` → lands in spam
-- **Emails needed**: Sign-up confirmation, Password reset, Magic link (if used)
-- **Solution**: Set up custom email domain + Lovable auth email templates
+Replace the Free tier with a 14-day trial on Pro limits. After trial expiry, teachers must subscribe to Pro ($19/mo) or Premium ($39/mo) to continue creating lessons. Email verification is required to create lessons.
 
-### Transactional Emails (Already Implemented via Resend)
-| Edge Function | Status | Trigger |
-|--------------|--------|---------|
-| `send-daily-reminders` | ✅ Working | Cron job |
-| `send-weekly-recaps` | ✅ Working | Cron job |
-| `send-leaderboard-alerts` | ✅ Working | Cron job |
-| `notify-teacher-email` | ✅ Working | DB trigger on assignment completion |
+## Database Changes
 
-### Student Notification Preferences Table
-Already exists: `user_notification_preferences`
-- `email_daily_reminders` ✅
-- `email_weekly_recaps` ✅
-- `email_leaderboard_alerts` ✅
+**Migration: Add trial fields to `teacher_subscriptions`**
 
----
+```sql
+ALTER TABLE teacher_subscriptions 
+ADD COLUMN trial_started_at TIMESTAMPTZ,
+ADD COLUMN trial_ends_at TIMESTAMPTZ,
+ADD COLUMN trial_used BOOLEAN DEFAULT FALSE;
 
-## Student Journey & Recommended Email Touchpoints
-
-### 1. Authentication Emails (Priority: HIGH)
-**Current**: Default Supabase → Spam
-**Fix**: Custom domain + branded templates
-
-| Email Type | When | Template Needed |
-|-----------|------|-----------------|
-| Email Confirmation | After signup | Yes - Lovable auth template |
-| Password Reset | User requests | Yes - Lovable auth template |
-
-**Implementation**: 
-- Set up custom email domain (e.g., `notify.listenflow.app`)
-- Scaffold Lovable auth email templates with ListenFlow branding
-
----
-
-### 2. Onboarding Welcome Email (Priority: MEDIUM)
-**Currently**: None
-**Recommendation**: Send after onboarding completion
-
-| Trigger | Content |
-|---------|---------|
-| Student completes onboarding (selects language + level) | Welcome email with quick-start guide |
-
-**Implementation**: New edge function `send-welcome-email` triggered after profile update
-
----
-
-### 3. Assignment Notifications (Priority: HIGH)
-**Currently**: Teachers get notified when students complete assignments, but students don't get notified when teachers assign them.
-
-| Email Type | When | Currently |
-|-----------|------|-----------|
-| New video assignment | Teacher assigns video | ❌ Missing |
-| New speaking assignment | Teacher assigns speaking task | ❌ Missing |
-| Assignment reminder | 24h before due date | ❌ Missing |
-
-**Implementation**: 
-- New `notify-student-assignment` edge function
-- DB trigger on `video_assignments` INSERT
-- Add `email_assignment_notifications` column to preferences
-
----
-
-### 4. Achievement/Milestone Emails (Priority: LOW)
-**Currently**: None
-
-| Email Type | When |
-|-----------|------|
-| First lesson complete | Student finishes first video |
-| Streak milestone | 7-day, 30-day, 100-day streak |
-| Level up | Completes enough content to suggest next CEFR level |
-
----
-
-## Recommended Implementation Order
-
-1. **Auth emails** (Custom domain + templates) → Fixes spam issue
-2. **Assignment notifications to students** → Closes the teacher→student communication loop
-3. **Welcome email** → Better onboarding experience
-4. **Milestone emails** → Engagement/retention (lower priority)
-
----
-
-## Technical Changes Required
-
-### Step 1: Auth Emails (No code changes, configuration only)
-- Set up custom email domain via Lovable Cloud → Email
-- Scaffold auth templates with `scaffold_auth_email_templates`
-- Deploy `auth-email-hook` function
-
-### Step 2: Student Assignment Notifications
-```
-New files:
-- supabase/functions/notify-student-assignment/index.ts
-
-Database changes:
-- Add column: user_notification_preferences.email_assignment_notifications BOOLEAN DEFAULT true
-- Add trigger: notify_student_on_assignment() on video_assignments INSERT
+CREATE INDEX idx_teacher_trial_expiry ON teacher_subscriptions(trial_ends_at) 
+WHERE trial_ends_at IS NOT NULL;
 ```
 
-### Step 3: Welcome Email
-```
-New files:
-- supabase/functions/send-welcome-email/index.ts
+**Update `enforce_teacher_lesson_limit` function** to recognize `trial` plan with Pro-level limits (60 lessons, 10 min video).
 
-Database changes:
-- Add trigger: notify_on_onboarding_complete() on profiles UPDATE (when native_language changes from NULL)
-```
+## Code Changes
 
----
+### 1. New Hook: `src/hooks/useTeacherTrial.ts`
+- Fetches `teacher_subscriptions` trial fields + `auth.getUser()` for `email_confirmed_at`
+- Returns: `isTrialing`, `daysRemaining`, `emailVerified`, `canCreateLessons`, `trialExpired`
+- Used by dashboard, create lesson form, and quota service
 
-## Questions Before Implementation
+### 2. Update `src/services/teacherQuotaService.ts`
+- Add `trial` plan to `PLAN_LIMITS` with same limits as `pro` (60 lessons, 10 min)
+- Add `isTrialing`, `trialDaysRemaining`, `emailVerified` to `TeacherQuota` interface
+- Fetch trial fields from subscription + email_confirmed_at from auth
+- Block lesson creation if email not verified OR trial expired
 
-Do you have a custom domain you'd like to use for emails (e.g., `notify.listenflow.app`)? This is required to fix the spam issue with auth emails.
+### 3. Update `src/pages/Auth.tsx`
+- After teacher signup (line 126-131): insert `teacher_subscriptions` with `plan: 'trial'`, `status: 'trialing'`, `trial_started_at`, `trial_ends_at` (now + 14 days), `trial_used: true`
+- Update toast message to mention trial
+
+### 4. Update `src/pages/TeacherDashboard.tsx`
+- Add trial banner showing days remaining (blue info card)
+- Add email verification warning banner (yellow card) with resend button
+- Add trial expired banner (red card) with upgrade CTA
+- Use data from `useTeacherQuota` (which now includes trial info)
+
+### 5. Update `src/pages/TeacherPricing.tsx`
+- Remove Free tier from `tiers` array
+- Change Pro/Premium CTAs to "Start 14-Day Free Trial" for non-subscribers
+- Add trial FAQ items (how trial works, email verification, what happens after)
+- Update comparison table to remove Free column
+- Update hero text
+
+### 6. Update `src/components/teacher/CreateLessonForm.tsx`
+- Add email verification gate at top of component (check `email_confirmed_at`)
+- Show verification UI with resend button if not verified
+- Show trial expired UI with upgrade CTA if trial ended
+
+### 7. Update `enforce_teacher_lesson_limit` DB function
+- Add `'trial'` case with limit of 60 (same as pro)
+
+### 8. Analytics Events
+- `trial_started` on signup
+- `trial_expired_view` when teacher sees expired banner
+- `email_verification_resent` on resend click
+
+## Files Modified
+- `src/services/teacherQuotaService.ts` -- trial plan limits + trial/email fields
+- `src/hooks/useTeacherQuota.ts` -- fetch expanded fields
+- `src/pages/Auth.tsx` -- trial initialization on teacher signup
+- `src/pages/TeacherDashboard.tsx` -- trial/email banners
+- `src/pages/TeacherPricing.tsx` -- remove Free tier, trial CTAs
+- `src/components/teacher/CreateLessonForm.tsx` -- verification + trial gates
+
+## Files Created
+- Migration SQL for trial columns + index + updated enforce function
 
