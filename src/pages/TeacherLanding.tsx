@@ -139,6 +139,7 @@ const faqs = [
 
 export default function TeacherLanding() {
   const navigate = useNavigate();
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   useEffect(() => {
     trackEvent("teacher_landing_viewed");
