@@ -179,6 +179,8 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
   // Grouped exercise navigation state
   interface GroupState { currentIndex: number; revealed: boolean; }
   const [groupStates, setGroupStates] = useState<Record<string, GroupState>>({});
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const activeGroupRef = useRef<HTMLDivElement>(null);
 
   // Word explorer state
   const paragraphRef = useRef<HTMLDivElement>(null);
