@@ -75,28 +75,32 @@ const comparisonRows = [
 
 const faqItems = [
   {
-    q: "How does the free trial work?",
-    a: "Sign up and get 14 days to create up to 60 lessons with Pro-level features. No credit card required. After 14 days, choose Pro or Premium to continue.",
+    q: "How does the 14-day free trial work?",
+    a: "Sign up and get 14 days to create unlimited lessons. No credit card required. After 14 days, choose Pro or Premium to continue. Your lessons stay active even if you don't upgrade immediately.",
   },
   {
-    q: "Do I need to verify my email?",
-    a: "Yes. You'll receive a verification link after signup. Verify your email to start creating lessons during your trial. Google sign-in users are verified automatically.",
+    q: "Do I need to enter my credit card for the trial?",
+    a: "No! The trial is completely free with no credit card required. You only add payment details if you decide to continue after 14 days.",
+  },
+  {
+    q: 'What counts as a "lesson"?',
+    a: "Each custom lesson you create (YouTube, Paragraph, or Speaking). Assigning library videos to students does NOT count toward your limit.",
   },
   {
     q: "What happens after my trial ends?",
-    a: "You'll need to upgrade to Pro ($19/month) or Premium ($39/month) to continue creating lessons. Your existing lessons and students stay active.",
+    a: "You can upgrade to Pro ($19/month) or Premium ($39/month). Your existing lessons stay active, but you can't create new ones until you upgrade.",
   },
   {
-    q: "Can I cancel anytime?",
-    a: "Yes! There are no long-term contracts. You can cancel your subscription at any time and it will remain active until the end of your billing period.",
+    q: "Can I switch between Pro and Premium?",
+    a: "Yes! Upgrade or downgrade anytime. Changes take effect at the end of your current billing period.",
   },
   {
-    q: "Do students need to pay?",
-    a: "No! Student access is included in your plan. They can complete all assigned lessons for free.",
+    q: "What if I hit my lesson limit mid-month?",
+    a: "You can upgrade to Premium for more lessons (100/month). Or wait until next month when your limit resets.",
   },
   {
-    q: "Can I switch plans later?",
-    a: "Absolutely. You can upgrade or downgrade at any time. When upgrading, you'll be charged the prorated difference.",
+    q: "Do my students need to pay?",
+    a: "No. Students access all assigned lessons completely free.",
   },
 ];
 
