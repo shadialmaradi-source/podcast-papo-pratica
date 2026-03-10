@@ -311,7 +311,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
           topic: selectedTopic.title,
           speaking_topic: selectedTopic.title,
           speaking_description: selectedTopic.description,
-          student_email: studentEmail || null,
+          student_email: studentEmail.trim().toLowerCase(),
           share_token: shareToken,
           status: "ready",
           exercise_types: [],
