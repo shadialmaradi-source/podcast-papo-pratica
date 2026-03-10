@@ -35,7 +35,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { FlashcardRepository } from "./FlashcardRepository";
-import { RoleSwitcher } from "./RoleSwitcher";
+
 import { getFlashcardCount, getUserCreatedFlashcardCount } from "@/services/flashcardService";
 import { PdfDownloadButton } from "./subscription/PdfDownloadButton";
 import { 
