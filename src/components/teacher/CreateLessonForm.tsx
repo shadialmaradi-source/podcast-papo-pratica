@@ -392,6 +392,11 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
         setGroupStates(newStates);
       }
 
+      // Set the newly generated type as the active group
+      setActiveGroup(exerciseType);
+      // Scroll to it after render
+      setTimeout(() => activeGroupRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+
       // Fetch transcript if not yet loaded
       if (!lessonTranscript) {
         const { data: lessonData } = await supabase
