@@ -82,7 +82,7 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
 
   const handleSelectVideo = (video: VideoRow) => {
     const url = `https://www.youtube.com/watch?v=${video.video_id}`;
-    onSelectVideo(url);
+    onSelectVideo(url, video.title);
   };
 
   return (
