@@ -18,12 +18,10 @@ interface SelectedVideo {
 export function VideoBrowserModal({ open, onOpenChange, studentEmail, onAssigned }: VideoBrowserModalProps) {
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
 
-  const handleSelectVideo = (youtubeUrl: string) => {
-    // Extract video_id from URL
+  const handleSelectVideo = (youtubeUrl: string, title: string) => {
     const match = youtubeUrl.match(/[?&]v=([^&]+)/);
     const videoId = match ? match[1] : "";
-    // We need the title - for now use the URL, it will be shown in the assign modal
-    setSelectedVideo({ videoId, title: `YouTube Video (${videoId})` });
+    setSelectedVideo({ videoId, title });
   };
 
   const handleClose = () => {

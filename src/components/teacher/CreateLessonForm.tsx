@@ -309,6 +309,17 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
 
       if (error) throw error;
 
+      // Auto-add student to roster if not already there
+      if (values.student_email) {
+        await supabase
+          .from("teacher_students" as any)
+          .upsert({
+            teacher_id: user.id,
+            student_email: values.student_email.trim().toLowerCase(),
+            status: "invited",
+          } as any, { onConflict: "teacher_id,student_email", ignoreDuplicates: true });
+      }
+
       const link = `${window.location.origin}/lesson/student/${shareToken}`;
       setShareLink(link);
       setCreatedLessonId(data.id);

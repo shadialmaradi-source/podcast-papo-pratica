@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 
 interface CommunityVideoBrowserProps {
-  onSelectVideo: (youtubeUrl: string) => void;
+  onSelectVideo: (youtubeUrl: string, title: string) => void;
 }
 
 interface VideoRow {
@@ -52,7 +52,7 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
     const fetchVideos = async () => {
       setLoading(true);
       let query = supabase
-        .from("youtube_videos" as any)
+        .from("youtube_videos")
         .select("id, video_id, title, thumbnail_url, duration, difficulty_level, language, is_short")
         .eq("status", "completed")
         .order("created_at", { ascending: false })
@@ -82,7 +82,7 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
 
   const handleSelectVideo = (video: VideoRow) => {
     const url = `https://www.youtube.com/watch?v=${video.video_id}`;
-    onSelectVideo(url);
+    onSelectVideo(url, video.title);
   };
 
   return (
