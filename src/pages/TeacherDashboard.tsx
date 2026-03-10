@@ -160,46 +160,7 @@ export default function TeacherDashboard() {
 
         {step === "home" && (
           <>
-            {/* Trial active banner */}
-            {quota?.isTrialing && !quota.trialExpired && (
-              <Card className="mb-6 border-primary/30 bg-primary/5">
-                <CardContent className="flex items-center gap-3 py-4">
-                  <Sparkles className="h-5 w-5 text-primary shrink-0" />
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">🎉 Free Trial Active</p>
-                    <p className="text-sm text-muted-foreground">
-                      {quota.trialDaysRemaining} day{quota.trialDaysRemaining !== 1 ? 's' : ''} remaining • Create up to 60 lessons during your trial
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate("/teacher/pricing")}>
-                    View Plans
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Trial expired banner */}
-            {quota?.trialExpired && (
-              <Card className="mb-6 border-destructive bg-destructive/5">
-                <CardContent className="flex items-center gap-3 py-4">
-                  <Clock className="h-5 w-5 text-destructive shrink-0" />
-                  <div className="flex-1">
-                    <p className="font-medium text-destructive">⏰ Trial Expired</p>
-                    <p className="text-sm text-muted-foreground">
-                      Your 14-day free trial has ended. Upgrade to continue creating lessons.
-                    </p>
-                  </div>
-                  <Button variant="destructive" size="sm" onClick={() => {
-                    trackEvent("trial_expired_view", { source: "dashboard_banner" });
-                    navigate("/teacher/pricing");
-                  }}>
-                    Upgrade Now
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Email verification warning */}
+            {/* 1. Email verification warning — most critical */}
             {quota && !quota.emailVerified && (
               <Card className="mb-6 border-yellow-500/30 bg-yellow-500/5">
                 <CardContent className="flex items-center gap-3 py-4">
@@ -213,7 +174,7 @@ export default function TeacherDashboard() {
                   <Button variant="outline" size="sm" onClick={async () => {
                     const { error } = await supabase.auth.resend({ type: 'signup', email: user?.email || '' });
                     if (!error) {
-                      trackEvent("email_verification_resent", { source: "dashboard" });
+                      trackEvent("verification_email_resent", { source: "dashboard" });
                       toast({ title: "Verification email sent!", description: "Check your inbox." });
                     } else {
                       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -225,7 +186,75 @@ export default function TeacherDashboard() {
               </Card>
             )}
 
-            {/* Payment failure banner */}
+            {/* 2. Trial active banner */}
+            {quota?.isTrialing && !quota.trialExpired && (
+              <Card className="mb-6 border-primary/30 bg-primary/5">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <Sparkles className="h-5 w-5 text-primary shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">🎉 Free Trial Active</p>
+                    <p className="text-sm text-muted-foreground">
+                      {quota.trialDaysRemaining} day{quota.trialDaysRemaining !== 1 ? 's' : ''} remaining • Create up to 30 lessons during your trial
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      You've created {quota.lessonsUsed} {quota.lessonsUsed === 1 ? 'lesson' : 'lessons'} so far
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    trackEvent("trial_upgrade_clicked", { source: "dashboard_banner", days_remaining: quota.trialDaysRemaining });
+                    navigate("/teacher/pricing");
+                  }}>
+                    View Plans
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 3. Trial urgency — last 3 days */}
+            {quota?.isTrialing && !quota.trialExpired && quota.trialDaysRemaining <= 3 && quota.trialDaysRemaining > 0 && (
+              <Card className="mb-6 border-amber-500/40 bg-amber-500/5">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <Clock className="h-5 w-5 text-amber-600 shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-amber-700 dark:text-amber-400">
+                      ⏰ Trial ending in {quota.trialDaysRemaining} {quota.trialDaysRemaining === 1 ? 'day' : 'days'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Upgrade now to keep creating lessons. Your {quota.lessonsUsed} existing lessons will stay active.
+                    </p>
+                  </div>
+                  <Button variant="default" size="sm" onClick={() => {
+                    trackEvent("trial_upgrade_clicked", { source: "urgency_banner", days_remaining: quota.trialDaysRemaining });
+                    navigate("/teacher/pricing");
+                  }}>
+                    Upgrade Now
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 4. Trial expired banner */}
+            {quota?.trialExpired && (
+              <Card className="mb-6 border-destructive bg-destructive/5">
+                <CardContent className="flex items-center gap-3 py-4">
+                  <Clock className="h-5 w-5 text-destructive shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium text-destructive">⏰ Trial Expired</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your 14-day free trial has ended. Upgrade to continue creating lessons.
+                    </p>
+                  </div>
+                  <Button variant="destructive" size="sm" onClick={() => {
+                    trackEvent("trial_upgrade_clicked", { source: "expired_banner", days_remaining: 0 });
+                    navigate("/teacher/pricing");
+                  }}>
+                    Upgrade Now
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 5. Payment failure banner */}
             {quota?.status === "past_due" && (
               <Card className="mb-6 border-destructive bg-destructive/5">
                 <CardContent className="flex items-center gap-3 py-4">
