@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 
 interface CommunityVideoBrowserProps {
-  onSelectVideo: (youtubeUrl: string) => void;
+  onSelectVideo: (youtubeUrl: string, title: string) => void;
 }
 
 interface VideoRow {
