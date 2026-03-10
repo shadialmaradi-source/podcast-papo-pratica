@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -80,39 +80,69 @@ interface SpeakingLessonCreatorProps {
   onCreated: (lessonId: string) => void;
 }
 
+const STORAGE_KEY = "speaking_lesson_creator_state";
+
+function loadSaved<T>(key: string, fallback: T): T {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return key in parsed ? parsed[key] : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCreatorProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const skipPersist = useRef(false);
 
   // Step 1: Config
-  const [language, setLanguage] = useState("italian");
-  const [translationLanguage, setTranslationLanguage] = useState("english");
-  const [level, setLevel] = useState("A2");
-  const [step, setStep] = useState<Step>("config");
+  const [language, setLanguage] = useState(() => loadSaved("language", "italian"));
+  const [translationLanguage, setTranslationLanguage] = useState(() => loadSaved("translationLanguage", "english"));
+  const [level, setLevel] = useState(() => loadSaved("level", "A2"));
+  const [step, setStep] = useState<Step>(() => loadSaved("step", "config"));
 
   // Step 2: Topics
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [selectedTopicIdx, setSelectedTopicIdx] = useState<number | null>(null);
-  const [customMode, setCustomMode] = useState(false);
-  const [customTitle, setCustomTitle] = useState("");
-  const [customDescription, setCustomDescription] = useState("");
+  const [topics, setTopics] = useState<Topic[]>(() => loadSaved("topics", []));
+  const [selectedTopicIdx, setSelectedTopicIdx] = useState<number | null>(() => loadSaved("selectedTopicIdx", null));
+  const [customMode, setCustomMode] = useState(() => loadSaved("customMode", false));
+  const [customTitle, setCustomTitle] = useState(() => loadSaved("customTitle", ""));
+  const [customDescription, setCustomDescription] = useState(() => loadSaved("customDescription", ""));
   const [loadingTopics, setLoadingTopics] = useState(false);
 
   // Step 3: Questions
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Question[]>(() => loadSaved("questions", []));
   const [loadingQuestions, setLoadingQuestions] = useState(false);
 
   // Step 4: Vocabulary
-  const [vocabByQuestion, setVocabByQuestion] = useState<Record<number, VocabItem[]>>({});
+  const [vocabByQuestion, setVocabByQuestion] = useState<Record<number, VocabItem[]>>(() => loadSaved("vocabByQuestion", {}));
   const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
   const [newWord, setNewWord] = useState("");
 
   // Step 5: Review
-  const [title, setTitle] = useState("");
-  const [studentEmail, setStudentEmail] = useState("");
+  const [title, setTitle] = useState(() => loadSaved("title", ""));
+  const [studentEmail, setStudentEmail] = useState(() => loadSaved("studentEmail", ""));
   const [creating, setCreating] = useState(false);
   const [students, setStudents] = useState<{ student_email: string; student_name: string | null }[]>([]);
   const [studentsLoaded, setStudentsLoaded] = useState(false);
+
+  // Persist state to sessionStorage
+  useEffect(() => {
+    if (skipPersist.current) return;
+    const state = {
+      step, language, translationLanguage, level,
+      topics, selectedTopicIdx, customMode, customTitle, customDescription,
+      questions, vocabByQuestion, title, studentEmail,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [step, language, translationLanguage, level, topics, selectedTopicIdx, customMode, customTitle, customDescription, questions, vocabByQuestion, title, studentEmail]);
+
+  const clearSavedState = () => {
+    skipPersist.current = true;
+    sessionStorage.removeItem(STORAGE_KEY);
+  };
 
   const selectedTopic = customMode
     ? { title: customTitle, description: customDescription, suggested_level: level }
@@ -254,6 +284,14 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
 
   const handleCreate = async () => {
     if (!user || !selectedTopic) return;
+
+    // Validate student email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!studentEmail.trim() || !emailRegex.test(studentEmail.trim())) {
+      toast.error("Please enter a valid student email address.");
+      return;
+    }
+
     setCreating(true);
 
     try {
@@ -273,7 +311,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
           topic: selectedTopic.title,
           speaking_topic: selectedTopic.title,
           speaking_description: selectedTopic.description,
-          student_email: studentEmail || null,
+          student_email: studentEmail.trim().toLowerCase(),
           share_token: shareToken,
           status: "ready",
           exercise_types: [],
@@ -320,6 +358,15 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
         if (vError) throw vError;
       }
 
+      // 4. Auto-add student to roster
+      await supabase
+        .from("teacher_students" as any)
+        .upsert({
+          teacher_id: user.id,
+          student_email: studentEmail.trim().toLowerCase(),
+          status: "invited",
+        } as any, { onConflict: "teacher_id,student_email", ignoreDuplicates: true });
+
       trackEvent("speaking_lesson_created", {
         language,
         level,
@@ -328,6 +375,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
         vocabulary_count: totalVocabCount,
       });
 
+      clearSavedState();
       toast.success("Speaking lesson created!");
       navigate(`/teacher/lesson/${lessonId}`);
       onCreated(lessonId);
@@ -410,7 +458,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
           </div>
 
           <div className="flex justify-between">
-            <Button variant="ghost" size="sm" onClick={onCancel}>
+            <Button variant="ghost" size="sm" onClick={() => { clearSavedState(); onCancel(); }}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
@@ -777,20 +825,29 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
             </div>
 
             <div className="space-y-2">
-              <Label>Assign to Student (optional)</Label>
-              <Select value={studentEmail} onValueChange={setStudentEmail}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a student..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No student</SelectItem>
+              <Label>Assign to Student *</Label>
+              <div className="relative">
+                <Input
+                  type="email"
+                  value={studentEmail}
+                  onChange={(e) => setStudentEmail(e.target.value)}
+                  placeholder="Enter student email..."
+                  list="student-email-suggestions"
+                  required
+                />
+                <datalist id="student-email-suggestions">
                   {students.map((s) => (
-                    <SelectItem key={s.student_email} value={s.student_email}>
+                    <option key={s.student_email} value={s.student_email}>
                       {s.student_name || s.student_email}
-                    </SelectItem>
+                    </option>
                   ))}
-                </SelectContent>
-              </Select>
+                </datalist>
+              </div>
+              {students.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Type a new email or select from your existing students.
+                </p>
+              )}
             </div>
           </div>
 
