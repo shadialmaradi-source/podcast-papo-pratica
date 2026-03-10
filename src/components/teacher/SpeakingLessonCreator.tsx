@@ -825,20 +825,29 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
             </div>
 
             <div className="space-y-2">
-              <Label>Assign to Student (optional)</Label>
-              <Select value={studentEmail} onValueChange={setStudentEmail}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a student..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No student</SelectItem>
+              <Label>Assign to Student *</Label>
+              <div className="relative">
+                <Input
+                  type="email"
+                  value={studentEmail}
+                  onChange={(e) => setStudentEmail(e.target.value)}
+                  placeholder="Enter student email..."
+                  list="student-email-suggestions"
+                  required
+                />
+                <datalist id="student-email-suggestions">
                   {students.map((s) => (
-                    <SelectItem key={s.student_email} value={s.student_email}>
+                    <option key={s.student_email} value={s.student_email}>
                       {s.student_name || s.student_email}
-                    </SelectItem>
+                    </option>
                   ))}
-                </SelectContent>
-              </Select>
+                </datalist>
+              </div>
+              {students.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Type a new email or select from your existing students.
+                </p>
+              )}
             </div>
           </div>
 
