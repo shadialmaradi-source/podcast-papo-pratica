@@ -61,8 +61,7 @@ export default function TeacherDashboard() {
           }
         });
     }
-  }, [role, roleLoading, navigate, user]);
-
+  }, [role, roleLoading, navigate, user, quota]);
 
   const handleCreated = (_lessonId: string) => {
     setRefresh((r) => r + 1);
