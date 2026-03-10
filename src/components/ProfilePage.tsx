@@ -987,8 +987,6 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
               </div>
               
 
-              {/* Role */}
-              <RoleSwitcher />
 
               {/* Native Language */}
               <div className="flex items-center justify-between py-2 -mx-3 px-3 rounded-lg">
