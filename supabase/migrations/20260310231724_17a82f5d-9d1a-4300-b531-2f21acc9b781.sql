@@ -1,0 +1,1 @@
+UPDATE user_roles SET role = 'student' WHERE user_id IN ('dfba2332-5a13-441d-84e5-ed3d980ef155', '64bddd02-3108-4f4b-a51e-b9ccd5ba46f8');
