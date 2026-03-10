@@ -103,7 +103,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSummaryMode = level === 'intermediate' || level === 'advanced';
   const maxFreeAttempts = 2;

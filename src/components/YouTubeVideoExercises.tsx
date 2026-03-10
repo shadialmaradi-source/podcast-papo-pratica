@@ -63,7 +63,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const playerContainerId = `yt-player-${videoId}`;
   const playerRef = useRef<any>(null);
   const playerReadyRef = useRef(false);
-  const timePollingRef = useRef<NodeJS.Timeout | null>(null);
+  const timePollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Unified tour integration
   const { phase: tourPhase, advancePhase: advanceTourPhase } = useStudentTour();
