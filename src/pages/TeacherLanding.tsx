@@ -191,7 +191,7 @@ export default function TeacherLanding() {
                 Creating Homework.
                 <br className="hidden md:block" />
                 ListenFlow Does It in{" "}
-                <span className="text-emerald-600 dark:text-emerald-400">2 Minutes</span>.
+                <span className="text-success">2 Minutes</span>.
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground max-w-xl">
                 Paste any YouTube URL → AI generates exercises, flashcards, and speaking practice → Your students learn between lessons.
