@@ -30,10 +30,36 @@ export default function TeacherDashboard() {
   const navigate = useNavigate();
   const { role, loading: roleLoading } = useUserRole();
   const { quota, loading: quotaLoading, refresh: refreshQuota } = useTeacherQuota();
-  const [step, setStep] = useState<FlowStep>("home");
-  const [lessonType, setLessonType] = useState<LessonType>("paragraph");
+  const STORAGE_KEY = "teacher_dashboard_flow";
+
+  const [step, setStep] = useState<FlowStep>(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved).step ?? "home" : "home";
+    } catch { return "home"; }
+  });
+  const [lessonType, setLessonType] = useState<LessonType>(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved).lessonType ?? "paragraph" : "paragraph";
+    } catch { return "paragraph"; }
+  });
   const [refresh, setRefresh] = useState(0);
-  const [prefillYoutubeUrl, setPrefillYoutubeUrl] = useState<string | null>(null);
+  const [prefillYoutubeUrl, setPrefillYoutubeUrl] = useState<string | null>(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved).prefillYoutubeUrl ?? null : null;
+    } catch { return null; }
+  });
+
+  // Sync flow state to sessionStorage
+  useEffect(() => {
+    if (step === "home") {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } else {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, lessonType, prefillYoutubeUrl }));
+    }
+  }, [step, lessonType, prefillYoutubeUrl]);
 
   // Redirect non-teachers away; redirect teachers who haven't onboarded
   useEffect(() => {
