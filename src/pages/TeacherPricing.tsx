@@ -378,6 +378,43 @@ export default function TeacherPricing() {
           </Card>
         </div>
 
+        {/* Value Comparison */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="py-8 space-y-6">
+            <h3 className="text-2xl font-bold text-foreground text-center">
+              Why ListenFlow Saves You Money
+            </h3>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <h4 className="font-semibold text-foreground mb-2">Creating homework manually:</h4>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li>⏱️ 5 hours/week × $20/hour = <strong className="text-foreground">$100/week</strong></li>
+                  <li>📝 Finding videos, writing questions, formatting</li>
+                  <li>😓 Students don't complete it anyway</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold text-foreground mb-2">With ListenFlow Pro:</h4>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li>✅ $19/month = <strong className="text-foreground">$4.75/week</strong></li>
+                  <li>🚀 2 minutes to create each lesson</li>
+                  <li>📊 Students complete 3x more (tracked!)</li>
+                </ul>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="inline-block rounded-lg bg-green-100 dark:bg-green-900/30 px-6 py-3">
+                <p className="text-lg font-bold text-green-900 dark:text-green-100">
+                  Save $95/week = $380/month 💰
+                </p>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Even if you value your time at just $20/hour
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Separator />
 
         {/* FAQ */}
