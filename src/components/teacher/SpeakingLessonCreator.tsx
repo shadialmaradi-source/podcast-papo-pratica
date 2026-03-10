@@ -358,6 +358,15 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
         if (vError) throw vError;
       }
 
+      // 4. Auto-add student to roster
+      await supabase
+        .from("teacher_students" as any)
+        .upsert({
+          teacher_id: user.id,
+          student_email: studentEmail.trim().toLowerCase(),
+          status: "invited",
+        } as any, { onConflict: "teacher_id,student_email", ignoreDuplicates: true });
+
       trackEvent("speaking_lesson_created", {
         language,
         level,
@@ -366,6 +375,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
         vocabulary_count: totalVocabCount,
       });
 
+      clearSavedState();
       toast.success("Speaking lesson created!");
       navigate(`/teacher/lesson/${lessonId}`);
       onCreated(lessonId);
