@@ -28,15 +28,17 @@ const tiers = [
     id: "pro",
     name: "Pro",
     price: 19,
-    description: "Everything you need to teach effectively",
+    description: "Perfect for active tutors",
     icon: Crown,
-    recommended: true,
+    recommended: false,
     features: [
       "Unlimited students",
-      "60 lessons/month",
+      "30 lessons/month",
       "Videos up to 10 min",
-      "Advanced analytics",
-      "Remove branding",
+      "All lesson types (YouTube, Paragraph, Speaking)",
+      "Student progress tracking",
+      "Basic analytics",
+      "Email support",
     ],
     trialText: "14-day free trial • No credit card required",
   },
@@ -44,13 +46,16 @@ const tiers = [
     id: "premium",
     name: "Premium",
     price: 39,
-    description: "For schools and professional teachers",
+    description: "For professional tutors",
     icon: Building2,
+    recommended: true,
     features: [
-      "Everything in Pro",
-      "160 lessons/month",
+      "Everything in Pro, plus:",
+      "100 lessons/month",
       "Videos up to 15 min",
-      "White-label (your branding)",
+      "Advanced analytics (retention, churn, engagement)",
+      "Email notifications when students complete",
+      "Priority support",
     ],
     trialText: "14-day free trial • No credit card required",
   },
@@ -58,37 +63,44 @@ const tiers = [
 
 const comparisonRows = [
   { feature: "Students", pro: "Unlimited", premium: "Unlimited" },
-  { feature: "Lessons/month", pro: "60", premium: "160" },
+  { feature: "Lessons/month", pro: "30", premium: "100" },
   { feature: "Max video length", pro: "10 min", premium: "15 min" },
-  { feature: "Lesson types", pro: "All", premium: "All" },
-  { feature: "Analytics", pro: "Advanced", premium: "Advanced" },
-  { feature: "Branding", pro: "Removable", premium: "Your Brand" },
+  { feature: "Lesson types", pro: "All 3", premium: "All 3" },
+  { feature: "Student progress tracking", pro: "✓", premium: "✓" },
+  { feature: "Basic analytics", pro: "✓", premium: "✓" },
+  { feature: "Advanced analytics", pro: "—", premium: "✓" },
+  { feature: "Email notifications", pro: "—", premium: "✓" },
+  { feature: "Support", pro: "Email", premium: "Priority" },
 ];
 
 const faqItems = [
   {
-    q: "How does the free trial work?",
-    a: "Sign up and get 14 days to create up to 60 lessons with Pro-level features. No credit card required. After 14 days, choose Pro or Premium to continue.",
+    q: "How does the 14-day free trial work?",
+    a: "Sign up and get 14 days to create unlimited lessons. No credit card required. After 14 days, choose Pro or Premium to continue. Your lessons stay active even if you don't upgrade immediately.",
   },
   {
-    q: "Do I need to verify my email?",
-    a: "Yes. You'll receive a verification link after signup. Verify your email to start creating lessons during your trial. Google sign-in users are verified automatically.",
+    q: "Do I need to enter my credit card for the trial?",
+    a: "No! The trial is completely free with no credit card required. You only add payment details if you decide to continue after 14 days.",
+  },
+  {
+    q: 'What counts as a "lesson"?',
+    a: "Each custom lesson you create (YouTube, Paragraph, or Speaking). Assigning library videos to students does NOT count toward your limit.",
   },
   {
     q: "What happens after my trial ends?",
-    a: "You'll need to upgrade to Pro ($19/month) or Premium ($39/month) to continue creating lessons. Your existing lessons and students stay active.",
+    a: "You can upgrade to Pro ($19/month) or Premium ($39/month). Your existing lessons stay active, but you can't create new ones until you upgrade.",
   },
   {
-    q: "Can I cancel anytime?",
-    a: "Yes! There are no long-term contracts. You can cancel your subscription at any time and it will remain active until the end of your billing period.",
+    q: "Can I switch between Pro and Premium?",
+    a: "Yes! Upgrade or downgrade anytime. Changes take effect at the end of your current billing period.",
   },
   {
-    q: "Do students need to pay?",
-    a: "No! Student access is included in your plan. They can complete all assigned lessons for free.",
+    q: "What if I hit my lesson limit mid-month?",
+    a: "You can upgrade to Premium for more lessons (100/month). Or wait until next month when your limit resets.",
   },
   {
-    q: "Can I switch plans later?",
-    a: "Absolutely. You can upgrade or downgrade at any time. When upgrading, you'll be charged the prorated difference.",
+    q: "Do my students need to pay?",
+    a: "No. Students access all assigned lessons completely free.",
   },
 ];
 
@@ -275,8 +287,8 @@ export default function TeacherPricing() {
                 className={`relative flex flex-col ${tier.recommended ? "border-primary shadow-lg ring-2 ring-primary/20" : ""}`}
               >
                 {tier.recommended && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
-                    RECOMMENDED
+          <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
+                    MOST POPULAR
                   </Badge>
                 )}
                 <CardHeader className="text-center pb-2">
@@ -365,6 +377,43 @@ export default function TeacherPricing() {
             </Table>
           </Card>
         </div>
+
+        {/* Value Comparison */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="py-8 space-y-6">
+            <h3 className="text-2xl font-bold text-foreground text-center">
+              Why ListenFlow Saves You Money
+            </h3>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <h4 className="font-semibold text-foreground mb-2">Creating homework manually:</h4>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li>⏱️ 5 hours/week × $20/hour = <strong className="text-foreground">$100/week</strong></li>
+                  <li>📝 Finding videos, writing questions, formatting</li>
+                  <li>😓 Students don't complete it anyway</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold text-foreground mb-2">With ListenFlow Pro:</h4>
+                <ul className="space-y-2 text-muted-foreground">
+                  <li>✅ $19/month = <strong className="text-foreground">$4.75/week</strong></li>
+                  <li>🚀 2 minutes to create each lesson</li>
+                  <li>📊 Students complete 3x more (tracked!)</li>
+                </ul>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="inline-block rounded-lg bg-green-100 dark:bg-green-900/30 px-6 py-3">
+                <p className="text-lg font-bold text-green-900 dark:text-green-100">
+                  Save $95/week = $380/month 💰
+                </p>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Even if you value your time at just $20/hour
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Separator />
 
