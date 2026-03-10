@@ -63,11 +63,14 @@ const tiers = [
 
 const comparisonRows = [
   { feature: "Students", pro: "Unlimited", premium: "Unlimited" },
-  { feature: "Lessons/month", pro: "60", premium: "160" },
+  { feature: "Lessons/month", pro: "30", premium: "100" },
   { feature: "Max video length", pro: "10 min", premium: "15 min" },
-  { feature: "Lesson types", pro: "All", premium: "All" },
-  { feature: "Analytics", pro: "Advanced", premium: "Advanced" },
-  { feature: "Branding", pro: "Removable", premium: "Your Brand" },
+  { feature: "Lesson types", pro: "All 3", premium: "All 3" },
+  { feature: "Student progress tracking", pro: "✓", premium: "✓" },
+  { feature: "Basic analytics", pro: "✓", premium: "✓" },
+  { feature: "Advanced analytics", pro: "—", premium: "✓" },
+  { feature: "Email notifications", pro: "—", premium: "✓" },
+  { feature: "Support", pro: "Email", premium: "Priority" },
 ];
 
 const faqItems = [
