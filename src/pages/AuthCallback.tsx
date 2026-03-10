@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent } from "@/lib/analytics";
 import { Loader2 } from "lucide-react";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      // Check for error in URL hash/query (e.g., expired link)
+      // Check for error in URL hash/query
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const queryParamsForError = new URLSearchParams(window.location.search);
+      const queryParams = new URLSearchParams(window.location.search);
 
-      const errorCode = hashParams.get("error_code") || queryParamsForError.get("error_code");
-      const errorDescription =
-        hashParams.get("error_description") || queryParamsForError.get("error_description");
+      const errorCode = hashParams.get("error_code") || queryParams.get("error_code");
+      const errorDescription = hashParams.get("error_description") || queryParams.get("error_description");
 
       if (errorCode) {
         setError(errorDescription?.replace(/\+/g, " ") || "Authentication failed");
@@ -23,88 +24,154 @@ export default function AuthCallback() {
         return;
       }
 
-      // Check for access token in hash (OAuth flow)
+      // Check for recovery flow
+      if (hashParams.get("type") === "recovery") {
+        navigate("/reset-password" + window.location.hash, { replace: true });
+        return;
+      }
+
+      // Handle OAuth token flow
       const accessToken = hashParams.get("access_token");
       const refreshToken = hashParams.get("refresh_token");
-
-      // Helper: check profile and redirect accordingly
-      const redirectBasedOnProfile = async () => {
-        // Check for recovery flow
-        const hp = new URLSearchParams(window.location.hash.substring(1));
-        if (hp.get("type") === "recovery") {
-          navigate("/reset-password" + window.location.hash, { replace: true });
-          return;
-        }
-
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { navigate("/auth", { replace: true }); return; }
-
-        const { data: profile } = await supabase.from('profiles')
-          .select('native_language')
-          .eq('user_id', user.id)
-          .single();
-
-        // Check if there's a pending lesson token
-        const pendingToken = localStorage.getItem('pending_lesson_token');
-
-        if (!profile?.native_language) {
-          // Onboarding will check for pending_lesson_token and handle redirect
-          navigate("/onboarding", { replace: true });
-        } else if (pendingToken) {
-          // Already onboarded, go straight to the lesson
-          localStorage.removeItem('pending_lesson_token');
-          navigate(`/lesson/student/${pendingToken}`, { replace: true });
-        } else {
-          navigate("/app", { replace: true });
-        }
-      };
 
       if (accessToken && refreshToken) {
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
-
         if (error) {
           setError(error.message);
           setTimeout(() => navigate("/auth"), 3000);
           return;
         }
-
-        await redirectBasedOnProfile();
+        await redirectBasedOnRole();
         return;
       }
 
-      // Check for code in query params (PKCE flow)
-      const queryParams = new URLSearchParams(window.location.search);
+      // Handle PKCE flow
       const code = queryParams.get("code");
-
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
-
         if (error) {
           setError(error.message);
           setTimeout(() => navigate("/auth"), 3000);
           return;
         }
-
-        await redirectBasedOnProfile();
+        await redirectBasedOnRole();
         return;
       }
 
-      // Check if already authenticated
+      // Check existing session
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        await redirectBasedOnProfile();
+        await redirectBasedOnRole();
         return;
       }
 
-      // No tokens found, redirect to auth
       navigate("/auth", { replace: true });
     };
 
+    const redirectBasedOnRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { navigate("/auth", { replace: true }); return; }
+
+      // Get role from query param (OAuth redirect) or user metadata
+      const roleParam = searchParams.get("role");
+      const metadataRole = user.user_metadata?.role;
+
+      // Determine the user's actual role from DB
+      const { data: roleData } = await supabase
+        .from("user_roles" as any)
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const dbRole = (roleData as any)?.role || null;
+
+      // For new OAuth signups: if role param says teacher but DB says student (default), upgrade
+      const isNewUser = new Date(user.created_at).getTime() > Date.now() - 30000;
+      const intendedRole = roleParam || metadataRole || dbRole || "student";
+
+      if (isNewUser && intendedRole === "teacher" && dbRole !== "teacher") {
+        // Update role to teacher
+        await supabase
+          .from("user_roles" as any)
+          .update({ role: "teacher" } as any)
+          .eq("user_id", user.id);
+
+        // Update user metadata
+        await supabase.auth.updateUser({ data: { role: "teacher" } });
+
+        // Create trial subscription
+        const { data: existingSub } = await supabase
+          .from("teacher_subscriptions" as any)
+          .select("id")
+          .eq("teacher_id", user.id)
+          .maybeSingle();
+
+        if (!existingSub) {
+          const trialEndsAt = new Date();
+          trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
+          await supabase.from("teacher_subscriptions" as any).insert({
+            teacher_id: user.id,
+            plan: "trial",
+            status: "trialing",
+            trial_started_at: new Date().toISOString(),
+            trial_ends_at: trialEndsAt.toISOString(),
+            trial_used: true,
+          } as any);
+
+          trackEvent("trial_started", {
+            teacher_id: user.id,
+            plan_selected: "trial",
+            signup_method: "oauth",
+          });
+        }
+
+        trackEvent("user_signup", { method: "oauth", role: "teacher" });
+        navigate("/teacher/onboarding", { replace: true });
+        return;
+      }
+
+      if (isNewUser && intendedRole === "student") {
+        trackEvent("user_signup", { method: "oauth", role: "student" });
+      }
+
+      // Determine actual role for redirect
+      const actualRole = dbRole === "teacher" || intendedRole === "teacher" ? "teacher" : "student";
+
+      // Check for pending lesson token
+      const pendingToken = localStorage.getItem("pending_lesson_token");
+
+      if (actualRole === "teacher") {
+        const { data: tp } = await supabase
+          .from("teacher_profiles" as any)
+          .select("onboarding_completed")
+          .eq("teacher_id", user.id)
+          .maybeSingle();
+
+        navigate((!tp || !(tp as any).onboarding_completed) ? "/teacher/onboarding" : "/teacher", { replace: true });
+      } else {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("native_language")
+          .eq("user_id", user.id)
+          .single();
+
+        if (!profile?.native_language) {
+          navigate("/onboarding", { replace: true });
+        } else if (pendingToken) {
+          localStorage.removeItem("pending_lesson_token");
+          navigate(`/lesson/student/${pendingToken}`, { replace: true });
+        } else {
+          navigate("/app", { replace: true });
+        }
+      }
+    };
+
     handleAuthCallback();
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   if (error) {
     return (
