@@ -101,24 +101,19 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
           />
         </div>
 
-        {teacherLanguages.length > 1 && (
-          <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Languages</SelectItem>
-              {teacherLanguages.map((lang) => {
-                const l = LANGUAGES.find((x) => x.value === lang);
-                return (
-                  <SelectItem key={lang} value={lang}>
-                    {l?.label || lang}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        )}
+        <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Languages</SelectItem>
+            {LANGUAGES.map((lang) => (
+              <SelectItem key={lang.value} value={lang.value}>
+                {lang.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
           <SelectTrigger className="w-[140px]">
