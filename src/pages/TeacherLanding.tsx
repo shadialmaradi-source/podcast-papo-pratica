@@ -215,7 +215,7 @@ export default function TeacherLanding() {
               <div className="flex items-center gap-3 pt-2">
                 <div className="flex -space-x-2">
                   <div className="w-9 h-9 rounded-full bg-primary/20 border-2 border-background" />
-                  <div className="w-9 h-9 rounded-full bg-emerald-200 dark:bg-emerald-800 border-2 border-background" />
+                  <div className="w-9 h-9 rounded-full bg-success/20 border-2 border-background" />
                   <div className="w-9 h-9 rounded-full bg-accent border-2 border-background" />
                 </div>
                 <p className="text-sm text-muted-foreground">
