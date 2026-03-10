@@ -80,7 +80,7 @@ export function EpisodePlayer({ episode, onStartExercises, onBack }: EpisodePlay
   const [showLevelSelector, setShowLevelSelector] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const levels = [
     { code: "beginner", name: "Beginner", color: "bg-green-500" },

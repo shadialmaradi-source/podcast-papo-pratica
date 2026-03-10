@@ -90,7 +90,7 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAdvancedLevel = level === 'intermediate' || level === 'advanced';
   const maxFreeAttempts = 2;
