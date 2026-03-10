@@ -248,7 +248,7 @@ export default function TeacherLanding() {
                   <Timer className="h-4 w-4" />
                   Avg. creation time
                 </div>
-                <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                <p className="text-3xl font-bold text-success">
                   1m 47s
                 </p>
               </div>
