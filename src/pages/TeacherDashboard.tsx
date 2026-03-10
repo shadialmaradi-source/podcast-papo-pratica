@@ -92,6 +92,7 @@ export default function TeacherDashboard() {
   const handleCreated = (_lessonId: string) => {
     setRefresh((r) => r + 1);
     refreshQuota();
+    sessionStorage.removeItem(STORAGE_KEY);
   };
 
   const handleSelectType = (type: LessonType) => {
