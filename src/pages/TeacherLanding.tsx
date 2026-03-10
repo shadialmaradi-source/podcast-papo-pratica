@@ -171,33 +171,105 @@ export default function TeacherLanding() {
       </header>
 
       {/* Hero */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-background to-accent/5" />
+      <section className="relative pt-28 pb-16 md:pt-36 md:pb-24 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-background to-background" />
         <div className="container mx-auto px-4 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center max-w-3xl mx-auto"
-          >
-            <Badge variant="secondary" className="mb-6 text-sm px-4 py-1.5">
-              For Language Tutors
-            </Badge>
-            <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-              Teach Better. Manage Smarter.{" "}
-              <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Keep Students Engaged.
-              </span>
-            </h1>
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              The all-in-one platform for online language tutors to assign homework, track progress, and manage students.
-            </p>
-            <Button size="lg" className="text-lg px-8 h-14 gap-2" onClick={handleCTA}>
-              Start Free Trial <ArrowRight className="h-5 w-5" />
-            </Button>
-          </motion.div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            {/* Left column */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="space-y-6"
+            >
+              <Badge variant="secondary" className="text-sm px-4 py-1.5">
+                For Language Tutors
+              </Badge>
+              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight tracking-tight">
+                Stop Spending{" "}
+                <span className="text-destructive">5 Hours/Week</span>{" "}
+                Creating Homework.
+                <br className="hidden md:block" />
+                ListenFlow Does It in{" "}
+                <span className="text-emerald-600 dark:text-emerald-400">2 Minutes</span>.
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground max-w-xl">
+                Paste any YouTube URL → AI generates exercises, flashcards, and speaking practice → Your students learn between lessons.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button size="lg" className="text-lg px-8 h-14 gap-2" onClick={handleCTA}>
+                  Create Your First Lesson Free <ArrowRight className="h-5 w-5" />
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-lg px-6 h-14 gap-2"
+                  onClick={() => setShowDemoModal(true)}
+                >
+                  <Play className="h-5 w-5" /> Watch 90s Demo
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                ✓ 14-day free trial · No credit card required · Cancel anytime
+              </p>
+              <div className="flex items-center gap-3 pt-2">
+                <div className="flex -space-x-2">
+                  <div className="w-9 h-9 rounded-full bg-primary/20 border-2 border-background" />
+                  <div className="w-9 h-9 rounded-full bg-emerald-200 dark:bg-emerald-800 border-2 border-background" />
+                  <div className="w-9 h-9 rounded-full bg-accent border-2 border-background" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Trusted by language tutors on Preply, italki, and Cambly
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Right column */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="relative hidden lg:block"
+            >
+              <div className="bg-card rounded-2xl shadow-2xl border p-4">
+                <div className="aspect-video bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center">
+                  <div className="text-center p-8">
+                    <p className="text-lg font-semibold text-foreground mb-2">
+                      Screenshot Placeholder
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Replace with actual lesson creation interface screenshot
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="absolute -bottom-5 -left-5 bg-card rounded-lg shadow-lg border p-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                  <Timer className="h-4 w-4" />
+                  Avg. creation time
+                </div>
+                <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                  1m 47s
+                </p>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
+
+      {/* Demo Modal */}
+      <Dialog open={showDemoModal} onOpenChange={setShowDemoModal}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>How ListenFlow Works</DialogTitle>
+          </DialogHeader>
+          <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+            <p className="text-muted-foreground">
+              Demo video placeholder — Upload to YouTube and embed here
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Problems We Solve */}
       <section className="py-16 md:py-24 bg-muted/30">
