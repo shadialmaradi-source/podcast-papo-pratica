@@ -52,7 +52,7 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
     const fetchVideos = async () => {
       setLoading(true);
       let query = supabase
-        .from("youtube_videos" as any)
+        .from("youtube_videos")
         .select("id, video_id, title, thumbnail_url, duration, difficulty_level, language, is_short")
         .eq("status", "completed")
         .order("created_at", { ascending: false })
