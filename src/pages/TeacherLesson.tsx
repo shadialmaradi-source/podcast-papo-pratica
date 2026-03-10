@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { trackPageView } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { EXERCISE_TYPE_LABELS, TYPE_COLORS } from "@/components/teacher/ExercisePresenter";
 import type { Exercise } from "@/components/teacher/ExercisePresenter";
 import { TeacherSpeakingView } from "@/components/lesson/TeacherSpeakingView";
-import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight, X, Keyboard } from "lucide-react";
+import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight, X, Keyboard, PartyPopper, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function extractYouTubeVideoId(url: string): string | null {
@@ -43,6 +43,8 @@ interface Lesson {
 export default function TeacherLesson() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isDemo = searchParams.get("demo") === "true";
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -376,6 +378,30 @@ export default function TeacherLesson() {
       </header>
 
       <main className="container mx-auto max-w-2xl px-4 py-8 space-y-6">
+        {/* Demo success banner */}
+        {isDemo && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <PartyPopper className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-bold text-foreground">
+                Demo Lesson Created Successfully!
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This is what your students will see when you assign them a lesson.
+              Generate exercises below, then share the link.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => navigate("/teacher")}>
+                Go to Dashboard
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => navigate("/teacher/students")}>
+                <Users className="h-4 w-4 mr-1" />
+                Add Your First Student
+              </Button>
+            </div>
+          </div>
+        )}
         {/* Lesson meta */}
         <div>
           <div className="flex items-start gap-2 mb-2">
