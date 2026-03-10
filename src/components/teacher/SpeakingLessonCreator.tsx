@@ -284,6 +284,14 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
 
   const handleCreate = async () => {
     if (!user || !selectedTopic) return;
+
+    // Validate student email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!studentEmail.trim() || !emailRegex.test(studentEmail.trim())) {
+      toast.error("Please enter a valid student email address.");
+      return;
+    }
+
     setCreating(true);
 
     try {
