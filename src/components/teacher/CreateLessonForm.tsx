@@ -767,7 +767,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
           </div>
 
           {/* Generated exercise sections */}
-          {exerciseGroups.map((group) => {
+          {exerciseGroups.map((group, groupIndex) => {
             const state = groupStates[group.type] || { currentIndex: 0, revealed: false };
             const exercise = group.exercises[state.currentIndex];
             if (!exercise) return null;
@@ -776,9 +776,43 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
             const colorClass = TYPE_COLORS[group.type] || "";
             const isFirst = state.currentIndex === 0;
             const isLast = state.currentIndex === group.exercises.length - 1;
+            const isActive = activeGroup === group.type;
+            const isCollapsed = activeGroup !== null && !isActive;
+
+            // Find next type for auto-progress
+            const currentTypeIndex = selectedExerciseTypes.indexOf(group.type);
+            const nextType = currentTypeIndex >= 0 && currentTypeIndex < selectedExerciseTypes.length - 1
+              ? selectedExerciseTypes[currentTypeIndex + 1]
+              : null;
+            const nextTypeGenerated = nextType ? generatedTypes.has(nextType) : false;
+            const nextTypeLabel = nextType ? (EXERCISE_TYPE_LABELS[nextType] || nextType) : null;
+
+            // Collapsed view: just header row
+            if (isCollapsed) {
+              return (
+                <div
+                  key={group.type}
+                  className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => {
+                    setActiveGroup(group.type);
+                    setTimeout(() => activeGroupRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
+                      {label}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {group.exercises.length}/{group.exercises.length} ✓
+                    </span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              );
+            }
 
             return (
-              <div key={group.type} className="space-y-3">
+              <div key={group.type} className="space-y-3" ref={isActive ? activeGroupRef : undefined}>
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
@@ -810,9 +844,33 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
                   <Button variant="outline" size="sm" onClick={() => updateGroupState(group.type, { revealed: !state.revealed })} className="flex-1">
                     {state.revealed ? <><EyeOff className="h-4 w-4 mr-2" />Hide Answer</> : <><Eye className="h-4 w-4 mr-2" />Reveal Answer</>}
                   </Button>
-                  <Button size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex + 1, revealed: false })} disabled={isLast}>
-                    Next <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
+                  {isLast && nextType ? (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (nextTypeGenerated) {
+                          setActiveGroup(nextType);
+                          setTimeout(() => activeGroupRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+                        } else {
+                          handleGenerateByType(nextType);
+                        }
+                      }}
+                      disabled={!!generatingType}
+                      className="gap-1"
+                    >
+                      {generatingType === nextType ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      {nextTypeGenerated ? `Continue to ${nextTypeLabel}` : `Generate ${nextTypeLabel}`}
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex + 1, revealed: false })} disabled={isLast}>
+                      Next <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  )}
                 </div>
               </div>
             );
