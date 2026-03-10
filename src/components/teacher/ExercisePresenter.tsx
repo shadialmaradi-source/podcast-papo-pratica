@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, EyeOff, ChevronLeft, ChevronRight, Check } from "lucide-react";
 
 interface Exercise {
   id: string;
@@ -147,6 +147,8 @@ interface GroupState {
 }
 
 export function ExercisePresenter({ exercises, lessonTitle, lessonId, youtubeUrl, onComplete }: ExercisePresenterProps) {
+  const activeGroupRef = useRef<HTMLDivElement>(null);
+
   // Group exercises by type preserving order of first appearance
   const groups = useMemo(() => {
     const typeOrder: string[] = [];
@@ -167,6 +169,8 @@ export function ExercisePresenter({ exercises, lessonTitle, lessonId, youtubeUrl
     return init;
   });
 
+  const [activeGroup, setActiveGroup] = useState<string | null>(groups.length > 0 ? groups[0].type : null);
+
   const updateGroupState = (type: string, update: Partial<GroupState>) => {
     setGroupStates((prev) => ({
       ...prev,
@@ -185,8 +189,8 @@ export function ExercisePresenter({ exercises, lessonTitle, lessonId, youtubeUrl
   });
 
   return (
-    <div className="space-y-8">
-      {groups.map((group) => {
+    <div className="space-y-4">
+      {groups.map((group, groupIndex) => {
         const state = groupStates[group.type] || { currentIndex: 0, revealed: false };
         const exercise = group.exercises[state.currentIndex];
         if (!exercise) return null;
@@ -195,9 +199,39 @@ export function ExercisePresenter({ exercises, lessonTitle, lessonId, youtubeUrl
         const colorClass = TYPE_COLORS[group.type] || "";
         const isFirst = state.currentIndex === 0;
         const isLast = state.currentIndex === group.exercises.length - 1;
+        const isActive = activeGroup === group.type;
+        const isCollapsed = activeGroup !== null && !isActive;
+
+        // Find next group type
+        const nextGroup = groupIndex < groups.length - 1 ? groups[groupIndex + 1] : null;
+        const nextTypeLabel = nextGroup ? (EXERCISE_TYPE_LABELS[nextGroup.type] || nextGroup.type) : null;
+
+        // Collapsed view
+        if (isCollapsed) {
+          return (
+            <div
+              key={group.type}
+              className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => {
+                setActiveGroup(group.type);
+                setTimeout(() => activeGroupRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
+                  {label}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {group.exercises.length}/{group.exercises.length} ✓
+                </span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          );
+        }
 
         return (
-          <div key={group.type} className="space-y-3">
+          <div key={group.type} className="space-y-3" ref={isActive ? activeGroupRef : undefined}>
             {/* Section header */}
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -252,20 +286,34 @@ export function ExercisePresenter({ exercises, lessonTitle, lessonId, youtubeUrl
                 )}
               </Button>
 
-              <Button
-                size="sm"
-                onClick={() => {
-                  const next = state.currentIndex + 1;
-                  updateGroupState(group.type, { currentIndex: next, revealed: false });
-                  // Sync the global exercise index
-                  const globalIndex = exercises.findIndex((e) => e.id === group.exercises[next]?.id);
-                  if (globalIndex >= 0) syncIndex(globalIndex);
-                }}
-                disabled={isLast}
-              >
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
+              {isLast && nextGroup ? (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setActiveGroup(nextGroup.type);
+                    setTimeout(() => activeGroupRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+                  }}
+                  className="gap-1"
+                >
+                  Continue to {nextTypeLabel}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const next = state.currentIndex + 1;
+                    updateGroupState(group.type, { currentIndex: next, revealed: false });
+                    // Sync the global exercise index
+                    const globalIndex = exercises.findIndex((e) => e.id === group.exercises[next]?.id);
+                    if (globalIndex >= 0) syncIndex(globalIndex);
+                  }}
+                  disabled={isLast}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
             </div>
           </div>
         );

@@ -340,6 +340,9 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
             const initStates: Record<string, GroupState> = {};
             Object.keys(groups).forEach((t) => { initStates[t] = { currentIndex: 0, revealed: false }; });
             setGroupStates(initStates);
+            // Set the first generated type as active
+            const firstType = Object.keys(groups)[0];
+            if (firstType) setActiveGroup(firstType);
           }
           if (lessonRes.data?.transcript) setLessonTranscript(lessonRes.data.transcript);
           // Mark first type as done
