@@ -458,7 +458,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
           </div>
 
           <div className="flex justify-between">
-            <Button variant="ghost" size="sm" onClick={onCancel}>
+            <Button variant="ghost" size="sm" onClick={() => { clearSavedState(); onCancel(); }}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
