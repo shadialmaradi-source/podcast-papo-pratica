@@ -26,7 +26,15 @@ import {
   Eye,
   Quote,
   Star,
+  Play,
+  Timer,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { trackEvent } from "@/lib/analytics";
 
 const fadeUp = {
