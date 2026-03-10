@@ -287,8 +287,8 @@ export default function TeacherPricing() {
                 className={`relative flex flex-col ${tier.recommended ? "border-primary shadow-lg ring-2 ring-primary/20" : ""}`}
               >
                 {tier.recommended && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
-                    RECOMMENDED
+          <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
+                    MOST POPULAR
                   </Badge>
                 )}
                 <CardHeader className="text-center pb-2">
