@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,49 +40,26 @@ const LANGUAGES = [
 ];
 
 export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserProps) {
-  const { user } = useAuth();
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
-  const [teacherLanguages, setTeacherLanguages] = useState<string[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
 
-  // Fetch teacher languages
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("teacher_profiles" as any)
-      .select("languages_taught")
-      .eq("teacher_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        const langs = (data as any)?.languages_taught as string[] | null;
-        if (langs && langs.length > 0) {
-          setTeacherLanguages(langs);
-          setSelectedLanguage(langs[0]);
-        }
-      });
-  }, [user]);
-
   // Fetch videos
   useEffect(() => {
-    if (teacherLanguages.length === 0) return;
-
     const fetchVideos = async () => {
       setLoading(true);
       let query = supabase
         .from("youtube_videos" as any)
         .select("id, video_id, title, thumbnail_url, duration, difficulty_level, language, is_short")
-        .eq("status", "ready")
+        .eq("status", "completed")
         .order("created_at", { ascending: false })
         .limit(50);
 
       if (selectedLanguage !== "all") {
         query = query.eq("language", selectedLanguage);
-      } else {
-        query = query.in("language", teacherLanguages);
       }
 
       if (selectedDifficulty !== "all") {
@@ -102,21 +78,12 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
     };
 
     fetchVideos();
-  }, [teacherLanguages, selectedLanguage, selectedDifficulty, debouncedSearch]);
+  }, [selectedLanguage, selectedDifficulty, debouncedSearch]);
 
   const handleSelectVideo = (video: VideoRow) => {
     const url = `https://www.youtube.com/watch?v=${video.video_id}`;
     onSelectVideo(url);
   };
-
-  if (teacherLanguages.length === 0 && !loading) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p>No languages configured in your teacher profile.</p>
-        <p className="text-sm mt-1">Go to Settings → Branding to set your languages.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -134,24 +101,19 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
           />
         </div>
 
-        {teacherLanguages.length > 1 && (
-          <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Languages</SelectItem>
-              {teacherLanguages.map((lang) => {
-                const l = LANGUAGES.find((x) => x.value === lang);
-                return (
-                  <SelectItem key={lang} value={lang}>
-                    {l?.label || lang}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        )}
+        <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Languages</SelectItem>
+            {LANGUAGES.map((lang) => (
+              <SelectItem key={lang.value} value={lang.value}>
+                {lang.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
           <SelectTrigger className="w-[140px]">
