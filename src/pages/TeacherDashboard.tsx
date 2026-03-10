@@ -39,6 +39,10 @@ export default function TeacherDashboard() {
   useEffect(() => {
     trackPageView("teacher_dashboard", "teacher");
     trackPageLoad("teacher_dashboard");
+    // Track trial banner view
+    if (quota?.isTrialing && !quota.trialExpired) {
+      trackEvent("trial_banner_viewed", { days_remaining: quota.trialDaysRemaining });
+    }
     if (roleLoading) return;
     if (role !== "teacher") {
       navigate("/app");
