@@ -163,7 +163,7 @@ export default function TeacherLanding() {
             <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
               For Students
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/auth")}>
+            <Button variant="outline" size="sm" onClick={() => navigate("/auth?role=teacher")}>
               Log in
             </Button>
           </div>

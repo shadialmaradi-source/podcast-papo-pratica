@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,14 +12,59 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { trackEvent } from "@/lib/analytics";
-import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff, GraduationCap, Headphones, Check } from "lucide-react";
+
+type AuthRole = "teacher" | "student";
+
+const roleConfig = {
+  teacher: {
+    signUpTitle: "Start Your Free Trial",
+    signInTitle: "Welcome Back, Teacher",
+    signUpSubtitle: "14 days free · No credit card required",
+    signInSubtitle: "Sign in to your teacher account",
+    benefits: [
+      "Create unlimited lessons during trial",
+      "All lesson types (YouTube, Paragraph, Speaking)",
+      "Track student progress",
+      "Full access to analytics",
+    ],
+    signupButton: "Start 14-Day Free Trial",
+    signinButton: "Sign In to Teacher Account",
+    accountType: "Teacher Account",
+    icon: GraduationCap,
+    gradientClass: "from-blue-600 to-purple-600",
+    bgClass: "from-blue-600/10 to-purple-600/10",
+  },
+  student: {
+    signUpTitle: "Start Learning Today",
+    signInTitle: "Welcome Back",
+    signUpSubtitle: "Free forever · No credit card needed",
+    signInSubtitle: "Sign in to continue learning",
+    benefits: [
+      "Access all assigned lessons",
+      "Track your progress",
+      "Build your flashcard collection",
+      "Practice anytime, anywhere",
+    ],
+    signupButton: "Create Free Account",
+    signinButton: "Sign In",
+    accountType: "Student Account",
+    icon: Headphones,
+    gradientClass: "from-emerald-600 to-teal-600",
+    bgClass: "from-emerald-600/10 to-teal-600/10",
+  },
+};
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const searchParams = new URLSearchParams(window.location.search);
-  const preselectedRole = searchParams.get("role");
-  const [isSignUp, setIsSignUp] = useState(preselectedRole === "teacher");
+
+  const rawRole = searchParams.get("role");
+  const role: AuthRole = rawRole === "teacher" ? "teacher" : "student";
+  const config = roleConfig[role];
+
+  const [isSignUp, setIsSignUp] = useState(rawRole === "teacher");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,10 +74,9 @@ export default function Auth() {
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already authenticated, check role + onboarding status
+  // Redirect if already authenticated
   useEffect(() => {
     if (!user) return;
-    // Check if teacher
     supabase
       .from("user_roles" as any)
       .select("role")
@@ -40,7 +84,6 @@ export default function Auth() {
       .maybeSingle()
       .then(({ data: roleData }) => {
         if (roleData && (roleData as any).role === "teacher") {
-          // Check teacher onboarding
           supabase
             .from("teacher_profiles" as any)
             .select("onboarding_completed")
@@ -54,10 +97,10 @@ export default function Auth() {
               }
             });
         } else {
-          // Student flow
-          supabase.from('profiles')
-            .select('native_language')
-            .eq('user_id', user.id)
+          supabase
+            .from("profiles")
+            .select("native_language")
+            .eq("user_id", user.id)
             .single()
             .then(({ data }) => {
               if (!data?.native_language) {
@@ -73,27 +116,18 @@ export default function Auth() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
-    
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
-          // Use the site root as redirect target to reduce allowlist/path mismatch issues.
-          // We then forward to /auth/callback in-app if auth params are present.
-          redirectTo: `${window.location.origin}/`
-        }
+          redirectTo: `${window.location.origin}/auth/callback?role=${role}`,
+        },
       });
-      
       if (error) {
         setError(error.message);
-        toast({
-          title: "Login Error",
-          description: error.message,
-          variant: "destructive"
-        });
+        toast({ title: "Login Error", description: error.message, variant: "destructive" });
       }
-    } catch (error) {
-      console.error('Google sign-in error:', error);
+    } catch {
       setError("Error during Google sign-in");
     } finally {
       setLoading(false);
@@ -111,25 +145,23 @@ export default function Auth() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`
-          }
+            emailRedirectTo: `${window.location.origin}/auth/callback?role=${role}`,
+            data: { role },
+          },
         });
-        
+
         if (error) {
-          if (error.message.includes('already registered')) {
-            setError('This email is already registered. Try signing in instead.');
-          } else {
-            setError(error.message);
-          }
+          setError(error.message.includes("already registered")
+            ? "This email is already registered. Try signing in instead."
+            : error.message);
         } else {
-          // If teacher signup, update the role from default 'student' to 'teacher'
-          if (preselectedRole === "teacher" && signUpData.user) {
+          // Teacher signup: update role + create trial
+          if (role === "teacher" && signUpData.user) {
             await supabase
               .from("user_roles" as any)
               .update({ role: "teacher" } as any)
               .eq("user_id", signUpData.user.id);
 
-            // Initialize 14-day trial subscription
             const trialEndsAt = new Date();
             trialEndsAt.setDate(trialEndsAt.getDate() + 14);
 
@@ -149,36 +181,61 @@ export default function Auth() {
               plan_selected: "trial",
             });
           }
-          // Track successful signup
-          trackEvent('user_signup', {
-            method: 'email',
-            role: preselectedRole || 'student',
-            timestamp: new Date().toISOString()
+
+          trackEvent("user_signup", {
+            method: "email",
+            role,
+            timestamp: new Date().toISOString(),
           });
+
           toast({
             title: "Registration Complete",
-            description: preselectedRole === "teacher"
+            description: role === "teacher"
               ? "Your 14-day free trial has started! Check your email to verify your account."
-              : "Check your email to confirm your account",
+              : "Check your email to confirm your account and start learning.",
           });
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: authData, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        
+
         if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            setError('Invalid email or password');
+          setError(error.message.includes("Invalid login credentials")
+            ? "Invalid email or password"
+            : error.message);
+        } else if (authData.user) {
+          // Check user's actual role and redirect accordingly
+          const { data: roleData } = await supabase
+            .from("user_roles" as any)
+            .select("role")
+            .eq("user_id", authData.user.id)
+            .maybeSingle();
+
+          const userRole = (roleData as any)?.role || "student";
+
+          if (userRole === "teacher") {
+            const { data: tp } = await supabase
+              .from("teacher_profiles" as any)
+              .select("onboarding_completed")
+              .eq("teacher_id", authData.user.id)
+              .maybeSingle();
+
+            navigate((!tp || !(tp as any).onboarding_completed) ? "/teacher/onboarding" : "/teacher");
           } else {
-            setError(error.message);
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("native_language")
+              .eq("user_id", authData.user.id)
+              .single();
+
+            navigate(!profile?.native_language ? "/onboarding" : "/app");
           }
         }
       }
-    } catch (error) {
-      console.error('Auth error:', error);
-      setError('An error occurred. Please try again later.');
+    } catch {
+      setError("An error occurred. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -187,239 +244,194 @@ export default function Auth() {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotPasswordLoading(true);
-
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: `${window.location.origin}/reset-password`,
       });
-
       if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive"
-        });
+        toast({ title: "Error", description: error.message, variant: "destructive" });
       } else {
-        toast({
-          title: "Email Sent",
-          description: "Check your email for password reset instructions",
-        });
+        toast({ title: "Email Sent", description: "Check your email for password reset instructions" });
         setShowForgotPassword(false);
         setForgotPasswordEmail("");
       }
-    } catch (error) {
-      console.error('Forgot password error:', error);
-      toast({
-        title: "Error",
-        description: "An error occurred. Please try again later.",
-        variant: "destructive"
-      });
+    } catch {
+      toast({ title: "Error", description: "An error occurred. Please try again later.", variant: "destructive" });
     } finally {
       setForgotPasswordLoading(false);
     }
   };
 
+  const RoleIcon = config.icon;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        <Card className="border-0 shadow-2xl bg-background/80 backdrop-blur">
-          <CardHeader className="text-center space-y-4">
-            <motion.div
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 200 }}
-              className="flex items-center justify-center gap-2 mb-2"
-            >
-              <BookOpen className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold">ListenFlow</h1>
-            </motion.div>
-            <CardTitle className="text-xl">
-              {isSignUp ? 'Create Account' : 'Sign In'}
-            </CardTitle>
-            <CardDescription>
-              {isSignUp 
-                ? 'Sign up to start your learning journey' 
-                : 'Welcome back! Sign in to your account'
-              }
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="space-y-4">
-            {/* Google Sign In Button */}
-            <Button
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              variant="outline"
-              className="w-full h-12 border-2 hover:bg-primary/5"
-            >
-              <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
-                <path
-                  fill="#4285f4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34a853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#fbbc05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                />
-                <path
-                  fill="#ea4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-              {loading ? 'Signing in...' : 'Sign in with Google'}
-            </Button>
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Left branding panel */}
+      <div className={`hidden lg:flex lg:w-1/2 bg-gradient-to-br ${config.bgClass} relative overflow-hidden`}>
+        <div className="absolute inset-0 bg-gradient-to-br from-background/50 to-transparent" />
+        <div className="relative z-10 flex flex-col justify-center p-12 xl:p-16 max-w-lg mx-auto">
+          <div className="flex items-center gap-2 mb-2">
+            <BookOpen className="h-7 w-7 text-primary" />
+            <span className="text-xl font-bold text-foreground">ListenFlow</span>
+          </div>
+          <div className="flex items-center gap-2 mb-8">
+            <RoleIcon className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground font-medium">{config.accountType}</span>
+          </div>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">or</span>
-              </div>
-            </div>
+          <h2 className="text-3xl xl:text-4xl font-bold text-foreground mb-3">
+            {isSignUp ? config.signUpTitle : config.signInTitle}
+          </h2>
+          <p className="text-lg text-muted-foreground mb-8">
+            {isSignUp ? config.signUpSubtitle : config.signInSubtitle}
+          </p>
 
-            {/* Email/Password Form */}
-            <form onSubmit={handleEmailAuth} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+          {isSignUp && (
+            <ul className="space-y-3">
+              {config.benefits.map((b, i) => (
+                <li key={i} className="flex items-start gap-3 text-foreground">
+                  <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="text-sm text-muted-foreground mt-auto pt-12">
+            {role === "teacher"
+              ? "Join hundreds of language tutors saving 5+ hours/week"
+              : "Learn languages from real content"}
+          </p>
+        </div>
+      </div>
+
+      {/* Right auth form */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-background">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md"
+        >
+          <Card className="border-0 shadow-2xl bg-background/80 backdrop-blur">
+            <CardHeader className="text-center space-y-2">
+              {/* Mobile header */}
+              <div className="lg:hidden flex items-center justify-center gap-2 mb-2">
+                <BookOpen className="h-7 w-7 text-primary" />
+                <span className="text-xl font-bold text-foreground">ListenFlow</span>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
+              <div className="lg:hidden flex items-center justify-center gap-1.5 mb-2">
+                <RoleIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground font-medium">{config.accountType}</span>
+              </div>
+              <CardTitle className="text-xl">
+                {isSignUp ? config.signUpTitle : config.signInTitle}
+              </CardTitle>
+              <CardDescription>
+                {isSignUp ? config.signUpSubtitle : config.signInSubtitle}
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {/* Google */}
+              <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" className="w-full h-12 border-2 hover:bg-primary/5">
+                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                  <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
+                {loading ? "Signing in..." : "Continue with Google"}
+              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><Separator className="w-full" /></div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">or</span>
                 </div>
               </div>
 
-              {/* Forgot Password Button - Only show during login */}
-              {!isSignUp && (
-                <div className="text-right">
-                  <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-sm text-muted-foreground hover:text-primary p-0 h-auto">
-                        Forgot password?
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Reset Password</DialogTitle>
-                        <DialogDescription>
-                          Enter your email address and we'll send you instructions to reset your password.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={handleForgotPassword} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="forgot-email">Email</Label>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="forgot-email"
-                              type="email"
-                              placeholder="your@email.com"
-                              value={forgotPasswordEmail}
-                              onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                              className="pl-10"
-                              required
-                            />
+              {/* Email form */}
+              <form onSubmit={handleEmailAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10" required />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10" required />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {!isSignUp && (
+                  <div className="text-right">
+                    <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-sm text-muted-foreground hover:text-primary p-0 h-auto">Forgot password?</Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Reset Password</DialogTitle>
+                          <DialogDescription>Enter your email and we'll send you instructions to reset your password.</DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleForgotPassword} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="forgot-email">Email</Label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                              <Input id="forgot-email" type="email" placeholder="your@email.com" value={forgotPasswordEmail} onChange={(e) => setForgotPasswordEmail(e.target.value)} className="pl-10" required />
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setShowForgotPassword(false)}
-                            className="flex-1"
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            type="submit"
-                            disabled={forgotPasswordLoading}
-                            className="flex-1"
-                          >
-                            {forgotPasswordLoading ? 'Sending...' : 'Send Email'}
-                          </Button>
-                        </div>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              )}
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => setShowForgotPassword(false)} className="flex-1">Cancel</Button>
+                            <Button type="submit" disabled={forgotPasswordLoading} className="flex-1">{forgotPasswordLoading ? "Sending..." : "Send Email"}</Button>
+                          </div>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                )}
 
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
 
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={loading}
-              >
-                <LogIn className="mr-2 h-4 w-4" />
-                {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
-              </Button>
-            </form>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  <LogIn className="mr-2 h-4 w-4" />
+                  {loading ? "Loading..." : (isSignUp ? config.signupButton : config.signinButton)}
+                </Button>
+              </form>
 
-            <div className="text-center">
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm"
-              >
-                {isSignUp 
-                  ? 'Already have an account? Sign In' 
-                  : "Don't have an account? Sign Up"
-                }
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+              {/* Toggle signup/signin */}
+              <div className="text-center">
+                <Button variant="ghost" type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-sm">
+                  {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+                </Button>
+              </div>
+
+              {/* Wrong account type link */}
+              <div className="text-center text-sm text-muted-foreground">
+                {role === "teacher" ? (
+                  <span>Looking for a student account? <a href="/auth?role=student" className="text-primary hover:underline">Student login</a></span>
+                ) : (
+                  <span>Are you a teacher? <a href="/auth?role=teacher" className="text-primary hover:underline">Teacher login</a></span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </div>
   );
 }

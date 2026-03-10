@@ -219,7 +219,7 @@ export default function LandingPage() {
             </Button>
             <Button 
               variant="outline" 
-              onClick={() => navigate('/auth')}
+              onClick={() => navigate('/auth?role=student')}
             >
               {t.login}
             </Button>
