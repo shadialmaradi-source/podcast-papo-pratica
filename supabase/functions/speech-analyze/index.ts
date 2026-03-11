@@ -226,7 +226,7 @@ Return ONLY a valid JSON object with this exact structure:
 Be encouraging but accurate. If they clearly tried to say the phrase, match=true even if not perfect.`;
     } else {
       // Summary mode for intermediate/advanced
-      analysisPrompt = `You are a Spanish speaking coach analyzing a student's video summary.
+      analysisPrompt = `You are a ${displayLang} speaking coach analyzing a student's video summary.
 
 Original video transcript:
 "${videoTranscript}"
