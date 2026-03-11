@@ -169,7 +169,11 @@ serve(async (req) => {
     const audioBlob = new Blob([bytes], { type: "audio/webm" });
     formData.append("file", audioBlob, "audio.webm");
     formData.append("model", "whisper-1");
-    formData.append("language", "es");
+    const langMap: Record<string, string> = {
+      portuguese: "pt", english: "en", spanish: "es", italian: "it",
+    };
+    const whisperLang = langMap[language?.toLowerCase()] || "en";
+    formData.append("language", whisperLang);
     formData.append("response_format", "text");
 
     console.log(`Sending audio to Whisper API (anonymous: ${isAnonymous}, mode: ${mode})...`);
