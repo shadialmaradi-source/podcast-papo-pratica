@@ -87,7 +87,9 @@ const FirstLesson = () => {
   const stepIndexMap: Record<LessonStep, number> = { intro: 0, video: 1, exercises: 2, speaking: 3, flashcards: 4, complete: 5 };
 
   useEffect(() => {
-    localStorage.setItem('lesson_step', step);
+    if (step !== 'complete') {
+      localStorage.setItem('lesson_step', step);
+    }
     trackFunnelStep("first_lesson", step, stepIndexMap[step]);
   }, [step]);
 
