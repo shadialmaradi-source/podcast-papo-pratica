@@ -199,8 +199,10 @@ serve(async (req) => {
     // Prepare GPT analysis prompt based on mode
     let analysisPrompt: string;
 
+    const displayLang = (language || "English").charAt(0).toUpperCase() + (language || "english").slice(1);
+
     if (mode === "beginner" && phrases) {
-      analysisPrompt = `You are a Spanish pronunciation coach analyzing a beginner's speech.
+      analysisPrompt = `You are a ${displayLang} pronunciation coach analyzing a beginner's speech.
 
 Target phrases the student was asked to repeat:
 ${JSON.stringify(phrases, null, 2)}
