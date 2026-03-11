@@ -32,7 +32,7 @@ const FirstLesson = () => {
   const isTeacherPreview = searchParams.get("from") === "teacher-onboarding";
   const [step, setStep] = useState<LessonStep>(() => {
     const saved = localStorage.getItem('lesson_step') as LessonStep | null;
-    const validSteps: LessonStep[] = ['intro', 'video', 'exercises', 'speaking', 'flashcards', 'complete'];
+    const validSteps: LessonStep[] = ['intro', 'video', 'exercises', 'speaking', 'flashcards'];
     return saved && validSteps.includes(saved) ? saved : 'intro';
   });
   const [exerciseScore, setExerciseScore] = useState(0);
