@@ -52,7 +52,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     
     // Parse request body first to get mode and sessionId
-    const { audioBase64, mode, phrases, videoTranscript, sessionId } = await req.json();
+    const { audioBase64, mode, phrases, videoTranscript, sessionId, language } = await req.json();
 
     if (!audioBase64) {
       throw new Error("No audio data provided");

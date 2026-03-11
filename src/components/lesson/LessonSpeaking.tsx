@@ -164,6 +164,7 @@ const LessonSpeaking = ({ level, phrases, videoTranscript, onComplete, language 
         body: JSON.stringify({
           audioBase64,
           mode: isSummaryMode ? 'summary' : 'beginner',
+          language: language || 'english',
           phrases: isSummaryMode ? undefined : phrases.map(p => p.phrase),
           videoTranscript: isSummaryMode ? videoTranscript : undefined,
           sessionId: !session ? getAnonymousSessionId() : undefined,
