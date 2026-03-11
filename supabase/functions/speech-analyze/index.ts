@@ -52,7 +52,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     
     // Parse request body first to get mode and sessionId
-    const { audioBase64, mode, phrases, videoTranscript, sessionId } = await req.json();
+    const { audioBase64, mode, phrases, videoTranscript, sessionId, language } = await req.json();
 
     if (!audioBase64) {
       throw new Error("No audio data provided");
@@ -169,7 +169,11 @@ serve(async (req) => {
     const audioBlob = new Blob([bytes], { type: "audio/webm" });
     formData.append("file", audioBlob, "audio.webm");
     formData.append("model", "whisper-1");
-    formData.append("language", "es");
+    const langMap: Record<string, string> = {
+      portuguese: "pt", english: "en", spanish: "es", italian: "it",
+    };
+    const whisperLang = langMap[language?.toLowerCase()] || "en";
+    formData.append("language", whisperLang);
     formData.append("response_format", "text");
 
     console.log(`Sending audio to Whisper API (anonymous: ${isAnonymous}, mode: ${mode})...`);
@@ -195,8 +199,10 @@ serve(async (req) => {
     // Prepare GPT analysis prompt based on mode
     let analysisPrompt: string;
 
+    const displayLang = (language || "English").charAt(0).toUpperCase() + (language || "english").slice(1);
+
     if (mode === "beginner" && phrases) {
-      analysisPrompt = `You are a Spanish pronunciation coach analyzing a beginner's speech.
+      analysisPrompt = `You are a ${displayLang} pronunciation coach analyzing a beginner's speech.
 
 Target phrases the student was asked to repeat:
 ${JSON.stringify(phrases, null, 2)}
@@ -220,7 +226,7 @@ Return ONLY a valid JSON object with this exact structure:
 Be encouraging but accurate. If they clearly tried to say the phrase, match=true even if not perfect.`;
     } else {
       // Summary mode for intermediate/advanced
-      analysisPrompt = `You are a Spanish speaking coach analyzing a student's video summary.
+      analysisPrompt = `You are a ${displayLang} speaking coach analyzing a student's video summary.
 
 Original video transcript:
 "${videoTranscript}"
@@ -262,7 +268,7 @@ Be specific and actionable with feedback. The "toReach100" items should be concr
         messages: [
           {
             role: "system",
-            content: "You are a helpful Spanish language coach. Always respond with valid JSON only, no markdown or extra text.",
+            content: `You are a helpful ${displayLang} language coach. Always respond with valid JSON only, no markdown or extra text.`,
           },
           {
             role: "user",
