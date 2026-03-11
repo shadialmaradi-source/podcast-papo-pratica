@@ -268,7 +268,7 @@ Be specific and actionable with feedback. The "toReach100" items should be concr
         messages: [
           {
             role: "system",
-            content: "You are a helpful Spanish language coach. Always respond with valid JSON only, no markdown or extra text.",
+            content: `You are a helpful ${displayLang} language coach. Always respond with valid JSON only, no markdown or extra text.`,
           },
           {
             role: "user",
