@@ -204,15 +204,6 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
                   </Select>
                 </div>
 
-                <Button
-                  variant={showSubtitles ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setShowSubtitles(!showSubtitles)}
-                  className="gap-2"
-                >
-                  <Subtitles className="w-4 h-4" />
-                  <span className="hidden sm:inline">Subtitles</span>
-                </Button>
               </div>
 
               <div className="text-sm text-muted-foreground">

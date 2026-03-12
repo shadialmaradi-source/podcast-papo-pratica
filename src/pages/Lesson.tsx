@@ -1,17 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import YouTubeVideoExercises from "@/components/YouTubeVideoExercises";
 import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
 import VideoFlashcards from "@/components/VideoFlashcards";
 import LessonCompleteScreen from "@/components/lesson/LessonCompleteScreen";
 import LessonVideoPlayer from "@/components/lesson/LessonVideoPlayer";
 import SceneNavigator, { type VideoScene } from "@/components/lesson/SceneNavigator";
+import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
-type LessonState = "select-level" | "loading-scenes" | "scene-video" | "exercises" | "speaking" | "flashcards" | "complete";
+type LessonState = "loading" | "scene-video" | "exercises" | "speaking" | "flashcards" | "complete";
 
 interface LessonStats {
   exerciseScore: number;
@@ -20,14 +30,27 @@ interface LessonStats {
   flashcardsCount: number;
 }
 
+// Map onboarding levels to exercise difficulty labels
+function mapLevel(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  if (lower === "absolute_beginner" || lower === "beginner") return "beginner";
+  if (lower === "intermediate") return "intermediate";
+  if (lower === "advanced") return "advanced";
+  return null;
+}
+
 export default function Lesson() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const isAssignment = searchParams.get("assignment") === "true";
-  const [lessonState, setLessonState] = useState<LessonState>("select-level");
+
+  const [lessonState, setLessonState] = useState<LessonState>("loading");
   const [selectedLevel, setSelectedLevel] = useState("");
   const [nextVideoLoading, setNextVideoLoading] = useState(false);
+  const [showLevelPopup, setShowLevelPopup] = useState(false);
   const [lessonStats, setLessonStats] = useState<LessonStats>({
     exerciseScore: 0,
     totalExercises: 10,
@@ -43,24 +66,124 @@ export default function Lesson() {
   const [dbVideoId, setDbVideoId] = useState<string | null>(null);
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
 
+  // Video metadata for transcript
+  const [videoTitle, setVideoTitle] = useState("");
+  const [videoLanguage, setVideoLanguage] = useState("italian");
+
   useEffect(() => {
     trackPageView("lesson", "student");
-    trackFunnelStep("lesson", "select_level", 0, { video_id: videoId });
+    trackFunnelStep("lesson", "preparing", 0, { video_id: videoId });
     if (isAssignment && videoId) {
       markAssignmentInProgress(videoId);
     }
   }, [videoId, isAssignment]);
 
+  // --- Auto-start flow on mount ---
+  useEffect(() => {
+    if (!videoId) return;
+    initLesson();
+  }, [videoId]);
+
+  const initLesson = async () => {
+    setLessonState("loading");
+
+    // 1. Resolve video data
+    let videoData = await resolveVideoData();
+    if (!videoData) {
+      navigate("/library");
+      return;
+    }
+
+    setDbVideoId(videoData.id);
+    setYoutubeVideoId(videoData.video_id);
+    setVideoTitle(videoData.title || "");
+    setVideoLanguage(videoData.language || "italian");
+
+    // 2. Load scene progress
+    await loadSceneProgress(videoData.id);
+
+    // 3. Resolve level
+    const level = await resolveLevel();
+    if (!level) {
+      setShowLevelPopup(true);
+      return;
+    }
+
+    setSelectedLevel(level);
+    await startLesson(videoData.id, level);
+  };
+
+  const resolveVideoData = async () => {
+    let { data: videoData } = await supabase
+      .from("youtube_videos")
+      .select("id, video_id, title, language, duration")
+      .eq("video_id", videoId!)
+      .single();
+
+    if (!videoData) {
+      const { data: byId } = await supabase
+        .from("youtube_videos")
+        .select("id, video_id, title, language, duration")
+        .eq("id", videoId!)
+        .single();
+      videoData = byId;
+    }
+    return videoData;
+  };
+
+  const resolveLevel = async (): Promise<string | null> => {
+    // Check localStorage first
+    const localLevel = mapLevel(localStorage.getItem("onboarding_level"));
+    if (localLevel) return localLevel;
+
+    // Check profile
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("current_level")
+        .eq("user_id", user.id)
+        .single();
+      const profileLevel = mapLevel(profile?.current_level);
+      if (profileLevel) return profileLevel;
+    }
+
+    return null;
+  };
+
+  const handleLevelSelect = async (level: string) => {
+    setShowLevelPopup(false);
+    setSelectedLevel(level);
+
+    // Save globally
+    localStorage.setItem("onboarding_level", level);
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({ current_level: level })
+        .eq("user_id", user.id);
+    }
+
+    if (dbVideoId) {
+      await startLesson(dbVideoId, level);
+    }
+  };
+
+  const startLesson = async (videoDbId: string, level: string) => {
+    trackEvent("video_started", { video_id: videoId, difficulty_level: level });
+    await trySegmentVideo(videoDbId, level);
+  };
+
+  // --- Assignment helpers ---
   const markAssignmentInProgress = async (vid: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) return;
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser?.email) return;
       const { data: videoData } = await supabase.from("youtube_videos").select("video_id").eq("id", vid).single();
       const ytId = videoData?.video_id || vid;
       await supabase
         .from("video_assignments" as any)
         .update({ status: "in_progress" } as any)
-        .eq("student_email", user.email)
+        .eq("student_email", authUser.email)
         .eq("video_id", ytId)
         .eq("status", "assigned");
     } catch (err) {
@@ -70,14 +193,14 @@ export default function Lesson() {
 
   const markAssignmentCompleted = async (vid: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) return;
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser?.email) return;
       const { data: videoData } = await supabase.from("youtube_videos").select("video_id").eq("id", vid).single();
       const ytId = videoData?.video_id || vid;
       await supabase
         .from("video_assignments" as any)
         .update({ status: "completed", completed_at: new Date().toISOString() } as any)
-        .eq("student_email", user.email)
+        .eq("student_email", authUser.email)
         .eq("video_id", ytId)
         .neq("status", "completed");
       trackEvent("assignment_completed", { video_id: vid });
@@ -86,43 +209,17 @@ export default function Lesson() {
     }
   };
 
-  // Load scene progress on mount
-  useEffect(() => {
-    if (!videoId) return;
-    loadSceneProgress();
-  }, [videoId]);
-
-  const loadSceneProgress = async () => {
+  // --- Scene progress ---
+  const loadSceneProgress = async (videoDbId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
 
-      // Resolve DB video id
-      let { data: videoData } = await supabase
-        .from('youtube_videos')
-        .select('id, video_id')
-        .eq('video_id', videoId!)
-        .single();
-
-      if (!videoData) {
-        const { data: byId } = await supabase
-          .from('youtube_videos')
-          .select('id, video_id')
-          .eq('id', videoId!)
-          .single();
-        videoData = byId;
-      }
-
-      if (!videoData) return;
-      setDbVideoId(videoData.id);
-      setYoutubeVideoId(videoData.video_id);
-
-      // Load existing progress
       const { data: progress } = await supabase
-        .from('user_scene_progress')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('video_id', videoData.id)
+        .from("user_scene_progress")
+        .select("*")
+        .eq("user_id", authUser.id)
+        .eq("video_id", videoDbId)
         .single();
 
       if (progress) {
@@ -130,73 +227,38 @@ export default function Lesson() {
         setCompletedScenes(progress.completed_scenes || []);
       }
     } catch (err) {
-      console.error('Error loading scene progress:', err);
+      console.error("Error loading scene progress:", err);
     }
   };
 
   const saveSceneProgress = useCallback(async (sceneIdx: number, completed: number[]) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !dbVideoId) return;
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser || !dbVideoId) return;
 
       await supabase
-        .from('user_scene_progress')
+        .from("user_scene_progress")
         .upsert({
-          user_id: user.id,
+          user_id: authUser.id,
           video_id: dbVideoId,
           current_scene: sceneIdx,
           completed_scenes: completed,
           last_timestamp: scenes[sceneIdx]?.start_time || 0,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,video_id' });
+        }, { onConflict: "user_id,video_id" });
     } catch (err) {
-      console.error('Error saving scene progress:', err);
+      console.error("Error saving scene progress:", err);
     }
   }, [dbVideoId, scenes]);
 
-  const handleBack = () => {
-    if (lessonState === "select-level") {
-      navigate("/library");
-    } else if (lessonState === "scene-video") {
-      // Go back to level selection
-      setLessonState("select-level");
-      setSelectedLevel("");
-    } else if (lessonState === "exercises") {
-      setLessonState("scene-video");
-    } else if (lessonState === "speaking") {
-      setLessonState("exercises");
-    } else if (lessonState === "flashcards") {
-      setLessonState("speaking");
-    }
-  };
-
-  const handleStartExercises = async (level: string) => {
-    trackEvent('video_started', {
-      video_id: videoId,
-      difficulty_level: level,
-      timestamp: new Date().toISOString()
-    });
-    trackEvent('level_selected', { video_id: videoId, level });
-    setSelectedLevel(level);
-
-    // Check if segmentation is needed
-    if (dbVideoId) {
-      await trySegmentVideo(dbVideoId, level);
-    } else {
-      // No DB video — non-segmented, go straight to exercises
-      setIsSegmented(false);
-      setLessonState("exercises");
-    }
-  };
-
+  // --- Segmentation ---
   const trySegmentVideo = async (videoDbId: string, level: string) => {
-    setLessonState("loading-scenes");
+    setLessonState("loading");
     try {
-      // Check video duration first
       const { data: videoData } = await supabase
-        .from('youtube_videos')
-        .select('duration')
-        .eq('id', videoDbId)
+        .from("youtube_videos")
+        .select("duration")
+        .eq("id", videoDbId)
         .single();
 
       if (!videoData) {
@@ -205,20 +267,17 @@ export default function Lesson() {
         return;
       }
 
-      // If duration is known and short, skip segmentation
       if (videoData.duration !== null && videoData.duration <= 120) {
         setIsSegmented(false);
         setLessonState("exercises");
         return;
       }
 
-      // Call segmentation
-      const { data, error } = await supabase.functions.invoke('segment-video-scenes', {
-        body: { videoId: videoDbId }
+      const { data, error } = await supabase.functions.invoke("segment-video-scenes", {
+        body: { videoId: videoDbId },
       });
 
       if (error || !data?.scenes || data.scenes.length === 0) {
-        console.log('No scenes generated, using single lesson flow');
         setIsSegmented(false);
         setLessonState("exercises");
         return;
@@ -226,30 +285,28 @@ export default function Lesson() {
 
       setScenes(data.scenes);
       setIsSegmented(true);
-      
-      // Resume from saved progress — find first incomplete scene
+
       const firstIncomplete = data.scenes.findIndex(
         (s: VideoScene) => !completedScenes.includes(s.scene_index)
       );
       setCurrentSceneIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
-      
+
       toast({
         title: `${data.scenes.length} scenes detected 🎬`,
         description: "This video has been split into micro-lessons",
       });
 
-      // Go to scene-video for the first incomplete scene
       setLessonState("scene-video");
     } catch (err) {
-      console.error('Segmentation error:', err);
+      console.error("Segmentation error:", err);
       setIsSegmented(false);
       setLessonState("exercises");
     }
   };
 
-  // Scene video complete → go to exercises
+  // --- Step handlers ---
   const handleSceneVideoComplete = () => {
-    trackEvent('scene_video_watched', {
+    trackEvent("scene_video_watched", {
       video_id: videoId,
       scene_index: currentSceneIndex,
       total_scenes: scenes.length,
@@ -257,7 +314,6 @@ export default function Lesson() {
     setLessonState("exercises");
   };
 
-  // Exercises complete → go to speaking (no scene advancement here)
   const handleExercisesComplete = () => {
     setLessonState("speaking");
   };
@@ -280,31 +336,24 @@ export default function Lesson() {
     setLessonState("flashcards");
   };
 
-  // Flashcards complete → mark scene done, advance to next scene or complete
   const handleFlashcardsComplete = (count?: number) => {
-    setLessonStats(prev => ({
-      ...prev,
-      flashcardsCount: count || 5,
-    }));
+    setLessonStats((prev) => ({ ...prev, flashcardsCount: count || 5 }));
 
     if (isSegmented && scenes.length > 0) {
-      // Mark current scene as completed
       const newCompleted = [...completedScenes];
       if (!newCompleted.includes(currentSceneIndex)) {
         newCompleted.push(currentSceneIndex);
       }
       setCompletedScenes(newCompleted);
 
-      // Check if there are more scenes
       const nextIncomplete = scenes.findIndex(
         (s) => !newCompleted.includes(s.scene_index) && s.scene_index > currentSceneIndex
       );
 
       if (nextIncomplete >= 0) {
-        // Move to next scene's video
         setCurrentSceneIndex(nextIncomplete);
         saveSceneProgress(nextIncomplete, newCompleted);
-        trackEvent('scene_completed', {
+        trackEvent("scene_completed", {
           video_id: videoId,
           scene_index: currentSceneIndex,
           total_scenes: scenes.length,
@@ -313,9 +362,8 @@ export default function Lesson() {
         return;
       }
 
-      // All scenes done
       saveSceneProgress(currentSceneIndex, newCompleted);
-      trackEvent('all_scenes_completed', { video_id: videoId, total_scenes: scenes.length });
+      trackEvent("all_scenes_completed", { video_id: videoId, total_scenes: scenes.length });
     }
 
     if (isAssignment && videoId) {
@@ -330,53 +378,40 @@ export default function Lesson() {
   };
 
   const handleNextVideo = async () => {
-    if (!videoId) {
-      navigate("/library");
-      return;
-    }
-
+    if (!videoId) { navigate("/library"); return; }
     setNextVideoLoading(true);
     try {
       const { data: currentVideo } = await supabase
-        .from('youtube_videos')
-        .select('id, category, is_short, difficulty_level')
-        .eq('video_id', videoId)
+        .from("youtube_videos")
+        .select("id, category, is_short, difficulty_level")
+        .eq("video_id", videoId)
         .single();
 
-      if (!currentVideo) {
-        navigate("/library");
-        return;
-      }
+      if (!currentVideo) { navigate("/library"); return; }
 
       const { data: weekVideoLinks } = await supabase
-        .from('week_videos')
-        .select('linked_video_id')
-        .not('linked_video_id', 'is', null);
+        .from("week_videos")
+        .select("linked_video_id")
+        .not("linked_video_id", "is", null);
 
       const excludeIds = new Set<string>(
-        (weekVideoLinks || []).map(wv => wv.linked_video_id).filter(Boolean) as string[]
+        (weekVideoLinks || []).map((wv) => wv.linked_video_id).filter(Boolean) as string[]
       );
       excludeIds.add(currentVideo.id);
 
       const { data: candidates } = await supabase
-        .from('youtube_videos')
-        .select('id, video_id, category, is_short, difficulty_level')
-        .eq('status', 'ready')
-        .neq('video_id', videoId)
+        .from("youtube_videos")
+        .select("id, video_id, category, is_short, difficulty_level")
+        .eq("status", "ready")
+        .neq("video_id", videoId)
         .limit(100);
 
-      if (!candidates || candidates.length === 0) {
-        navigate("/library");
-        return;
-      }
+      if (!candidates || candidates.length === 0) { navigate("/library"); return; }
 
-      const communityVideos = candidates.filter(v => !excludeIds.has(v.id));
-      if (communityVideos.length === 0) {
-        navigate("/library");
-        return;
-      }
+      const communityVideos = candidates.filter((v) => !excludeIds.has(v.id));
+      if (communityVideos.length === 0) { navigate("/library"); return; }
 
-      const scored = communityVideos.map(v => {
+      const scored = communityVideos.map((v) => {
         let score = 0;
         if (v.category && v.category === currentVideo.category) score += 3;
         if (v.is_short === currentVideo.is_short) score += 2;
@@ -384,28 +419,29 @@ export default function Lesson() {
         score += Math.random() * 0.5;
         return { ...v, score };
       });
-
       scored.sort((a, b) => b.score - a.score);
-      const nextVideo = scored[0];
 
-      trackEvent('next_video_recommended', {
+      trackEvent("next_video_recommended", {
         from_video: videoId,
-        to_video: nextVideo.video_id,
-        score: nextVideo.score,
+        to_video: scored[0].video_id,
+        score: scored[0].score,
       });
 
-      navigate(`/lesson/${nextVideo.video_id}`);
+      navigate(`/lesson/${scored[0].video_id}`);
     } catch (error) {
-      console.error('Error finding next video:', error);
+      console.error("Error finding next video:", error);
       navigate("/library");
     } finally {
       setNextVideoLoading(false);
     }
   };
 
-  const handleViewProgress = () => navigate("/profile");
-  const handleRetry = () => { setLessonState("select-level"); setSelectedLevel(""); };
   const handleBackToLibrary = () => navigate("/library");
+  const handleViewProgress = () => navigate("/profile");
+  const handleRetry = () => {
+    setLessonState("loading");
+    initLesson();
+  };
 
   if (!videoId) {
     navigate("/library");
@@ -413,7 +449,6 @@ export default function Lesson() {
   }
 
   const currentScene = isSegmented && scenes.length > 0 ? scenes[currentSceneIndex] : null;
-  const isPerSceneState = ["scene-video", "exercises", "speaking", "flashcards"].includes(lessonState);
 
   // Wrap per-scene content with SceneNavigator sidebar
   const renderWithSceneNav = (content: React.ReactNode) => {
@@ -434,7 +469,8 @@ export default function Lesson() {
           {currentScene && (
             <div className="mb-4 px-2">
               <p className="text-sm text-muted-foreground">
-                Scene {currentSceneIndex + 1} of {scenes.length}: <span className="font-medium text-foreground">{currentScene.scene_title}</span>
+                Scene {currentSceneIndex + 1} of {scenes.length}:{" "}
+                <span className="font-medium text-foreground">{currentScene.scene_title}</span>
               </p>
             </div>
           )}
@@ -444,40 +480,108 @@ export default function Lesson() {
     );
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      {lessonState === "select-level" && (
-        <YouTubeVideoExercises
-          videoId={videoId}
-          onBack={handleBack}
-          onStartExercises={handleStartExercises}
-        />
-      )}
+  // Back to library button
+  const BackButton = () => (
+    <div className="absolute top-4 left-4 z-10">
+      <Button variant="ghost" size="sm" onClick={handleBackToLibrary} className="gap-2">
+        <ArrowLeft className="w-4 h-4" />
+        Library
+      </Button>
+    </div>
+  );
 
-      {lessonState === "loading-scenes" && (
+  return (
+    <div className="min-h-screen bg-background relative">
+      {/* Back button visible during all lesson states except complete */}
+      {lessonState !== "complete" && lessonState !== "loading" && <BackButton />}
+
+      {/* Level selection popup */}
+      <Dialog open={showLevelPopup} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>What's your level?</DialogTitle>
+            <DialogDescription>
+              Choose your proficiency level. This will be used for all exercises on the platform.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 pt-2">
+            {[
+              { value: "beginner", label: "🌱 Beginner", desc: "I'm just starting out" },
+              { value: "intermediate", label: "📚 Intermediate", desc: "I can have basic conversations" },
+              { value: "advanced", label: "🎯 Advanced", desc: "I want to refine my skills" },
+            ].map((opt) => (
+              <Button
+                key={opt.value}
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-start text-left"
+                onClick={() => handleLevelSelect(opt.value)}
+              >
+                <span className="font-medium text-base">{opt.label}</span>
+                <span className="text-sm text-muted-foreground">{opt.desc}</span>
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loading / Preparing screen */}
+      {lessonState === "loading" && (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-            <p className="text-muted-foreground">Analyzing video scenes...</p>
+            <p className="text-lg font-medium text-foreground">Preparing your lesson...</p>
+            <p className="text-sm text-muted-foreground">Analyzing video scenes</p>
           </div>
         </div>
       )}
 
+      {/* Scene video + transcript */}
       {lessonState === "scene-video" && currentScene && youtubeVideoId && (
         renderWithSceneNav(
+          <div>
+            <LessonVideoPlayer
+              key={`scene-video-${currentSceneIndex}`}
+              video={{
+                youtubeId: youtubeVideoId,
+                startTime: Math.floor(currentScene.start_time),
+                duration: Math.floor(currentScene.end_time - currentScene.start_time),
+                suggestedSpeed: 1,
+              }}
+              onComplete={handleSceneVideoComplete}
+            />
+            {/* Scene-specific transcript */}
+            {currentScene.scene_transcript && dbVideoId && (
+              <div className="max-w-3xl mx-auto px-3 md:px-8 pb-6">
+                <TranscriptViewer
+                  videoId={dbVideoId}
+                  transcript={currentScene.scene_transcript}
+                  videoTitle={videoTitle}
+                  language={videoLanguage}
+                  isPremium={true}
+                  onUpgradeClick={() => navigate("/premium")}
+                />
+              </div>
+            )}
+          </div>
+        )
+      )}
+
+      {/* Non-segmented scene-video fallback (short videos skip to exercises) */}
+      {lessonState === "scene-video" && !currentScene && youtubeVideoId && (
+        <div>
           <LessonVideoPlayer
-            key={`scene-video-${currentSceneIndex}`}
             video={{
               youtubeId: youtubeVideoId,
-              startTime: Math.floor(currentScene.start_time),
-              duration: Math.floor(currentScene.end_time - currentScene.start_time),
+              startTime: 0,
+              duration: 120,
               suggestedSpeed: 1,
             }}
             onComplete={handleSceneVideoComplete}
           />
-        )
+        </div>
       )}
 
+      {/* Exercises */}
       {lessonState === "exercises" && (
         isSegmented ? renderWithSceneNav(
           <YouTubeExercises
@@ -485,7 +589,7 @@ export default function Lesson() {
             videoId={videoId}
             level={selectedLevel}
             intensity="intense"
-            onBack={handleBack}
+            onBack={handleBackToLibrary}
             onComplete={handleExercisesComplete}
             onContinueToSpeaking={handleContinueToSpeaking}
             onTryNextLevel={handleTryNextLevel}
@@ -499,7 +603,7 @@ export default function Lesson() {
             videoId={videoId}
             level={selectedLevel}
             intensity="intense"
-            onBack={handleBack}
+            onBack={handleBackToLibrary}
             onComplete={handleExercisesComplete}
             onContinueToSpeaking={handleContinueToSpeaking}
             onTryNextLevel={handleTryNextLevel}
@@ -508,42 +612,45 @@ export default function Lesson() {
         )
       )}
 
+      {/* Speaking */}
       {lessonState === "speaking" && (
         isSegmented ? renderWithSceneNav(
           <YouTubeSpeaking
             videoId={videoId}
             level={selectedLevel}
             onComplete={handleSpeakingComplete}
-            onBack={() => setLessonState("exercises")}
+            onBack={handleBackToLibrary}
           />
         ) : (
           <YouTubeSpeaking
             videoId={videoId}
             level={selectedLevel}
             onComplete={handleSpeakingComplete}
-            onBack={() => setLessonState("exercises")}
+            onBack={handleBackToLibrary}
           />
         )
       )}
 
+      {/* Flashcards */}
       {lessonState === "flashcards" && (
         isSegmented ? renderWithSceneNav(
           <VideoFlashcards
             videoId={videoId}
             level={selectedLevel}
             onComplete={() => handleFlashcardsComplete()}
-            onBack={() => setLessonState("speaking")}
+            onBack={handleBackToLibrary}
           />
         ) : (
           <VideoFlashcards
             videoId={videoId}
             level={selectedLevel}
             onComplete={() => handleFlashcardsComplete()}
-            onBack={() => setLessonState("speaking")}
+            onBack={handleBackToLibrary}
           />
         )
       )}
 
+      {/* Complete */}
       {lessonState === "complete" && (
         <LessonCompleteScreen
           exerciseScore={lessonStats.exerciseScore}
