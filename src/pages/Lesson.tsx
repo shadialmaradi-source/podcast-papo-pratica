@@ -320,6 +320,13 @@ export default function Lesson() {
     setLessonState("exercises");
   };
 
+  // Scroll to top when entering scene-video
+  useEffect(() => {
+    if (lessonState === "scene-video") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [lessonState, currentSceneIndex]);
+
   const handleExercisesComplete = () => {
     setLessonState("speaking");
   };
