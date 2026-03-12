@@ -73,6 +73,8 @@ export default function Auth() {
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -134,10 +136,38 @@ export default function Auth() {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (!pendingVerificationEmail) return;
+    setResendingEmail(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: pendingVerificationEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?role=${role}`,
+        },
+      });
+      if (error) {
+        if (error.message.toLowerCase().includes("rate") || error.message.toLowerCase().includes("limit")) {
+          toast({ title: "Too many requests", description: "Please wait a few minutes before trying again.", variant: "destructive" });
+        } else {
+          toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+      } else {
+        toast({ title: "Email Sent", description: "Verification email resent. Check your inbox and spam folder." });
+      }
+    } catch {
+      toast({ title: "Error", description: "Could not resend email. Try again later.", variant: "destructive" });
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setPendingVerificationEmail(null);
 
     try {
       if (isSignUp) {
@@ -151,11 +181,20 @@ export default function Auth() {
         });
 
         if (error) {
-          setError(error.message.includes("already registered")
-            ? "This email is already registered. Try signing in instead."
-            : error.message);
+          if (error.message.toLowerCase().includes("rate") || error.message.toLowerCase().includes("limit")) {
+            setError("Too many signup attempts. Please wait a few minutes and try again.");
+          } else if (error.message.includes("already registered")) {
+            setError("This email is already registered. Try signing in instead.");
+            setIsSignUp(false);
+          } else {
+            setError(error.message);
+          }
+        } else if (signUpData.user && (!signUpData.user.identities || signUpData.user.identities.length === 0)) {
+          // Repeated signup — account already exists
+          setError("This email already has an account. Please sign in or reset your password.");
+          setIsSignUp(false);
         } else {
-          // Teacher signup: update role + create trial
+          // True first-time signup
           if (role === "teacher" && signUpData.user) {
             await supabase
               .from("user_roles" as any)
@@ -188,6 +227,8 @@ export default function Auth() {
             timestamp: new Date().toISOString(),
           });
 
+          setPendingVerificationEmail(email);
+
           toast({
             title: "Registration Complete",
             description: role === "teacher"
@@ -202,11 +243,17 @@ export default function Auth() {
         });
 
         if (error) {
-          setError(error.message.includes("Invalid login credentials")
-            ? "Invalid email or password"
-            : error.message);
+          if (error.message.includes("Invalid login credentials")) {
+            setError("Invalid email or password. Check your credentials or sign up for a new account.");
+          } else if (error.message.toLowerCase().includes("email not confirmed")) {
+            setError("Your email is not yet verified. Check your inbox (and spam) for the confirmation link.");
+            setPendingVerificationEmail(email);
+          } else if (error.message.toLowerCase().includes("rate") || error.message.toLowerCase().includes("limit")) {
+            setError("Too many login attempts. Please wait a few minutes and try again.");
+          } else {
+            setError(error.message);
+          }
         } else if (authData.user) {
-          // Check user's actual role and redirect accordingly
           const { data: roleData } = await supabase
             .from("user_roles" as any)
             .select("role")
@@ -350,6 +397,28 @@ export default function Auth() {
                 </div>
               </div>
 
+              {/* Pending verification banner */}
+              {pendingVerificationEmail && (
+                <Alert className="border-primary/30 bg-primary/5">
+                  <Mail className="h-4 w-4 text-primary" />
+                  <AlertDescription className="text-sm">
+                    <p className="font-medium text-foreground mb-1">Check your email</p>
+                    <p className="text-muted-foreground mb-2">
+                      We sent a verification link to <strong>{pendingVerificationEmail}</strong>. Check your spam folder too.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResendVerification}
+                      disabled={resendingEmail}
+                      className="text-xs"
+                    >
+                      {resendingEmail ? "Sending..." : "Resend verification email"}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Email form */}
               <form onSubmit={handleEmailAuth} className="space-y-4">
                 <div className="space-y-2">
@@ -415,7 +484,7 @@ export default function Auth() {
 
               {/* Toggle signup/signin */}
               <div className="text-center">
-                <Button variant="ghost" type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-sm">
+                <Button variant="ghost" type="button" onClick={() => { setIsSignUp(!isSignUp); setError(null); setPendingVerificationEmail(null); }} className="text-sm">
                   {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
                 </Button>
               </div>
