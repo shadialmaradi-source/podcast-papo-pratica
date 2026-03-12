@@ -336,6 +336,7 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
               video_id_param: videoData.id,
               difficulty_param: dbDifficulty,
               native_language_param: userNativeLanguage,
+              scene_id_param: null,
             });
             dbExercises = fallbackResult.data;
             dbError = fallbackResult.error;
