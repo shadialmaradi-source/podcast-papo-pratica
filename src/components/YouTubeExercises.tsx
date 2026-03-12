@@ -331,6 +331,21 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
             console.error('Error fetching exercises:', dbError);
           }
 
+          // Fallback: if scene-filtered query returned nothing, retry without scene filter
+          if ((!dbExercises || dbExercises.length === 0) && sceneId) {
+            console.log('No scene-specific exercises found, falling back to full-video exercises');
+            const fallbackResult = await supabase.rpc('get_youtube_exercises_with_answers', {
+              video_id_param: videoData.id,
+              difficulty_param: dbDifficulty,
+              native_language_param: userNativeLanguage,
+            });
+            dbExercises = fallbackResult.data;
+            dbError = fallbackResult.error;
+            if (dbError) {
+              console.error('Fallback exercise fetch error:', dbError);
+            }
+          }
+
           if (dbExercises && dbExercises.length > 0) {
             console.log(`Loaded ${dbExercises.length} exercises from database${sceneId ? ' (scene-filtered)' : ''}`);
             
