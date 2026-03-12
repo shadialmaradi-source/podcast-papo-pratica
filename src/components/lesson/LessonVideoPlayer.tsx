@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, ArrowRight, Play, Subtitles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ArrowRight, Play, Subtitles } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface VideoData {
