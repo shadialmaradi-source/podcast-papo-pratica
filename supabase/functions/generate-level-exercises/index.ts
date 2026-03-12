@@ -18,10 +18,13 @@ serve(async (req) => {
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized', success: false }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    const authSupabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await authSupabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims?.sub) {
+    const authSupabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user: authUser }, error: authError } = await authSupabase.auth.getUser();
+    if (authError || !authUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized', success: false }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
