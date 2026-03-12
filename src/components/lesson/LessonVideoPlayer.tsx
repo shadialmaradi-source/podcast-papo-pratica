@@ -52,7 +52,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(video.suggestedSpeed.toString());
-  const [showSubtitles, setShowSubtitles] = useState(true);
+  const showSubtitles = true;
   const [canContinue, setCanContinue] = useState(false);
   const [progress, setProgress] = useState(0);
   const playerRef = useRef<any>(null);
