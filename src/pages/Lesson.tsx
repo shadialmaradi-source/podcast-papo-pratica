@@ -251,6 +251,9 @@ export default function Lesson() {
     }
   }, [dbVideoId, scenes]);
 
+  // Video duration for non-segmented player
+  const [videoDuration, setVideoDuration] = useState<number>(120);
+
   // --- Segmentation ---
   const trySegmentVideo = async (videoDbId: string, level: string) => {
     setLessonState("loading");
@@ -263,13 +266,16 @@ export default function Lesson() {
 
       if (!videoData) {
         setIsSegmented(false);
-        setLessonState("exercises");
+        setLessonState("scene-video");
         return;
       }
 
+      const duration = videoData.duration || 120;
+      setVideoDuration(duration);
+
       if (videoData.duration !== null && videoData.duration <= 120) {
         setIsSegmented(false);
-        setLessonState("exercises");
+        setLessonState("scene-video");
         return;
       }
 
@@ -279,7 +285,7 @@ export default function Lesson() {
 
       if (error || !data?.scenes || data.scenes.length === 0) {
         setIsSegmented(false);
-        setLessonState("exercises");
+        setLessonState("scene-video");
         return;
       }
 
@@ -300,7 +306,7 @@ export default function Lesson() {
     } catch (err) {
       console.error("Segmentation error:", err);
       setIsSegmented(false);
-      setLessonState("exercises");
+      setLessonState("scene-video");
     }
   };
 
