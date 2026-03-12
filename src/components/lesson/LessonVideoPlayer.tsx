@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, Play, Subtitles } from "lucide-react";
+import { ArrowRight, Play } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface VideoData {
@@ -52,7 +52,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(video.suggestedSpeed.toString());
-  const [showSubtitles, setShowSubtitles] = useState(true);
+  const showSubtitles = true;
   const [canContinue, setCanContinue] = useState(false);
   const [progress, setProgress] = useState(0);
   const playerRef = useRef<any>(null);
@@ -204,15 +204,6 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
                   </Select>
                 </div>
 
-                <Button
-                  variant={showSubtitles ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setShowSubtitles(!showSubtitles)}
-                  className="gap-2"
-                >
-                  <Subtitles className="w-4 h-4" />
-                  <span className="hidden sm:inline">Subtitles</span>
-                </Button>
               </div>
 
               <div className="text-sm text-muted-foreground">
