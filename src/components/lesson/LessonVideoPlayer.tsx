@@ -149,15 +149,6 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
       <div className="flex-1 overflow-auto p-3 md:p-8">
         <div className="max-w-3xl mx-auto space-y-3 md:space-y-6">
         <div className="space-y-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/onboarding')}
-            className="gap-1 text-muted-foreground hover:text-foreground -ml-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Change level
-          </Button>
           <div className="text-center space-y-2">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">
               Watch & Listen

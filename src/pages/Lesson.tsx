@@ -6,11 +6,12 @@ import { YouTubeExercises } from "@/components/YouTubeExercises";
 import { YouTubeSpeaking } from "@/components/YouTubeSpeaking";
 import VideoFlashcards from "@/components/VideoFlashcards";
 import LessonCompleteScreen from "@/components/lesson/LessonCompleteScreen";
+import LessonVideoPlayer from "@/components/lesson/LessonVideoPlayer";
 import SceneNavigator, { type VideoScene } from "@/components/lesson/SceneNavigator";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import { toast } from "@/hooks/use-toast";
 
-type LessonState = "select-level" | "loading-scenes" | "exercises" | "speaking" | "flashcards" | "complete";
+type LessonState = "select-level" | "loading-scenes" | "scene-video" | "exercises" | "speaking" | "flashcards" | "complete";
 
 interface LessonStats {
   exerciseScore: number;
@@ -40,6 +41,7 @@ export default function Lesson() {
   const [completedScenes, setCompletedScenes] = useState<number[]>([]);
   const [isSegmented, setIsSegmented] = useState(false);
   const [dbVideoId, setDbVideoId] = useState<string | null>(null);
+  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
 
   useEffect(() => {
     trackPageView("lesson", "student");
@@ -53,7 +55,6 @@ export default function Lesson() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) return;
-      // Look up the youtube video_id string from the UUID
       const { data: videoData } = await supabase.from("youtube_videos").select("video_id").eq("id", vid).single();
       const ytId = videoData?.video_id || vid;
       await supabase
@@ -99,14 +100,14 @@ export default function Lesson() {
       // Resolve DB video id
       let { data: videoData } = await supabase
         .from('youtube_videos')
-        .select('id')
+        .select('id, video_id')
         .eq('video_id', videoId!)
         .single();
 
       if (!videoData) {
         const { data: byId } = await supabase
           .from('youtube_videos')
-          .select('id')
+          .select('id, video_id')
           .eq('id', videoId!)
           .single();
         videoData = byId;
@@ -114,6 +115,7 @@ export default function Lesson() {
 
       if (!videoData) return;
       setDbVideoId(videoData.id);
+      setYoutubeVideoId(videoData.video_id);
 
       // Load existing progress
       const { data: progress } = await supabase
@@ -155,14 +157,12 @@ export default function Lesson() {
   const handleBack = () => {
     if (lessonState === "select-level") {
       navigate("/library");
+    } else if (lessonState === "scene-video") {
+      // Go back to level selection
+      setLessonState("select-level");
+      setSelectedLevel("");
     } else if (lessonState === "exercises") {
-      if (isSegmented && currentSceneIndex > 0) {
-        // Go back to previous scene
-        setCurrentSceneIndex(prev => prev - 1);
-      } else {
-        setLessonState("select-level");
-        setSelectedLevel("");
-      }
+      setLessonState("scene-video");
     } else if (lessonState === "speaking") {
       setLessonState("exercises");
     } else if (lessonState === "flashcards") {
@@ -183,6 +183,8 @@ export default function Lesson() {
     if (dbVideoId) {
       await trySegmentVideo(dbVideoId, level);
     } else {
+      // No DB video — non-segmented, go straight to exercises
+      setIsSegmented(false);
       setLessonState("exercises");
     }
   };
@@ -225,7 +227,7 @@ export default function Lesson() {
       setScenes(data.scenes);
       setIsSegmented(true);
       
-      // Resume from saved progress
+      // Resume from saved progress — find first incomplete scene
       const firstIncomplete = data.scenes.findIndex(
         (s: VideoScene) => !completedScenes.includes(s.scene_index)
       );
@@ -236,7 +238,8 @@ export default function Lesson() {
         description: "This video has been split into micro-lessons",
       });
 
-      setLessonState("exercises");
+      // Go to scene-video for the first incomplete scene
+      setLessonState("scene-video");
     } catch (err) {
       console.error('Segmentation error:', err);
       setIsSegmented(false);
@@ -244,38 +247,18 @@ export default function Lesson() {
     }
   };
 
+  // Scene video complete → go to exercises
+  const handleSceneVideoComplete = () => {
+    trackEvent('scene_video_watched', {
+      video_id: videoId,
+      scene_index: currentSceneIndex,
+      total_scenes: scenes.length,
+    });
+    setLessonState("exercises");
+  };
+
+  // Exercises complete → go to speaking (no scene advancement here)
   const handleExercisesComplete = () => {
-    if (isSegmented && scenes.length > 0) {
-      // Mark current scene as completed
-      const newCompleted = [...completedScenes];
-      if (!newCompleted.includes(currentSceneIndex)) {
-        newCompleted.push(currentSceneIndex);
-      }
-      setCompletedScenes(newCompleted);
-
-      // Check if there are more scenes
-      const nextIncomplete = scenes.findIndex(
-        (s) => !newCompleted.includes(s.scene_index) && s.scene_index > currentSceneIndex
-      );
-
-      if (nextIncomplete >= 0) {
-        // Move to next scene
-        setCurrentSceneIndex(nextIncomplete);
-        saveSceneProgress(nextIncomplete, newCompleted);
-        trackEvent('scene_completed', {
-          video_id: videoId,
-          scene_index: currentSceneIndex,
-          total_scenes: scenes.length,
-        });
-        // Stay in exercises — the key prop on YouTubeExercises includes currentSceneIndex,
-        // so React will re-mount the component automatically
-        return;
-      }
-
-      // All scenes done — proceed to speaking
-      saveSceneProgress(currentSceneIndex, newCompleted);
-      trackEvent('all_scenes_completed', { video_id: videoId, total_scenes: scenes.length });
-    }
     setLessonState("speaking");
   };
 
@@ -297,11 +280,44 @@ export default function Lesson() {
     setLessonState("flashcards");
   };
 
+  // Flashcards complete → mark scene done, advance to next scene or complete
   const handleFlashcardsComplete = (count?: number) => {
     setLessonStats(prev => ({
       ...prev,
       flashcardsCount: count || 5,
     }));
+
+    if (isSegmented && scenes.length > 0) {
+      // Mark current scene as completed
+      const newCompleted = [...completedScenes];
+      if (!newCompleted.includes(currentSceneIndex)) {
+        newCompleted.push(currentSceneIndex);
+      }
+      setCompletedScenes(newCompleted);
+
+      // Check if there are more scenes
+      const nextIncomplete = scenes.findIndex(
+        (s) => !newCompleted.includes(s.scene_index) && s.scene_index > currentSceneIndex
+      );
+
+      if (nextIncomplete >= 0) {
+        // Move to next scene's video
+        setCurrentSceneIndex(nextIncomplete);
+        saveSceneProgress(nextIncomplete, newCompleted);
+        trackEvent('scene_completed', {
+          video_id: videoId,
+          scene_index: currentSceneIndex,
+          total_scenes: scenes.length,
+        });
+        setLessonState("scene-video");
+        return;
+      }
+
+      // All scenes done
+      saveSceneProgress(currentSceneIndex, newCompleted);
+      trackEvent('all_scenes_completed', { video_id: videoId, total_scenes: scenes.length });
+    }
+
     if (isAssignment && videoId) {
       markAssignmentCompleted(videoId);
     }
@@ -310,7 +326,7 @@ export default function Lesson() {
 
   const handleSceneSelect = (sceneIndex: number) => {
     setCurrentSceneIndex(sceneIndex);
-    // Key prop on YouTubeExercises includes currentSceneIndex, so it auto-remounts
+    setLessonState("scene-video");
   };
 
   const handleNextVideo = async () => {
@@ -397,6 +413,36 @@ export default function Lesson() {
   }
 
   const currentScene = isSegmented && scenes.length > 0 ? scenes[currentSceneIndex] : null;
+  const isPerSceneState = ["scene-video", "exercises", "speaking", "flashcards"].includes(lessonState);
+
+  // Wrap per-scene content with SceneNavigator sidebar
+  const renderWithSceneNav = (content: React.ReactNode) => {
+    if (!isSegmented || scenes.length === 0) return content;
+    return (
+      <div className="flex flex-col lg:flex-row gap-4 p-4">
+        <div className="lg:w-64 flex-shrink-0 order-2 lg:order-1">
+          <div className="lg:sticky lg:top-4">
+            <SceneNavigator
+              scenes={scenes}
+              currentSceneIndex={currentSceneIndex}
+              completedScenes={completedScenes}
+              onSceneSelect={handleSceneSelect}
+            />
+          </div>
+        </div>
+        <div className="flex-1 order-1 lg:order-2">
+          {currentScene && (
+            <div className="mb-4 px-2">
+              <p className="text-sm text-muted-foreground">
+                Scene {currentSceneIndex + 1} of {scenes.length}: <span className="font-medium text-foreground">{currentScene.scene_title}</span>
+              </p>
+            </div>
+          )}
+          {content}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -417,61 +463,85 @@ export default function Lesson() {
         </div>
       )}
 
+      {lessonState === "scene-video" && currentScene && youtubeVideoId && (
+        renderWithSceneNav(
+          <LessonVideoPlayer
+            key={`scene-video-${currentSceneIndex}`}
+            video={{
+              youtubeId: youtubeVideoId,
+              startTime: Math.floor(currentScene.start_time),
+              duration: Math.floor(currentScene.end_time - currentScene.start_time),
+              suggestedSpeed: 1,
+            }}
+            onComplete={handleSceneVideoComplete}
+          />
+        )
+      )}
+
       {lessonState === "exercises" && (
-        <div className="flex flex-col lg:flex-row gap-4 p-4">
-          {isSegmented && scenes.length > 0 && (
-            <div className="lg:w-64 flex-shrink-0 order-2 lg:order-1">
-              <div className="lg:sticky lg:top-4">
-                <SceneNavigator
-                  scenes={scenes}
-                  currentSceneIndex={currentSceneIndex}
-                  completedScenes={completedScenes}
-                  onSceneSelect={handleSceneSelect}
-                />
-              </div>
-            </div>
-          )}
-          <div className={`flex-1 ${isSegmented ? 'order-1 lg:order-2' : ''}`}>
-            {currentScene && (
-              <div className="mb-4 px-2">
-                <p className="text-sm text-muted-foreground">
-                  Scene {currentSceneIndex + 1} of {scenes.length}: <span className="font-medium text-foreground">{currentScene.scene_title}</span>
-                </p>
-              </div>
-            )}
-            <YouTubeExercises
-              key={`${videoId}-${selectedLevel}-${currentSceneIndex}`}
-              videoId={videoId}
-              level={selectedLevel}
-              intensity="intense"
-              onBack={handleBack}
-              onComplete={handleExercisesComplete}
-              onContinueToSpeaking={handleContinueToSpeaking}
-              onTryNextLevel={handleTryNextLevel}
-              onSkipToFlashcards={handleSkipToFlashcards}
-              sceneId={currentScene?.id}
-              sceneTranscript={currentScene?.scene_transcript}
-            />
-          </div>
-        </div>
+        isSegmented ? renderWithSceneNav(
+          <YouTubeExercises
+            key={`${videoId}-${selectedLevel}-${currentSceneIndex}`}
+            videoId={videoId}
+            level={selectedLevel}
+            intensity="intense"
+            onBack={handleBack}
+            onComplete={handleExercisesComplete}
+            onContinueToSpeaking={handleContinueToSpeaking}
+            onTryNextLevel={handleTryNextLevel}
+            onSkipToFlashcards={handleSkipToFlashcards}
+            sceneId={currentScene?.id}
+            sceneTranscript={currentScene?.scene_transcript}
+          />
+        ) : (
+          <YouTubeExercises
+            key={`${videoId}-${selectedLevel}`}
+            videoId={videoId}
+            level={selectedLevel}
+            intensity="intense"
+            onBack={handleBack}
+            onComplete={handleExercisesComplete}
+            onContinueToSpeaking={handleContinueToSpeaking}
+            onTryNextLevel={handleTryNextLevel}
+            onSkipToFlashcards={handleSkipToFlashcards}
+          />
+        )
       )}
 
       {lessonState === "speaking" && (
-        <YouTubeSpeaking
-          videoId={videoId}
-          level={selectedLevel}
-          onComplete={handleSpeakingComplete}
-          onBack={() => setLessonState("exercises")}
-        />
+        isSegmented ? renderWithSceneNav(
+          <YouTubeSpeaking
+            videoId={videoId}
+            level={selectedLevel}
+            onComplete={handleSpeakingComplete}
+            onBack={() => setLessonState("exercises")}
+          />
+        ) : (
+          <YouTubeSpeaking
+            videoId={videoId}
+            level={selectedLevel}
+            onComplete={handleSpeakingComplete}
+            onBack={() => setLessonState("exercises")}
+          />
+        )
       )}
 
       {lessonState === "flashcards" && (
-        <VideoFlashcards
-          videoId={videoId}
-          level={selectedLevel}
-          onComplete={() => handleFlashcardsComplete()}
-          onBack={() => setLessonState("speaking")}
-        />
+        isSegmented ? renderWithSceneNav(
+          <VideoFlashcards
+            videoId={videoId}
+            level={selectedLevel}
+            onComplete={() => handleFlashcardsComplete()}
+            onBack={() => setLessonState("speaking")}
+          />
+        ) : (
+          <VideoFlashcards
+            videoId={videoId}
+            level={selectedLevel}
+            onComplete={() => handleFlashcardsComplete()}
+            onBack={() => setLessonState("speaking")}
+          />
+        )
       )}
 
       {lessonState === "complete" && (
