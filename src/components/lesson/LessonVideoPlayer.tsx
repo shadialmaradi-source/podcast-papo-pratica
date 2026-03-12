@@ -49,7 +49,7 @@ const loadYouTubeAPI = (): Promise<void> => {
 };
 
 const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
-  const navigate = useNavigate();
+  
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(video.suggestedSpeed.toString());
   const [showSubtitles, setShowSubtitles] = useState(true);
