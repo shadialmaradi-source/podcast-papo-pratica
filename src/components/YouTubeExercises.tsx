@@ -290,58 +290,61 @@ export function YouTubeExercises({ videoId, level, intensity, source, language, 
           setDbVideoId(videoData.id);
           const dbDifficulty = mapLevelToDbDifficulty(level);
 
-          // If scene-specific, first try to generate exercises for this scene
-          if (sceneId && sceneTranscript) {
-            // Try generating scene exercises (will skip if already exist)
-            try {
-              let userNativeLangForGen = userNativeLanguage;
-              await supabase.functions.invoke('generate-level-exercises', {
-                body: {
-                  videoId: videoData.id,
-                  level: dbDifficulty,
-                  transcript: sceneTranscript,
-                  sceneId,
-                  sceneTranscript,
-                  nativeLanguage: userNativeLangForGen,
-                }
-              });
-            } catch (genErr) {
-              console.error('Scene exercise generation error:', genErr);
-            }
-          }
-
-          // Load exercises - filter by scene_id if applicable
-          let dbExercises: any[] | null = null;
-          let dbError: any = null;
-
-          // Use RPC for all exercise queries (scene and non-scene)
-          const rpcParams: any = { 
-            video_id_param: videoData.id,
-            difficulty_param: dbDifficulty,
-            native_language_param: userNativeLanguage,
-            scene_id_param: sceneId || null,
-          };
-          const result = await supabase.rpc('get_youtube_exercises_with_answers', rpcParams);
-          dbExercises = result.data;
-          dbError = result.error;
-
-          if (dbError) {
-            console.error('Error fetching exercises:', dbError);
-          }
-
-          // Fallback: if scene-filtered query returned nothing, retry without scene filter
-          if ((!dbExercises || dbExercises.length === 0) && sceneId) {
-            console.log('No scene-specific exercises found, falling back to full-video exercises');
-            const fallbackResult = await supabase.rpc('get_youtube_exercises_with_answers', {
-              video_id_param: videoData.id,
+          // Helper: fetch exercises via RPC
+          const fetchExercises = async (sceneIdParam: string | null) => {
+            const result = await supabase.rpc('get_youtube_exercises_with_answers', {
+              video_id_param: videoData!.id,
               difficulty_param: dbDifficulty,
               native_language_param: userNativeLanguage,
-              scene_id_param: null,
+              scene_id_param: sceneIdParam,
             });
-            dbExercises = fallbackResult.data;
-            dbError = fallbackResult.error;
-            if (dbError) {
-              console.error('Fallback exercise fetch error:', dbError);
+            if (result.error) console.error('RPC fetch error:', result.error);
+            return result.data || [];
+          };
+
+          // Helper: generate exercises via edge function
+          const generateExercises = async (sceneIdParam?: string, sceneTranscriptParam?: string) => {
+            const body: any = {
+              videoId: videoData!.id,
+              level: dbDifficulty,
+              nativeLanguage: userNativeLanguage,
+            };
+            if (sceneIdParam) {
+              body.sceneId = sceneIdParam;
+              body.sceneTranscript = sceneTranscriptParam || '';
+              body.transcript = sceneTranscriptParam || '';
+            }
+            const { error: invokeError, data: invokeData } = await supabase.functions.invoke('generate-level-exercises', { body });
+            if (invokeError) console.error('Exercise generation error:', invokeError);
+            if (invokeData?.error) console.error('Exercise generation data error:', invokeData.error);
+          };
+
+          let dbExercises: any[] = [];
+
+          // Step 1: Try fetching exercises (scene-specific or full-video)
+          dbExercises = await fetchExercises(sceneId || null);
+
+          // Step 2: If empty, try generating then re-fetching
+          if (dbExercises.length === 0) {
+            console.log('No exercises found, generating...');
+            if (sceneId) {
+              // Generate for scene
+              await generateExercises(sceneId, sceneTranscript);
+              dbExercises = await fetchExercises(sceneId);
+            }
+            
+            // If still empty (or no sceneId), generate full-video exercises
+            if (dbExercises.length === 0) {
+              console.log('Falling back to full-video exercise generation...');
+              // Try full-video fetch first
+              if (sceneId) {
+                dbExercises = await fetchExercises(null);
+              }
+              // If still empty, generate full-video
+              if (dbExercises.length === 0) {
+                await generateExercises();
+                dbExercises = await fetchExercises(null);
+              }
             }
           }
 
