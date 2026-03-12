@@ -314,19 +314,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
     const dbLevel = level.toLowerCase();
     
     try {
-      await supabase
-        .from('youtube_exercises')
-        .delete()
-        .eq('video_id', videoData.id)
-        .eq('difficulty', dbLevel);
-
-      const { data: transcriptData, error: transcriptError } = await supabase
-        .from('youtube_transcripts')
-        .select('transcript')
-        .eq('video_id', videoData.id)
-        .single();
-
-      if (transcriptError || !transcriptData?.transcript) {
+      if (!transcript) {
         toast({ title: "Error", description: "No transcript available for this video", variant: "destructive" });
         setIsGenerating(false);
         setGeneratingLevel(null);
@@ -359,7 +347,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
       const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
         body: { 
-          videoId: videoData.id, level: dbLevel, transcript: transcriptData.transcript,
+          videoId: videoData.id, level: dbLevel, transcript: transcript,
           language: videoData.language || 'italian', nativeLanguage: userNativeLanguage,
           source: source || undefined
         }
