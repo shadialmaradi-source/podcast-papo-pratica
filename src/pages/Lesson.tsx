@@ -572,14 +572,14 @@ export default function Lesson() {
         )
       )}
 
-      {/* Non-segmented scene-video fallback (short videos skip to exercises) */}
+      {/* Non-segmented scene-video fallback */}
       {lessonState === "scene-video" && !currentScene && youtubeVideoId && (
         <div>
           <LessonVideoPlayer
             video={{
               youtubeId: youtubeVideoId,
               startTime: 0,
-              duration: 120,
+              duration: videoDuration,
               suggestedSpeed: 1,
             }}
             onComplete={handleSceneVideoComplete}

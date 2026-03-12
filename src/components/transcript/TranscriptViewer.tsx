@@ -73,7 +73,7 @@ export function TranscriptViewer({
   const segments = showAllSegments ? allSegments : allSegments.slice(0, FREE_USER_SENTENCE_LIMIT);
 
   // State
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [autoScroll, setAutoScroll] = useState(!!onSeek);
   const [textSize, setTextSize] = useState<TextSize>('medium');
   const [savedPhrases, setSavedPhrases] = useState<string[]>([]);
   const [suggestedWords, setSuggestedWords] = useState<TranscriptWordSuggestion[]>([]);
