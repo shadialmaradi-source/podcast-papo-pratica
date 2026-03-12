@@ -40,7 +40,19 @@ const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english"
   const [learned, setLearned] = useState<Record<number, boolean>>({});
 
   const currentCard = flashcards[currentIndex];
-  const progress = ((currentIndex + 1) / flashcards.length) * 100;
+  const progress = flashcards.length > 0 ? ((currentIndex + 1) / flashcards.length) * 100 : 0;
+
+  if (!currentCard || flashcards.length === 0) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+        <div className="text-center space-y-4">
+          <BookOpen className="w-12 h-12 mx-auto text-muted-foreground" />
+          <p className="text-muted-foreground">No flashcards available</p>
+          <Button onClick={onComplete}>Continue</Button>
+        </div>
+      </div>
+    );
+  }
 
   const handleFlip = () => {
     setIsFlipped(!isFlipped);
