@@ -27,8 +27,6 @@ const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const WeekDetail = lazy(() => import("./pages/WeekDetail"));
 const WeekVideo = lazy(() => import("./pages/WeekVideo"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
-const TeacherCommunity = lazy(() => import("./pages/TeacherCommunity"));
-const TeacherBranding = lazy(() => import("./pages/TeacherBranding"));
 const TeacherPricing = lazy(() => import("./pages/TeacherPricing"));
 const TeacherAnalytics = lazy(() => import("./pages/TeacherAnalytics"));
 const TeacherNotifications = lazy(() => import("./pages/TeacherNotifications"));
@@ -152,8 +150,6 @@ const App = () => {
               <Route path="/teacher/settings" element={<ProtectedRoute><TeacherSettings /></ProtectedRoute>} />
               <Route path="/teacher/students" element={<ProtectedRoute><TeacherStudents /></ProtectedRoute>} />
               <Route path="/teacher/student/:studentId" element={<ProtectedRoute><TeacherStudentDetail /></ProtectedRoute>} />
-              <Route path="/teacher/community" element={<ProtectedRoute><TeacherCommunity /></ProtectedRoute>} />
-              <Route path="/teacher/branding" element={<ProtectedRoute><TeacherBranding /></ProtectedRoute>} />
               <Route path="/teacher/lesson/:id" element={<ProtectedRoute><TeacherLesson /></ProtectedRoute>} />
 
               {/* Protected app routes — wrapped with StudentTourProvider */}
