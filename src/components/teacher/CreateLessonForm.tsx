@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Copy, Check, ArrowLeft, Share2, Eye, EyeOff, ChevronLeft, ChevronRight, Globe } from "lucide-react";
+import { Loader2, Sparkles, Copy, Check, ArrowLeft, Share2, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { trackEvent, trackFunnelStep } from "@/lib/analytics";
