@@ -27,8 +27,6 @@ const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const WeekDetail = lazy(() => import("./pages/WeekDetail"));
 const WeekVideo = lazy(() => import("./pages/WeekVideo"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
-const TeacherCommunity = lazy(() => import("./pages/TeacherCommunity"));
-const TeacherBranding = lazy(() => import("./pages/TeacherBranding"));
 const TeacherPricing = lazy(() => import("./pages/TeacherPricing"));
 const TeacherAnalytics = lazy(() => import("./pages/TeacherAnalytics"));
 const TeacherNotifications = lazy(() => import("./pages/TeacherNotifications"));
