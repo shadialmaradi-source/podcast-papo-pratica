@@ -138,8 +138,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
   const [paragraphContent, setParagraphContent] = useState("");
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [communityShared, setCommunityShared] = useState(false);
-  const [togglingCommunity, setTogglingCommunity] = useState(false);
 
   // Check email verification and trial status on mount
   useEffect(() => {
