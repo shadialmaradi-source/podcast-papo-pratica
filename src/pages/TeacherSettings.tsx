@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, BarChart3, CreditCard, Globe, Palette, LogOut } from "lucide-react";
+import { ArrowLeft, BarChart3, CreditCard, LogOut } from "lucide-react";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { trackPageView, trackEvent } from "@/lib/analytics";
 import { useEffect } from "react";
