@@ -28,8 +28,6 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Copy, Check, ArrowLeft, Share2, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { trackEvent, trackFunnelStep } from "@/lib/analytics";
 import { useTextSelection } from "@/hooks/useTextSelection";
 import { TextSelectionPopover } from "@/components/transcript/TextSelectionPopover";
