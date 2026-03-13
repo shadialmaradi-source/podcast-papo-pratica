@@ -150,8 +150,6 @@ const App = () => {
               <Route path="/teacher/settings" element={<ProtectedRoute><TeacherSettings /></ProtectedRoute>} />
               <Route path="/teacher/students" element={<ProtectedRoute><TeacherStudents /></ProtectedRoute>} />
               <Route path="/teacher/student/:studentId" element={<ProtectedRoute><TeacherStudentDetail /></ProtectedRoute>} />
-              <Route path="/teacher/community" element={<ProtectedRoute><TeacherCommunity /></ProtectedRoute>} />
-              <Route path="/teacher/branding" element={<ProtectedRoute><TeacherBranding /></ProtectedRoute>} />
               <Route path="/teacher/lesson/:id" element={<ProtectedRoute><TeacherLesson /></ProtectedRoute>} />
 
               {/* Protected app routes — wrapped with StudentTourProvider */}

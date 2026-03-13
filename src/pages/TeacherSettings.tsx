@@ -11,8 +11,6 @@ import { useEffect } from "react";
 const settingsItems = [
   { icon: BarChart3, label: "Analytics", description: "Track student progress", path: "/teacher/analytics" },
   { icon: CreditCard, label: "Pricing", description: "Manage your subscription", path: "/teacher/pricing" },
-  { icon: Globe, label: "Community", description: "Discover & share lessons", path: "/teacher/community" },
-  { icon: Palette, label: "Branding", description: "White-label your lessons", path: "/teacher/branding" },
 ];
 
 export default function TeacherSettings() {

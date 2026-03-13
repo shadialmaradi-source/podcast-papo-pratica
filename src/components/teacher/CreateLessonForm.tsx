@@ -630,24 +630,6 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
             </Card>
           )}
 
-          {/* Share with Community toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-border p-4">
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-muted-foreground" />
-              <Label htmlFor="community-share" className="text-sm font-medium text-foreground cursor-pointer">
-                Share with Community
-              </Label>
-              <span className="text-xs text-muted-foreground">
-                (Other teachers can discover &amp; copy)
-              </span>
-            </div>
-            <Switch
-              id="community-share"
-              checked={communityShared}
-              onCheckedChange={handleToggleCommunityShare}
-              disabled={togglingCommunity}
-            />
-          </div>
 
 
           {youtubeVideoId && (
