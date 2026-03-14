@@ -133,7 +133,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
       // Lessons assigned by email
       const { data: byEmail } = await supabase
         .from("teacher_lessons")
-        .select("id, title, cefr_level, topic, status, lesson_type, share_token")
+        .select("id, title, cefr_level, topic, status, lesson_type, share_token, created_at")
         .eq("student_email", user.email)
         .order("created_at", { ascending: false });
 
@@ -151,12 +151,16 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
       if (extraIds.length > 0) {
         const { data } = await supabase
           .from("teacher_lessons")
-          .select("id, title, cefr_level, topic, status, lesson_type, share_token")
+          .select("id, title, cefr_level, topic, status, lesson_type, share_token, created_at")
           .in("id", extraIds);
         extraLessons = data || [];
       }
 
-      setMyLessons([...(byEmail || []), ...extraLessons]);
+      const merged = [...(byEmail || []), ...extraLessons];
+      merged.sort((a: any, b: any) =>
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
+      setMyLessons(merged);
     } catch (error) {
       console.error("Error loading my lessons:", error);
     }
@@ -655,7 +659,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
         </motion.div>
 
         {/* Learning Path Progress Card */}
-        {learningPathProgress && (
+        {learningPathProgress && learningPathProgress.totalVideosCompleted > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

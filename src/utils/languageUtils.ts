@@ -61,3 +61,20 @@ export const getLanguageSpeechCode = (languageCode: string): string => {
   };
   return speechCodes[languageCode.toLowerCase()] || 'en-GB';
 };
+
+export const normalizeLanguageCode = (code: string | null | undefined): string => {
+  if (!code) return 'english';
+  const lower = code.toLowerCase().trim();
+  const isoMap: Record<string, string> = {
+    en: 'english',
+    it: 'italian',
+    es: 'spanish',
+    pt: 'portuguese',
+    fr: 'french',
+    de: 'german',
+  };
+  if (isoMap[lower]) return isoMap[lower];
+  const canonical = ['english', 'italian', 'spanish', 'portuguese', 'french', 'german'];
+  if (canonical.includes(lower)) return lower;
+  return 'english';
+};
