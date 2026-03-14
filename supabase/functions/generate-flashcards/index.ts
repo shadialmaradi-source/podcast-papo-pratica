@@ -20,6 +20,21 @@ interface Flashcard {
   why: string;
 }
 
+function normalizeLanguage(code: string | null | undefined): string {
+  if (!code) return 'english';
+  const lower = code.toLowerCase().trim();
+  const base = lower.split('-')[0].split('_')[0];
+  const isoMap: Record<string, string> = {
+    en: 'english', it: 'italian', es: 'spanish',
+    pt: 'portuguese', fr: 'french', de: 'german',
+  };
+  if (isoMap[lower]) return isoMap[lower];
+  if (isoMap[base]) return isoMap[base];
+  const canonical = ['english','italian','spanish','portuguese','french','german'];
+  if (canonical.includes(lower)) return lower;
+  return 'english';
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -65,7 +80,7 @@ serve(async (req) => {
       );
     }
 
-    const effectiveNativeLang = nativeLanguage || 'en';
+    const effectiveNativeLang = normalizeLanguage(nativeLanguage || 'en');
 
     // Check if flashcards already exist for this video, level, and native language
     const { data: existingFlashcards, error: fetchError } = await supabaseClient
@@ -97,8 +112,8 @@ serve(async (req) => {
 
     // Generate flashcards using AI
     const targetLevel = level || 'beginner';
-    const targetLanguage = language || 'portuguese';
-    const translationLanguage = nativeLanguage || 'english';
+    const targetLanguage = normalizeLanguage(language || 'portuguese');
+    const translationLanguage = normalizeLanguage(nativeLanguage || 'english');
     const translationLangDisplay = translationLanguage.charAt(0).toUpperCase() + translationLanguage.slice(1);
 
     const systemPrompt = `You are a language learning expert specializing in ${targetLanguage}. Your task is to extract exactly 5 key vocabulary items or phrases from a video transcript that would be most valuable for a ${targetLevel} learner.

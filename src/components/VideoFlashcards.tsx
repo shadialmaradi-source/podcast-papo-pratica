@@ -6,6 +6,7 @@ import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import { toast } from "sonner";
 import { saveViewedFlashcards } from "@/services/flashcardService";
 import { trackEvent } from "@/lib/analytics";
+import { normalizeLanguageCode } from "@/utils/languageUtils";
 
 interface VideoFlashcardsProps {
   videoId: string;
@@ -65,6 +66,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
         if (profile?.native_language) {
           userNativeLanguage = profile.native_language;
         }
+        userNativeLanguage = normalizeLanguageCode(userNativeLanguage);
         setNativeLanguage(userNativeLanguage);
 
         // Call the edge function to generate/fetch flashcards
@@ -72,7 +74,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
           body: {
             videoId,
             transcript: transcriptData.transcript,
-            language: transcriptData.language || 'portuguese',
+            language: normalizeLanguageCode(transcriptData.language || 'portuguese'),
             level: level || 'beginner',
             nativeLanguage: userNativeLanguage,
           },
@@ -85,7 +87,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
 
         if (data?.flashcards && data.flashcards.length > 0) {
           setFlashcards(data.flashcards);
-          setLanguage(transcriptData.language || 'english');
+          setLanguage(normalizeLanguageCode(transcriptData.language || 'english'));
           trackEvent('flashcards_started', { video_id: videoId, count: data.flashcards.length });
           
           // Save flashcards to user's repository

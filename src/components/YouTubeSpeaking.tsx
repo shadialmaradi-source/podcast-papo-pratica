@@ -375,7 +375,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
       // Determine auto-stop duration:
       // - 30 seconds for authenticated users in summary mode
       // - 5 seconds for everyone else (beginner, anonymous, flashcard)
-      const maxDuration = (isAuthenticated && isSummaryMode) ? 30000 : 5000;
+      const maxDuration = isSummaryMode ? 30000 : 5000;
       
       setTimeout(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -597,7 +597,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
               <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
                 <h3 className="font-semibold text-foreground mb-2">Your task:</h3>
                 <p className="text-muted-foreground">
-                  Summarize what you learned from the video in {isAuthenticated ? '25-30' : '5'} seconds. 
+                  Summarize what you learned from the video in 30 seconds. 
                   Include the main topic, key points, and any important details.
                 </p>
               </div>

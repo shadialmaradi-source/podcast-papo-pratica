@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { trackEvent } from "@/lib/analytics";
 import { Exercise } from "@/services/exerciseGeneratorService";
 import { canUserDoVocalExercise, type VocalQuotaResult } from "@/services/subscriptionService";
+import { normalizeLanguageCode } from "@/utils/languageUtils";
 
 // Levenshtein distance for fuzzy matching
 const levenshteinDistance = (a: string, b: string): number => {
@@ -221,6 +222,16 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
           setDbVideoId(videoData.id);
           const dbDifficulty = mapLevelToDbDifficulty(level);
 
+          let videoLanguage = 'english';
+          const { data: transcriptMeta } = await supabase
+            .from('youtube_transcripts')
+            .select('language')
+            .eq('video_id', videoData.id)
+            .maybeSingle();
+          if (transcriptMeta?.language) {
+            videoLanguage = normalizeLanguageCode(transcriptMeta.language);
+          }
+
           const fetchExercises = async (sceneIdParam: string | null) => {
             const result = await supabase.rpc('get_youtube_exercises_with_answers', {
               video_id_param: videoData!.id,
@@ -237,6 +248,7 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
               videoId: videoData!.id,
               level: dbDifficulty,
               nativeLanguage: userNativeLanguage,
+              language: videoLanguage,
             };
             if (sceneIdParam) {
               body.sceneId = sceneIdParam;

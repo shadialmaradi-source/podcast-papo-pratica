@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, RotateCw, Check, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getLanguageFlag } from "@/utils/languageUtils";
+import { getLanguageFlag, normalizeLanguageCode } from "@/utils/languageUtils";
 import { trackEvent } from "@/lib/analytics";
 
 interface Flashcard {
@@ -35,6 +35,8 @@ const getNativeLanguageFlag = (code: string): string => {
 };
 
 const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english", nativeLanguage = "en" }: LessonFlashcardsProps) => {
+  const normalizedLang = normalizeLanguageCode(language);
+  const normalizedNative = normalizeLanguageCode(nativeLanguage);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [learned, setLearned] = useState<Record<number, boolean>>({});
@@ -153,7 +155,7 @@ const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english"
                       // Front - Target language phrase
                       <div className="space-y-4 md:space-y-6">
                         <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-xl md:text-2xl">{getLanguageFlag(currentCard.cardLanguage || language)}</span>
+                          <span className="text-xl md:text-2xl">{getLanguageFlag(currentCard.cardLanguage || normalizedLang)}</span>
                         </div>
                         <p className="text-xl md:text-3xl font-bold text-foreground">
                           {currentCard.phrase}
@@ -171,15 +173,15 @@ const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english"
                         style={{ transform: 'rotateY(180deg)' }}
                       >
                         <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-xl md:text-2xl">{getNativeLanguageFlag(nativeLanguage)}</span>
+                          <span className="text-xl md:text-2xl">{getNativeLanguageFlag(normalizedNative)}</span>
                         </div>
                          <p className="text-xl md:text-3xl font-bold text-foreground">
-                           {getLocalizedText(currentCard.translation, nativeLanguage)}
+                           {getLocalizedText(currentCard.translation, normalizedNative)}
                          </p>
                          <div className="bg-primary/5 rounded-xl p-3 md:p-4 border border-primary/20">
                            <p className="text-xs md:text-sm text-muted-foreground">
                              <span className="text-primary font-medium">Why this matters:</span><br />
-                             {getLocalizedText(currentCard.why, nativeLanguage)}
+                             {getLocalizedText(currentCard.why, normalizedNative)}
                            </p>
                          </div>
                       </motion.div>
