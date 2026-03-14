@@ -173,7 +173,7 @@ const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english"
                         style={{ transform: 'rotateY(180deg)' }}
                       >
                         <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-xl md:text-2xl">{getNativeLanguageFlag(nativeLanguage)}</span>
+                          <span className="text-xl md:text-2xl">{getNativeLanguageFlag(normalizedNative)}</span>
                         </div>
                          <p className="text-xl md:text-3xl font-bold text-foreground">
                            {getLocalizedText(currentCard.translation, nativeLanguage)}
