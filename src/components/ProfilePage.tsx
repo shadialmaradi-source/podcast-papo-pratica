@@ -659,7 +659,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
         </motion.div>
 
         {/* Learning Path Progress Card */}
-        {learningPathProgress && (
+        {learningPathProgress && learningPathProgress.totalVideosCompleted > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
