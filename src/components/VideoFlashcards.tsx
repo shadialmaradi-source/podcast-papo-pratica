@@ -74,7 +74,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
           body: {
             videoId,
             transcript: transcriptData.transcript,
-            language: transcriptData.language || 'portuguese',
+            language: normalizeLanguageCode(transcriptData.language || 'portuguese'),
             level: level || 'beginner',
             nativeLanguage: userNativeLanguage,
           },
