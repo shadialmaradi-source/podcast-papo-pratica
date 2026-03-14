@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,11 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 
 const targetLanguages = [
-  { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: true },
   { code: 'english', name: 'English', flag: '🇺🇸', native: 'English', available: true },
+  { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: false },
   { code: 'french', name: 'French', flag: '🇫🇷', native: 'Français', available: false },
-  { code: 'italian', name: 'Italian', flag: '🇮🇹', native: 'Italiano', available: true },
+  { code: 'italian', name: 'Italian', flag: '🇮🇹', native: 'Italiano', available: false },
   { code: 'german', name: 'German', flag: '🇩🇪', native: 'Deutsch', available: false },
+  { code: 'portuguese', name: 'Portuguese', flag: '🇧🇷', native: 'Português', available: false },
 ];
 
 const nativeLanguages = [
@@ -51,16 +52,40 @@ const targetToNativeCode: Record<string, string> = {
   german: 'de',
 };
 
+// Detect native language from browser
+const supportedNativeCodes = nativeLanguages.map(l => l.code);
+function detectBrowserNativeLanguage(): string {
+  const base = navigator.language.split('-')[0].toLowerCase();
+  return supportedNativeCodes.includes(base) ? base : 'en';
+}
+
 export default function Onboarding() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const [step, setStep] = useState<Step>('language');
-  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
-  const [selectedNativeLanguage, setSelectedNativeLanguage] = useState<string | null>(null);
+
+  const returnTo = searchParams.get('return');
+  const stepParam = searchParams.get('step');
+
+  const [step, setStep] = useState<Step>(() => {
+    if (stepParam === 'level') return 'level';
+    return 'language';
+  });
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(() => {
+    if (stepParam === 'level') return localStorage.getItem('onboarding_language') || 'english';
+    return null;
+  });
+  const [selectedNativeLanguage, setSelectedNativeLanguage] = useState<string | null>(() => {
+    if (stepParam === 'level') return localStorage.getItem('onboarding_native_language') || detectBrowserNativeLanguage();
+    return detectBrowserNativeLanguage();
+  });
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
-  useEffect(() => { trackPageView("onboarding", "shared"); }, []);
+  useEffect(() => {
+    trackPageView("onboarding", "shared");
+    localStorage.setItem('first_lesson_completed', 'false');
+  }, []);
   const pendingLessonToken = localStorage.getItem('pending_lesson_token');
   const isLessonOnboarding = !!pendingLessonToken;
 
@@ -155,6 +180,7 @@ export default function Onboarding() {
       }).eq('user_id', user.id);
     }
 
+    localStorage.setItem('first_lesson_completed', 'false');
     navigate('/lesson/first');
   };
 

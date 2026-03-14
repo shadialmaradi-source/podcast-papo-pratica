@@ -107,6 +107,8 @@ export default function Auth() {
             .then(({ data }) => {
               if (!data?.native_language) {
                 navigate("/onboarding");
+              } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+                navigate("/lesson/first");
               } else {
                 navigate("/app");
               }
@@ -277,7 +279,7 @@ export default function Auth() {
               .eq("user_id", authData.user.id)
               .single();
 
-            navigate(!profile?.native_language ? "/onboarding" : "/app");
+            navigate(!profile?.native_language ? "/onboarding" : localStorage.getItem('first_lesson_completed') !== 'true' ? "/lesson/first" : "/app");
           }
         }
       }

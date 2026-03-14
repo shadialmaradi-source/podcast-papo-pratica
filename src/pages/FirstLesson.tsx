@@ -43,8 +43,19 @@ const FirstLesson = () => {
 
   // Get user's selections from localStorage
   const userLevel = localStorage.getItem('onboarding_level') || 'absolute_beginner';
-  const targetLanguage = localStorage.getItem('onboarding_language') || 'spanish';
+  const targetLanguage = localStorage.getItem('onboarding_language') || 'english';
   const nativeLanguage = localStorage.getItem('onboarding_native_language') || 'en';
+
+  // Redirect to onboarding if required params are missing
+  useEffect(() => {
+    if (isTeacherPreview) return;
+    const hasLanguage = localStorage.getItem('onboarding_language');
+    const hasNative = localStorage.getItem('onboarding_native_language');
+    const hasLevel = localStorage.getItem('onboarding_level');
+    if (!hasLanguage || !hasNative || !hasLevel) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [navigate, isTeacherPreview]);
 
   // Get fallback content for the selected language and level
   const languageContent = allLessonContent[targetLanguage] || allLessonContent.spanish;
@@ -125,6 +136,7 @@ const FirstLesson = () => {
     setStep('complete');
     // Clear persisted step after navigating to complete screen
     localStorage.removeItem('lesson_step');
+    localStorage.setItem('first_lesson_completed', 'true');
   };
 
   const teacherBanner = isTeacherPreview ? (
@@ -148,7 +160,21 @@ const FirstLesson = () => {
 
   switch (step) {
     case 'intro':
-      return wrapWithBanner(<LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />);
+      return wrapWithBanner(
+        <div className="relative">
+          <LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />
+          {!isTeacherPreview && (
+            <div className="fixed bottom-4 left-0 right-0 flex justify-center z-40">
+              <button
+                onClick={() => navigate('/onboarding?step=level&return=first-lesson')}
+                className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
+              >
+                Change level
+              </button>
+            </div>
+          )}
+        </div>
+      );
     
     case 'video':
       return wrapWithBanner(<LessonVideoPlayer video={videoData} onComplete={() => setStep('exercises')} />);

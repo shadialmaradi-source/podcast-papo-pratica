@@ -44,7 +44,7 @@ const LessonExercises = ({ exercises, onComplete, lessonId = 'first_lesson' }: L
   const { toast } = useToast();
   
   // Generate unique storage key
-  const targetLanguage = localStorage.getItem('onboarding_language') || 'spanish';
+  const targetLanguage = localStorage.getItem('onboarding_language') || 'english';
   const userLevel = localStorage.getItem('onboarding_level') || 'absolute_beginner';
   const progressKey = `listenflow_exercise_${targetLanguage}_${userLevel}_${lessonId}`;
   
