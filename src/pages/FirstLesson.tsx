@@ -136,6 +136,7 @@ const FirstLesson = () => {
     setStep('complete');
     // Clear persisted step after navigating to complete screen
     localStorage.removeItem('lesson_step');
+    localStorage.setItem('first_lesson_completed', 'true');
   };
 
   const teacherBanner = isTeacherPreview ? (
