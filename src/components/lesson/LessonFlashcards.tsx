@@ -176,7 +176,7 @@ const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english"
                           <span className="text-xl md:text-2xl">{getNativeLanguageFlag(normalizedNative)}</span>
                         </div>
                          <p className="text-xl md:text-3xl font-bold text-foreground">
-                           {getLocalizedText(currentCard.translation, nativeLanguage)}
+                           {getLocalizedText(currentCard.translation, normalizedNative)}
                          </p>
                          <div className="bg-primary/5 rounded-xl p-3 md:p-4 border border-primary/20">
                            <p className="text-xs md:text-sm text-muted-foreground">
