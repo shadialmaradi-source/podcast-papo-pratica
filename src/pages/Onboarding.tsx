@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,11 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 
 const targetLanguages = [
-  { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: true },
   { code: 'english', name: 'English', flag: '🇺🇸', native: 'English', available: true },
+  { code: 'spanish', name: 'Spanish', flag: '🇪🇸', native: 'Español', available: false },
   { code: 'french', name: 'French', flag: '🇫🇷', native: 'Français', available: false },
-  { code: 'italian', name: 'Italian', flag: '🇮🇹', native: 'Italiano', available: true },
+  { code: 'italian', name: 'Italian', flag: '🇮🇹', native: 'Italiano', available: false },
   { code: 'german', name: 'German', flag: '🇩🇪', native: 'Deutsch', available: false },
+  { code: 'portuguese', name: 'Portuguese', flag: '🇧🇷', native: 'Português', available: false },
 ];
 
 const nativeLanguages = [
