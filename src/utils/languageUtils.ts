@@ -65,6 +65,7 @@ export const getLanguageSpeechCode = (languageCode: string): string => {
 export const normalizeLanguageCode = (code: string | null | undefined): string => {
   if (!code) return 'english';
   const lower = code.toLowerCase().trim();
+  const base = lower.split('-')[0].split('_')[0];
   const isoMap: Record<string, string> = {
     en: 'english',
     it: 'italian',
