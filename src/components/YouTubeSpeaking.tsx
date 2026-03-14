@@ -375,7 +375,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
       // Determine auto-stop duration:
       // - 30 seconds for authenticated users in summary mode
       // - 5 seconds for everyone else (beginner, anonymous, flashcard)
-      const maxDuration = (isAuthenticated && isSummaryMode) ? 30000 : 5000;
+      const maxDuration = isSummaryMode ? 30000 : 5000;
       
       setTimeout(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
