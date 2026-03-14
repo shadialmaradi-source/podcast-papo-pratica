@@ -167,8 +167,9 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
           throw new Error("Transcript not found for this video");
         }
         
+        const normalizedLanguage = normalizeLanguageCode(transcriptData.language || "english");
         setTranscript(transcriptData.transcript);
-        setLanguage(transcriptData.language || "english");
+        setLanguage(normalizedLanguage);
         
         // For beginners, extract key phrases
         if (!isSummaryMode) {
@@ -178,7 +179,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
               body: {
                 transcript: transcriptData.transcript,
                 level,
-                language: transcriptData.language,
+                language: normalizedLanguage,
               },
             }
           );
