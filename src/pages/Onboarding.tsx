@@ -52,16 +52,40 @@ const targetToNativeCode: Record<string, string> = {
   german: 'de',
 };
 
+// Detect native language from browser
+const supportedNativeCodes = nativeLanguages.map(l => l.code);
+function detectBrowserNativeLanguage(): string {
+  const base = navigator.language.split('-')[0].toLowerCase();
+  return supportedNativeCodes.includes(base) ? base : 'en';
+}
+
 export default function Onboarding() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const [step, setStep] = useState<Step>('language');
-  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
-  const [selectedNativeLanguage, setSelectedNativeLanguage] = useState<string | null>(null);
+
+  const returnTo = searchParams.get('return');
+  const stepParam = searchParams.get('step');
+
+  const [step, setStep] = useState<Step>(() => {
+    if (stepParam === 'level') return 'level';
+    return 'language';
+  });
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(() => {
+    if (stepParam === 'level') return localStorage.getItem('onboarding_language') || 'english';
+    return null;
+  });
+  const [selectedNativeLanguage, setSelectedNativeLanguage] = useState<string | null>(() => {
+    if (stepParam === 'level') return localStorage.getItem('onboarding_native_language') || detectBrowserNativeLanguage();
+    return detectBrowserNativeLanguage();
+  });
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
-  useEffect(() => { trackPageView("onboarding", "shared"); }, []);
+  useEffect(() => {
+    trackPageView("onboarding", "shared");
+    localStorage.setItem('first_lesson_completed', 'false');
+  }, []);
   const pendingLessonToken = localStorage.getItem('pending_lesson_token');
   const isLessonOnboarding = !!pendingLessonToken;
 
