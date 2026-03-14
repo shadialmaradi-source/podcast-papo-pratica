@@ -222,6 +222,16 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
           setDbVideoId(videoData.id);
           const dbDifficulty = mapLevelToDbDifficulty(level);
 
+          let videoLanguage = 'english';
+          const { data: transcriptMeta } = await supabase
+            .from('youtube_transcripts')
+            .select('language')
+            .eq('video_id', videoData.id)
+            .maybeSingle();
+          if (transcriptMeta?.language) {
+            videoLanguage = normalizeLanguageCode(transcriptMeta.language);
+          }
+
           const fetchExercises = async (sceneIdParam: string | null) => {
             const result = await supabase.rpc('get_youtube_exercises_with_answers', {
               video_id_param: videoData!.id,
