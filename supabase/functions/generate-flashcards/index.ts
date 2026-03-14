@@ -80,7 +80,7 @@ serve(async (req) => {
       );
     }
 
-    const effectiveNativeLang = nativeLanguage || 'en';
+    const effectiveNativeLang = normalizeLanguage(nativeLanguage || 'en');
 
     // Check if flashcards already exist for this video, level, and native language
     const { data: existingFlashcards, error: fetchError } = await supabaseClient
