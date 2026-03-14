@@ -151,7 +151,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
       if (extraIds.length > 0) {
         const { data } = await supabase
           .from("teacher_lessons")
-          .select("id, title, cefr_level, topic, status, lesson_type, share_token")
+          .select("id, title, cefr_level, topic, status, lesson_type, share_token, created_at")
           .in("id", extraIds);
         extraLessons = data || [];
       }
