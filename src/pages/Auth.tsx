@@ -107,6 +107,8 @@ export default function Auth() {
             .then(({ data }) => {
               if (!data?.native_language) {
                 navigate("/onboarding");
+              } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+                navigate("/lesson/first");
               } else {
                 navigate("/app");
               }
