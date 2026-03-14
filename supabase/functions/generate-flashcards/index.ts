@@ -20,6 +20,21 @@ interface Flashcard {
   why: string;
 }
 
+function normalizeLanguage(code: string | null | undefined): string {
+  if (!code) return 'english';
+  const lower = code.toLowerCase().trim();
+  const base = lower.split('-')[0].split('_')[0];
+  const isoMap: Record<string, string> = {
+    en: 'english', it: 'italian', es: 'spanish',
+    pt: 'portuguese', fr: 'french', de: 'german',
+  };
+  if (isoMap[lower]) return isoMap[lower];
+  if (isoMap[base]) return isoMap[base];
+  const canonical = ['english','italian','spanish','portuguese','french','german'];
+  if (canonical.includes(lower)) return lower;
+  return 'english';
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
