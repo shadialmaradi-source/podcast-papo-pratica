@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, RotateCw, Check, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getLanguageFlag } from "@/utils/languageUtils";
+import { getLanguageFlag, normalizeLanguageCode } from "@/utils/languageUtils";
 import { trackEvent } from "@/lib/analytics";
 
 interface Flashcard {
