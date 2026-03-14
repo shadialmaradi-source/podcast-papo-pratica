@@ -75,6 +75,7 @@ export const normalizeLanguageCode = (code: string | null | undefined): string =
     de: 'german',
   };
   if (isoMap[lower]) return isoMap[lower];
+  if (isoMap[base]) return isoMap[base];
   const canonical = ['english', 'italian', 'spanish', 'portuguese', 'french', 'german'];
   if (canonical.includes(lower)) return lower;
   return 'english';
