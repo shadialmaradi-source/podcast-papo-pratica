@@ -66,6 +66,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
         if (profile?.native_language) {
           userNativeLanguage = profile.native_language;
         }
+        userNativeLanguage = normalizeLanguageCode(userNativeLanguage);
         setNativeLanguage(userNativeLanguage);
 
         // Call the edge function to generate/fetch flashcards
