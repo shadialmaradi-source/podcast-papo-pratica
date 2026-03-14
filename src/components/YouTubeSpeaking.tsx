@@ -597,7 +597,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
               <div className="bg-primary/5 rounded-xl p-4 border border-primary/20">
                 <h3 className="font-semibold text-foreground mb-2">Your task:</h3>
                 <p className="text-muted-foreground">
-                  Summarize what you learned from the video in {isAuthenticated ? '25-30' : '5'} seconds. 
+                  Summarize what you learned from the video in 30 seconds. 
                   Include the main topic, key points, and any important details.
                 </p>
               </div>

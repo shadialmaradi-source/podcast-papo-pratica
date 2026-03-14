@@ -248,6 +248,7 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
               videoId: videoData!.id,
               level: dbDifficulty,
               nativeLanguage: userNativeLanguage,
+              language: videoLanguage,
             };
             if (sceneIdParam) {
               body.sceneId = sceneIdParam;

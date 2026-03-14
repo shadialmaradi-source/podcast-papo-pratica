@@ -87,7 +87,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
 
         if (data?.flashcards && data.flashcards.length > 0) {
           setFlashcards(data.flashcards);
-          setLanguage(transcriptData.language || 'english');
+          setLanguage(normalizeLanguageCode(transcriptData.language || 'english'));
           trackEvent('flashcards_started', { video_id: videoId, count: data.flashcards.length });
           
           // Save flashcards to user's repository

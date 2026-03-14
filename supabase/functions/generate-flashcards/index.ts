@@ -112,8 +112,8 @@ serve(async (req) => {
 
     // Generate flashcards using AI
     const targetLevel = level || 'beginner';
-    const targetLanguage = language || 'portuguese';
-    const translationLanguage = nativeLanguage || 'english';
+    const targetLanguage = normalizeLanguage(language || 'portuguese');
+    const translationLanguage = normalizeLanguage(nativeLanguage || 'english');
     const translationLangDisplay = translationLanguage.charAt(0).toUpperCase() + translationLanguage.slice(1);
 
     const systemPrompt = `You are a language learning expert specializing in ${targetLanguage}. Your task is to extract exactly 5 key vocabulary items or phrases from a video transcript that would be most valuable for a ${targetLevel} learner.

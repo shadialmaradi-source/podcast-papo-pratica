@@ -181,7 +181,7 @@ const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english"
                          <div className="bg-primary/5 rounded-xl p-3 md:p-4 border border-primary/20">
                            <p className="text-xs md:text-sm text-muted-foreground">
                              <span className="text-primary font-medium">Why this matters:</span><br />
-                             {getLocalizedText(currentCard.why, nativeLanguage)}
+                             {getLocalizedText(currentCard.why, normalizedNative)}
                            </p>
                          </div>
                       </motion.div>
