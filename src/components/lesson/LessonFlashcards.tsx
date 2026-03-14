@@ -35,6 +35,8 @@ const getNativeLanguageFlag = (code: string): string => {
 };
 
 const LessonFlashcards = ({ flashcards, onComplete, onExit, language = "english", nativeLanguage = "en" }: LessonFlashcardsProps) => {
+  const normalizedLang = normalizeLanguageCode(language);
+  const normalizedNative = normalizeLanguageCode(nativeLanguage);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [learned, setLearned] = useState<Record<number, boolean>>({});
