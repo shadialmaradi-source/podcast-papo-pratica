@@ -160,7 +160,21 @@ const FirstLesson = () => {
 
   switch (step) {
     case 'intro':
-      return wrapWithBanner(<LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />);
+      return wrapWithBanner(
+        <div className="relative">
+          <LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />
+          {!isTeacherPreview && (
+            <div className="fixed bottom-4 left-0 right-0 flex justify-center z-40">
+              <button
+                onClick={() => navigate('/onboarding?step=level&return=first-lesson')}
+                className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
+              >
+                Change level
+              </button>
+            </div>
+          )}
+        </div>
+      );
     
     case 'video':
       return wrapWithBanner(<LessonVideoPlayer video={videoData} onComplete={() => setStep('exercises')} />);

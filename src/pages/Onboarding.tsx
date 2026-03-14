@@ -180,6 +180,7 @@ export default function Onboarding() {
       }).eq('user_id', user.id);
     }
 
+    localStorage.setItem('first_lesson_completed', 'false');
     navigate('/lesson/first');
   };
 

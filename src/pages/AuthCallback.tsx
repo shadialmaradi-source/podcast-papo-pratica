@@ -164,6 +164,8 @@ export default function AuthCallback() {
         } else if (pendingToken) {
           localStorage.removeItem("pending_lesson_token");
           navigate(`/lesson/student/${pendingToken}`, { replace: true });
+        } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+          navigate("/lesson/first", { replace: true });
         } else {
           navigate("/app", { replace: true });
         }
