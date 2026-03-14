@@ -156,7 +156,11 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
         extraLessons = data || [];
       }
 
-      setMyLessons([...(byEmail || []), ...extraLessons]);
+      const merged = [...(byEmail || []), ...extraLessons];
+      merged.sort((a: any, b: any) =>
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
+      setMyLessons(merged);
     } catch (error) {
       console.error("Error loading my lessons:", error);
     }
