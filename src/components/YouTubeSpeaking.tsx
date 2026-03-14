@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { getLanguageSpeechCode } from "@/utils/languageUtils";
+import { getLanguageSpeechCode, normalizeLanguageCode } from "@/utils/languageUtils";
 import { trackEvent } from "@/lib/analytics";
 import { canUserDoVocalExercise, recordVocalExerciseCompletion, getNextMonthResetDate, type VocalQuotaResult } from "@/services/subscriptionService";
 import { UpgradePrompt } from "./subscription/UpgradePrompt";
