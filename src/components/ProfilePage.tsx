@@ -133,7 +133,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
       // Lessons assigned by email
       const { data: byEmail } = await supabase
         .from("teacher_lessons")
-        .select("id, title, cefr_level, topic, status, lesson_type, share_token")
+        .select("id, title, cefr_level, topic, status, lesson_type, share_token, created_at")
         .eq("student_email", user.email)
         .order("created_at", { ascending: false });
 
