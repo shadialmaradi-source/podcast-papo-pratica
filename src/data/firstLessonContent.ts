@@ -36,11 +36,110 @@ export interface LessonContent {
   flashcards: Flashcard[];
 }
 
+// Language alias map: canonical names, ISO codes, and locale variants → normalized ISO code
+const langAliases: Record<string, string> = {
+  english: 'en', en: 'en',
+  spanish: 'es', es: 'es',
+  portuguese: 'pt', pt: 'pt',
+  french: 'fr', fr: 'fr',
+  german: 'de', de: 'de',
+  italian: 'it', it: 'it',
+  romanian: 'ro', ro: 'ro',
+  russian: 'ru', ru: 'ru',
+  polish: 'pl', pl: 'pl',
+  ukrainian: 'uk', uk: 'uk',
+  czech: 'cs', cs: 'cs',
+  serbian: 'sr', sr: 'sr',
+  croatian: 'hr', hr: 'hr',
+  bosnian: 'bs', bs: 'bs',
+  japanese: 'ja', ja: 'ja',
+  korean: 'ko', ko: 'ko',
+};
+
+// Glossary-based fallback translations keyed by English phrase
+const translationGlossary: Record<string, Record<string, string>> = {
+  'Hello': { de: 'Hallo', ro: 'Bună', ru: 'Привет', pl: 'Cześć', uk: 'Привіт', cs: 'Ahoj', sr: 'Здраво', hr: 'Bok', bs: 'Zdravo', ja: 'こんにちは', ko: '안녕하세요' },
+  'Please': { de: 'Bitte', ro: 'Vă rog', ru: 'Пожалуйста', pl: 'Proszę', uk: 'Будь ласка', cs: 'Prosím', sr: 'Молим', hr: 'Molim', bs: 'Molim', ja: 'お願いします', ko: '부탁합니다' },
+  'Thank you': { de: 'Danke', ro: 'Mulțumesc', ru: 'Спасибо', pl: 'Dziękuję', uk: 'Дякую', cs: 'Děkuji', sr: 'Хвала', hr: 'Hvala', bs: 'Hvala', ja: 'ありがとうございます', ko: '감사합니다' },
+  'A table for one': { de: 'Einen Tisch für eine Person', ro: 'O masă pentru o persoană', ru: 'Столик на одного', pl: 'Stolik dla jednej osoby', uk: 'Столик на одного', cs: 'Stůl pro jednoho', sr: 'Сто за једну особу', hr: 'Stol za jednu osobu', bs: 'Sto za jednu osobu', ja: '一名様のテーブル', ko: '한 명 테이블' },
+  'A table for two': { de: 'Einen Tisch für zwei', ro: 'O masă pentru două persoane', ru: 'Столик на двоих', pl: 'Stolik dla dwóch osób', uk: 'Столик на двох', cs: 'Stůl pro dva', sr: 'Сто за две особе', hr: 'Stol za dvije osobe', bs: 'Sto za dvije osobe', ja: '二名様のテーブル', ko: '두 명 테이블' },
+  'I want': { de: 'Ich möchte', ro: 'Vreau', ru: 'Я хочу', pl: 'Chcę', uk: 'Я хочу', cs: 'Chci', sr: 'Желим', hr: 'Želim', bs: 'Želim', ja: '欲しいです', ko: '원합니다' },
+  'Coffee with milk': { de: 'Kaffee mit Milch', ro: 'Cafea cu lapte', ru: 'Кофе с молоком', pl: 'Kawa z mlekiem', uk: 'Кава з молоком', cs: 'Káva s mlékem', sr: 'Кафа са млеком', hr: 'Kava s mlijekom', bs: 'Kafa sa mlijekom', ja: 'カフェオレ', ko: '카페라테' },
+  'The bill, please': { de: 'Die Rechnung, bitte', ro: 'Nota de plată, vă rog', ru: 'Счёт, пожалуйста', pl: 'Rachunek, proszę', uk: 'Рахунок, будь ласка', cs: 'Účet, prosím', sr: 'Рачун, молим', hr: 'Račun, molim', bs: 'Račun, molim', ja: 'お会計お願いします', ko: '계산서 부탁합니다' },
+  'Hello, a table please': { de: 'Hallo, einen Tisch bitte', ro: 'Bună, o masă vă rog', ru: 'Здравствуйте, столик пожалуйста', pl: 'Dzień dobry, stolik proszę', uk: 'Добрий день, столик будь ласка', cs: 'Dobrý den, stůl prosím', sr: 'Здраво, сто молим', hr: 'Bok, stol molim', bs: 'Zdravo, sto molim', ja: 'こんにちは、テーブルをお願いします', ko: '안녕하세요, 테이블 부탁합니다' },
+  'I want a coffee with milk': { de: 'Ich möchte einen Kaffee mit Milch', ro: 'Vreau o cafea cu lapte', ru: 'Я хочу кофе с молоком', pl: 'Chcę kawę z mlekiem', uk: 'Я хочу каву з молоком', cs: 'Chci kávu s mlékem', sr: 'Желим кафу са млеком', hr: 'Želim kavu s mlijekom', bs: 'Želim kafu sa mlijekom', ja: 'カフェオレをお願いします', ko: '카페라테 주세요' },
+  'For how many?': { de: 'Für wie viele?', ro: 'Pentru câte persoane?', ru: 'На сколько человек?', pl: 'Dla ilu osób?', uk: 'На скільки осіб?', cs: 'Pro kolik?', sr: 'За колико особа?', hr: 'Za koliko osoba?', bs: 'Za koliko osoba?', ja: '何名様ですか？', ko: '몇 분이세요?' },
+  'The daily menu': { de: 'Das Tagesmenü', ro: 'Meniul zilei', ru: 'Меню дня', pl: 'Menu dnia', uk: 'Меню дня', cs: 'Denní menu', sr: 'Дневни мени', hr: 'Dnevni meni', bs: 'Dnevni meni', ja: '本日のメニュー', ko: '오늘의 메뉴' },
+  'For one': { de: 'Für eine Person', ro: 'Pentru o persoană', ru: 'На одного', pl: 'Dla jednej osoby', uk: 'На одного', cs: 'Pro jednoho', sr: 'За једну особу', hr: 'Za jednu osobu', bs: 'Za jednu osobu', ja: '一名です', ko: '한 명이요' },
+  'Waiter': { de: 'Kellner', ro: 'Chelner', ru: 'Официант', pl: 'Kelner', uk: 'Офіціант', cs: 'Číšník', sr: 'Конобар', hr: 'Konobar', bs: 'Konobar', ja: 'ウェイター', ko: '웨이터' },
+  'For one, please': { de: 'Für eine Person, bitte', ro: 'Pentru o persoană, vă rog', ru: 'На одного, пожалуйста', pl: 'Dla jednej osoby, proszę', uk: 'На одного, будь ласка', cs: 'Pro jednoho, prosím', sr: 'За једну особу, молим', hr: 'Za jednu osobu, molim', bs: 'Za jednu osobu, molim', ja: '一名お願いします', ko: '한 명 부탁합니다' },
+  'I want the daily menu': { de: 'Ich möchte das Tagesmenü', ro: 'Vreau meniul zilei', ru: 'Я хочу меню дня', pl: 'Chcę menu dnia', uk: 'Я хочу меню дня', cs: 'Chci denní menu', sr: 'Желим дневни мени', hr: 'Želim dnevni meni', bs: 'Želim dnevni meni', ja: '本日のメニューをお願いします', ko: '오늘의 메뉴 주세요' },
+  'I ordered': { de: 'Ich habe bestellt', ro: 'Am comandat', ru: 'Я заказал', pl: 'Zamówiłem', uk: 'Я замовив', cs: 'Objednal jsem', sr: 'Наручио сам', hr: 'Naručio sam', bs: 'Naručio sam', ja: '注文しました', ko: '주문했습니다' },
+  'They brought me': { de: 'Sie haben mir gebracht', ro: 'Mi-au adus', ru: 'Мне принесли', pl: 'Przynieśli mi', uk: 'Мені принесли', cs: 'Přinesli mi', sr: 'Донели су ми', hr: 'Donijeli su mi', bs: 'Donijeli su mi', ja: '持ってきました', ko: '가져왔습니다' },
+  'I\'m very sorry': { de: 'Es tut mir sehr leid', ro: 'Îmi pare foarte rău', ru: 'Мне очень жаль', pl: 'Bardzo mi przykro', uk: 'Мені дуже шкода', cs: 'Je mi to velmi líto', sr: 'Веома ми је жао', hr: 'Jako mi je žao', bs: 'Veoma mi je žao', ja: '大変申し訳ありません', ko: '정말 죄송합니다' },
+  'I\'m so sorry': { de: 'Es tut mir so leid', ro: 'Îmi pare atât de rău', ru: 'Мне так жаль', pl: 'Bardzo przepraszam', uk: 'Мені так шкода', cs: 'Je mi to moc líto', sr: 'Много ми је жао', hr: 'Tako mi je žao', bs: 'Jako mi je žao', ja: '本当に申し訳ありません', ko: '정말 죄송합니다' },
+  'Right now': { de: 'Sofort', ro: 'Chiar acum', ru: 'Прямо сейчас', pl: 'Natychmiast', uk: 'Прямо зараз', cs: 'Hned', sr: 'Одмах', hr: 'Odmah', bs: 'Odmah', ja: '今すぐ', ko: '바로 지금' },
+  'Right away': { de: 'Sofort', ro: 'Imediat', ru: 'Сейчас же', pl: 'Od razu', uk: 'Зараз же', cs: 'Ihned', sr: 'Одмах', hr: 'Odmah', bs: 'Odmah', ja: 'すぐに', ko: '바로' },
+  'I\'ll change it for you': { de: 'Ich tausche es Ihnen um', ro: 'Vi-l schimb', ru: 'Я заменю вам', pl: 'Zamienię to', uk: 'Я замiню вам', cs: 'Vyměním vám to', sr: 'Заменићу вам', hr: 'Zamijenit ću vam', bs: 'Zamijenit ću vam', ja: 'お取り替えします', ko: '교환해 드리겠습니다' },
+  'I\'ve been waiting': { de: 'Ich warte schon', ro: 'Aștept de', ru: 'Я жду уже', pl: 'Czekam już', uk: 'Я чекаю вже', cs: 'Čekám už', sr: 'Чекам већ', hr: 'Čekam već', bs: 'Čekam već', ja: 'ずっと待っています', ko: '계속 기다리고 있습니다' },
+  'Half an hour': { de: 'Eine halbe Stunde', ro: 'O jumătate de oră', ru: 'Полчаса', pl: 'Pół godziny', uk: 'Пів години', cs: 'Půl hodiny', sr: 'Пола сата', hr: 'Pola sata', bs: 'Pola sata', ja: '30分', ko: '30분' },
+  'Unacceptable': { de: 'Inakzeptabel', ro: 'Inacceptabil', ru: 'Неприемлемо', pl: 'Niedopuszczalne', uk: 'Неприпустимо', cs: 'Nepřijatelné', sr: 'Неприхватљиво', hr: 'Neprihvatljivo', bs: 'Neprihvatljivo', ja: '受け入れられません', ko: '용납할 수 없습니다' },
+  'The manager': { de: 'Der Manager', ro: 'Managerul', ru: 'Менеджер', pl: 'Kierownik', uk: 'Менеджер', cs: 'Manažer', sr: 'Менаџер', hr: 'Voditelj', bs: 'Menadžer', ja: 'マネージャー', ko: '매니저' },
+  'Let me verify': { de: 'Lassen Sie mich nachprüfen', ro: 'Permiteți-mi să verific', ru: 'Позвольте мне проверить', pl: 'Pozwolę sobie sprawdzić', uk: 'Дозвольте перевірити', cs: 'Dovolte mi ověřit', sr: 'Дозволите да проверим', hr: 'Dopustite da provjerim', bs: 'Dozvolite da provjerim', ja: '確認させてください', ko: '확인해 보겠습니다' },
+  'Let me check': { de: 'Lassen Sie mich nachsehen', ro: 'Permiteți-mi să verific', ru: 'Позвольте проверить', pl: 'Pozwolę sobie sprawdzić', uk: 'Дозвольте перевірити', cs: 'Nechte mě zkontrolovat', sr: 'Дозволите да проверим', hr: 'Dopustite da provjerim', bs: 'Dozvolite da provjerim', ja: '確認いたします', ko: '확인해 보겠습니다' },
+  'Let me fix it': { de: 'Ich kümmere mich darum', ro: 'Voi rezolva', ru: 'Я исправлю', pl: 'Naprawię to', uk: 'Я виправлю', cs: 'Opravím to', sr: 'Поправићу то', hr: 'Popravit ću to', bs: 'Popravit ću to', ja: '直します', ko: '고쳐 드리겠습니다' },
+  'I\'ve been waiting for half an hour': { de: 'Ich warte schon eine halbe Stunde', ro: 'Aștept de o jumătate de oră', ru: 'Я жду уже полчаса', pl: 'Czekam już pół godziny', uk: 'Я чекаю вже пів години', cs: 'Čekám už půl hodiny', sr: 'Чекам већ пола сата', hr: 'Čekam već pola sata', bs: 'Čekam već pola sata', ja: '30分待っています', ko: '30분째 기다리고 있습니다' },
+  'I want to speak with the manager': { de: 'Ich möchte mit dem Manager sprechen', ro: 'Vreau să vorbesc cu managerul', ru: 'Я хочу поговорить с менеджером', pl: 'Chcę rozmawiać z kierownikiem', uk: 'Я хочу поговорити з менеджером', cs: 'Chci mluvit s manažerem', sr: 'Желим да разговарам са менаџером', hr: 'Želim razgovarati s voditeljem', bs: 'Želim razgovarati sa menadžerom', ja: 'マネージャーと話したいです', ko: '매니저와 이야기하고 싶습니다' },
+  'You\'re absolutely right': { de: 'Sie haben vollkommen recht', ro: 'Aveți perfectă dreptate', ru: 'Вы совершенно правы', pl: 'Ma Pan/Pani całkowitą rację', uk: 'Ви абсолютно праві', cs: 'Máte naprostou pravdu', sr: 'Потпуно сте у праву', hr: 'Potpuno ste u pravu', bs: 'Potpuno ste u pravu', ja: 'おっしゃる通りです', ko: '전적으로 옳으십니다' },
+  'I ordered chicken but they brought me fish': { de: 'Ich habe Hähnchen bestellt, aber man brachte mir Fisch', ro: 'Am comandat pui, dar mi-au adus pește', ru: 'Я заказал курицу, но мне принесли рыбу', pl: 'Zamówiłem kurczaka, ale przyniesiono mi rybę', uk: 'Я замовив курку, але мені принесли рибу', cs: 'Objednal jsem kuře, ale přinesli mi rybu', sr: 'Наручио сам пилетину, али су ми донели рибу', hr: 'Naručio sam piletinu, ali su mi donijeli ribu', bs: 'Naručio sam piletinu, ali su mi donijeli ribu', ja: 'チキンを注文しましたが、魚が来ました', ko: '치킨을 주문했는데 생선이 나왔습니다' },
+  'I\'ll change it for you right now': { de: 'Ich tausche es Ihnen sofort um', ro: 'Vi-l schimb chiar acum', ru: 'Я заменю вам прямо сейчас', pl: 'Zamienię to natychmiast', uk: 'Я замiню вам прямо зараз', cs: 'Hned vám to vyměním', sr: 'Одмах ћу вам заменити', hr: 'Odmah ću vam zamijeniti', bs: 'Odmah ću vam zamijeniti', ja: '今すぐお取り替えします', ko: '바로 교환해 드리겠습니다' },
+  'Can I get a coffee please?': { de: 'Kann ich bitte einen Kaffee bekommen?', ro: 'Pot să primesc o cafea, vă rog?', ru: 'Можно мне кофе, пожалуйста?', pl: 'Czy mogę prosić kawę?', uk: 'Можна мені каву, будь ласка?', cs: 'Mohu dostat kávu, prosím?', sr: 'Могу ли добити кафу, молим?', hr: 'Mogu li dobiti kavu, molim?', bs: 'Mogu li dobiti kafu, molim?', ja: 'コーヒーをいただけますか？', ko: '커피 하나 주시겠어요?' },
+  'A medium, please': { de: 'Mittelgroß, bitte', ro: 'Mediu, vă rog', ru: 'Средний, пожалуйста', pl: 'Średni, proszę', uk: 'Середній, будь ласка', cs: 'Střední, prosím', sr: 'Средњи, молим', hr: 'Srednji, molim', bs: 'Srednji, molim', ja: 'Mサイズでお願いします', ko: '미디움 사이즈로 주세요' },
+  'That\'s all, thank you': { de: 'Das ist alles, danke', ro: 'Asta e tot, mulțumesc', ru: 'Это всё, спасибо', pl: 'To wszystko, dziękuję', uk: 'Це все, дякую', cs: 'To je vše, děkuji', sr: 'То је све, хвала', hr: 'To je sve, hvala', bs: 'To je sve, hvala', ja: '以上です、ありがとうございます', ko: '그게 다예요, 감사합니다' },
+  'Can I get...': { de: 'Kann ich... bekommen?', ro: 'Pot să primesc...', ru: 'Можно мне...', pl: 'Czy mogę prosić...', uk: 'Можна мені...', cs: 'Mohu dostat...', sr: 'Могу ли добити...', hr: 'Mogu li dobiti...', bs: 'Mogu li dobiti...', ja: '...をいただけますか', ko: '...주시겠어요?' },
+  'What size?': { de: 'Welche Größe?', ro: 'Ce mărime?', ru: 'Какой размер?', pl: 'Jaki rozmiar?', uk: 'Який розмір?', cs: 'Jakou velikost?', sr: 'Која величина?', hr: 'Koja veličina?', bs: 'Koja veličina?', ja: 'サイズはどうしますか？', ko: '사이즈가 어떻게 되세요?' },
+  'Anything else?': { de: 'Sonst noch etwas?', ro: 'Mai doriți ceva?', ru: 'Что-нибудь ещё?', pl: 'Coś jeszcze?', uk: 'Щось ще?', cs: 'Ještě něco?', sr: 'Још нешто?', hr: 'Još nešto?', bs: 'Još nešto?', ja: '他にございますか？', ko: '다른 건 없으세요?' },
+  'That\'s all': { de: 'Das ist alles', ro: 'Asta e tot', ru: 'Это всё', pl: 'To wszystko', uk: 'Це все', cs: 'To je vše', sr: 'То је све', hr: 'To je sve', bs: 'To je sve', ja: '以上です', ko: '그게 다예요' },
+  'I\'d like a table for two': { de: 'Ich hätte gerne einen Tisch für zwei', ro: 'Aș dori o masă pentru două persoane', ru: 'Я бы хотел столик на двоих', pl: 'Poproszę stolik dla dwóch osób', uk: 'Я б хотів столик на двох', cs: 'Chtěl bych stůl pro dva', sr: 'Желео бих сто за двоје', hr: 'Htio bih stol za dvoje', bs: 'Htio bih sto za dvoje', ja: '二名のテーブルをお願いします', ko: '두 명 테이블 부탁합니다' },
+  'Yes please': { de: 'Ja bitte', ro: 'Da, vă rog', ru: 'Да, пожалуйста', pl: 'Tak, proszę', uk: 'Так, будь ласка', cs: 'Ano, prosím', sr: 'Да, молим', hr: 'Da, molim', bs: 'Da, molim', ja: 'はい、お願いします', ko: '네, 부탁합니다' },
+  'Could we get some water?': { de: 'Könnten wir etwas Wasser bekommen?', ro: 'Am putea primi niște apă?', ru: 'Можно нам воды?', pl: 'Czy moglibyśmy prosić wodę?', uk: 'Чи можна нам води?', cs: 'Mohli bychom dostat vodu?', sr: 'Можемо ли добити воду?', hr: 'Možemo li dobiti vode?', bs: 'Možemo li dobiti vode?', ja: 'お水をいただけますか？', ko: '물 좀 주시겠어요?' },
+  'I\'d like': { de: 'Ich hätte gerne', ro: 'Aș dori', ru: 'Я бы хотел', pl: 'Poproszę', uk: 'Я б хотів', cs: 'Chtěl bych', sr: 'Желео бих', hr: 'Htio bih', bs: 'Htio bih', ja: '...をお願いします', ko: '...부탁합니다' },
+  'Follow me': { de: 'Folgen Sie mir', ro: 'Urmați-mă', ru: 'Следуйте за мной', pl: 'Proszę za mną', uk: 'Слідуйте за мною', cs: 'Pojďte za mnou', sr: 'Пратите ме', hr: 'Pratite me', bs: 'Pratite me', ja: 'こちらへどうぞ', ko: '이쪽으로 오세요' },
+  'Could we get...': { de: 'Könnten wir... bekommen?', ro: 'Am putea primi...', ru: 'Можно нам...', pl: 'Czy moglibyśmy prosić...', uk: 'Чи можна нам...', cs: 'Mohli bychom dostat...', sr: 'Можемо ли добити...', hr: 'Možemo li dobiti...', bs: 'Možemo li dobiti...', ja: '...をいただけますか', ko: '...주시겠어요?' },
+  'I\'m so sorry about that': { de: 'Das tut mir wirklich leid', ro: 'Îmi pare foarte rău pentru asta', ru: 'Мне очень жаль', pl: 'Bardzo za to przepraszam', uk: 'Мені дуже шкода за це', cs: 'To je mi moc líto', sr: 'Много ми је жао због тога', hr: 'Jako mi je žao zbog toga', bs: 'Jako mi je žao zbog toga', ja: '大変申し訳ございません', ko: '정말 죄송합니다' },
+  'Let me fix it right away': { de: 'Ich kümmere mich sofort darum', ro: 'Voi rezolva imediat', ru: 'Я исправлю немедленно', pl: 'Naprawię to od razu', uk: 'Я виправлю негайно', cs: 'Hned to opravím', sr: 'Одмах ћу поправити', hr: 'Odmah ću popraviti', bs: 'Odmah ću popraviti', ja: 'すぐに直します', ko: '바로 고쳐 드리겠습니다' },
+  'This looks like': { de: 'Das sieht aus wie', ro: 'Asta arată ca', ru: 'Это похоже на', pl: 'To wygląda jak', uk: 'Це схоже на', cs: 'Tohle vypadá jako', sr: 'Ово изгледа као', hr: 'Ovo izgleda kao', bs: 'Ovo izgleda kao', ja: 'これは...のようです', ko: '이것은...같습니다' },
+  'I\'d like to speak with the manager': { de: 'Ich möchte mit dem Manager sprechen', ro: 'Aș dori să vorbesc cu managerul', ru: 'Я бы хотел поговорить с менеджером', pl: 'Chciałbym porozmawiać z kierownikiem', uk: 'Я б хотів поговорити з менеджером', cs: 'Chtěl bych mluvit s manažerem', sr: 'Желео бих да разговарам са менаџером', hr: 'Htio bih razgovarati s voditeljem', bs: 'Htio bih razgovarati sa menadžerom', ja: 'マネージャーとお話ししたいのですが', ko: '매니저와 이야기하고 싶습니다' },
+  'Excuse me, I ordered the steak but this looks like chicken': { de: 'Entschuldigung, ich habe Steak bestellt, aber das sieht aus wie Hähnchen', ro: 'Scuzați-mă, am comandat friptură dar asta pare a fi pui', ru: 'Извините, я заказал стейк, но это похоже на курицу', pl: 'Przepraszam, zamówiłem stek, ale to wygląda jak kurczak', uk: 'Перепрошую, я замовив стейк, але це схоже на курку', cs: 'Promiňte, objednal jsem steak, ale tohle vypadá jako kuře', sr: 'Извините, наручио сам стејк, али ово изгледа као пилетина', hr: 'Oprostite, naručio sam odrezak, ali ovo izgleda kao piletina', bs: 'Izvinite, naručio sam biftek, ali ovo izgleda kao piletina', ja: 'すみません、ステーキを注文しましたが、チキンのようです', ko: '실례합니다, 스테이크를 주문했는데 치킨 같습니다' },
+};
+
+function normalizeToIso(code: string): string {
+  const lower = code.toLowerCase().trim();
+  if (langAliases[lower]) return langAliases[lower];
+  const base = lower.split('-')[0].split('_')[0];
+  if (langAliases[base]) return langAliases[base];
+  return lower;
+}
+
 // Helper: resolve translations to the user's native language
 export function getLocalizedContent(content: LessonContent, nativeLanguageCode: string): LessonContent {
+  const iso = normalizeToIso(nativeLanguageCode);
+
   const resolve = (translations: Record<string, string> | undefined, fallback: string): string => {
     if (!translations) return fallback;
-    return translations[nativeLanguageCode] || translations['en'] || fallback;
+    // 1. Direct key match
+    if (translations[nativeLanguageCode]) return translations[nativeLanguageCode];
+    // 2. Normalized ISO key
+    if (translations[iso]) return translations[iso];
+    // 3. Glossary fallback using English base phrase
+    const enPhrase = translations['en'];
+    if (enPhrase && translationGlossary[enPhrase]?.[iso]) {
+      return translationGlossary[enPhrase][iso];
+    }
+    // 4. English fallback
+    if (enPhrase) return enPhrase;
+    // 5. Literal fallback
+    return fallback;
   };
 
   return {
