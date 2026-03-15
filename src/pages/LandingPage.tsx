@@ -179,7 +179,7 @@ const detectLandingLanguage = (): LandingLanguage => {
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [selectedLanguage, setSelectedLanguage] = useState<LandingLanguage>(() => detectBrowserLanguage());
+  const [selectedLanguage, setSelectedLanguage] = useState<LandingLanguage>(() => detectLandingLanguage());
   const [showMobileCTA, setShowMobileCTA] = useState(false);
 
   const t = landingTranslations[selectedLanguage];
