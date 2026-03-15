@@ -167,10 +167,13 @@ const landingTranslations = {
   },
 };
 
-const detectBrowserLanguage = (): LandingLanguage => {
+const detectLandingLanguage = (): LandingLanguage => {
+  const base = detectUILanguage(); // returns en|es|fr|it (no pt)
+  if (['en', 'es', 'fr', 'it'].includes(base)) return base as LandingLanguage;
+  // Also support German for landing page only
   const browserLang = navigator.language.split('-')[0].toLowerCase();
-  const supported: LandingLanguage[] = ['en', 'es', 'fr', 'it', 'de'];
-  return supported.includes(browserLang as LandingLanguage) ? (browserLang as LandingLanguage) : 'en';
+  if (browserLang === 'de') return 'de';
+  return 'en';
 };
 
 export default function LandingPage() {
