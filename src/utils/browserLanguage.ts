@@ -7,7 +7,7 @@ import type { LanguageCode } from './translations';
  */
 export function detectUILanguage(): LanguageCode {
   const browserLang = navigator.language.split('-')[0].toLowerCase();
-  const supported: LanguageCode[] = ['en', 'es', 'fr', 'it', 'pt'];
+  const supported: LanguageCode[] = ['en', 'es', 'fr', 'it'];
   return supported.includes(browserLang as LanguageCode)
     ? (browserLang as LanguageCode)
     : 'en';
