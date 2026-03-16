@@ -13,6 +13,8 @@ interface VideoFlashcardsProps {
   level: string;
   onComplete: () => void;
   onBack: () => void;
+  sceneTranscript?: string;
+  dbVideoId?: string | null;
 }
 
 interface Flashcard {
