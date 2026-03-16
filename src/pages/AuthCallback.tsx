@@ -139,7 +139,7 @@ export default function AuthCallback() {
       }
 
       // Determine actual role for redirect
-      const actualRole = dbRole === "teacher" || intendedRole === "teacher" ? "teacher" : "student";
+      const actualRole = dbRole || (isNewUser ? intendedRole : "student");
 
       // Check for pending lesson token
       const pendingToken = localStorage.getItem("pending_lesson_token");
