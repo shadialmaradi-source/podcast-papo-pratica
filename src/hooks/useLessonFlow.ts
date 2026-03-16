@@ -101,10 +101,10 @@ export function useLessonFlow(videoId: string | undefined) {
     return null;
   };
 
-  const loadSceneProgress = async (videoDbId: string) => {
+  const loadSceneProgress = async (videoDbId: string): Promise<{ currentScene: number; completed: number[] }> => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return;
+      if (!authUser) return { currentScene: 0, completed: [] };
       const { data: progress } = await supabase
         .from("user_scene_progress")
         .select("*")
@@ -114,10 +114,12 @@ export function useLessonFlow(videoId: string | undefined) {
       if (progress) {
         setCurrentSceneIndex(progress.current_scene);
         setCompletedScenes(progress.completed_scenes || []);
+        return { currentScene: progress.current_scene, completed: progress.completed_scenes || [] };
       }
     } catch (err) {
       console.error("Error loading scene progress:", err);
     }
+    return { currentScene: 0, completed: [] };
   };
 
   const saveSceneProgress = useCallback(async (sceneIdx: number, completed: number[]) => {
