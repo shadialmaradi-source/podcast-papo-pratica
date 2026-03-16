@@ -141,8 +141,9 @@ export function useLessonFlow(videoId: string | undefined) {
     }
   }, [dbVideoId, scenes]);
 
-  const trySegmentVideo = async (videoDbId: string, _level: string) => {
+  const trySegmentVideo = async (videoDbId: string, _level: string, persistedCompleted?: number[]) => {
     setLessonState("loading");
+    const completedToUse = persistedCompleted || completedScenes;
     try {
       const { data: videoData } = await supabase
         .from("youtube_videos")
@@ -172,7 +173,7 @@ export function useLessonFlow(videoId: string | undefined) {
       setScenes(data.scenes);
       setIsSegmented(true);
       const firstIncomplete = data.scenes.findIndex(
-        (s: VideoScene) => !completedScenes.includes(s.scene_index)
+        (s: VideoScene) => !completedToUse.includes(s.scene_index)
       );
       setCurrentSceneIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
       toast({
