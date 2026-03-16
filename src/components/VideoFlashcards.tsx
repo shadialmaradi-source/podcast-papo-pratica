@@ -23,7 +23,7 @@ interface Flashcard {
   why: string;
 }
 
-export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFlashcardsProps) {
+export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTranscript, dbVideoId: dbVideoIdProp }: VideoFlashcardsProps) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
