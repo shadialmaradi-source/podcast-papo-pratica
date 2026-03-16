@@ -213,7 +213,7 @@ export function useLessonFlow(videoId: string | undefined) {
     }
     if (dbVideoId) {
       trackEvent("video_started", { video_id: videoId, difficulty_level: level });
-      await trySegmentVideo(dbVideoId, level);
+      await trySegmentVideo(dbVideoId, level, []);
     }
   };
 
