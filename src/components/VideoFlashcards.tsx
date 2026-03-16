@@ -101,9 +101,9 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTrans
         // Call the edge function to generate/fetch flashcards
         const { data, error: fnError } = await supabase.functions.invoke('generate-flashcards', {
           body: {
-            videoId,
-            transcript: transcriptData.transcript,
-            language: normalizeLanguageCode(transcriptData.language || 'portuguese'),
+            videoId: resolvedDbVideoId || videoId,
+            transcript: transcriptText,
+            language: normalizeLanguageCode(transcriptLang),
             level: level || 'beginner',
             nativeLanguage: userNativeLanguage,
           },
