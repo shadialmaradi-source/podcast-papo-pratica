@@ -50,6 +50,8 @@ interface YouTubeSpeakingProps {
   level: string;
   onComplete: () => void;
   onBack: () => void;
+  sceneId?: string;
+  sceneTranscript?: string;
 }
 
 // Anonymous session tracking utilities
