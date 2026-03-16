@@ -196,12 +196,12 @@ export function useLessonFlow(videoId: string | undefined) {
     setYoutubeVideoId(videoData.video_id);
     setVideoTitle(videoData.title || "");
     setVideoLanguage(videoData.language || "italian");
-    await loadSceneProgress(videoData.id);
+    const sceneProgress = await loadSceneProgress(videoData.id);
     const level = await resolveLevel();
     if (!level) { setShowLevelPopup(true); return; }
     setSelectedLevel(level);
     trackEvent("video_started", { video_id: videoId, difficulty_level: level });
-    await trySegmentVideo(videoData.id, level);
+    await trySegmentVideo(videoData.id, level, sceneProgress.completed);
   };
 
   const handleLevelSelect = async (level: string) => {
