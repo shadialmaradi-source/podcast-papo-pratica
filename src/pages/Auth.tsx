@@ -233,14 +233,22 @@ export default function Auth() {
             timestamp: new Date().toISOString(),
           });
 
-          setPendingVerificationEmail(email);
-
-          toast({
-            title: "Registration Complete",
-            description: role === "teacher"
-              ? "Your 14-day free trial has started! Check your email to verify your account."
-              : "Check your email to confirm your account and start learning.",
-          });
+          if (signUpData.session) {
+            toast({
+              title: "Account Created",
+              description: role === "teacher"
+                ? "Your 14-day free trial has started! Redirecting..."
+                : "Welcome! Redirecting...",
+            });
+          } else {
+            setPendingVerificationEmail(email);
+            toast({
+              title: "Registration Complete",
+              description: role === "teacher"
+                ? "Your 14-day free trial has started! Check your email to verify your account."
+                : "Check your email to confirm your account and start learning.",
+            });
+          }
         }
       } else {
         const { data: authData, error } = await supabase.auth.signInWithPassword({
