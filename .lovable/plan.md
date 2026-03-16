@@ -1,124 +1,143 @@
 
 
-# Plan: Teacher YouTube Lesson Overhaul
+# Segmented-Lesson Consistency Stabilization — 5 Files
 
-This is a large feature touching student onboarding, the teacher post-creation view, the exercise generation backend, and the student lesson experience. I recommend splitting into phases. Here is the full scope.
+## 1. `src/pages/Lesson.tsx` — Propagate scene context to speaking and flashcards
 
-## Summary of Changes
+**Lines 187-201**: Pass `sceneId`, `sceneTranscript`, and `dbVideoId` to `YouTubeSpeaking` and `VideoFlashcards` in segmented branches.
 
-1. **Simplified student onboarding for shared lessons** -- 2 steps only (learning language + native language), then redirect to lesson
-2. **Teacher post-creation view for YouTube lessons** -- video + transcript with word exploration + exercise sections grouped by type
-3. **Exercise generation overhaul** -- 5 questions per type (except role_play: 2-3 scenarios), remove image_discussion, role_play uses transcript context
-4. **Student lesson view update** -- same grouped-by-type sequential layout
+```tsx
+// Speaking (line 189)
+<YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary}
+  sceneId={currentScene?.id} sceneTranscript={currentScene?.scene_transcript} />
 
----
-
-## Phase 1: Simplified Student Onboarding
-
-### Problem
-Currently, students arriving via a shared link must go through the full 3-step onboarding (language, native, level). For shared lessons, the level is already set by the teacher.
-
-### Solution
-- Detect if the user arrived from a shared lesson link by storing `pending_lesson_token` in localStorage before redirecting to auth/onboarding
-- In `Onboarding.tsx`, if `pending_lesson_token` exists, skip the "level" step entirely. After step 2 (native language), save profile and redirect to `/lesson/student/{token}` instead of `/lesson/first`
-- In `AuthCallback.tsx` or `App.tsx`, detect the `/lesson/student/:id` route for unauthenticated users and store the token before redirecting to `/auth`
-
-### Files changed
-- **`src/App.tsx`** -- ProtectedRoute for `/lesson/student/:id` stores redirect info before bouncing to `/auth`
-- **`src/pages/Onboarding.tsx`** -- check for `pending_lesson_token`, skip level step, redirect to lesson on completion
-- **`src/pages/AuthCallback.tsx`** -- preserve pending lesson redirect after OAuth
-
----
-
-## Phase 2: Remove image_discussion, Update Exercise Types
-
-### DB migration
-- No schema changes needed (exercise_types is a text array, content is JSONB)
-
-### Edge function: `generate-lesson-exercises`
-- Remove `image_discussion` from `EXERCISE_PROMPTS`
-- Change generation count: 5 questions for ALL types except `role_play` (generate 2-3 scenarios)
-- Update `role_play` prompt to require the AI to base the scenario on the transcript/video content. Pass `lesson.youtube_url` context or transcript content to the prompt
-- For YouTube lessons, fetch transcript from `youtube_videos` table (or call extract-youtube-transcript) and pass it to AI prompts so exercises are video-contextual
-
-### Frontend: `CreateLessonForm.tsx`
-- Remove `image_discussion` from `EXERCISE_TYPES_YOUTUBE`
-
-### Files changed
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- updated prompts, counts, transcript context
-- **`src/components/teacher/CreateLessonForm.tsx`** -- remove image_discussion option
-
----
-
-## Phase 3: Teacher Post-Creation View (YouTube lessons)
-
-### Current state
-After creating a YouTube lesson, the teacher sees: share link, a "Exercises" tab with only multiple_choice questions rendered one-by-one.
-
-### New design
-After creation, the teacher sees:
-1. **Share link** (unchanged)
-2. **YouTube video embed** at the top
-3. **Full transcript** with the same interactive text selection (explore word / save flashcard) -- reuse `TranscriptViewer` component or a simplified version that fetches transcript via the existing pipeline (the YouTube URL was already processed by `process-youtube-video` or we fetch it on-demand)
-4. **Exercise sections** -- one section per selected exercise type, displayed sequentially. Each section has a header (e.g., "Fill in the Blank (5)") and the 5 exercises rendered inside with the existing `ExerciseContent` component and prev/next navigation within each section
-
-### Transcript fetching approach
-- When a YouTube lesson is created, we need the transcript. Option: call `extract-youtube-transcript` edge function from the frontend after lesson creation, or store the transcript on `teacher_lessons.youtube_transcript` (new column)
-- Simpler: add a `transcript` text column to `teacher_lessons`, and have `generate-lesson-exercises` fetch and store the transcript during generation
-
-### DB migration
-```sql
-ALTER TABLE teacher_lessons ADD COLUMN transcript text;
+// Flashcards (line 197)
+<VideoFlashcards videoId={videoId} level={selectedLevel} onComplete={() => handleFlashcardsComplete()} onBack={handleBackToLibrary}
+  sceneTranscript={currentScene?.scene_transcript} dbVideoId={dbVideoId} />
 ```
 
-### Files changed
-- **DB migration** -- add `transcript` column
-- **`supabase/functions/generate-lesson-exercises/index.ts`** -- fetch transcript, save to lesson, pass to AI prompts
-- **`src/components/teacher/CreateLessonForm.tsx`** -- rewrite post-creation view: video embed, transcript with word exploration, sequential exercise sections grouped by type
+Same props for non-segmented branches (values will be undefined, components use them conditionally).
 
 ---
 
-## Phase 4: Teacher Live Lesson View (`TeacherLesson.tsx`)
+## 2. `src/components/YouTubeSpeaking.tsx` — Accept and use scene context
 
-Update `ExercisePresenter` and `TeacherLesson.tsx` to group exercises by type in sequential sections instead of a flat list:
-- Show video at top
-- Show transcript below (same interactive component)
-- Exercise sections grouped by type, each with its own prev/next within 5 questions
+**Props (line 48-53)**: Add optional `sceneId?: string` and `sceneTranscript?: string`.
 
-### Files changed
-- **`src/components/teacher/ExercisePresenter.tsx`** -- group exercises by type, render sections sequentially
-- **`src/pages/TeacherLesson.tsx`** -- fetch transcript, render it with word exploration
+**`loadData` (lines 134-207)**: When `sceneTranscript` is provided, skip the full transcript DB fetch and use `sceneTranscript` directly. Still resolve video record for language detection, but set `transcript` from the prop. For beginner mode, pass scene transcript to `extract-speaking-phrases`.
 
----
-
-## Phase 5: Student Lesson View (`StudentLesson.tsx`)
-
-Mirror the teacher's layout for the student:
-- Video at top
-- Transcript (read-only or interactive if we want students to also explore words)
-- Exercise sections grouped by type, sequential, with submit per question
-
-### Files changed
-- **`src/pages/StudentLesson.tsx`** -- grouped exercise sections, transcript display
+```typescript
+// If sceneTranscript is provided, use it directly instead of fetching full transcript
+const actualTranscript = sceneTranscript || transcriptData.transcript;
+setTranscript(actualTranscript);
+// Use actualTranscript when invoking extract-speaking-phrases
+```
 
 ---
 
-## Technical Details
+## 3. `src/components/VideoFlashcards.tsx` — Accept scene context and fix transcript resolution
 
-### Exercise generation counts
-| Type | Count |
-|------|-------|
-| fill_in_blank | 5 |
-| multiple_choice | 5 |
-| spot_the_mistake | 5 |
-| role_play | 2-3 scenarios |
+**Props (line 11-16)**: Add optional `sceneTranscript?: string` and `dbVideoId?: string | null`.
 
-### Role-play prompt update
-The AI prompt for role_play will include the video transcript and instruct: "Create a role-play scenario inspired by the content of this video transcript. The scenario should relate to the themes, vocabulary, or situations discussed in the video."
+**`fetchFlashcards` (lines 36-51)**: 
+- If `sceneTranscript` is provided, skip DB transcript fetch and use it directly.
+- Resolve DB video ID: use `dbVideoId` prop if available, otherwise look up via `youtube_videos` table (like YouTubeSpeaking does), then query `youtube_transcripts` by DB video ID instead of raw `videoId`.
 
-### Transcript storage
-Add `transcript` column to `teacher_lessons`. The edge function fetches the transcript during exercise generation (using the existing `extract-youtube-transcript` function or the SUPADATA API directly) and stores it on the lesson record. This avoids requiring a separate `youtube_videos` record.
+```typescript
+// Resolve DB video ID first
+let resolvedDbVideoId = dbVideoId;
+if (!resolvedDbVideoId) {
+  let { data: videoData } = await supabase.from('youtube_videos').select('id').eq('video_id', videoId).single();
+  if (!videoData) {
+    const { data: byId } = await supabase.from('youtube_videos').select('id').eq('id', videoId).single();
+    videoData = byId;
+  }
+  resolvedDbVideoId = videoData?.id || null;
+}
 
-### RLS
-No new RLS policies needed -- the existing `teacher_lessons` policies already cover teacher read/write and student read access. The new `transcript` column is just another text field on the same table.
+// Use scene transcript or fetch from DB using resolved ID
+let transcript, transcriptLanguage;
+if (sceneTranscript) {
+  transcript = sceneTranscript;
+  // Get language from video record
+} else {
+  // Fetch from youtube_transcripts using resolvedDbVideoId
+}
+```
+
+---
+
+## 4. `src/hooks/useYouTubeExercises.ts` — Strict scene alignment
+
+**Lines 265-278**: When `sceneId` is present, do NOT fall back to full-video exercises. Remove the `fetchExercises(null)` fallback when `sceneId` exists.
+
+```typescript
+dbExercises = await fetchExercises(sceneId || null);
+if (dbExercises.length === 0) {
+  if (sceneId) {
+    await generateExercises(sceneId, sceneTranscript);
+    dbExercises = await fetchExercises(sceneId);
+    // If still empty, surface error — do NOT fall back to full-video
+    if (dbExercises.length === 0) {
+      setError("Could not generate exercises for this scene. Please try again.");
+      setIsLoading(false);
+      return;
+    }
+  } else {
+    await generateExercises();
+    dbExercises = await fetchExercises(null);
+  }
+}
+```
+
+---
+
+## 5. `src/hooks/useLessonFlow.ts` — Fix stale completedScenes in resume
+
+**Problem**: `loadSceneProgress` sets `completedScenes` via `setState`, but `trySegmentVideo` reads `completedScenes` (line 173) synchronously — the state hasn't committed yet, so it's always `[]` on reload.
+
+**Fix**: Make `loadSceneProgress` return the loaded progress, pass it into `trySegmentVideo`, and use it directly.
+
+```typescript
+const loadSceneProgress = async (videoDbId: string): Promise<{ currentScene: number; completed: number[] }> => {
+  // ... same query ...
+  if (progress) {
+    setCurrentSceneIndex(progress.current_scene);
+    setCompletedScenes(progress.completed_scenes || []);
+    return { currentScene: progress.current_scene, completed: progress.completed_scenes || [] };
+  }
+  return { currentScene: 0, completed: [] };
+};
+
+const trySegmentVideo = async (videoDbId: string, _level: string, persistedCompleted: number[]) => {
+  // ... line 172-174:
+  const firstIncomplete = data.scenes.findIndex(
+    (s: VideoScene) => !persistedCompleted.includes(s.scene_index)
+  );
+  // ...
+};
+
+const initLesson = async () => {
+  // ...
+  const progress = await loadSceneProgress(videoData.id);
+  // ...
+  await trySegmentVideo(videoData.id, level, progress.completed);
+};
+```
+
+Same change in `handleLevelSelect` — pass current `completedScenes` (or empty for first visit).
+
+---
+
+## Summary
+
+| File | Change |
+|------|--------|
+| `Lesson.tsx` | Pass `sceneId`/`sceneTranscript`/`dbVideoId` to speaking + flashcards |
+| `YouTubeSpeaking.tsx` | Accept scene props; use scene transcript when provided |
+| `VideoFlashcards.tsx` | Accept scene props; resolve DB video ID before transcript query |
+| `useYouTubeExercises.ts` | Remove full-video fallback when `sceneId` is present |
+| `useLessonFlow.ts` | Return progress from `loadSceneProgress`; pass to `trySegmentVideo` |
+
+5 files, minimal changes, no architecture redesign.
 
