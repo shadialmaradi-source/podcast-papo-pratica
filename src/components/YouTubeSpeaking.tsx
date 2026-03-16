@@ -50,6 +50,8 @@ interface YouTubeSpeakingProps {
   level: string;
   onComplete: () => void;
   onBack: () => void;
+  sceneId?: string;
+  sceneTranscript?: string;
 }
 
 // Anonymous session tracking utilities
@@ -71,7 +73,7 @@ const incrementAnonymousAttempts = () => {
   localStorage.setItem('anonymous_speech_attempts', String(current + 1));
 };
 
-export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeSpeakingProps) {
+export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, sceneTranscript }: YouTubeSpeakingProps) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -156,19 +158,34 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
           throw new Error("Video not found");
         }
         
-        // Fetch transcript
-        const { data: transcriptData, error: transcriptError } = await supabase
-          .from('youtube_transcripts')
-          .select('transcript, language')
-          .eq('video_id', videoRecord.data.id)
-          .single();
-          
-        if (transcriptError || !transcriptData?.transcript) {
-          throw new Error("Transcript not found for this video");
+        // Use scene transcript if provided, otherwise fetch from DB
+        let actualTranscript: string;
+        let normalizedLanguage: string;
+
+        if (sceneTranscript) {
+          actualTranscript = sceneTranscript;
+          // Still need language from DB
+          const { data: transcriptMeta } = await supabase
+            .from('youtube_transcripts')
+            .select('language')
+            .eq('video_id', videoRecord.data.id)
+            .maybeSingle();
+          normalizedLanguage = normalizeLanguageCode(transcriptMeta?.language || "english");
+        } else {
+          const { data: transcriptData, error: transcriptError } = await supabase
+            .from('youtube_transcripts')
+            .select('transcript, language')
+            .eq('video_id', videoRecord.data.id)
+            .single();
+            
+          if (transcriptError || !transcriptData?.transcript) {
+            throw new Error("Transcript not found for this video");
+          }
+          actualTranscript = transcriptData.transcript;
+          normalizedLanguage = normalizeLanguageCode(transcriptData.language || "english");
         }
-        
-        const normalizedLanguage = normalizeLanguageCode(transcriptData.language || "english");
-        setTranscript(transcriptData.transcript);
+
+        setTranscript(actualTranscript);
         setLanguage(normalizedLanguage);
         
         // For beginners, extract key phrases
@@ -177,7 +194,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack }: YouTubeS
             'extract-speaking-phrases',
             {
               body: {
-                transcript: transcriptData.transcript,
+                transcript: actualTranscript,
                 level,
                 language: normalizedLanguage,
               },

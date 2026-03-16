@@ -101,10 +101,10 @@ export function useLessonFlow(videoId: string | undefined) {
     return null;
   };
 
-  const loadSceneProgress = async (videoDbId: string) => {
+  const loadSceneProgress = async (videoDbId: string): Promise<{ currentScene: number; completed: number[] }> => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return;
+      if (!authUser) return { currentScene: 0, completed: [] };
       const { data: progress } = await supabase
         .from("user_scene_progress")
         .select("*")
@@ -114,10 +114,12 @@ export function useLessonFlow(videoId: string | undefined) {
       if (progress) {
         setCurrentSceneIndex(progress.current_scene);
         setCompletedScenes(progress.completed_scenes || []);
+        return { currentScene: progress.current_scene, completed: progress.completed_scenes || [] };
       }
     } catch (err) {
       console.error("Error loading scene progress:", err);
     }
+    return { currentScene: 0, completed: [] };
   };
 
   const saveSceneProgress = useCallback(async (sceneIdx: number, completed: number[]) => {
@@ -139,8 +141,9 @@ export function useLessonFlow(videoId: string | undefined) {
     }
   }, [dbVideoId, scenes]);
 
-  const trySegmentVideo = async (videoDbId: string, _level: string) => {
+  const trySegmentVideo = async (videoDbId: string, _level: string, persistedCompleted?: number[]) => {
     setLessonState("loading");
+    const completedToUse = persistedCompleted || completedScenes;
     try {
       const { data: videoData } = await supabase
         .from("youtube_videos")
@@ -170,7 +173,7 @@ export function useLessonFlow(videoId: string | undefined) {
       setScenes(data.scenes);
       setIsSegmented(true);
       const firstIncomplete = data.scenes.findIndex(
-        (s: VideoScene) => !completedScenes.includes(s.scene_index)
+        (s: VideoScene) => !completedToUse.includes(s.scene_index)
       );
       setCurrentSceneIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
       toast({
@@ -193,12 +196,12 @@ export function useLessonFlow(videoId: string | undefined) {
     setYoutubeVideoId(videoData.video_id);
     setVideoTitle(videoData.title || "");
     setVideoLanguage(videoData.language || "italian");
-    await loadSceneProgress(videoData.id);
+    const sceneProgress = await loadSceneProgress(videoData.id);
     const level = await resolveLevel();
     if (!level) { setShowLevelPopup(true); return; }
     setSelectedLevel(level);
     trackEvent("video_started", { video_id: videoId, difficulty_level: level });
-    await trySegmentVideo(videoData.id, level);
+    await trySegmentVideo(videoData.id, level, sceneProgress.completed);
   };
 
   const handleLevelSelect = async (level: string) => {
@@ -210,7 +213,7 @@ export function useLessonFlow(videoId: string | undefined) {
     }
     if (dbVideoId) {
       trackEvent("video_started", { video_id: videoId, difficulty_level: level });
-      await trySegmentVideo(dbVideoId, level);
+      await trySegmentVideo(dbVideoId, level, []);
     }
   };
 

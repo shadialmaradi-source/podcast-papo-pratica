@@ -267,14 +267,14 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
             if (sceneId) {
               await generateExercises(sceneId, sceneTranscript);
               dbExercises = await fetchExercises(sceneId);
-            }
-            if (dbExercises.length === 0) {
-              console.log('Falling back to full-video exercise generation...');
-              if (sceneId) dbExercises = await fetchExercises(null);
               if (dbExercises.length === 0) {
-                await generateExercises();
-                dbExercises = await fetchExercises(null);
+                setError("Could not generate exercises for this scene. Please try again.");
+                setIsLoading(false);
+                return;
               }
+            } else {
+              await generateExercises();
+              dbExercises = await fetchExercises(null);
             }
           }
 

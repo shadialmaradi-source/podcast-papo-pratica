@@ -13,6 +13,8 @@ interface VideoFlashcardsProps {
   level: string;
   onComplete: () => void;
   onBack: () => void;
+  sceneTranscript?: string;
+  dbVideoId?: string | null;
 }
 
 interface Flashcard {
@@ -21,7 +23,7 @@ interface Flashcard {
   why: string;
 }
 
-export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFlashcardsProps) {
+export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTranscript, dbVideoId: dbVideoIdProp }: VideoFlashcardsProps) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,20 +36,47 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
       setError(null);
 
       try {
-        // First, get the transcript for this video
-        const { data: transcriptData, error: transcriptError } = await supabase
-          .from('youtube_transcripts')
-          .select('transcript, language')
-          .eq('video_id', videoId)
-          .maybeSingle();
-
-        if (transcriptError) {
-          console.error('Error fetching transcript:', transcriptError);
-          throw new Error('Failed to load video transcript');
+        // Resolve DB video ID
+        let resolvedDbVideoId = dbVideoIdProp || null;
+        if (!resolvedDbVideoId) {
+          let { data: videoData } = await supabase.from('youtube_videos').select('id').eq('video_id', videoId).single();
+          if (!videoData) {
+            const { data: byId } = await supabase.from('youtube_videos').select('id').eq('id', videoId).single();
+            videoData = byId;
+          }
+          resolvedDbVideoId = videoData?.id || null;
         }
 
-        if (!transcriptData?.transcript) {
-          throw new Error('No transcript available for this video');
+        // Get transcript: use scene transcript if provided, otherwise fetch from DB
+        let transcriptText: string;
+        let transcriptLang: string;
+
+        if (sceneTranscript) {
+          transcriptText = sceneTranscript;
+          // Still need language
+          const { data: langData } = await supabase
+            .from('youtube_transcripts')
+            .select('language')
+            .eq('video_id', resolvedDbVideoId || videoId)
+            .maybeSingle();
+          transcriptLang = langData?.language || 'portuguese';
+        } else {
+          const { data: transcriptData, error: transcriptError } = await supabase
+            .from('youtube_transcripts')
+            .select('transcript, language')
+            .eq('video_id', resolvedDbVideoId || videoId)
+            .maybeSingle();
+
+          if (transcriptError) {
+            console.error('Error fetching transcript:', transcriptError);
+            throw new Error('Failed to load video transcript');
+          }
+
+          if (!transcriptData?.transcript) {
+            throw new Error('No transcript available for this video');
+          }
+          transcriptText = transcriptData.transcript;
+          transcriptLang = transcriptData.language || 'portuguese';
         }
 
         // Get the session for auth
@@ -72,9 +101,9 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
         // Call the edge function to generate/fetch flashcards
         const { data, error: fnError } = await supabase.functions.invoke('generate-flashcards', {
           body: {
-            videoId,
-            transcript: transcriptData.transcript,
-            language: normalizeLanguageCode(transcriptData.language || 'portuguese'),
+            videoId: resolvedDbVideoId || videoId,
+            transcript: transcriptText,
+            language: normalizeLanguageCode(transcriptLang),
             level: level || 'beginner',
             nativeLanguage: userNativeLanguage,
           },
@@ -87,7 +116,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack }: VideoFla
 
         if (data?.flashcards && data.flashcards.length > 0) {
           setFlashcards(data.flashcards);
-          setLanguage(normalizeLanguageCode(transcriptData.language || 'english'));
+          setLanguage(normalizeLanguageCode(transcriptLang || 'english'));
           trackEvent('flashcards_started', { video_id: videoId, count: data.flashcards.length });
           
           // Save flashcards to user's repository
