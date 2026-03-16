@@ -36,20 +36,47 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTrans
       setError(null);
 
       try {
-        // First, get the transcript for this video
-        const { data: transcriptData, error: transcriptError } = await supabase
-          .from('youtube_transcripts')
-          .select('transcript, language')
-          .eq('video_id', videoId)
-          .maybeSingle();
-
-        if (transcriptError) {
-          console.error('Error fetching transcript:', transcriptError);
-          throw new Error('Failed to load video transcript');
+        // Resolve DB video ID
+        let resolvedDbVideoId = dbVideoIdProp || null;
+        if (!resolvedDbVideoId) {
+          let { data: videoData } = await supabase.from('youtube_videos').select('id').eq('video_id', videoId).single();
+          if (!videoData) {
+            const { data: byId } = await supabase.from('youtube_videos').select('id').eq('id', videoId).single();
+            videoData = byId;
+          }
+          resolvedDbVideoId = videoData?.id || null;
         }
 
-        if (!transcriptData?.transcript) {
-          throw new Error('No transcript available for this video');
+        // Get transcript: use scene transcript if provided, otherwise fetch from DB
+        let transcriptText: string;
+        let transcriptLang: string;
+
+        if (sceneTranscript) {
+          transcriptText = sceneTranscript;
+          // Still need language
+          const { data: langData } = await supabase
+            .from('youtube_transcripts')
+            .select('language')
+            .eq('video_id', resolvedDbVideoId || videoId)
+            .maybeSingle();
+          transcriptLang = langData?.language || 'portuguese';
+        } else {
+          const { data: transcriptData, error: transcriptError } = await supabase
+            .from('youtube_transcripts')
+            .select('transcript, language')
+            .eq('video_id', resolvedDbVideoId || videoId)
+            .maybeSingle();
+
+          if (transcriptError) {
+            console.error('Error fetching transcript:', transcriptError);
+            throw new Error('Failed to load video transcript');
+          }
+
+          if (!transcriptData?.transcript) {
+            throw new Error('No transcript available for this video');
+          }
+          transcriptText = transcriptData.transcript;
+          transcriptLang = transcriptData.language || 'portuguese';
         }
 
         // Get the session for auth
