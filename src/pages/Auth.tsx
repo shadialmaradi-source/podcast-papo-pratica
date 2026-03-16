@@ -105,8 +105,12 @@ export default function Auth() {
             .eq("user_id", user.id)
             .single()
             .then(({ data }) => {
+              const pendingToken = localStorage.getItem("pending_lesson_token");
               if (!data?.native_language) {
                 navigate("/onboarding");
+              } else if (pendingToken) {
+                localStorage.removeItem("pending_lesson_token");
+                navigate(`/lesson/student/${pendingToken}`);
               } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
                 navigate("/lesson/first");
               } else {
