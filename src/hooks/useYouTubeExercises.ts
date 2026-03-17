@@ -227,7 +227,7 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
 
           const generateExercises = async (sceneIdParam?: string, sceneTranscriptParam?: string) => {
             const body: any = {
-              videoId: videoData!.id,
+              videoId: resolvedId!,
               level: dbDifficulty,
               nativeLanguage: userNativeLanguage,
               language: videoLanguage,
