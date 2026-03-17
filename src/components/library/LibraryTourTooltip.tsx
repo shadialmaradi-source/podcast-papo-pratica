@@ -33,7 +33,7 @@ export function LibraryTourTooltip({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 8 }}
-        className="fixed top-4 left-4 right-4 z-[60] mx-auto max-w-sm sm:absolute sm:bottom-auto sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-64 sm:top-full sm:mt-3"
+        className="absolute left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] max-w-sm z-[60] sm:w-64 top-full mt-3"
       >
         <div
           className={`relative rounded-lg bg-primary px-4 py-3 text-primary-foreground text-sm shadow-lg sm:${arrow}`}
