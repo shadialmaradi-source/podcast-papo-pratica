@@ -216,7 +216,7 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
 
           const fetchExercises = async (sceneIdParam: string | null) => {
             const result = await supabase.rpc('get_youtube_exercises_with_answers', {
-              video_id_param: videoData!.id,
+              video_id_param: resolvedId!,
               difficulty_param: dbDifficulty,
               native_language_param: userNativeLanguage,
               scene_id_param: sceneIdParam,
