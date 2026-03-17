@@ -6,5 +6,14 @@ import { trackPageView } from "@/lib/analytics";
 export default function ProfilePageWrapper() {
   const navigate = useNavigate();
   useEffect(() => { trackPageView("profile", "shared"); }, []);
-  return <ProfilePage onBack={() => navigate("/app")} />;
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/app");
+    }
+  };
+
+  return <ProfilePage onBack={handleBack} />;
 }

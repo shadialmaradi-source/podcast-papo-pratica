@@ -101,6 +101,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     totalCompleted: number;
     totalVideosCompleted: number;
     totalVideos: number;
+    tierLabel: string;
   } | null>(null);
   const [myLessons, setMyLessons] = useState<{
     id: string;
