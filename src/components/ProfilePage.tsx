@@ -693,7 +693,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                     <h3 className="font-semibold text-foreground text-sm">Learning Path</h3>
                     <p className="text-xs text-muted-foreground">
                       {learningPathProgress.currentWeek
-                        ? `Week ${learningPathProgress.currentWeek.week_number} of ${learningPathProgress.totalWeeks} — Beginner`
+                        ? `Week ${learningPathProgress.currentWeek.week_number} of ${learningPathProgress.totalWeeks} — ${learningPathProgress.tierLabel}`
                         : `${learningPathProgress.totalCompleted} of ${learningPathProgress.totalWeeks} weeks completed`}
                     </p>
                     <div className="space-y-1">
