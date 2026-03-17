@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { saveViewedFlashcards } from "@/services/flashcardService";
 import { trackEvent } from "@/lib/analytics";
 import { normalizeLanguageCode } from "@/utils/languageUtils";
+import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
 
 interface VideoFlashcardsProps {
   videoId: string;
