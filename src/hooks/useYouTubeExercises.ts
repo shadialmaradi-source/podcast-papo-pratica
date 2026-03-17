@@ -6,6 +6,7 @@ import { trackEvent } from "@/lib/analytics";
 import { Exercise } from "@/services/exerciseGeneratorService";
 import { canUserDoVocalExercise, type VocalQuotaResult } from "@/services/subscriptionService";
 import { normalizeLanguageCode } from "@/utils/languageUtils";
+import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
 
 // Levenshtein distance for fuzzy matching
 const levenshteinDistance = (a: string, b: string): number => {
