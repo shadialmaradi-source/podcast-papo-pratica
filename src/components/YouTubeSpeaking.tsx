@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getLanguageSpeechCode, normalizeLanguageCode } from "@/utils/languageUtils";
+import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
 import { trackEvent } from "@/lib/analytics";
 import { canUserDoVocalExercise, recordVocalExerciseCompletion, getNextMonthResetDate, type VocalQuotaResult } from "@/services/subscriptionService";
 import { UpgradePrompt } from "./subscription/UpgradePrompt";
