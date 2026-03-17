@@ -95,12 +95,14 @@ export default function Library() {
   // Unified tour integration
   const { phase: tourPhase, advancePhase: advanceTourPhase } = useStudentTour();
   
-  // Tour state (1-4 steps, null = done)
-  const [tourStep, setTourStep] = useState<number | null>(() => {
-    // Show tour if in library phase OR if legacy flag absent (backward compat)
-    if (tourPhase === 'library') return 1;
-    return localStorage.getItem('library_tour_completed') ? null : 1;
-  });
+  // Tour state (1-4 steps, null = done) — only active during library phase
+  const [tourStep, setTourStep] = useState<number | null>(
+    () => tourPhase === 'library' ? 1 : null
+  );
+
+  useEffect(() => {
+    setTourStep(tourPhase === 'library' ? 1 : null);
+  }, [tourPhase]);
 
   const advanceTour = useCallback(() => {
     setTourStep((prev) => {
