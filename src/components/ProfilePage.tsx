@@ -297,6 +297,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
         
         setProfile(profileData);
         setNewUsername(profileData.username || "");
+        loadLearningPathData(profileData);
       }
 
       // Load exercise results for achievements

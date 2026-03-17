@@ -141,21 +141,8 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
       
       try {
         // Get video record first
-        let videoRecord = await supabase
-          .from('youtube_videos')
-          .select('id')
-          .eq('video_id', videoId)
-          .single();
-          
-        if (!videoRecord.data) {
-          videoRecord = await supabase
-            .from('youtube_videos')
-            .select('id')
-            .eq('id', videoId)
-            .single();
-        }
-        
-        if (!videoRecord.data) {
+        const resolvedId = await resolveDbVideoId(videoId);
+        if (!resolvedId) {
           throw new Error("Video not found");
         }
         
@@ -163,27 +150,17 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
         let actualTranscript: string;
         let normalizedLanguage: string;
 
+        const transcriptMeta = await resolveTranscriptMeta(resolvedId);
+
         if (sceneTranscript) {
           actualTranscript = sceneTranscript;
-          // Still need language from DB
-          const { data: transcriptMeta } = await supabase
-            .from('youtube_transcripts')
-            .select('language')
-            .eq('video_id', videoRecord.data.id)
-            .maybeSingle();
-          normalizedLanguage = normalizeLanguageCode(transcriptMeta?.language || "english");
+          normalizedLanguage = transcriptMeta?.language || normalizeLanguageCode("english");
         } else {
-          const { data: transcriptData, error: transcriptError } = await supabase
-            .from('youtube_transcripts')
-            .select('transcript, language')
-            .eq('video_id', videoRecord.data.id)
-            .single();
-            
-          if (transcriptError || !transcriptData?.transcript) {
+          if (!transcriptMeta) {
             throw new Error("Transcript not found for this video");
           }
-          actualTranscript = transcriptData.transcript;
-          normalizedLanguage = normalizeLanguageCode(transcriptData.language || "english");
+          actualTranscript = transcriptMeta.transcript;
+          normalizedLanguage = transcriptMeta.language;
         }
 
         setTranscript(actualTranscript);

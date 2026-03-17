@@ -184,12 +184,11 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
       setError("");
       try {
         let userNativeLanguage = '';
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
+        if (user) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('native_language')
-            .eq('user_id', authUser.id)
+            .eq('user_id', user.id)
             .single();
           if (profile?.native_language) userNativeLanguage = profile.native_language;
         }
@@ -203,32 +202,16 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
           userNativeLanguage = langMap[browserLang] || 'english';
         }
 
-        let { data: videoData } = await supabase
-          .from('youtube_videos')
-          .select('id')
-          .eq('video_id', videoId)
-          .single();
-        if (!videoData) {
-          const { data: videoById } = await supabase
-            .from('youtube_videos')
-            .select('id')
-            .eq('id', videoId)
-            .single();
-          videoData = videoById;
-        }
+        const resolvedId = await resolveDbVideoId(videoId);
 
-        if (videoData) {
-          setDbVideoId(videoData.id);
+        if (resolvedId) {
+          setDbVideoId(resolvedId);
           const dbDifficulty = mapLevelToDbDifficulty(level);
 
           let videoLanguage = 'english';
-          const { data: transcriptMeta } = await supabase
-            .from('youtube_transcripts')
-            .select('language')
-            .eq('video_id', videoData.id)
-            .maybeSingle();
+          const transcriptMeta = await resolveTranscriptMeta(resolvedId);
           if (transcriptMeta?.language) {
-            videoLanguage = normalizeLanguageCode(transcriptMeta.language);
+            videoLanguage = transcriptMeta.language;
           }
 
           const fetchExercises = async (sceneIdParam: string | null) => {
