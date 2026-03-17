@@ -101,6 +101,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     totalCompleted: number;
     totalVideosCompleted: number;
     totalVideos: number;
+    tierLabel: string;
   } | null>(null);
   const [myLessons, setMyLessons] = useState<{
     id: string;
@@ -120,12 +121,18 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
       loadFlashcardCount();
       loadSubscriptionData();
       loadWeeklyStats();
-      loadLearningPathData();
       loadMyLessons();
     } else {
       setLoading(false);
     }
   }, [user]);
+
+  // Load learning path after profile is available
+  useEffect(() => {
+    if (user && profile) {
+      loadLearningPathData();
+    }
+  }, [user, profile]);
 
   const loadMyLessons = async () => {
     if (!user?.email) return;
@@ -166,10 +173,19 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     }
   };
 
+  const cefrToTier = (cefr: string | null): string => {
+    const c = (cefr || 'A1').toUpperCase();
+    if (c.startsWith('C')) return 'advanced';
+    if (c.startsWith('B')) return 'intermediate';
+    return 'beginner';
+  };
+
   const loadLearningPathData = async () => {
-    if (!user) return;
+    if (!user || !profile) return;
+    const tier = cefrToTier(profile.current_level);
+    const lang = profile.selected_language || 'english';
     try {
-      const weeks = await fetchWeeksForLevel("beginner", "english", user.id);
+      const weeks = await fetchWeeksForLevel(tier, lang, user.id);
       if (weeks.length === 0) return;
 
       const totalVideos = weeks.reduce((sum, w) => sum + w.total_videos, 0);
@@ -185,6 +201,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
         totalCompleted,
         totalVideosCompleted,
         totalVideos,
+        tierLabel: tier.charAt(0).toUpperCase() + tier.slice(1),
       });
     } catch (error) {
       console.error("Error loading learning path data:", error);
@@ -676,7 +693,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                     <h3 className="font-semibold text-foreground text-sm">Learning Path</h3>
                     <p className="text-xs text-muted-foreground">
                       {learningPathProgress.currentWeek
-                        ? `Week ${learningPathProgress.currentWeek.week_number} of ${learningPathProgress.totalWeeks} — Beginner`
+                        ? `Week ${learningPathProgress.currentWeek.week_number} of ${learningPathProgress.totalWeeks} — ${learningPathProgress.tierLabel}`
                         : `${learningPathProgress.totalCompleted} of ${learningPathProgress.totalWeeks} weeks completed`}
                     </p>
                     <div className="space-y-1">

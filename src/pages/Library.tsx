@@ -58,8 +58,16 @@ export default function Library() {
   const isTeacher = role === "teacher";
   
   // State
-  const [selectedLevel, setSelectedLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
-  const [activeTab, setActiveTab] = useState<'curated' | 'community'>('curated');
+  const [selectedLevel, setSelectedLevel] = useState<'beginner' | 'intermediate' | 'advanced'>(
+    () => (localStorage.getItem('library_selected_level') as 'beginner' | 'intermediate' | 'advanced') || 'beginner'
+  );
+  const [activeTab, setActiveTab] = useState<'curated' | 'community'>(
+    () => (localStorage.getItem('library_active_tab') as 'curated' | 'community') || 'curated'
+  );
+
+  // Persist library state
+  useEffect(() => { localStorage.setItem('library_selected_level', selectedLevel); }, [selectedLevel]);
+  useEffect(() => { localStorage.setItem('library_active_tab', activeTab); }, [activeTab]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedLength, setSelectedLength] = useState<string | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
