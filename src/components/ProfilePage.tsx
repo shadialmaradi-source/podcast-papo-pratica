@@ -121,12 +121,18 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
       loadFlashcardCount();
       loadSubscriptionData();
       loadWeeklyStats();
-      loadLearningPathData();
       loadMyLessons();
     } else {
       setLoading(false);
     }
   }, [user]);
+
+  // Load learning path after profile is available
+  useEffect(() => {
+    if (user && profile) {
+      loadLearningPathData();
+    }
+  }, [user, profile]);
 
   const loadMyLessons = async () => {
     if (!user?.email) return;
