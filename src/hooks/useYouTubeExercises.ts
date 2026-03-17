@@ -144,7 +144,6 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
   const saveProgress = async (questionIndex: number) => {
     if (!dbVideoId) return;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const dbDifficulty = mapLevelToDbDifficulty(level);
       await supabase
