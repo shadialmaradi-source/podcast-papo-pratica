@@ -174,10 +174,11 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     return 'beginner';
   };
 
-  const loadLearningPathData = async () => {
-    if (!user || !profile) return;
-    const tier = cefrToTier(profile.current_level);
-    const lang = profile.selected_language || 'english';
+  const loadLearningPathData = async (profileOverride?: UserProfile) => {
+    const p = profileOverride || profile;
+    if (!user || !p) return;
+    const tier = cefrToTier(p.current_level);
+    const lang = p.selected_language || 'english';
     try {
       const weeks = await fetchWeeksForLevel(tier, lang, user.id);
       if (weeks.length === 0) return;
