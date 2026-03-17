@@ -6,6 +6,7 @@ import { trackEvent } from "@/lib/analytics";
 import { Exercise } from "@/services/exerciseGeneratorService";
 import { canUserDoVocalExercise, type VocalQuotaResult } from "@/services/subscriptionService";
 import { normalizeLanguageCode } from "@/utils/languageUtils";
+import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
 
 // Levenshtein distance for fuzzy matching
 const levenshteinDistance = (a: string, b: string): number => {
@@ -143,7 +144,6 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
   const saveProgress = async (questionIndex: number) => {
     if (!dbVideoId) return;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const dbDifficulty = mapLevelToDbDifficulty(level);
       await supabase
@@ -165,7 +165,6 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
   const deleteProgress = async () => {
     if (!dbVideoId) return;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const dbDifficulty = mapLevelToDbDifficulty(level);
       await supabase
@@ -185,12 +184,11 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
       setError("");
       try {
         let userNativeLanguage = '';
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
+        if (user) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('native_language')
-            .eq('user_id', authUser.id)
+            .eq('user_id', user.id)
             .single();
           if (profile?.native_language) userNativeLanguage = profile.native_language;
         }
@@ -204,37 +202,21 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
           userNativeLanguage = langMap[browserLang] || 'english';
         }
 
-        let { data: videoData } = await supabase
-          .from('youtube_videos')
-          .select('id')
-          .eq('video_id', videoId)
-          .single();
-        if (!videoData) {
-          const { data: videoById } = await supabase
-            .from('youtube_videos')
-            .select('id')
-            .eq('id', videoId)
-            .single();
-          videoData = videoById;
-        }
+        const resolvedId = await resolveDbVideoId(videoId);
 
-        if (videoData) {
-          setDbVideoId(videoData.id);
+        if (resolvedId) {
+          setDbVideoId(resolvedId);
           const dbDifficulty = mapLevelToDbDifficulty(level);
 
           let videoLanguage = 'english';
-          const { data: transcriptMeta } = await supabase
-            .from('youtube_transcripts')
-            .select('language')
-            .eq('video_id', videoData.id)
-            .maybeSingle();
+          const transcriptMeta = await resolveTranscriptMeta(resolvedId);
           if (transcriptMeta?.language) {
-            videoLanguage = normalizeLanguageCode(transcriptMeta.language);
+            videoLanguage = transcriptMeta.language;
           }
 
           const fetchExercises = async (sceneIdParam: string | null) => {
             const result = await supabase.rpc('get_youtube_exercises_with_answers', {
-              video_id_param: videoData!.id,
+              video_id_param: resolvedId!,
               difficulty_param: dbDifficulty,
               native_language_param: userNativeLanguage,
               scene_id_param: sceneIdParam,
@@ -245,7 +227,7 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
 
           const generateExercises = async (sceneIdParam?: string, sceneTranscriptParam?: string) => {
             const body: any = {
-              videoId: videoData!.id,
+              videoId: resolvedId!,
               level: dbDifficulty,
               nativeLanguage: userNativeLanguage,
               language: videoLanguage,

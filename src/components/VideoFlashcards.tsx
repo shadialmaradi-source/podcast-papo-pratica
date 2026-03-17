@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { saveViewedFlashcards } from "@/services/flashcardService";
 import { trackEvent } from "@/lib/analytics";
 import { normalizeLanguageCode } from "@/utils/languageUtils";
+import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
 
 interface VideoFlashcardsProps {
   videoId: string;
@@ -39,44 +40,26 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTrans
         // Resolve DB video ID
         let resolvedDbVideoId = dbVideoIdProp || null;
         if (!resolvedDbVideoId) {
-          let { data: videoData } = await supabase.from('youtube_videos').select('id').eq('video_id', videoId).single();
-          if (!videoData) {
-            const { data: byId } = await supabase.from('youtube_videos').select('id').eq('id', videoId).single();
-            videoData = byId;
-          }
-          resolvedDbVideoId = videoData?.id || null;
+          resolvedDbVideoId = await resolveDbVideoId(videoId);
         }
 
         // Get transcript: use scene transcript if provided, otherwise fetch from DB
         let transcriptText: string;
         let transcriptLang: string;
 
+        const transcriptMeta = resolvedDbVideoId
+          ? await resolveTranscriptMeta(resolvedDbVideoId)
+          : null;
+
         if (sceneTranscript) {
           transcriptText = sceneTranscript;
-          // Still need language
-          const { data: langData } = await supabase
-            .from('youtube_transcripts')
-            .select('language')
-            .eq('video_id', resolvedDbVideoId || videoId)
-            .maybeSingle();
-          transcriptLang = langData?.language || 'portuguese';
+          transcriptLang = transcriptMeta?.language || 'portuguese';
         } else {
-          const { data: transcriptData, error: transcriptError } = await supabase
-            .from('youtube_transcripts')
-            .select('transcript, language')
-            .eq('video_id', resolvedDbVideoId || videoId)
-            .maybeSingle();
-
-          if (transcriptError) {
-            console.error('Error fetching transcript:', transcriptError);
-            throw new Error('Failed to load video transcript');
-          }
-
-          if (!transcriptData?.transcript) {
+          if (!transcriptMeta) {
             throw new Error('No transcript available for this video');
           }
-          transcriptText = transcriptData.transcript;
-          transcriptLang = transcriptData.language || 'portuguese';
+          transcriptText = transcriptMeta.transcript;
+          transcriptLang = transcriptMeta.language;
         }
 
         // Get the session for auth
