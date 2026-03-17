@@ -167,10 +167,19 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     }
   };
 
+  const cefrToTier = (cefr: string | null): string => {
+    const c = (cefr || 'A1').toUpperCase();
+    if (c.startsWith('C')) return 'advanced';
+    if (c.startsWith('B')) return 'intermediate';
+    return 'beginner';
+  };
+
   const loadLearningPathData = async () => {
-    if (!user) return;
+    if (!user || !profile) return;
+    const tier = cefrToTier(profile.current_level);
+    const lang = profile.selected_language || 'english';
     try {
-      const weeks = await fetchWeeksForLevel("beginner", "english", user.id);
+      const weeks = await fetchWeeksForLevel(tier, lang, user.id);
       if (weeks.length === 0) return;
 
       const totalVideos = weeks.reduce((sum, w) => sum + w.total_videos, 0);
@@ -186,6 +195,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
         totalCompleted,
         totalVideosCompleted,
         totalVideos,
+        tierLabel: tier.charAt(0).toUpperCase() + tier.slice(1),
       });
     } catch (error) {
       console.error("Error loading learning path data:", error);
