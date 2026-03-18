@@ -12,26 +12,25 @@ const options: { type: LessonType; icon: typeof FileText; title: string; descrip
     type: "paragraph",
     icon: FileText,
     title: "Custom Paragraph",
-    description: "Generate a paragraph with AI and create exercises from it",
+    description: "AI generates a reading passage with exercises tailored to your topic and level.",
   },
   {
     type: "youtube",
     icon: Youtube,
-    title: "YouTube / Video Link",
-    description: "Use an existing video to build exercises",
+    title: "Video-Based Lesson",
+    description: "Build comprehension exercises from any YouTube video.",
   },
   {
     type: "speaking",
     icon: MessageSquare,
     title: "Speaking Practice",
-    description: "Discussion topics with AI-generated questions and vocabulary",
+    description: "Create discussion prompts with AI-generated questions and key vocabulary.",
   },
 ];
 
 export function LessonTypeSelector({ onSelect }: LessonTypeSelectorProps) {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Choose Lesson Type</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {options.map((opt) => (
           <Card

@@ -3,10 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, BarChart3, CreditCard, LogOut } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, BarChart3, CreditCard, LogOut, Save } from "lucide-react";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { trackPageView, trackEvent } from "@/lib/analytics";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const settingsItems = [
   { icon: BarChart3, label: "Analytics", description: "Track student progress", path: "/teacher/analytics" },
@@ -16,16 +20,64 @@ const settingsItems = [
 export default function TeacherSettings() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [resolvedName, setResolvedName] = useState("");
+  const [editName, setEditName] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     trackPageView("teacher_settings", "teacher");
     trackEvent("teacher_settings_viewed");
   }, []);
 
+  // Resolve display name with priority: teacher_profiles.full_name > profiles.display_name > profiles.full_name > profiles.username > email
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data: tp } = await supabase
+        .from("teacher_profiles" as any)
+        .select("full_name")
+        .eq("teacher_id", user.id)
+        .maybeSingle();
+      const tpName = (tp as any)?.full_name || "";
+      if (tpName) {
+        setResolvedName(tpName);
+        setEditName(tpName);
+        return;
+      }
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("display_name, full_name, username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const name = p?.display_name || p?.full_name || p?.username || "";
+      setResolvedName(name);
+      setEditName(name);
+    })();
+  }, [user]);
+
+  const handleSaveName = async () => {
+    if (!user || !editName.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("teacher_profiles" as any)
+        .update({ full_name: editName.trim() } as any)
+        .eq("teacher_id", user.id);
+      if (error) throw error;
+      setResolvedName(editName.trim());
+      toast({ title: "Display name updated" });
+    } catch {
+      toast({ title: "Failed to update name", variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
   };
+
+  const displayLabel = resolvedName || user?.email?.split("@")[0] || "Teacher";
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,11 +93,37 @@ export default function TeacherSettings() {
       <main className="container mx-auto px-4 py-8 max-w-md">
         <div className="flex flex-col items-center mb-8">
           <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary mb-3">
-            {(user?.email?.[0] ?? "T").toUpperCase()}
+            {displayLabel[0]?.toUpperCase() || "T"}
           </div>
-          <p className="font-semibold text-foreground">{user?.email?.split("@")[0]}</p>
+          <p className="font-semibold text-foreground">{displayLabel}</p>
           <p className="text-sm text-muted-foreground">{user?.email}</p>
         </div>
+
+        {/* Editable display name */}
+        <div className="mb-6 space-y-2">
+          <Label htmlFor="display-name" className="text-sm font-medium">Display Name</Label>
+          <div className="flex gap-2">
+            <Input
+              id="display-name"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Your display name"
+              className="flex-1"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={saving || editName.trim() === resolvedName}
+              onClick={handleSaveName}
+            >
+              <Save className="h-4 w-4 mr-1" />
+              Save
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">This name appears on your dashboard and lessons.</p>
+        </div>
+
+        <Separator className="mb-6" />
 
         <div className="space-y-3 mb-8">
           {settingsItems.map((item) => (
