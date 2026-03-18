@@ -58,11 +58,20 @@ export function QuickStartOnboarding() {
         console.warn("Exercise generation failed, continuing:", genError);
       }
 
-      // 3. Mark onboarding completed
+      // 3. Mark onboarding completed, seed full_name from profiles if available
+      let seedName: string | undefined;
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("display_name, full_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      seedName = profileData?.display_name || profileData?.full_name || undefined;
+
       await supabase.from("teacher_profiles" as any).upsert(
         {
           teacher_id: user.id,
           onboarding_completed: true,
+          ...(seedName ? { full_name: seedName } : {}),
         } as any,
         { onConflict: "teacher_id" }
       );
