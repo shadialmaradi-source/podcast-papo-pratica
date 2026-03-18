@@ -55,6 +55,13 @@ interface YouTubeSpeakingProps {
   sceneTranscript?: string;
 }
 
+// Module-level cache for extracted speaking phrases (avoids re-invoking edge function on revisits)
+const phrasesCache = new Map<string, SpeakingPhrase[]>();
+
+function buildPhrasesCacheKey(videoId: string, level: string, sceneId?: string): string {
+  return `${videoId}::${sceneId || 'full'}::${level}`;
+}
+
 // Anonymous session tracking utilities
 const getAnonymousSessionId = (): string => {
   let sessionId = localStorage.getItem('anonymous_speech_session');
