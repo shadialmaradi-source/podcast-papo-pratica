@@ -25,6 +25,70 @@ import { trackPageLoad, trackPageView } from "@/lib/analytics";
 type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse" | "speaking_form";
 type LessonType = "paragraph" | "youtube" | "speaking";
 
+/**
+ * Resolves teacher display name from available profile data.
+ * Priority: teacher_profiles.full_name > profiles.display_name > profiles.full_name > profiles.username > email local-part
+ */
+async function resolveTeacherDisplayName(userId: string, email?: string): Promise<string> {
+  // Try teacher_profiles first
+  const { data: tp } = await supabase
+    .from("teacher_profiles" as any)
+    .select("full_name")
+    .eq("teacher_id", userId)
+    .maybeSingle();
+  if ((tp as any)?.full_name) return (tp as any).full_name;
+
+  // Try profiles table
+  const { data: p } = await supabase
+    .from("profiles")
+    .select("display_name, full_name, username")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (p?.display_name) return p.display_name;
+  if (p?.full_name) return p.full_name;
+  if (p?.username) return p.username;
+
+  // Fallback to email local-part
+  return email?.split("@")[0] || "Teacher";
+}
+
+/** Step-aware header content */
+function getStepHeader(step: FlowStep, lessonType: LessonType, displayName: string): { title: string; subtitle: string } {
+  switch (step) {
+    case "home":
+      return {
+        title: `Welcome back, ${displayName}`,
+        subtitle: "Create lessons, track students, and grow your teaching impact.",
+      };
+    case "choose_type":
+      return {
+        title: "Create a New Lesson",
+        subtitle: "Choose how you'd like to build your lesson.",
+      };
+    case "youtube_source":
+      return {
+        title: "Video Lesson",
+        subtitle: "Choose a video source to generate exercises from.",
+      };
+    case "youtube_browse":
+      return {
+        title: "Browse Videos",
+        subtitle: "Pick a video from the community library.",
+      };
+    case "form":
+      return lessonType === "youtube"
+        ? { title: "Video Lesson Setup", subtitle: "Configure your video-based lesson." }
+        : { title: "Custom Paragraph Lesson", subtitle: "Let AI generate a reading passage for your students." };
+    case "speaking_form":
+      return {
+        title: "Speaking Practice Lesson",
+        subtitle: "Create a discussion-based lesson with AI-generated questions.",
+      };
+    default:
+      return { title: "Teacher Dashboard", subtitle: "" };
+  }
+}
+
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -51,6 +115,14 @@ export default function TeacherDashboard() {
       return saved ? JSON.parse(saved).prefillYoutubeUrl ?? null : null;
     } catch { return null; }
   });
+  const [displayName, setDisplayName] = useState<string>("");
+
+  // Resolve teacher display name
+  useEffect(() => {
+    if (user) {
+      resolveTeacherDisplayName(user.id, user.email).then(setDisplayName);
+    }
+  }, [user]);
 
   // Sync flow state to sessionStorage
   useEffect(() => {
@@ -130,6 +202,8 @@ export default function TeacherDashboard() {
     else setStep("home");
   };
 
+  const header = getStepHeader(step, lessonType, displayName || "there");
+
   if (roleLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -163,8 +237,13 @@ export default function TeacherDashboard() {
       <header className="border-b border-border bg-card">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
+            {step !== "home" && (
+              <Button variant="ghost" size="icon" onClick={handleBack} className="mr-1">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
             <BookOpen className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">Teacher Dashboard</h1>
+            <h1 className="text-xl font-bold text-foreground">{header.title}</h1>
           </div>
           <div className="flex items-center gap-1">
             <TeacherNotificationBell />
@@ -176,14 +255,14 @@ export default function TeacherDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-foreground">
-            Welcome, {user?.email?.split("@")[0]}!
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            Manage your interactive lessons from here.
-          </p>
-        </div>
+        {step === "home" && header.subtitle && (
+          <div className="mb-6">
+            <p className="text-muted-foreground">{header.subtitle}</p>
+          </div>
+        )}
+        {step !== "home" && header.subtitle && (
+          <p className="text-muted-foreground mb-6">{header.subtitle}</p>
+        )}
 
         {step === "home" && (
           <>
@@ -357,53 +436,29 @@ export default function TeacherDashboard() {
         )}
 
         {step === "choose_type" && (
-          <div className="space-y-4">
-            <Button variant="ghost" size="sm" onClick={handleBack}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            <LessonTypeSelector onSelect={handleSelectType} />
-          </div>
+          <LessonTypeSelector onSelect={handleSelectType} />
         )}
 
         {step === "youtube_source" && (
-          <div className="space-y-4">
-            <Button variant="ghost" size="sm" onClick={handleBack}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            <YouTubeSourceSelector onSelect={handleYoutubeSource} />
-          </div>
+          <YouTubeSourceSelector onSelect={handleYoutubeSource} />
         )}
 
         {step === "youtube_browse" && (
-          <div className="space-y-4">
-            <Button variant="ghost" size="sm" onClick={handleBack}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            <CommunityVideoBrowser onSelectVideo={handleCommunityVideoSelected} />
-          </div>
+          <CommunityVideoBrowser onSelectVideo={handleCommunityVideoSelected} />
         )}
 
         {step === "form" && (
-          <div className="space-y-4">
-            <Button variant="ghost" size="sm" onClick={handleBack}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            <Card>
-              <CardContent className="pt-6">
-                <CreateLessonForm
-                  lessonType={lessonType as "paragraph" | "youtube"}
-                  onCreated={handleCreated}
-                  onCancel={handleBack}
-                  prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
-                  maxVideoMinutes={quota?.maxVideoMinutes}
-                />
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <CreateLessonForm
+                lessonType={lessonType as "paragraph" | "youtube"}
+                onCreated={handleCreated}
+                onCancel={handleBack}
+                prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
+                maxVideoMinutes={quota?.maxVideoMinutes}
+              />
+            </CardContent>
+          </Card>
         )}
 
         {step === "speaking_form" && (
