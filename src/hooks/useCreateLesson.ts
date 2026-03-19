@@ -245,11 +245,12 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl }: Us
     }
     setLoading(true);
     try {
+      const normalizedEmail = values.student_email?.trim().toLowerCase() || "";
       const shareToken = crypto.randomUUID();
       const insertData: any = {
         teacher_id: user.id,
         title: values.title,
-        student_email: values.student_email,
+        student_email: normalizedEmail,
         cefr_level: values.cefr_level,
         exercise_types: values.exercise_types,
         status: "draft",
@@ -280,7 +281,7 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl }: Us
           .from("teacher_students" as any)
           .upsert({
             teacher_id: user.id,
-            student_email: values.student_email.trim().toLowerCase(),
+            student_email: normalizedEmail,
             status: "invited",
           } as any, { onConflict: "teacher_id,student_email", ignoreDuplicates: true });
       }
