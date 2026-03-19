@@ -462,6 +462,25 @@ export default function TeacherLesson() {
               />
             )}
 
+            {lesson.lesson_type === "paragraph" && lesson.paragraph_content && (
+              <Card>
+                <CardContent className="pt-4 space-y-3">
+                  {lesson.paragraph_prompt && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Prompt</p>
+                      <p className="text-sm text-muted-foreground italic">{lesson.paragraph_prompt}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Generated Paragraph</p>
+                    <div className="bg-background rounded-md p-4 text-foreground leading-relaxed whitespace-pre-wrap border text-sm">
+                      {lesson.paragraph_content}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Per-type generation buttons */}
             {availableTypes.length > 0 && (
               <div className="space-y-3">
