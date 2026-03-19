@@ -281,7 +281,7 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl }: Us
           .from("teacher_students" as any)
           .upsert({
             teacher_id: user.id,
-            student_email: values.student_email.trim().toLowerCase(),
+            student_email: normalizedEmail,
             status: "invited",
           } as any, { onConflict: "teacher_id,student_email", ignoreDuplicates: true });
       }
