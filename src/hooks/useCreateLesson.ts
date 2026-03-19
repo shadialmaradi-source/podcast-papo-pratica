@@ -42,7 +42,6 @@ export const PARAGRAPH_LENGTHS = [
 
 export const EXERCISE_TYPES_PARAGRAPH = [
   { id: "multiple_choice", label: "Multiple Choice (Quiz)" },
-  { id: "flashcards", label: "Flashcards" },
 ] as const;
 
 export const EXERCISE_TYPES_YOUTUBE = [
