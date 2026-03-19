@@ -38,6 +38,8 @@ interface Lesson {
   exercise_types: string[];
   language: string;
   lesson_type: string;
+  paragraph_content: string | null;
+  paragraph_prompt: string | null;
 }
 
 export default function TeacherLesson() {
@@ -136,7 +138,7 @@ export default function TeacherLesson() {
       const [lessonRes, exercisesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, exercise_types, language, lesson_type")
+          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, exercise_types, language, lesson_type, paragraph_content, paragraph_prompt")
           .eq("id", id)
           .eq("teacher_id", user.id)
           .single(),
@@ -458,6 +460,25 @@ export default function TeacherLesson() {
                 isPremium={true}
                 onUpgradeClick={() => {}}
               />
+            )}
+
+            {lesson.lesson_type === "paragraph" && lesson.paragraph_content && (
+              <Card>
+                <CardContent className="pt-4 space-y-3">
+                  {lesson.paragraph_prompt && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Prompt</p>
+                      <p className="text-sm text-muted-foreground italic">{lesson.paragraph_prompt}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Generated Paragraph</p>
+                    <div className="bg-background rounded-md p-4 text-foreground leading-relaxed whitespace-pre-wrap border text-sm">
+                      {lesson.paragraph_content}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Per-type generation buttons */}
