@@ -245,11 +245,12 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl }: Us
     }
     setLoading(true);
     try {
+      const normalizedEmail = values.student_email?.trim().toLowerCase() || "";
       const shareToken = crypto.randomUUID();
       const insertData: any = {
         teacher_id: user.id,
         title: values.title,
-        student_email: values.student_email,
+        student_email: normalizedEmail,
         cefr_level: values.cefr_level,
         exercise_types: values.exercise_types,
         status: "draft",
