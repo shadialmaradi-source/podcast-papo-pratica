@@ -34,6 +34,7 @@ interface FlashcardCreatorModalProps {
   videoId?: string;
   videoTitle?: string;
   language: string;
+  translationLanguage?: string;
   onSuccess: () => void;
   /** Pre-loaded AI data (from suggested words) to skip the API call */
   preloadedAnalysis?: {

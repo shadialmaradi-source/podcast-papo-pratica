@@ -12,7 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { word, language, contextSentence } = await req.json();
+    const { word, language, contextSentence, nativeLanguage } = await req.json();
+    const targetLang = nativeLanguage || "english";
 
     if (!word || !language) {
       return new Response(

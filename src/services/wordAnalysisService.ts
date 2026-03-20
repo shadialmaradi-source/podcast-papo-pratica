@@ -44,10 +44,11 @@ export interface TranscriptWordSuggestion {
 export async function analyzeWord(
   word: string,
   language: string,
-  contextSentence?: string
+  contextSentence?: string,
+  nativeLanguage: string = "english"
 ): Promise<WordAnalysis> {
   const { data, error } = await supabase.functions.invoke("analyze-word", {
-    body: { word, language, contextSentence },
+    body: { word, language, contextSentence, nativeLanguage },
   });
 
   if (error) {

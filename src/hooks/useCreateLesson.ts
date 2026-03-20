@@ -212,7 +212,8 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl }: Us
     setWordAnalysis(null);
     clearSelection();
     try {
-      const analysis = await analyzeWord(selection.text, language, selection.fullSentence);
+      const translationLang = form.getValues("translation_language") || "english";
+      const analysis = await analyzeWord(selection.text, language, selection.fullSentence, translationLang);
       setWordAnalysis(analysis);
     } catch (err) {
       console.error("Word analysis failed:", err);
