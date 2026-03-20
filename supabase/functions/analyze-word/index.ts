@@ -29,8 +29,8 @@ serve(async (req) => {
 
     const systemPrompt = `You are a language learning assistant specializing in ${language}. 
 Analyze the given word or phrase and provide detailed linguistic information.
-The user is learning ${language} and speaks English.
-Always respond using the analyze_word function tool.`;
+The user is learning ${language} and speaks ${targetLang}.
+Always respond using the analyze_word function tool. All translations and explanations must be in ${targetLang}.`;
 
     const userPrompt = contextSentence
       ? `Analyze this ${language} word/phrase: "${word}"\nContext sentence: "${contextSentence}"`
