@@ -188,7 +188,7 @@ export function FlashcardCreatorModal({
 
           {/* Translation */}
           <div className="space-y-2">
-            <Label htmlFor="translation">Translation (English)</Label>
+            <Label htmlFor="translation">Translation ({translationLanguage.charAt(0).toUpperCase() + translationLanguage.slice(1)})</Label>
             {analyzing ? (
               <Skeleton className="h-10 w-full rounded-md" />
             ) : (

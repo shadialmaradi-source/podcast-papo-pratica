@@ -72,7 +72,7 @@ Always respond using the analyze_word function tool. All translations and explan
                   },
                   exampleTranslation: {
                     type: "string",
-                    description: "English translation of the example sentence",
+                    description: `${targetLang} translation of the example sentence`,
                   },
                   extras: {
                     type: "object",
