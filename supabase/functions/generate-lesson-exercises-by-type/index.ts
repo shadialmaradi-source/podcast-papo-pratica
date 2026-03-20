@@ -101,6 +101,19 @@ async function fetchTranscript(youtubeUrl: string): Promise<string | null> {
     return null;
   }
 }
+function mcqFingerprint(content: any): string {
+  const q = (content.question || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const opts = (content.options || []).map((o: string) => o.toLowerCase().replace(/[^a-z0-9]/g, "")).sort().join("|");
+  return `${q}::${opts}`;
+}
+
+function isDuplicateMCQ(newContent: any, existing: any[]): boolean {
+  const newFp = mcqFingerprint(newContent);
+  return existing.some(e => {
+    const fp = mcqFingerprint(e.content);
+    return fp === newFp;
+  });
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
