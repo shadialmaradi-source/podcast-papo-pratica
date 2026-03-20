@@ -118,7 +118,7 @@ export function FlashcardCreatorModal({
           setAnalyzing(false);
         });
     }
-  }, [open, selectedText, fullSentence, language, preloadedAnalysis]);
+  }, [open, selectedText, fullSentence, language, translationLanguage, preloadedAnalysis]);
 
   const handleSave = async () => {
     if (!user?.id) {
