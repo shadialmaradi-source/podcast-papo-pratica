@@ -65,6 +65,7 @@ export function FlashcardCreatorModal({
   videoId = '',
   videoTitle = '',
   language,
+  translationLanguage = 'english',
   onSuccess,
   preloadedAnalysis,
 }: FlashcardCreatorModalProps) {
