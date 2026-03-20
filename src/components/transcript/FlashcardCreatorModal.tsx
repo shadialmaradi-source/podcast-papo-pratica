@@ -196,7 +196,7 @@ export function FlashcardCreatorModal({
                 id="translation"
                 value={translation}
                 onChange={(e) => setTranslation(e.target.value)}
-                placeholder="English translation"
+                placeholder={`${translationLanguage.charAt(0).toUpperCase() + translationLanguage.slice(1)} translation`}
               />
             )}
           </div>
