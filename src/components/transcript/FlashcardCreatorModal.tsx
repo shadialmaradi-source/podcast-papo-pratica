@@ -34,6 +34,7 @@ interface FlashcardCreatorModalProps {
   videoId?: string;
   videoTitle?: string;
   language: string;
+  translationLanguage?: string;
   onSuccess: () => void;
   /** Pre-loaded AI data (from suggested words) to skip the API call */
   preloadedAnalysis?: {
@@ -64,6 +65,7 @@ export function FlashcardCreatorModal({
   videoId = '',
   videoTitle = '',
   language,
+  translationLanguage = 'english',
   onSuccess,
   preloadedAnalysis,
 }: FlashcardCreatorModalProps) {
@@ -100,7 +102,7 @@ export function FlashcardCreatorModal({
 
     if (selectedText.trim()) {
       setAnalyzing(true);
-      analyzeWord(selectedText, language, fullSentence)
+      analyzeWord(selectedText, language, fullSentence, translationLanguage)
         .then((analysis) => {
           setTranslation(analysis.translation);
           setPartOfSpeech(analysis.partOfSpeech);
@@ -116,7 +118,7 @@ export function FlashcardCreatorModal({
           setAnalyzing(false);
         });
     }
-  }, [open, selectedText, fullSentence, language, preloadedAnalysis]);
+  }, [open, selectedText, fullSentence, language, translationLanguage, preloadedAnalysis]);
 
   const handleSave = async () => {
     if (!user?.id) {
@@ -186,7 +188,7 @@ export function FlashcardCreatorModal({
 
           {/* Translation */}
           <div className="space-y-2">
-            <Label htmlFor="translation">Translation (English)</Label>
+            <Label htmlFor="translation">Translation ({translationLanguage.charAt(0).toUpperCase() + translationLanguage.slice(1)})</Label>
             {analyzing ? (
               <Skeleton className="h-10 w-full rounded-md" />
             ) : (
@@ -194,7 +196,7 @@ export function FlashcardCreatorModal({
                 id="translation"
                 value={translation}
                 onChange={(e) => setTranslation(e.target.value)}
-                placeholder="English translation"
+                placeholder={`${translationLanguage.charAt(0).toUpperCase() + translationLanguage.slice(1)} translation`}
               />
             )}
           </div>

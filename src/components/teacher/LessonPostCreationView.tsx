@@ -390,6 +390,7 @@ export function LessonPostCreationView(props: LessonPostCreationViewProps) {
         videoId=""
         videoTitle=""
         language={currentLanguage}
+        translationLanguage={form.getValues("translation_language") || "english"}
         onSuccess={onFlashcardSuccess}
         preloadedAnalysis={null}
       />

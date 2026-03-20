@@ -329,6 +329,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
         videoId=""
         videoTitle=""
         language={currentLanguage}
+        translationLanguage={form.watch("translation_language") || "english"}
         onSuccess={() => toast({ title: "Flashcard saved! ✨" })}
         preloadedAnalysis={
           wordAnalysis
