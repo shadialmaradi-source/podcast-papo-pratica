@@ -59,7 +59,7 @@ Always respond using the analyze_word function tool. All translations and explan
                 properties: {
                   translation: {
                     type: "string",
-                    description: "English translation of the word/phrase",
+                    description: `${targetLang} translation of the word/phrase`,
                   },
                   partOfSpeech: {
                     type: "string",
