@@ -203,6 +203,10 @@ serve(async (req) => {
         ? `\n\nBase the exercise on this video transcript:\n${transcriptText.slice(0, 3000)}`
         : "";
 
+      const priorQuestions = exerciseType === "multiple_choice" && generatedExercises.length > 0
+        ? `\n\nDo NOT repeat or rephrase any of these previously generated questions:\n${generatedExercises.map((e, i) => `${i + 1}. "${e.content.question}"`).join("\n")}`
+        : "";
+
       const systemPrompt = `You are an expert language teacher creating exercises for a 1-on-1 tutoring session.
 The exercises MUST be written in ${language}. All sentences, questions, and options should be in ${language}.
 CEFR Level: ${lesson.cefr_level}.
@@ -210,7 +214,7 @@ Topic: ${lesson.topic || "general conversation"}.
 Exercise format: ${exerciseType}.
 The "question_translation" and "answer_translation" fields MUST be in ${translationLanguage}.
 ${q > 0 ? `This is exercise ${q + 1} of ${count}. Make it DIFFERENT from previous exercises — vary the topic, grammar point, or vocabulary tested.` : ""}
-${exerciseType === "role_play" ? "Create a role-play scenario directly inspired by the video content themes, vocabulary, and situations." : ""}
+${exerciseType === "role_play" ? "Create a role-play scenario directly inspired by the video content themes, vocabulary, and situations." : ""}${priorQuestions}
 Return ONLY valid JSON, no markdown, no explanation.`;
 
       const userPrompt = `${typePrompt}
@@ -218,48 +222,59 @@ Make it appropriate for a ${lesson.cefr_level} level student. Write the exercise
         lesson.paragraph_content ? `\n\nBase the question on this text:\n${lesson.paragraph_content}` : ""
       }${transcriptContext}`;
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          max_tokens: 800,
-        }),
-      });
+      const maxAttempts = exerciseType === "multiple_choice" ? 3 : 1;
+      let accepted = false;
 
-      if (!response.ok) {
-        const status = response.status;
-        if (status === 429) throw new Error("Rate limit exceeded. Please try again later.");
-        if (status === 402) throw new Error("AI credits exhausted.");
-        console.error(`AI error for ${exerciseType} q${q}:`, status);
-        continue;
+      for (let attempt = 0; attempt < maxAttempts && !accepted; attempt++) {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            max_tokens: 800,
+          }),
+        });
+
+        if (!response.ok) {
+          const status = response.status;
+          if (status === 429) throw new Error("Rate limit exceeded. Please try again later.");
+          if (status === 402) throw new Error("AI credits exhausted.");
+          console.error(`AI error for ${exerciseType} q${q}:`, status);
+          break;
+        }
+
+        const aiData = await response.json();
+        const raw = aiData.choices?.[0]?.message?.content || "";
+        const cleaned = raw.replace(/^```json?\s*/i, "").replace(/```\s*$/i, "").trim();
+
+        let content: any;
+        try {
+          content = JSON.parse(cleaned);
+        } catch {
+          console.error(`Failed to parse JSON for ${exerciseType} q${q} attempt ${attempt + 1}:`, cleaned);
+          continue;
+        }
+
+        if (exerciseType === "multiple_choice" && isDuplicateMCQ(content, generatedExercises)) {
+          console.log(`Duplicate MCQ rejected (q${q}, attempt ${attempt + 1})`);
+          continue;
+        }
+
+        generatedExercises.push({
+          lesson_id: lessonId,
+          exercise_type: exerciseType,
+          content,
+          order_index: orderIndex++,
+        });
+        accepted = true;
       }
-
-      const aiData = await response.json();
-      const raw = aiData.choices?.[0]?.message?.content || "";
-      const cleaned = raw.replace(/^```json?\s*/i, "").replace(/```\s*$/i, "").trim();
-
-      let content: any;
-      try {
-        content = JSON.parse(cleaned);
-      } catch {
-        console.error(`Failed to parse JSON for ${exerciseType} q${q}:`, cleaned);
-        continue;
-      }
-
-      generatedExercises.push({
-        lesson_id: lessonId,
-        exercise_type: exerciseType,
-        content,
-        order_index: orderIndex++,
-      });
     }
 
     if (generatedExercises.length === 0) {
