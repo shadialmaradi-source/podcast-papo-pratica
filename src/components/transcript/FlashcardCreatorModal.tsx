@@ -102,7 +102,7 @@ export function FlashcardCreatorModal({
 
     if (selectedText.trim()) {
       setAnalyzing(true);
-      analyzeWord(selectedText, language, fullSentence)
+      analyzeWord(selectedText, language, fullSentence, translationLanguage)
         .then((analysis) => {
           setTranslation(analysis.translation);
           setPartOfSpeech(analysis.partOfSpeech);
