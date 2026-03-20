@@ -1,72 +1,77 @@
 
 
-# Custom-Paragraph Quiz-Quality Deduplication — 1 File
+# Custom-Paragraph Translation-Language Consistency — 4 Files
 
-## `supabase/functions/generate-lesson-exercises-by-type/index.ts`
+## Problem
+`analyzeWord` service and the `analyze-word` edge function hardcode "English" as the translation language. The FlashcardCreatorModal label says "Translation (English)". None of these respect `translation_language` from the lesson form.
 
-### Problem
-The MCQ generation loop (lines 188–250) tells the model "make it different" but provides no concrete context about what was already generated. The model frequently produces near-duplicate questions or option sets.
+## Changes
 
-### Changes
-
-**1. Add fingerprint helper (before `serve`):**
+### 1. `src/services/wordAnalysisService.ts`
+Add optional `nativeLanguage` parameter to `analyzeWord`, default `"english"`. Pass it to the edge function body.
 
 ```typescript
-function mcqFingerprint(content: any): string {
-  const q = (content.question || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const opts = (content.options || []).map((o: string) => o.toLowerCase().replace(/[^a-z0-9]/g, "")).sort().join("|");
-  return `${q}::${opts}`;
-}
-
-function isDuplicateMCQ(newContent: any, existing: any[]): boolean {
-  const newFp = mcqFingerprint(newContent);
-  return existing.some(e => {
-    const fp = mcqFingerprint(e.content);
-    return fp === newFp;
+export async function analyzeWord(
+  word: string,
+  language: string,
+  contextSentence?: string,
+  nativeLanguage: string = "english"
+): Promise<WordAnalysis> {
+  const { data, error } = await supabase.functions.invoke("analyze-word", {
+    body: { word, language, contextSentence, nativeLanguage },
   });
+  // ...
 }
 ```
 
-**2. Inject prior questions into the prompt (line ~199, inside the system prompt for q > 0 and exerciseType === "multiple_choice"):**
+### 2. `supabase/functions/analyze-word/index.ts`
+- Read `nativeLanguage` from request body (default `"english"`).
+- Replace all hardcoded "English" references in prompts and schema descriptions with the dynamic `nativeLanguage` value.
 
-When `exerciseType === "multiple_choice"` and `q > 0`, append the previously accepted questions as explicit avoidance constraints:
-
+Key changes (lines 15, 29-32, 60-61, 70-74):
 ```typescript
-const priorQuestions = exerciseType === "multiple_choice" && generatedExercises.length > 0
-  ? `\n\nDo NOT repeat or rephrase any of these previously generated questions:\n${generatedExercises.map((e, i) => `${i + 1}. "${e.content.question}"`).join("\n")}`
-  : "";
+const { word, language, contextSentence, nativeLanguage } = await req.json();
+const targetLang = nativeLanguage || "english";
+
+// System prompt: "speaks {targetLang}" instead of "speaks English"
+// Schema descriptions: "{targetLang} translation" instead of "English translation"
 ```
 
-Add `${priorQuestions}` to the system prompt.
-
-**3. Add retry loop around MCQ generation (wrap the AI call + parse block for `multiple_choice` type):**
-
-For `multiple_choice` exercises, wrap the generate-parse-accept block in a retry loop (max 3 attempts). If the parsed result is a duplicate (per `isDuplicateMCQ`), retry. For non-MCQ types, no retry — behavior unchanged.
+### 3. `src/hooks/useCreateLesson.ts`
+In `handleExploreWord` (line 215), pass `translation_language` as the 4th argument:
 
 ```typescript
-const maxAttempts = exerciseType === "multiple_choice" ? 3 : 1;
-let accepted = false;
-
-for (let attempt = 0; attempt < maxAttempts && !accepted; attempt++) {
-  // ... existing AI call + parse logic ...
-  
-  if (exerciseType === "multiple_choice" && isDuplicateMCQ(content, generatedExercises)) {
-    console.log(`Duplicate MCQ rejected (q${q}, attempt ${attempt + 1})`);
-    continue;
-  }
-  
-  generatedExercises.push({ ... });
-  accepted = true;
-}
+const translationLang = form.getValues("translation_language") || "english";
+const analysis = await analyzeWord(selection.text, language, selection.fullSentence, translationLang);
 ```
 
-### Summary
+### 4. `src/components/transcript/FlashcardCreatorModal.tsx`
+- Add `translationLanguage` prop (default `"english"`).
+- Pass it to `analyzeWord` call (line 103).
+- Use it in the translation label (line 189): `Translation ({capitalizedLang})` instead of hardcoded `Translation (English)`.
+- Use it in placeholder text.
 
-| Change | Detail |
-|--------|--------|
-| `mcqFingerprint` + `isDuplicateMCQ` helpers | Normalize and compare question+options |
-| Prior questions in system prompt | Tell model what to avoid |
-| Bounded retry (max 3) for MCQ only | Reject duplicates before save |
+### 5. Callers of FlashcardCreatorModal — pass `translationLanguage`
 
-1 file, ~30 lines added. Non-MCQ exercise types unaffected.
+**`src/components/teacher/CreateLessonForm.tsx`** (line 323-338): Add `translationLanguage={form.watch("translation_language") || "english"}` prop.
+
+**`src/components/teacher/LessonPostCreationView.tsx`** (line 384-395):
+- Add `translationLanguage` to the component props interface.
+- Pass it through from CreateLessonForm.
+- Forward to FlashcardCreatorModal.
+
+**`src/components/transcript/TranscriptViewer.tsx`**: This is the YouTube/video transcript viewer — out of scope per instructions. It will continue defaulting to "english".
+
+## Summary
+
+| File | Change |
+|------|--------|
+| `src/services/wordAnalysisService.ts` | Add `nativeLanguage` param, pass to edge function |
+| `supabase/functions/analyze-word/index.ts` | Use dynamic `nativeLanguage` instead of hardcoded "English" |
+| `src/hooks/useCreateLesson.ts` | Pass `translation_language` to `analyzeWord` |
+| `src/components/transcript/FlashcardCreatorModal.tsx` | Add `translationLanguage` prop, dynamic label, pass to `analyzeWord` |
+| `src/components/teacher/CreateLessonForm.tsx` | Pass `translationLanguage` to FlashcardCreatorModal |
+| `src/components/teacher/LessonPostCreationView.tsx` | Accept and forward `translationLanguage` prop |
+
+6 files, ~25 lines changed. No architectural changes.
 
