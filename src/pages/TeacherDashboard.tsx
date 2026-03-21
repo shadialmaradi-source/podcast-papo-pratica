@@ -174,7 +174,7 @@ export default function TeacherDashboard() {
     } else if (type === "speaking") {
       setStep("speaking_form");
     } else {
-      setPrefillYoutubeUrl(null);
+      setCommunityVideo(null);
       setStep("form");
     }
   };
