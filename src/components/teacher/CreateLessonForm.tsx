@@ -40,6 +40,7 @@ interface CreateLessonFormProps {
   onCreated: (lessonId: string) => void;
   onCancel: () => void;
   prefillYoutubeUrl?: string;
+  prefillMeta?: CommunityVideoMeta;
   maxVideoMinutes?: number;
 }
 
