@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoCard } from "@/components/library/VideoCard";
 import { Search } from "lucide-react";
@@ -14,8 +13,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export interface CommunityVideoSelection {
+  url: string;
+  title: string;
+  language: string;
+  difficultyLevel: string;
+  isShort: boolean;
+}
+
 interface CommunityVideoBrowserProps {
-  onSelectVideo: (youtubeUrl: string, title: string) => void;
+  onSelectVideo: (selection: CommunityVideoSelection) => void;
 }
 
 interface VideoRow {
@@ -46,6 +53,7 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
+  const [selectedDuration, setSelectedDuration] = useState<string>("all");
 
   // Fetch videos
   useEffect(() => {
@@ -66,6 +74,12 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
         query = query.eq("difficulty_level", selectedDifficulty);
       }
 
+      if (selectedDuration === "short") {
+        query = query.eq("is_short", true);
+      } else if (selectedDuration === "long") {
+        query = query.eq("is_short", false);
+      }
+
       if (debouncedSearch) {
         query = query.ilike("title", `%${debouncedSearch}%`);
       }
@@ -78,11 +92,17 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
     };
 
     fetchVideos();
-  }, [selectedLanguage, selectedDifficulty, debouncedSearch]);
+  }, [selectedLanguage, selectedDifficulty, selectedDuration, debouncedSearch]);
 
   const handleSelectVideo = (video: VideoRow) => {
     const url = `https://www.youtube.com/watch?v=${video.video_id}`;
-    onSelectVideo(url, video.title);
+    onSelectVideo({
+      url,
+      title: video.title,
+      language: video.language,
+      difficultyLevel: video.difficulty_level,
+      isShort: video.is_short,
+    });
   };
 
   return (
@@ -126,6 +146,17 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
             <SelectItem value="advanced">Advanced</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select value={selectedDuration} onValueChange={setSelectedDuration}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Durations</SelectItem>
+            <SelectItem value="short">Shorts</SelectItem>
+            <SelectItem value="long">Long Videos</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Video grid */}
@@ -147,6 +178,7 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
               id={video.id}
               title={video.title}
               thumbnailUrl={video.thumbnail_url}
+              topics={video.is_short ? ["Short"] : ["Long-form"]}
               duration={video.duration}
               difficultyLevel={video.difficulty_level}
               isCurated={false}

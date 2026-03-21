@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
+import { CommunityVideoBrowser, type CommunityVideoSelection } from "@/components/teacher/CommunityVideoBrowser";
 import { AssignVideoModal } from "@/components/teacher/AssignVideoModal";
 
 interface VideoBrowserModalProps {
@@ -18,10 +18,10 @@ interface SelectedVideo {
 export function VideoBrowserModal({ open, onOpenChange, studentEmail, onAssigned }: VideoBrowserModalProps) {
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
 
-  const handleSelectVideo = (youtubeUrl: string, title: string) => {
-    const match = youtubeUrl.match(/[?&]v=([^&]+)/);
+  const handleSelectVideo = (selection: CommunityVideoSelection) => {
+    const match = selection.url.match(/[?&]v=([^&]+)/);
     const videoId = match ? match[1] : "";
-    setSelectedVideo({ videoId, title });
+    setSelectedVideo({ videoId, title: selection.title });
   };
 
   const handleClose = () => {

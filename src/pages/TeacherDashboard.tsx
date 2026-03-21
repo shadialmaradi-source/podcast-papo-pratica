@@ -454,7 +454,8 @@ export default function TeacherDashboard() {
                 lessonType={lessonType as "paragraph" | "youtube"}
                 onCreated={handleCreated}
                 onCancel={handleBack}
-                prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
+                prefillYoutubeUrl={communityVideo?.url}
+                prefillMeta={communityVideo ?? undefined}
                 maxVideoMinutes={quota?.maxVideoMinutes}
               />
             </CardContent>
