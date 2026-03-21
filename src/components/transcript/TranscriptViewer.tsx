@@ -26,6 +26,7 @@ interface TranscriptViewerProps {
   currentTime?: number;
   onSeek?: (timeSeconds: number) => void;
   onUpgradeClick: () => void;
+  cefrLevel?: string;
   // Tutorial props
   tutorialActive?: boolean;
   tutorialStep?: TutorialStep;
@@ -60,6 +61,7 @@ export function TranscriptViewer({
   onTutorialFlashcardSaved,
   onTutorialExplorerOpened,
   transcriptRef,
+  cefrLevel,
 }: TranscriptViewerProps) {
   const { user } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -140,7 +142,7 @@ export function TranscriptViewer({
     if (allSegments.length === 0) return;
 
     setSuggestionsLoading(true);
-    getTranscriptSuggestions(videoId, transcript, language)
+    getTranscriptSuggestions(videoId, transcript, language, cefrLevel)
       .then((suggestions) => {
         setSuggestedWords(suggestions);
       })
@@ -150,7 +152,7 @@ export function TranscriptViewer({
       .finally(() => {
         setSuggestionsLoading(false);
       });
-  }, [videoId, transcript, language, allSegments.length]);
+  }, [videoId, transcript, language, allSegments.length, cefrLevel]);
 
   // Auto-scroll to current segment
   useEffect(() => {
@@ -337,18 +339,20 @@ export function TranscriptViewer({
 
             {/* Controls */}
             <div className="flex items-center gap-3">
-              {/* Auto-scroll toggle */}
-              <div className="flex items-center gap-2">
-                <label htmlFor="auto-scroll" className="text-xs text-muted-foreground">
-                  Auto-scroll
-                </label>
-                <Switch
-                  id="auto-scroll"
-                  checked={autoScroll}
-                  onCheckedChange={setAutoScroll}
-                  className="scale-75"
-                />
-              </div>
+              {/* Auto-scroll toggle (only when video seek is available) */}
+              {onSeek && (
+                <div className="flex items-center gap-2">
+                  <label htmlFor="auto-scroll" className="text-xs text-muted-foreground">
+                    Auto-scroll
+                  </label>
+                  <Switch
+                    id="auto-scroll"
+                    checked={autoScroll}
+                    onCheckedChange={setAutoScroll}
+                    className="scale-75"
+                  />
+                </div>
+              )}
 
               {/* Text size */}
               <Button
