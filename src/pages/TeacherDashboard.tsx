@@ -129,9 +129,9 @@ export default function TeacherDashboard() {
     if (step === "home") {
       sessionStorage.removeItem(STORAGE_KEY);
     } else {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, lessonType, prefillYoutubeUrl }));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, lessonType, communityVideo }));
     }
-  }, [step, lessonType, prefillYoutubeUrl]);
+  }, [step, lessonType, communityVideo]);
 
   // Redirect non-teachers away; redirect teachers who haven't onboarded
   useEffect(() => {
