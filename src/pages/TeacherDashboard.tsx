@@ -181,7 +181,7 @@ export default function TeacherDashboard() {
 
   const handleYoutubeSource = (source: "scratch" | "community") => {
     if (source === "scratch") {
-      setPrefillYoutubeUrl(null);
+      setCommunityVideo(null);
       setStep("form");
     } else {
       setStep("youtube_browse");
