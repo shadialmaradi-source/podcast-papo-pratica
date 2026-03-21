@@ -61,6 +61,7 @@ export function TranscriptViewer({
   onTutorialFlashcardSaved,
   onTutorialExplorerOpened,
   transcriptRef,
+  cefrLevel,
 }: TranscriptViewerProps) {
   const { user } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
