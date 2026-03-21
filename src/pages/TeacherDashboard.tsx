@@ -109,10 +109,10 @@ export default function TeacherDashboard() {
     } catch { return "paragraph"; }
   });
   const [refresh, setRefresh] = useState(0);
-  const [prefillYoutubeUrl, setPrefillYoutubeUrl] = useState<string | null>(() => {
+  const [communityVideo, setCommunityVideo] = useState<CommunityVideoSelection | null>(() => {
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved).prefillYoutubeUrl ?? null : null;
+      return saved ? JSON.parse(saved).communityVideo ?? null : null;
     } catch { return null; }
   });
   const [displayName, setDisplayName] = useState<string>("");
