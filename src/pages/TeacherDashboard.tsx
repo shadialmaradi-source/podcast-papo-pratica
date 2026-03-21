@@ -15,7 +15,7 @@ import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { TeacherNotificationBell } from "@/components/teacher/TeacherNotificationBell";
 import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
-import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
+import { CommunityVideoBrowser, type CommunityVideoSelection } from "@/components/teacher/CommunityVideoBrowser";
 import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreator";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeacherQuota } from "@/hooks/useTeacherQuota";
@@ -109,10 +109,10 @@ export default function TeacherDashboard() {
     } catch { return "paragraph"; }
   });
   const [refresh, setRefresh] = useState(0);
-  const [prefillYoutubeUrl, setPrefillYoutubeUrl] = useState<string | null>(() => {
+  const [communityVideo, setCommunityVideo] = useState<CommunityVideoSelection | null>(() => {
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved).prefillYoutubeUrl ?? null : null;
+      return saved ? JSON.parse(saved).communityVideo ?? null : null;
     } catch { return null; }
   });
   const [displayName, setDisplayName] = useState<string>("");
@@ -129,9 +129,9 @@ export default function TeacherDashboard() {
     if (step === "home") {
       sessionStorage.removeItem(STORAGE_KEY);
     } else {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, lessonType, prefillYoutubeUrl }));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, lessonType, communityVideo }));
     }
-  }, [step, lessonType, prefillYoutubeUrl]);
+  }, [step, lessonType, communityVideo]);
 
   // Redirect non-teachers away; redirect teachers who haven't onboarded
   useEffect(() => {
@@ -174,22 +174,22 @@ export default function TeacherDashboard() {
     } else if (type === "speaking") {
       setStep("speaking_form");
     } else {
-      setPrefillYoutubeUrl(null);
+      setCommunityVideo(null);
       setStep("form");
     }
   };
 
   const handleYoutubeSource = (source: "scratch" | "community") => {
     if (source === "scratch") {
-      setPrefillYoutubeUrl(null);
+      setCommunityVideo(null);
       setStep("form");
     } else {
       setStep("youtube_browse");
     }
   };
 
-  const handleCommunityVideoSelected = (url: string) => {
-    setPrefillYoutubeUrl(url);
+  const handleCommunityVideoSelected = (selection: CommunityVideoSelection) => {
+    setCommunityVideo(selection);
     setStep("form");
   };
 
@@ -454,7 +454,8 @@ export default function TeacherDashboard() {
                 lessonType={lessonType as "paragraph" | "youtube"}
                 onCreated={handleCreated}
                 onCancel={handleBack}
-                prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
+                prefillYoutubeUrl={communityVideo?.url}
+                prefillMeta={communityVideo ?? undefined}
                 maxVideoMinutes={quota?.maxVideoMinutes}
               />
             </CardContent>

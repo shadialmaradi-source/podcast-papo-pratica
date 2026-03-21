@@ -94,13 +94,28 @@ export interface GroupState {
   revealed: boolean;
 }
 
+export interface CommunityVideoMeta {
+  url: string;
+  title: string;
+  language: string;
+  difficultyLevel: string;
+  isShort: boolean;
+}
+
+const DIFFICULTY_TO_CEFR: Record<string, string> = {
+  beginner: "A1",
+  intermediate: "B1",
+  advanced: "C1",
+};
+
 interface UseCreateLessonOptions {
   lessonType: LessonType;
   onCreated: (lessonId: string) => void;
   prefillYoutubeUrl?: string;
+  prefillMeta?: CommunityVideoMeta;
 }
 
-export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl }: UseCreateLessonOptions) {
+export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, prefillMeta }: UseCreateLessonOptions) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
@@ -141,20 +156,24 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl }: Us
   const schema = isParagraph ? paragraphSchema : youtubeSchema;
   const exerciseTypeOptions = isParagraph ? EXERCISE_TYPES_PARAGRAPH : EXERCISE_TYPES_YOUTUBE;
 
+  // Compute defaults from prefillMeta
+  const metaLanguage = prefillMeta?.language || "italian";
+  const metaCefr = prefillMeta ? (DIFFICULTY_TO_CEFR[prefillMeta.difficultyLevel] || "A1") : "A1";
+  const defaultTranslation = metaLanguage === "english" ? "spanish" : "english";
+
   const form = useForm<any>({
     resolver: zodResolver(schema as any),
     defaultValues: {
-      title: "",
+      title: prefillMeta?.title || "",
       student_email: "",
-      cefr_level: "A1",
+      cefr_level: metaCefr,
       exercise_types: [],
-      translation_language: "english",
+      translation_language: defaultTranslation,
       ...(isParagraph
-        ? { paragraph_prompt: "", language: "italian", paragraph_length: "medium" }
-        : { topic: "", youtube_url: prefillYoutubeUrl || "", language: "italian" }),
+        ? { paragraph_prompt: "", language: metaLanguage, paragraph_length: "medium" }
+        : { topic: "", youtube_url: prefillYoutubeUrl || "", language: metaLanguage }),
     },
   });
-
   useEffect(() => {
     trackEvent("teacher_lesson_creation_started", { type: lessonType });
     const checkAccess = async () => {

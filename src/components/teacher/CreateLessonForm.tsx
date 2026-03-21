@@ -28,6 +28,7 @@ import { LessonPostCreationView } from "./LessonPostCreationView";
 import {
   useCreateLesson,
   type LessonType,
+  type CommunityVideoMeta,
   CEFR_LEVELS,
   LANGUAGES,
   TRANSLATION_LANGUAGES,
@@ -39,13 +40,14 @@ interface CreateLessonFormProps {
   onCreated: (lessonId: string) => void;
   onCancel: () => void;
   prefillYoutubeUrl?: string;
+  prefillMeta?: CommunityVideoMeta;
   maxVideoMinutes?: number;
 }
 
-export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutubeUrl, maxVideoMinutes }: CreateLessonFormProps) {
+export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutubeUrl, prefillMeta, maxVideoMinutes }: CreateLessonFormProps) {
   const navigate = useNavigate();
 
-  const lesson = useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl });
+  const lesson = useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, prefillMeta });
 
   const {
     form, isParagraph, exerciseTypeOptions, emailVerified, trialExpired,
