@@ -339,18 +339,20 @@ export function TranscriptViewer({
 
             {/* Controls */}
             <div className="flex items-center gap-3">
-              {/* Auto-scroll toggle */}
-              <div className="flex items-center gap-2">
-                <label htmlFor="auto-scroll" className="text-xs text-muted-foreground">
-                  Auto-scroll
-                </label>
-                <Switch
-                  id="auto-scroll"
-                  checked={autoScroll}
-                  onCheckedChange={setAutoScroll}
-                  className="scale-75"
-                />
-              </div>
+              {/* Auto-scroll toggle (only when video seek is available) */}
+              {onSeek && (
+                <div className="flex items-center gap-2">
+                  <label htmlFor="auto-scroll" className="text-xs text-muted-foreground">
+                    Auto-scroll
+                  </label>
+                  <Switch
+                    id="auto-scroll"
+                    checked={autoScroll}
+                    onCheckedChange={setAutoScroll}
+                    className="scale-75"
+                  />
+                </div>
+              )}
 
               {/* Text size */}
               <Button
