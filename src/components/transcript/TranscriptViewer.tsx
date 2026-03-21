@@ -152,7 +152,7 @@ export function TranscriptViewer({
       .finally(() => {
         setSuggestionsLoading(false);
       });
-  }, [videoId, transcript, language, allSegments.length]);
+  }, [videoId, transcript, language, allSegments.length, cefrLevel]);
 
   // Auto-scroll to current segment
   useEffect(() => {
