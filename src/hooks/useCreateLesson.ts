@@ -94,10 +94,25 @@ export interface GroupState {
   revealed: boolean;
 }
 
+export interface CommunityVideoMeta {
+  url: string;
+  title: string;
+  language: string;
+  difficultyLevel: string;
+  isShort: boolean;
+}
+
+const DIFFICULTY_TO_CEFR: Record<string, string> = {
+  beginner: "A1",
+  intermediate: "B1",
+  advanced: "C1",
+};
+
 interface UseCreateLessonOptions {
   lessonType: LessonType;
   onCreated: (lessonId: string) => void;
   prefillYoutubeUrl?: string;
+  prefillMeta?: CommunityVideoMeta;
 }
 
 export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl }: UseCreateLessonOptions) {
