@@ -142,7 +142,7 @@ export function TranscriptViewer({
     if (allSegments.length === 0) return;
 
     setSuggestionsLoading(true);
-    getTranscriptSuggestions(videoId, transcript, language)
+    getTranscriptSuggestions(videoId, transcript, language, cefrLevel)
       .then((suggestions) => {
         setSuggestedWords(suggestions);
       })
