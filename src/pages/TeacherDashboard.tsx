@@ -188,8 +188,8 @@ export default function TeacherDashboard() {
     }
   };
 
-  const handleCommunityVideoSelected = (url: string) => {
-    setPrefillYoutubeUrl(url);
+  const handleCommunityVideoSelected = (selection: CommunityVideoSelection) => {
+    setCommunityVideo(selection);
     setStep("form");
   };
 
