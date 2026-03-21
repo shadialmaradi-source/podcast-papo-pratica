@@ -15,7 +15,7 @@ import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { TeacherNotificationBell } from "@/components/teacher/TeacherNotificationBell";
 import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
-import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
+import { CommunityVideoBrowser, type CommunityVideoSelection } from "@/components/teacher/CommunityVideoBrowser";
 import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreator";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeacherQuota } from "@/hooks/useTeacherQuota";
