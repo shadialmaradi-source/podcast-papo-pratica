@@ -623,14 +623,17 @@ export default function StudentLesson() {
             />
           )}
 
-          {/* Paragraph content */}
+          {/* Paragraph content — interactive via TranscriptViewer */}
           {lesson.lesson_type === "paragraph" && lesson.paragraph_content && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="pt-5 pb-5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Reading</p>
-                <p className="text-foreground leading-relaxed whitespace-pre-wrap">{lesson.paragraph_content}</p>
-              </CardContent>
-            </Card>
+            <TranscriptViewer
+              videoId={lesson.id}
+              transcript={`0:00\n${lesson.paragraph_content}`}
+              videoTitle={lesson.title}
+              language={lesson.language || "italian"}
+              isPremium={true}
+              onUpgradeClick={() => {}}
+              cefrLevel={lesson.cefr_level}
+            />
           )}
 
           {/* Per-type generation buttons */}

@@ -26,6 +26,7 @@ interface TranscriptViewerProps {
   currentTime?: number;
   onSeek?: (timeSeconds: number) => void;
   onUpgradeClick: () => void;
+  cefrLevel?: string;
   // Tutorial props
   tutorialActive?: boolean;
   tutorialStep?: TutorialStep;
