@@ -273,6 +273,15 @@ export default function StudentLesson() {
     if (!id || !user) return;
     setLoading(true);
 
+    // Bind authenticated identity to lesson before fetching
+    try {
+      await supabase.rpc("bind_lesson_identity_by_share_token", {
+        p_share_token: id,
+      });
+    } catch (_) {
+      // Non-critical — continue loading
+    }
+
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id!);
     
     let lessonQuery = supabase
