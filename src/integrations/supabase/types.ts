@@ -2331,6 +2331,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bind_lesson_identity_by_share_token: {
+        Args: { p_share_token: string }
+        Returns: undefined
+      }
       check_exercise_answer: {
         Args: { exercise_id_param: string; user_answer_param: string }
         Returns: {
