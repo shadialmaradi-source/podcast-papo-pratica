@@ -31,13 +31,20 @@ export interface SRSReview {
   response_time?: number;
 }
 
-// Get vocabulary words due for review
-export const getVocabularyDueForReview = async (limit: number = 20): Promise<any[]> => {
+// Helper to resolve userId — uses passed param or falls back to auth call
+const resolveUserId = async (userId?: string): Promise<string> => {
+  if (userId) return userId;
   const { data: currentUser } = await supabase.auth.getUser();
   if (!currentUser.user) throw new Error('User not authenticated');
+  return currentUser.user.id;
+};
+
+// Get vocabulary words due for review
+export const getVocabularyDueForReview = async (limit: number = 20, userId?: string): Promise<any[]> => {
+  const uid = await resolveUserId(userId);
 
   const { data, error } = await supabase.rpc('get_vocabulary_due_for_review', {
-    p_user_id: currentUser.user.id,
+    p_user_id: uid,
     p_limit: limit
   });
 
@@ -50,9 +57,8 @@ export const getVocabularyDueForReview = async (limit: number = 20): Promise<any
 };
 
 // Get user's vocabulary progress stats
-export const getVocabularyStats = async () => {
-  const { data: currentUser } = await supabase.auth.getUser();
-  if (!currentUser.user) throw new Error('User not authenticated');
+export const getVocabularyStats = async (userId?: string) => {
+  const uid = await resolveUserId(userId);
 
   const { data, error } = await supabase
     .from('user_vocabulary_progress')
@@ -66,26 +72,24 @@ export const getVocabularyStats = async () => {
         difficulty_level
       )
     `)
-    .eq('user_id', currentUser.user.id);
+    .eq('user_id', uid);
 
   if (error) throw error;
 
   const stats = {
     total_words: data?.length || 0,
     learned_words: data?.filter(p => p.is_learned).length || 0,
-    review_due: 0, // Will be calculated separately
+    review_due: 0,
     accuracy: 0,
     by_language: {} as Record<string, number>,
     by_difficulty: {} as Record<string, number>
   };
 
   if (data && data.length > 0) {
-    // Calculate accuracy
     const totalAttempts = data.reduce((sum, p) => sum + p.times_seen, 0);
     const totalCorrect = data.reduce((sum, p) => sum + p.times_correct, 0);
     stats.accuracy = totalAttempts > 0 ? (totalCorrect / totalAttempts) * 100 : 0;
 
-    // Group by language and difficulty
     data.forEach(progress => {
       const lang = progress.vocabulary_words.language;
       const diff = progress.vocabulary_words.difficulty_level;
@@ -102,13 +106,13 @@ export const getVocabularyStats = async () => {
 export const updateVocabularyProgress = async (
   wordId: string,
   isCorrect: boolean,
-  difficultyRating: number = 3
+  difficultyRating: number = 3,
+  userId?: string
 ) => {
-  const { data: currentUser } = await supabase.auth.getUser();
-  if (!currentUser.user) throw new Error('User not authenticated');
+  const uid = await resolveUserId(userId);
 
   const { error } = await supabase.rpc('update_vocabulary_progress', {
-    p_user_id: currentUser.user.id,
+    p_user_id: uid,
     p_word_id: wordId,
     p_is_correct: isCorrect,
     p_difficulty_rating: difficultyRating
@@ -127,10 +131,10 @@ export const addVocabularyFromEpisode = async (
   language: string,
   episodeId: string,
   translation?: string,
-  difficultyLevel: string = 'beginner'
+  difficultyLevel: string = 'beginner',
+  userId?: string
 ) => {
-  const { data: currentUser } = await supabase.auth.getUser();
-  if (!currentUser.user) throw new Error('User not authenticated');
+  const uid = await resolveUserId(userId);
 
   // First, check if word already exists
   const { data: existingWord } = await supabase
@@ -145,7 +149,6 @@ export const addVocabularyFromEpisode = async (
   if (existingWord) {
     wordId = existingWord.id;
   } else {
-    // Create new vocabulary word
     const { data: newWord, error: wordError } = await supabase
       .from('vocabulary_words')
       .insert({
@@ -166,7 +169,7 @@ export const addVocabularyFromEpisode = async (
   const { error: progressError } = await supabase
     .from('user_vocabulary_progress')
     .upsert({
-      user_id: currentUser.user.id,
+      user_id: uid,
       word_id: wordId,
       episode_id: episodeId,
       mastery_level: 0,
@@ -218,10 +221,10 @@ export const searchVocabulary = async (
 
 // Get user's vocabulary progress for specific words
 export const getUserVocabularyProgress = async (
-  wordIds: string[]
+  wordIds: string[],
+  userId?: string
 ): Promise<VocabularyProgress[]> => {
-  const { data: currentUser } = await supabase.auth.getUser();
-  if (!currentUser.user) throw new Error('User not authenticated');
+  const uid = await resolveUserId(userId);
 
   const { data, error } = await supabase
     .from('user_vocabulary_progress')
@@ -229,7 +232,7 @@ export const getUserVocabularyProgress = async (
       *,
       vocabulary_words(*)
     `)
-    .eq('user_id', currentUser.user.id)
+    .eq('user_id', uid)
     .in('word_id', wordIds);
 
   if (error) throw error;
