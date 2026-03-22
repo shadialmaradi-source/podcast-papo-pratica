@@ -288,24 +288,23 @@ export default function StudentLesson() {
       .from("teacher_lessons")
       .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language, teacher_id");
     
+    let lessonRes: any;
+
     if (isUuid) {
+      // Try share_token first, then fall back to id — reuse result directly to avoid double query
       const { data: byToken } = await lessonQuery.eq("share_token", id).maybeSingle();
       if (byToken) {
-        lessonQuery = supabase
-          .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language, teacher_id")
-          .eq("id", byToken.id);
+        lessonRes = { data: byToken, error: null };
       } else {
-        lessonQuery = supabase
+        lessonRes = await supabase
           .from("teacher_lessons")
           .select("id, title, student_email, cefr_level, topic, status, current_exercise_index, youtube_url, lesson_type, paragraph_content, transcript, exercise_types, language, translation_language, teacher_id")
-          .eq("id", id);
+          .eq("id", id)
+          .single();
       }
     } else {
-      lessonQuery = lessonQuery.eq("share_token", id);
+      lessonRes = await lessonQuery.eq("share_token", id).single();
     }
-
-    const lessonRes = await lessonQuery.single();
     const lessonId = lessonRes.data?.id;
 
     const [exercisesRes, responsesRes] = await Promise.all([

@@ -3,10 +3,14 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { identifyUser, setUserProperties, setSection, trackEvent, resetAnalytics } from "@/lib/analytics";
 
+type AppRole = "teacher" | "student";
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  role: AppRole | null;
+  roleLoading: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -16,6 +20,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<AppRole | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -34,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Fetch role + profile to enrich PostHog person properties
           setTimeout(async () => {
             const uid = session.user.id;
+            setRoleLoading(true);
 
             const [roleRes, profileRes] = await Promise.all([
               supabase
@@ -49,11 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .maybeSingle(),
             ]);
 
-            const role = (roleRes.data as any)?.role || "student";
+            const fetchedRole = ((roleRes.data as any)?.role || "student") as AppRole;
+            setRole(fetchedRole);
+            setRoleLoading(false);
+
             const profile = profileRes.data;
 
             const props: Record<string, unknown> = {
-              role,
+              role: fetchedRole,
               email: session.user.email,
             };
 
@@ -64,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             // For teachers, fetch plan
-            if (role === "teacher") {
+            if (fetchedRole === "teacher") {
               const { data: subData } = await supabase
                 .from("teacher_subscriptions" as any)
                 .select("plan")
@@ -79,6 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserProperties(props);
           }, 0);
         } else if (event === 'SIGNED_OUT') {
+          setRole(null);
+          setRoleLoading(false);
           resetAnalytics();
         }
       }
@@ -88,6 +100,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      if (session?.user) {
+        // Load role on initial session restore
+        setRoleLoading(true);
+        supabase
+          .from("user_roles" as any)
+          .select("role")
+          .eq("user_id", session.user.id)
+          .limit(1)
+          .maybeSingle()
+          .then(({ data }) => {
+            setRole(((data as any)?.role || "student") as AppRole);
+            setRoleLoading(false);
+          });
+      } else {
+        setRoleLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -98,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, role, roleLoading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -40,7 +40,7 @@ export const getEpisodeExercises = async (
 
   return (data || []).map((exercise: any) => ({
     ...exercise,
-    exercise_type: exercise.exercise_type as 'multiple_choice' | 'true_false' | 'matching' | 'sequencing' | 'gap_fill' | 'fill_blank' | 'vocabulary' | 'reflection' | 'analysis' | 'synthesis' | 'comprehension' | 'reorder'
+    exercise_type: exercise.exercise_type as Exercise['exercise_type']
   }));
 };
 
@@ -65,21 +65,22 @@ export const checkExerciseAnswer = async (
   return data?.[0] || { is_correct: false, correct_answer: '', explanation: '', xp_reward: 0 };
 };
 
-// Save user exercise result
+// Save user exercise result — accepts userId to avoid redundant getUser() call
 export const saveExerciseResult = async (
   exerciseId: string,
   episodeId: string,
   userAnswer: string | any[],
   isCorrect: boolean,
-  xpEarned: number
+  xpEarned: number,
+  userId?: string
 ) => {
-  const { data: currentUser } = await supabase.auth.getUser();
-  if (!currentUser.user) throw new Error('User not authenticated');
+  const uid = userId ?? (await supabase.auth.getUser()).data.user?.id;
+  if (!uid) throw new Error('User not authenticated');
 
   const { error } = await supabase
     .from('user_exercise_results')
     .upsert({
-      user_id: currentUser.user.id,
+      user_id: uid,
       exercise_id: exerciseId,
       episode_id: episodeId,
       user_answer: typeof userAnswer === 'string' ? userAnswer : JSON.stringify(userAnswer),
@@ -96,16 +97,16 @@ export const saveExerciseResult = async (
   }
 };
 
-// Update user XP and progress
-export const updateUserProgress = async (xpToAdd: number) => {
-  const { data: currentUser } = await supabase.auth.getUser();
-  if (!currentUser.user) throw new Error('User not authenticated');
+// Update user XP and progress — accepts userId to avoid redundant getUser() call
+export const updateUserProgress = async (xpToAdd: number, userId?: string) => {
+  const uid = userId ?? (await supabase.auth.getUser()).data.user?.id;
+  if (!uid) throw new Error('User not authenticated');
 
   // Get current profile
   const { data: profile } = await supabase
     .from('profiles')
     .select('total_xp')
-    .eq('user_id', currentUser.user.id)
+    .eq('user_id', uid)
     .single();
 
   if (!profile) throw new Error('Profile not found');
@@ -116,7 +117,7 @@ export const updateUserProgress = async (xpToAdd: number) => {
     .update({
       total_xp: profile.total_xp + xpToAdd
     })
-    .eq('user_id', currentUser.user.id);
+    .eq('user_id', uid);
 
   if (error) {
     console.error('Error updating user progress:', error);
@@ -128,7 +129,7 @@ export const updateUserProgress = async (xpToAdd: number) => {
   await supabase
     .from('daily_activities')
     .upsert({
-      user_id: currentUser.user.id,
+      user_id: uid,
       activity_date: today,
       xp_earned_today: xpToAdd
     }, {
@@ -136,15 +137,15 @@ export const updateUserProgress = async (xpToAdd: number) => {
     });
 };
 
-// Mark episode as completed
-export const markEpisodeCompleted = async (episodeId: string) => {
-  const { data: currentUser } = await supabase.auth.getUser();
-  if (!currentUser.user) throw new Error('User not authenticated');
+// Mark episode as completed — accepts userId to avoid redundant getUser() call
+export const markEpisodeCompleted = async (episodeId: string, userId?: string) => {
+  const uid = userId ?? (await supabase.auth.getUser()).data.user?.id;
+  if (!uid) throw new Error('User not authenticated');
 
   const { error } = await supabase
     .from('user_episode_progress')
     .upsert({
-      user_id: currentUser.user.id,
+      user_id: uid,
       episode_id: episodeId,
       is_completed: true,
       completed_at: new Date().toISOString(),
@@ -184,17 +185,7 @@ export interface NextActionRecommendation {
   buttonText: string;
 }
 
-// Get next action recommendation based on progression logic
-export const getNextRecommendation = async (
-  currentEpisodeId: string,
-  currentLevel: string,
-  currentIntensity: string,
-  language: string
-): Promise<NextActionRecommendation> => {
-  const { data: currentUser } = await supabase.auth.getUser();
-  if (!currentUser.user) throw new Error('User not authenticated');
-
-// Helper functions moved to module scope
+// Helper functions
 const getLevelDisplayName = (level: string): string => {
   const names = {
     beginner: "Beginner",
@@ -213,9 +204,15 @@ const getNextLevel = (currentLevel: string): string => {
   return progression[currentLevel as keyof typeof progression] || 'beginner';
 };
 
+// Get next action recommendation based on progression logic
+export const getNextRecommendation = async (
+  currentEpisodeId: string,
+  currentLevel: string,
+  currentIntensity: string,
+  language: string
+): Promise<NextActionRecommendation> => {
   // Progression logic
   if (currentIntensity === 'light') {
-    // Light mode completed → suggest Intense mode same level, same episode
     return {
       action: 'next_intensity',
       episodeId: currentEpisodeId,
@@ -226,7 +223,6 @@ const getNextLevel = (currentLevel: string): string => {
     };
   } else if (currentIntensity === 'intense') {
     if (currentLevel === 'advanced') {
-      // Advanced Intense completed → suggest new episode (Beginner Light)
       const nextEpisode = await getNextEpisodeSuggestions(currentEpisodeId, language);
       return {
         action: 'next_episode',
@@ -238,7 +234,6 @@ const getNextLevel = (currentLevel: string): string => {
         buttonText: 'Start Next Episode →'
       };
     } else {
-      // Intense mode completed → suggest next level's Light mode same episode
       const nextLevel = getNextLevel(currentLevel);
       return {
         action: 'next_level',
