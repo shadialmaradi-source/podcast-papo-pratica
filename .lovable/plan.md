@@ -1,71 +1,80 @@
 
 
-# Teacher YouTube/Community Builder Stabilization — 5 Files
+# Teacher Assignment / Invite Identity Reliability Patch — 2 Changes
 
-## Overview
-When a teacher selects a community video, only the URL string passes through. This means the form defaults to `language: "italian"`, `cefr_level: "A1"`, empty title/topic — even when the video has that metadata. We fix this by passing structured metadata from the browser, persisting it in session state, and prefilling the form.
+## Problem
+When a student opens a shared lesson link and authenticates, the `teacher_lessons.student_email` may not match the authenticated email (e.g., teacher typed a different email). The `teacher_students` roster also drifts. There is no identity-binding step at lesson load time.
 
 ## Changes
 
-### 1. `src/components/teacher/CommunityVideoBrowser.tsx`
-- **Structured callback**: Change `onSelectVideo` signature from `(url, title)` to a metadata object: `{ url, title, language, difficultyLevel, isShort }`.
-- **Duration filter**: Add a `selectedDuration` state with options: `all`, `short`, `long`. Apply `.eq("is_short", true/false)` to the query.
-- **Fallback topic chip**: Pass `isShort` to VideoCard via a computed `topics` prop — when no topics exist, show `["Short"]` or `["Long-form"]` based on `is_short`.
+### 1. New DB function: `bind_lesson_identity_by_share_token`
+Create via migration:
 
-### 2. `src/pages/TeacherDashboard.tsx`
-- **Structured state**: Replace `prefillYoutubeUrl: string | null` with `communityVideo: { url, title, language, difficultyLevel, isShort } | null`.
-- **`handleCommunityVideoSelected`**: Accept the structured object, store it in state and sessionStorage.
-- **Pass to CreateLessonForm**: Forward the full `communityVideo` metadata object as a new prop (alongside or replacing `prefillYoutubeUrl`).
+```sql
+CREATE OR REPLACE FUNCTION public.bind_lesson_identity_by_share_token(p_share_token text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_lesson RECORD;
+  v_email TEXT;
+BEGIN
+  -- Require authentication
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
 
-### 3. `src/components/teacher/CreateLessonForm.tsx`
-- **New prop**: Accept optional `prefillMeta?: { url, title, language, difficultyLevel, isShort }` in addition to existing `prefillYoutubeUrl`.
-- **Forward to hook**: Pass `prefillMeta` into `useCreateLesson`.
+  v_email := (SELECT email FROM auth.users WHERE id = auth.uid());
+  IF v_email IS NULL THEN RETURN; END IF;
 
-### 4. `src/hooks/useCreateLesson.ts`
-- **Accept `prefillMeta`** in `UseCreateLessonOptions`.
-- **Auto-prefill defaults**: When `prefillMeta` is provided, set `youtube_url`, `title`, `language`, `cefr_level` (map `difficultyLevel` → CEFR: beginner→A1, intermediate→B1, advanced→C1), and `topic` from the metadata.
-- **Translation-language safety**: If computed source language equals `translation_language` default, pick a safe fallback (e.g., if source is `"english"`, default translation to `"spanish"` instead of `"english"`).
+  -- Find lesson by share_token
+  SELECT id, teacher_id, student_email
+  INTO v_lesson
+  FROM public.teacher_lessons
+  WHERE share_token = p_share_token
+  LIMIT 1;
 
-### 5. `src/components/teacher/VideoBrowserModal.tsx`
-- Update `handleSelectVideo` to consume the new structured payload shape from `CommunityVideoBrowser` (destructure object instead of positional `(url, title)` args).
+  IF NOT FOUND THEN RETURN; END IF;
 
-## Detailed interface
+  -- Bind student_email to authenticated email
+  UPDATE public.teacher_lessons
+  SET student_email = lower(trim(v_email)),
+      updated_at = now()
+  WHERE id = v_lesson.id;
+
+  -- Upsert teacher_students
+  INSERT INTO public.teacher_students (teacher_id, student_email, status, last_active)
+  VALUES (v_lesson.teacher_id, lower(trim(v_email)), 'active', now())
+  ON CONFLICT (teacher_id, student_email)
+  DO UPDATE SET status = 'active', last_active = now();
+END;
+$$;
+```
+
+### 2. `src/pages/StudentLesson.tsx`
+At the top of `loadData` (after the `if (!id || !user) return;` guard), call the bind function when the route param looks like a share token:
 
 ```typescript
-// Shared type
-export interface CommunityVideoSelection {
-  url: string;
-  title: string;
-  language: string;
-  difficultyLevel: string;
-  isShort: boolean;
+// Before lesson fetch, bind identity if accessing via share token
+try {
+  await supabase.rpc("bind_lesson_identity_by_share_token", {
+    p_share_token: id
+  });
+} catch (_) {
+  // Non-critical — continue loading
 }
 ```
 
-## Difficulty → CEFR mapping
-```typescript
-const DIFFICULTY_TO_CEFR: Record<string, string> = {
-  beginner: "A1",
-  intermediate: "B1",
-  advanced: "C1",
-};
-```
-
-## Translation-language safety logic
-```typescript
-const sourceLang = prefillMeta?.language || "italian";
-const defaultTranslation = sourceLang === "english" ? "spanish" : "english";
-```
+This is inserted at line ~275, before the `isUuid` check and lesson query. The RPC is fire-and-forget-ish: if the token doesn't match a lesson, the function simply returns. The lesson fetch proceeds normally after.
 
 ## Summary
 
-| File | Change |
-|------|--------|
-| `CommunityVideoBrowser.tsx` | Structured callback, duration filter, fallback topic chip |
-| `TeacherDashboard.tsx` | Structured community video state, session persistence, pass metadata |
-| `CreateLessonForm.tsx` | Accept and forward `prefillMeta` prop |
-| `useCreateLesson.ts` | Prefill form defaults from metadata, translation-language safety |
-| `VideoBrowserModal.tsx` | Consume structured payload |
+| Change | Detail |
+|--------|--------|
+| Migration | New `bind_lesson_identity_by_share_token` SECURITY DEFINER function |
+| `src/pages/StudentLesson.tsx` | Call RPC at start of `loadData` |
 
-5 files, ~60 lines changed. No architectural changes.
+2 changes, ~30 lines. No architectural redesign.
 
