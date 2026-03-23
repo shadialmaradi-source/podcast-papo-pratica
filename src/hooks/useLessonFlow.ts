@@ -395,6 +395,7 @@ export function useLessonFlow(videoId: string | undefined) {
     videoDuration,
     currentScene,
     isAssignment,
+    nativeLanguage,
     // Handlers
     handleLevelSelect,
     handleSceneVideoComplete,
