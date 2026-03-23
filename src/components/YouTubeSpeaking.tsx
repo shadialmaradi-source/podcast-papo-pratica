@@ -82,7 +82,7 @@ const incrementAnonymousAttempts = () => {
   localStorage.setItem('anonymous_speech_attempts', String(current + 1));
 };
 
-export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, sceneTranscript }: YouTubeSpeakingProps) {
+export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, sceneTranscript, dbVideoId: dbVideoIdProp }: YouTubeSpeakingProps) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
