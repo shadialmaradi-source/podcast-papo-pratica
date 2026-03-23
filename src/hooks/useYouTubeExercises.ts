@@ -118,9 +118,11 @@ interface UseYouTubeExercisesOptions {
   intensity: string;
   sceneId?: string;
   sceneTranscript?: string;
+  dbVideoId?: string;
+  nativeLanguage?: string;
 }
 
-export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneTranscript }: UseYouTubeExercisesOptions) {
+export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneTranscript, dbVideoId: dbVideoIdProp, nativeLanguage: nativeLanguageProp }: UseYouTubeExercisesOptions) {
   const { user } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [dragDropExercises, setDragDropExercises] = useState<Exercise[]>([]);
