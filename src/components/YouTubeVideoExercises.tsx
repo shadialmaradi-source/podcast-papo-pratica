@@ -51,6 +51,7 @@ const mapDifficultyLevel = (level: string): string => {
 
 const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, source, onBack, onStartExercises }) => {
   const { isPremium } = useSubscription();
+  const { user } = useAuth();
   const [videoData, setVideoData] = useState<VideoData | null>(null);
   const [transcript, setTranscript] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
