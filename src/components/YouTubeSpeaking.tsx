@@ -150,8 +150,8 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
       setError(null);
       
       try {
-        // Get video record first
-        const resolvedId = await resolveDbVideoId(videoId);
+        // Get video record first — use prop if available
+        const resolvedId = dbVideoIdProp || await resolveDbVideoId(videoId);
         if (!resolvedId) {
           throw new Error("Video not found");
         }

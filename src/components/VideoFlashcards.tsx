@@ -108,7 +108,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTrans
           trackEvent('flashcards_started', { video_id: videoId, count: data.flashcards.length });
           
           // Save flashcards to user's repository
-          await saveViewedFlashcards(session.user.id, videoId);
+          await saveViewedFlashcards(user.id, videoId);
           
           if (data.cached) {
             console.log('Loaded cached flashcards');

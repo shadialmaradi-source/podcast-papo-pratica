@@ -185,8 +185,8 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
       setIsLoading(true);
       setError("");
       try {
-        let userNativeLanguage = '';
-        if (user) {
+        let userNativeLanguage = nativeLanguageProp || '';
+        if (!userNativeLanguage && user) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('native_language')
@@ -204,7 +204,7 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
           userNativeLanguage = langMap[browserLang] || 'english';
         }
 
-        const resolvedId = await resolveDbVideoId(videoId);
+        const resolvedId = dbVideoIdProp || await resolveDbVideoId(videoId);
 
         if (resolvedId) {
           setDbVideoId(resolvedId);
