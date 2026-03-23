@@ -32,6 +32,7 @@ export default function Lesson() {
     lessonState, selectedLevel, nextVideoLoading, showLevelPopup, lessonStats,
     scenes, currentSceneIndex, completedScenes, isSegmented, dbVideoId,
     youtubeVideoId, videoTitle, videoLanguage, videoDuration, currentScene,
+    nativeLanguage,
     handleLevelSelect, handleSceneVideoComplete, handleContinueToSpeaking,
     handleTryNextLevel, handleSkipToFlashcards, handleFlashcardsComplete,
     handleSceneSelect, handleNextVideo, handleBackToLibrary, handleViewProgress,
