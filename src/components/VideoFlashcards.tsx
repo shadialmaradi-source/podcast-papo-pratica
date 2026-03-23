@@ -65,22 +65,24 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTrans
           transcriptLang = transcriptMeta.language;
         }
 
-        // Get the session for auth
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        // Use auth from useAuth context instead of redundant getSession call
+        if (!user) {
           throw new Error('Please log in to view flashcards');
         }
 
-        // Fetch user's native language
-        let userNativeLanguage = localStorage.getItem('onboarding_native_language') || 'english';
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('native_language')
-          .eq('user_id', session.user.id)
-          .single();
-        if (profile?.native_language) {
-          userNativeLanguage = profile.native_language;
+        // Fetch user's native language — skip DB read if already provided via prop
+        let userNativeLanguage = nativeLanguageProp || localStorage.getItem('onboarding_native_language') || '';
+        if (!userNativeLanguage) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('native_language')
+            .eq('user_id', user.id)
+            .single();
+          if (profile?.native_language) {
+            userNativeLanguage = profile.native_language;
+          }
         }
+        if (!userNativeLanguage) userNativeLanguage = 'english';
         userNativeLanguage = normalizeLanguageCode(userNativeLanguage);
         setNativeLanguage(userNativeLanguage);
 
