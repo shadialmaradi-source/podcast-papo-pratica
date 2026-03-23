@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useAuth } from "@/hooks/useAuth";
 import TranscriptViewer from "@/components/transcript/TranscriptViewer";
 import TranscriptTutorial, { type TutorialStep } from "@/components/transcript/TranscriptTutorial";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
@@ -50,6 +51,7 @@ const mapDifficultyLevel = (level: string): string => {
 
 const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, source, onBack, onStartExercises }) => {
   const { isPremium } = useSubscription();
+  const { user } = useAuth();
   const [videoData, setVideoData] = useState<VideoData | null>(null);
   const [transcript, setTranscript] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
@@ -322,7 +324,6 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
       }
 
       let userNativeLanguage = '';
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')

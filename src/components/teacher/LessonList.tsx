@@ -158,28 +158,38 @@ export function LessonList({ refresh }: LessonListProps) {
   const handleGenerate = async (lessonId: string) => {
     setGenerating(lessonId);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lesson-exercises`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ lessonId }),
-        }
+      // Find the lesson to get its exercise types
+      const lesson = lessons.find(l => l.id === lessonId);
+      const exerciseTypes: string[] = (lesson?.exercise_types || []).filter(
+        (t: string) => t !== "image_discussion"
       );
 
-      const result = await res.json();
+      // Use the modern by-type function for each exercise type
+      let totalCount = 0;
+      for (const exerciseType of exerciseTypes) {
+        const { data, error } = await supabase.functions.invoke(
+          "generate-lesson-exercises-by-type",
+          { body: { lessonId, exerciseType } }
+        );
+        if (error) throw new Error(error.message || "Generation failed");
+        if (data?.error) throw new Error(data.error);
+        totalCount += data?.count || 0;
+      }
 
-      if (!res.ok) {
-        throw new Error(result.error || "Generation failed");
+      // If no specific types, invoke once with no type to trigger default behavior
+      if (exerciseTypes.length === 0) {
+        const { data, error } = await supabase.functions.invoke(
+          "generate-lesson-exercises-by-type",
+          { body: { lessonId, exerciseType: "multiple_choice" } }
+        );
+        if (error) throw new Error(error.message || "Generation failed");
+        if (data?.error) throw new Error(data.error);
+        totalCount += data?.count || 0;
       }
 
       toast({
         title: "Exercises generated!",
-        description: `${result.count} exercise(s) ready for your lesson.`,
+        description: `${totalCount} exercise(s) ready for your lesson.`,
       });
 
       await fetchLessons();

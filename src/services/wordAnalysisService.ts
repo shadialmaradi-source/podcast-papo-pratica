@@ -1,5 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// In-memory cache to avoid repeated AI calls for the same word
+const wordAnalysisCache = new Map<string, WordAnalysis>();
+
+function getCacheKey(word: string, language: string, nativeLanguage: string): string {
+  return `${word.toLowerCase().trim()}:${language.toLowerCase()}:${nativeLanguage.toLowerCase()}`;
+}
+
+export function clearWordAnalysisCache() {
+  wordAnalysisCache.clear();
+}
+
 export interface WordAnalysis {
   translation: string;
   partOfSpeech: string;
@@ -47,6 +58,10 @@ export async function analyzeWord(
   contextSentence?: string,
   nativeLanguage: string = "english"
 ): Promise<WordAnalysis> {
+  const cacheKey = getCacheKey(word, language, nativeLanguage);
+  const cached = wordAnalysisCache.get(cacheKey);
+  if (cached) return cached;
+
   const { data, error } = await supabase.functions.invoke("analyze-word", {
     body: { word, language, contextSentence, nativeLanguage },
   });
@@ -60,7 +75,9 @@ export async function analyzeWord(
     throw new Error(data.error);
   }
 
-  return data as WordAnalysis;
+  const result = data as WordAnalysis;
+  wordAnalysisCache.set(cacheKey, result);
+  return result;
 }
 
 /**
