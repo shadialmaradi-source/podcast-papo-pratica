@@ -32,6 +32,7 @@ export default function Lesson() {
     lessonState, selectedLevel, nextVideoLoading, showLevelPopup, lessonStats,
     scenes, currentSceneIndex, completedScenes, isSegmented, dbVideoId,
     youtubeVideoId, videoTitle, videoLanguage, videoDuration, currentScene,
+    nativeLanguage,
     handleLevelSelect, handleSceneVideoComplete, handleContinueToSpeaking,
     handleTryNextLevel, handleSkipToFlashcards, handleFlashcardsComplete,
     handleSceneSelect, handleNextVideo, handleBackToLibrary, handleViewProgress,
@@ -168,6 +169,8 @@ export default function Lesson() {
             onSkipToFlashcards={handleSkipToFlashcards}
             sceneId={currentScene?.id}
             sceneTranscript={currentScene?.scene_transcript}
+            dbVideoId={dbVideoId}
+            nativeLanguage={nativeLanguage}
           />
         ) : (
           <YouTubeExercises
@@ -180,23 +183,25 @@ export default function Lesson() {
             onContinueToSpeaking={handleContinueToSpeaking}
             onTryNextLevel={handleTryNextLevel}
             onSkipToFlashcards={handleSkipToFlashcards}
+            dbVideoId={dbVideoId}
+            nativeLanguage={nativeLanguage}
           />
         )
       )}
 
       {lessonState === "speaking" && (
         isSegmented ? renderWithSceneNav(
-          <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} sceneId={currentScene?.id} sceneTranscript={currentScene?.scene_transcript} />
+          <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} sceneId={currentScene?.id} sceneTranscript={currentScene?.scene_transcript} dbVideoId={dbVideoId} />
         ) : (
-          <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} />
+          <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} dbVideoId={dbVideoId} />
         )
       )}
 
       {lessonState === "flashcards" && (
         isSegmented ? renderWithSceneNav(
-          <VideoFlashcards videoId={videoId} level={selectedLevel} onComplete={() => handleFlashcardsComplete()} onBack={handleBackToLibrary} sceneTranscript={currentScene?.scene_transcript} dbVideoId={dbVideoId} />
+          <VideoFlashcards videoId={videoId} level={selectedLevel} onComplete={() => handleFlashcardsComplete()} onBack={handleBackToLibrary} sceneTranscript={currentScene?.scene_transcript} dbVideoId={dbVideoId} nativeLanguage={nativeLanguage} />
         ) : (
-          <VideoFlashcards videoId={videoId} level={selectedLevel} onComplete={() => handleFlashcardsComplete()} onBack={handleBackToLibrary} />
+          <VideoFlashcards videoId={videoId} level={selectedLevel} onComplete={() => handleFlashcardsComplete()} onBack={handleBackToLibrary} dbVideoId={dbVideoId} nativeLanguage={nativeLanguage} />
         )
       )}
 

@@ -6,6 +6,16 @@ const videoIdCache = new Map<string, string | null>();
 const transcriptCache = new Map<string, { language: string; transcript: string }>();
 
 /**
+ * Seeds the video ID cache so downstream consumers (exercises, speaking, flashcards)
+ * get a cache hit instead of re-querying youtube_videos.
+ */
+export function seedVideoIdCache(youtubeVideoId: string, dbId: string): void {
+  videoIdCache.set(youtubeVideoId, dbId);
+  // Also seed the reverse lookup so .eq('id', dbId) paths hit cache too
+  videoIdCache.set(dbId, dbId);
+}
+
+/**
  * Resolves a DB video UUID from a YouTube video_id or direct UUID.
  * Caches results for the session to avoid repeated lookups.
  */

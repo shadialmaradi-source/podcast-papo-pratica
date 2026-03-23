@@ -118,9 +118,11 @@ interface UseYouTubeExercisesOptions {
   intensity: string;
   sceneId?: string;
   sceneTranscript?: string;
+  dbVideoId?: string;
+  nativeLanguage?: string;
 }
 
-export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneTranscript }: UseYouTubeExercisesOptions) {
+export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneTranscript, dbVideoId: dbVideoIdProp, nativeLanguage: nativeLanguageProp }: UseYouTubeExercisesOptions) {
   const { user } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [dragDropExercises, setDragDropExercises] = useState<Exercise[]>([]);
@@ -183,8 +185,8 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
       setIsLoading(true);
       setError("");
       try {
-        let userNativeLanguage = '';
-        if (user) {
+        let userNativeLanguage = nativeLanguageProp || '';
+        if (!userNativeLanguage && user) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('native_language')
@@ -202,7 +204,7 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
           userNativeLanguage = langMap[browserLang] || 'english';
         }
 
-        const resolvedId = await resolveDbVideoId(videoId);
+        const resolvedId = dbVideoIdProp || await resolveDbVideoId(videoId);
 
         if (resolvedId) {
           setDbVideoId(resolvedId);

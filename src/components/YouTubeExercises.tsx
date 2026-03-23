@@ -31,6 +31,8 @@ interface YouTubeExercisesProps {
   language?: string;
   sceneId?: string;
   sceneTranscript?: string;
+  dbVideoId?: string | null;
+  nativeLanguage?: string;
   onBack: () => void;
   onComplete: () => void;
   onContinueToSpeaking?: (videoId: string, level: string) => void;
@@ -49,6 +51,7 @@ const levelInfo: Record<string, { name: string; color: string }> = {
 
 export function YouTubeExercises({
   videoId, level, intensity, source, language, sceneId, sceneTranscript,
+  dbVideoId: dbVideoIdProp, nativeLanguage: nativeLanguageProp,
   onBack, onComplete, onContinueToSpeaking, onTryNextLevel, onSkipToFlashcards,
 }: YouTubeExercisesProps) {
   const {
@@ -57,7 +60,7 @@ export function YouTubeExercises({
     currentAnswerCorrect, vocalQuota, showUpgradePrompt, currentExercise, progress,
     setShowDragDrop, setCurrentExerciseIndex, setShowFeedback, setShowUpgradePrompt,
     handleAnswerChange, handleCheckAnswer, handleNext, handleDragDropComplete,
-  } = useYouTubeExercises({ videoId, level, intensity, sceneId, sceneTranscript });
+  } = useYouTubeExercises({ videoId, level, intensity, sceneId, sceneTranscript, dbVideoId: dbVideoIdProp || undefined, nativeLanguage: nativeLanguageProp || undefined });
 
   // Loading state
   if (isLoading) {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { seedVideoIdCache } from "@/utils/videoResolver";
 import { useAuth } from "@/hooks/useAuth";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import { toast } from "@/hooks/use-toast";
@@ -96,8 +97,14 @@ export function useLessonFlow(videoId: string | undefined) {
     }
     // Cache for reuse
     resolvedVideoRef.current = videoData as ResolvedVideo | null;
+    // Seed the shared videoResolver cache so exercises/speaking/flashcards get cache hits
+    if (videoData) {
+      seedVideoIdCache(videoData.video_id, videoData.id);
+    }
     return videoData as ResolvedVideo | null;
   };
+
+  const [nativeLanguage, setNativeLanguage] = useState<string>("");
 
   const resolveLevel = async (): Promise<string | null> => {
     const localLevel = mapLevel(localStorage.getItem("onboarding_level"));
@@ -105,9 +112,11 @@ export function useLessonFlow(videoId: string | undefined) {
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("current_level")
+        .select("current_level, native_language")
         .eq("user_id", user.id)
         .single();
+      // Capture native_language while we're here to share with children
+      if (profile?.native_language) setNativeLanguage(profile.native_language);
       const profileLevel = mapLevel(profile?.current_level);
       if (profileLevel) return profileLevel;
     }
@@ -386,6 +395,7 @@ export function useLessonFlow(videoId: string | undefined) {
     videoDuration,
     currentScene,
     isAssignment,
+    nativeLanguage,
     // Handlers
     handleLevelSelect,
     handleSceneVideoComplete,

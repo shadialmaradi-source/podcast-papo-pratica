@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { getLanguageSpeechCode, normalizeLanguageCode } from "@/utils/languageUtils";
 import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
 import { trackEvent } from "@/lib/analytics";
@@ -53,6 +54,7 @@ interface YouTubeSpeakingProps {
   onBack: () => void;
   sceneId?: string;
   sceneTranscript?: string;
+  dbVideoId?: string | null;
 }
 
 // Module-level cache for extracted speaking phrases (avoids re-invoking edge function on revisits)
@@ -81,7 +83,8 @@ const incrementAnonymousAttempts = () => {
   localStorage.setItem('anonymous_speech_attempts', String(current + 1));
 };
 
-export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, sceneTranscript }: YouTubeSpeakingProps) {
+export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, sceneTranscript, dbVideoId: dbVideoIdProp }: YouTubeSpeakingProps) {
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,8 +104,8 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   
   // Auth and limits
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(user ? true : null);
+  const [userId, setUserId] = useState<string | null>(user?.id || null);
   const [anonymousAttempts, setAnonymousAttempts] = useState(getAnonymousAttempts());
   const [limitReached, setLimitReached] = useState(false);
   
@@ -119,26 +122,26 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
   const maxFreeAttempts = 2;
   const remainingAttempts = maxFreeAttempts - anonymousAttempts;
 
-  // Check authentication status and subscription quota
+  // Sync auth state from useAuth context (avoids redundant getSession call)
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      setUserId(session?.user?.id || null);
-      
-      if (!session && anonymousAttempts >= maxFreeAttempts) {
-        setLimitReached(true);
-      }
-      
-      // Check subscription quota for authenticated users
-      if (session?.user?.id) {
-        const quota = await canUserDoVocalExercise(session.user.id);
+    const authed = !!user;
+    setIsAuthenticated(authed);
+    setUserId(user?.id || null);
+
+    if (!authed && anonymousAttempts >= maxFreeAttempts) {
+      setLimitReached(true);
+    }
+
+    // Check subscription quota for authenticated users
+    if (user?.id) {
+      canUserDoVocalExercise(user.id).then(quota => {
         setVocalQuota(quota);
         if (!quota.allowed) {
           setQuotaExceeded(true);
         }
-      }
-    });
-  }, [anonymousAttempts]);
+      });
+    }
+  }, [user, anonymousAttempts]);
 
   // Fetch transcript and extract phrases on mount
   useEffect(() => {
@@ -147,8 +150,8 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
       setError(null);
       
       try {
-        // Get video record first
-        const resolvedId = await resolveDbVideoId(videoId);
+        // Get video record first — use prop if available
+        const resolvedId = dbVideoIdProp || await resolveDbVideoId(videoId);
         if (!resolvedId) {
           throw new Error("Video not found");
         }
@@ -257,9 +260,6 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
 
     try {
       const audioBase64 = await blobToBase64(audioBlob);
-      
-      // Get session for auth header
-      const { data: { session } } = await supabase.auth.getSession();
 
       const response = await fetch(`https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/speech-analyze`, {
         method: 'POST',

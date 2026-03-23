@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import { toast } from "sonner";
 import { saveViewedFlashcards } from "@/services/flashcardService";
@@ -16,6 +17,7 @@ interface VideoFlashcardsProps {
   onBack: () => void;
   sceneTranscript?: string;
   dbVideoId?: string | null;
+  nativeLanguage?: string;
 }
 
 interface Flashcard {
@@ -24,12 +26,13 @@ interface Flashcard {
   why: string;
 }
 
-export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTranscript, dbVideoId: dbVideoIdProp }: VideoFlashcardsProps) {
+export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTranscript, dbVideoId: dbVideoIdProp, nativeLanguage: nativeLanguageProp }: VideoFlashcardsProps) {
+  const { user } = useAuth();
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<string>("english");
-  const [nativeLanguage, setNativeLanguage] = useState<string>("english");
+  const [nativeLanguage, setNativeLanguage] = useState<string>(nativeLanguageProp || "english");
 
   useEffect(() => {
     const fetchFlashcards = async () => {
@@ -62,22 +65,24 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTrans
           transcriptLang = transcriptMeta.language;
         }
 
-        // Get the session for auth
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        // Use auth from useAuth context instead of redundant getSession call
+        if (!user) {
           throw new Error('Please log in to view flashcards');
         }
 
-        // Fetch user's native language
-        let userNativeLanguage = localStorage.getItem('onboarding_native_language') || 'english';
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('native_language')
-          .eq('user_id', session.user.id)
-          .single();
-        if (profile?.native_language) {
-          userNativeLanguage = profile.native_language;
+        // Fetch user's native language — skip DB read if already provided via prop
+        let userNativeLanguage = nativeLanguageProp || localStorage.getItem('onboarding_native_language') || '';
+        if (!userNativeLanguage) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('native_language')
+            .eq('user_id', user.id)
+            .single();
+          if (profile?.native_language) {
+            userNativeLanguage = profile.native_language;
+          }
         }
+        if (!userNativeLanguage) userNativeLanguage = 'english';
         userNativeLanguage = normalizeLanguageCode(userNativeLanguage);
         setNativeLanguage(userNativeLanguage);
 
@@ -103,7 +108,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTrans
           trackEvent('flashcards_started', { video_id: videoId, count: data.flashcards.length });
           
           // Save flashcards to user's repository
-          await saveViewedFlashcards(session.user.id, videoId);
+          await saveViewedFlashcards(user.id, videoId);
           
           if (data.cached) {
             console.log('Loaded cached flashcards');
