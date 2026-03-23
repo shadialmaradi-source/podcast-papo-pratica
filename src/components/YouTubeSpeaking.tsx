@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { getLanguageSpeechCode, normalizeLanguageCode } from "@/utils/languageUtils";
 import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
 import { trackEvent } from "@/lib/analytics";
