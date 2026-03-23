@@ -104,15 +104,19 @@ export function useLessonFlow(videoId: string | undefined) {
     return videoData as ResolvedVideo | null;
   };
 
+  const [nativeLanguage, setNativeLanguage] = useState<string>("");
+
   const resolveLevel = async (): Promise<string | null> => {
     const localLevel = mapLevel(localStorage.getItem("onboarding_level"));
     if (localLevel) return localLevel;
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("current_level")
+        .select("current_level, native_language")
         .eq("user_id", user.id)
         .single();
+      // Capture native_language while we're here to share with children
+      if (profile?.native_language) setNativeLanguage(profile.native_language);
       const profileLevel = mapLevel(profile?.current_level);
       if (profileLevel) return profileLevel;
     }
