@@ -1,5 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// In-memory cache to avoid repeated AI calls for the same word
+const wordAnalysisCache = new Map<string, WordAnalysis>();
+
+function getCacheKey(word: string, language: string, nativeLanguage: string): string {
+  return `${word.toLowerCase().trim()}:${language.toLowerCase()}:${nativeLanguage.toLowerCase()}`;
+}
+
+export function clearWordAnalysisCache() {
+  wordAnalysisCache.clear();
+}
+
 export interface WordAnalysis {
   translation: string;
   partOfSpeech: string;
