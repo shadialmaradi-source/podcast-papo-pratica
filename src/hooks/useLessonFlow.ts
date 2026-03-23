@@ -97,6 +97,10 @@ export function useLessonFlow(videoId: string | undefined) {
     }
     // Cache for reuse
     resolvedVideoRef.current = videoData as ResolvedVideo | null;
+    // Seed the shared videoResolver cache so exercises/speaking/flashcards get cache hits
+    if (videoData) {
+      seedVideoIdCache(videoData.video_id, videoData.id);
+    }
     return videoData as ResolvedVideo | null;
   };
 
