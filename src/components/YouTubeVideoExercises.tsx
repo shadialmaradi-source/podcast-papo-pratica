@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useAuth } from "@/hooks/useAuth";
 import TranscriptViewer from "@/components/transcript/TranscriptViewer";
 import TranscriptTutorial, { type TutorialStep } from "@/components/transcript/TranscriptTutorial";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
