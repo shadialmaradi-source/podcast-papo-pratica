@@ -17,6 +17,7 @@ interface VideoFlashcardsProps {
   onBack: () => void;
   sceneTranscript?: string;
   dbVideoId?: string | null;
+  nativeLanguage?: string;
 }
 
 interface Flashcard {
