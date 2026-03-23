@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { seedVideoIdCache } from "@/utils/videoResolver";
 import { useAuth } from "@/hooks/useAuth";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import { toast } from "@/hooks/use-toast";
