@@ -53,6 +53,7 @@ interface YouTubeSpeakingProps {
   onBack: () => void;
   sceneId?: string;
   sceneTranscript?: string;
+  dbVideoId?: string | null;
 }
 
 // Module-level cache for extracted speaking phrases (avoids re-invoking edge function on revisits)
