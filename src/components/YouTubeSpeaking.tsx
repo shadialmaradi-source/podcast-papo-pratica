@@ -104,8 +104,8 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   
   // Auth and limits
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(user ? true : null);
+  const [userId, setUserId] = useState<string | null>(user?.id || null);
   const [anonymousAttempts, setAnonymousAttempts] = useState(getAnonymousAttempts());
   const [limitReached, setLimitReached] = useState(false);
   
