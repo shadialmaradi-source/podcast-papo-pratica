@@ -122,26 +122,26 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
   const maxFreeAttempts = 2;
   const remainingAttempts = maxFreeAttempts - anonymousAttempts;
 
-  // Check authentication status and subscription quota
+  // Sync auth state from useAuth context (avoids redundant getSession call)
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      setUserId(session?.user?.id || null);
-      
-      if (!session && anonymousAttempts >= maxFreeAttempts) {
-        setLimitReached(true);
-      }
-      
-      // Check subscription quota for authenticated users
-      if (session?.user?.id) {
-        const quota = await canUserDoVocalExercise(session.user.id);
+    const authed = !!user;
+    setIsAuthenticated(authed);
+    setUserId(user?.id || null);
+
+    if (!authed && anonymousAttempts >= maxFreeAttempts) {
+      setLimitReached(true);
+    }
+
+    // Check subscription quota for authenticated users
+    if (user?.id) {
+      canUserDoVocalExercise(user.id).then(quota => {
         setVocalQuota(quota);
         if (!quota.allowed) {
           setQuotaExceeded(true);
         }
-      }
-    });
-  }, [anonymousAttempts]);
+      });
+    }
+  }, [user, anonymousAttempts]);
 
   // Fetch transcript and extract phrases on mount
   useEffect(() => {
