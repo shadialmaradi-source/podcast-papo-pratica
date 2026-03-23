@@ -260,9 +260,6 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
 
     try {
       const audioBase64 = await blobToBase64(audioBlob);
-      
-      // Get session for auth header
-      const { data: { session } } = await supabase.auth.getSession();
 
       const response = await fetch(`https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/speech-analyze`, {
         method: 'POST',
