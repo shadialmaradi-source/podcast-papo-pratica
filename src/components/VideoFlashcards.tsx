@@ -26,12 +26,13 @@ interface Flashcard {
   why: string;
 }
 
-export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTranscript, dbVideoId: dbVideoIdProp }: VideoFlashcardsProps) {
+export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTranscript, dbVideoId: dbVideoIdProp, nativeLanguage: nativeLanguageProp }: VideoFlashcardsProps) {
+  const { user } = useAuth();
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<string>("english");
-  const [nativeLanguage, setNativeLanguage] = useState<string>("english");
+  const [nativeLanguage, setNativeLanguage] = useState<string>(nativeLanguageProp || "english");
 
   useEffect(() => {
     const fetchFlashcards = async () => {
