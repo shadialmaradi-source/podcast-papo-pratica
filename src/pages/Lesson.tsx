@@ -169,6 +169,8 @@ export default function Lesson() {
             onSkipToFlashcards={handleSkipToFlashcards}
             sceneId={currentScene?.id}
             sceneTranscript={currentScene?.scene_transcript}
+            dbVideoId={dbVideoId}
+            nativeLanguage={nativeLanguage}
           />
         ) : (
           <YouTubeExercises
@@ -181,6 +183,8 @@ export default function Lesson() {
             onContinueToSpeaking={handleContinueToSpeaking}
             onTryNextLevel={handleTryNextLevel}
             onSkipToFlashcards={handleSkipToFlashcards}
+            dbVideoId={dbVideoId}
+            nativeLanguage={nativeLanguage}
           />
         )
       )}
