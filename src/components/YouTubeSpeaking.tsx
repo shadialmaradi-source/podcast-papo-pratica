@@ -84,7 +84,7 @@ const incrementAnonymousAttempts = () => {
 };
 
 export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, sceneTranscript, dbVideoId: dbVideoIdProp }: YouTubeSpeakingProps) {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
