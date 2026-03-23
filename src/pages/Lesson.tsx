@@ -191,9 +191,9 @@ export default function Lesson() {
 
       {lessonState === "speaking" && (
         isSegmented ? renderWithSceneNav(
-          <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} sceneId={currentScene?.id} sceneTranscript={currentScene?.scene_transcript} />
+          <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} sceneId={currentScene?.id} sceneTranscript={currentScene?.scene_transcript} dbVideoId={dbVideoId} />
         ) : (
-          <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} />
+          <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} dbVideoId={dbVideoId} />
         )
       )}
 
