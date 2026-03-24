@@ -41,6 +41,11 @@ const MyLessons = lazy(() => import("./pages/MyLessons"));
 const MyAssignments = lazy(() => import("./pages/MyAssignments"));
 const SpeakingAssignment = lazy(() => import("./pages/SpeakingAssignment"));
 const AdminImport = lazy(() => import("./pages/AdminImport"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
+const ContactPage = lazy(() => import("./pages/Contact"));
+const AboutPage = lazy(() => import("./pages/About"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -140,6 +145,11 @@ const App = () => {
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/lesson/first" element={<FirstLesson />} />
               <Route path="/premium" element={<Premium />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/cookies" element={<CookiePolicy />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/about" element={<AboutPage />} />
 
               {/* Teacher routes */}
               <Route path="/teacher/onboarding" element={<ProtectedRoute><TeacherOnboarding /></ProtectedRoute>} />

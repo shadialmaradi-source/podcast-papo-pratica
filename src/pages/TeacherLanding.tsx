@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import LandingFooter from "@/components/LandingFooter";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -537,6 +538,8 @@ export default function TeacherLanding() {
           </motion.div>
         </div>
       </section>
+
+      <LandingFooter />
     </div>
   );
 }

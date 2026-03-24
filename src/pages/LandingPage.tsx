@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import LandingFooter from "@/components/LandingFooter";
 import { detectUILanguage } from "@/utils/browserLanguage";
 import { trackPageView } from "@/lib/analytics";
 import { useNavigate } from "react-router-dom";
@@ -469,6 +470,8 @@ export default function LandingPage() {
           <ArrowRight className="ml-2 h-5 w-5" />
         </Button>
       </motion.div>
+
+      <LandingFooter />
 
       {/* Spacer for mobile CTA */}
       <div className="h-24 md:hidden" />
