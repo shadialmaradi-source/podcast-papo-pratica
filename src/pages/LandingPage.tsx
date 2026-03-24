@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import LandingFooter from "@/components/LandingFooter";
 import { detectUILanguage } from "@/utils/browserLanguage";
 import { trackPageView } from "@/lib/analytics";
 import { useNavigate } from "react-router-dom";
