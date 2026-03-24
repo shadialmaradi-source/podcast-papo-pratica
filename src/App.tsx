@@ -145,6 +145,11 @@ const App = () => {
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/lesson/first" element={<FirstLesson />} />
               <Route path="/premium" element={<Premium />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/cookies" element={<CookiePolicy />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/about" element={<AboutPage />} />
 
               {/* Teacher routes */}
               <Route path="/teacher/onboarding" element={<ProtectedRoute><TeacherOnboarding /></ProtectedRoute>} />

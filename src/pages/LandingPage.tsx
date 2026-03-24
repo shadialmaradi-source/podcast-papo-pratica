@@ -470,6 +470,8 @@ export default function LandingPage() {
         </Button>
       </motion.div>
 
+      <LandingFooter />
+
       {/* Spacer for mobile CTA */}
       <div className="h-24 md:hidden" />
     </div>

@@ -537,6 +537,8 @@ export default function TeacherLanding() {
           </motion.div>
         </div>
       </section>
+
+      <LandingFooter />
     </div>
   );
 }
