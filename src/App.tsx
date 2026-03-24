@@ -41,6 +41,11 @@ const MyLessons = lazy(() => import("./pages/MyLessons"));
 const MyAssignments = lazy(() => import("./pages/MyAssignments"));
 const SpeakingAssignment = lazy(() => import("./pages/SpeakingAssignment"));
 const AdminImport = lazy(() => import("./pages/AdminImport"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
+const ContactPage = lazy(() => import("./pages/Contact"));
+const AboutPage = lazy(() => import("./pages/About"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
