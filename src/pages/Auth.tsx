@@ -521,6 +521,14 @@ export default function Auth() {
                   <span>Are you a teacher? <a href="/auth?role=teacher" className="text-primary hover:underline">Teacher login</a></span>
                 )}
               </div>
+
+              <div className="text-center text-xs text-muted-foreground pt-2 space-x-3">
+                <a href="/privacy" className="hover:underline">Privacy Policy</a>
+                <span>·</span>
+                <a href="/terms" className="hover:underline">Terms of Service</a>
+                <span>·</span>
+                <a href="/cookies" className="hover:underline">Cookie Policy</a>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
