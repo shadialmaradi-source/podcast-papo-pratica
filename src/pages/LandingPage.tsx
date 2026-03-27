@@ -275,7 +275,7 @@ export default function LandingPage() {
             {/* Language Picker */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 mb-6 md:mb-8">
               <Select value={selectedLanguage} onValueChange={(v) => setSelectedLanguage(v as LandingLanguage)}>
-                <SelectTrigger className="w-44 md:w-48">
+                <SelectTrigger className="w-44 md:w-48" aria-label={t.selectLanguage}>
                   <SelectValue placeholder={t.selectLanguage} />
                 </SelectTrigger>
                 <SelectContent>
