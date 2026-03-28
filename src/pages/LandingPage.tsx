@@ -233,6 +233,7 @@ export default function LandingPage() {
         </div>
       </header>
 
+      <main>
       {/* Hero Section */}
       <section className="relative min-h-[85dvh] md:min-h-[90vh] flex items-center justify-center overflow-hidden pt-16">
         {/* Animated background */}
