@@ -4,6 +4,9 @@ import LandingFooter from "@/components/LandingFooter";
 import { Headphones, ArrowRight } from "lucide-react";
 
 export default function Blog() {
+  // Show only English posts on the index page (translations are reached via article switcher)
+  const indexPosts = blogPosts.filter((p) => p.language === "en");
+
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
       {/* Header */}
@@ -23,26 +26,31 @@ export default function Blog() {
       </header>
 
       <main className="flex-1 container mx-auto px-4 py-10 md:py-16 max-w-3xl">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Blog</h1>
-        <p className="text-muted-foreground mb-10">
+        <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2 tracking-tight">
+          Blog
+        </h1>
+        <p className="text-muted-foreground mb-10 text-sm md:text-base">
           Tips, research, and updates on learning languages from real conversations.
         </p>
 
-        <div className="space-y-8">
-          {blogPosts.map((post) => (
+        <div className="space-y-6">
+          {indexPosts.map((post) => (
             <Link
               key={post.slug}
               to={`/blog/${post.slug}`}
               className="block group rounded-xl border border-border bg-background p-5 md:p-6 hover:border-primary/40 hover:shadow-sm transition-all"
             >
-              <p className="text-xs text-muted-foreground mb-2">
-                {new Date(post.date).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}{" "}
-                · {post.readTime}
-              </p>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground mb-2.5">
+                <time dateTime={post.date}>
+                  {new Date(post.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </time>
+                <span aria-hidden>·</span>
+                <span>{post.readTime}</span>
+              </div>
               <h2 className="text-lg md:text-xl font-semibold text-foreground group-hover:text-primary transition-colors mb-2 leading-snug">
                 {post.title}
               </h2>
