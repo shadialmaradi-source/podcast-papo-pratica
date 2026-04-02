@@ -161,6 +161,9 @@ export default function TeacherLanding() {
             <span className="text-xl font-bold text-foreground">ListenFlow</span>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild>
+              <a href="#how-it-works">How It Works</a>
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
               For Students
             </Button>
