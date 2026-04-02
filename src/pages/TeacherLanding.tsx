@@ -161,6 +161,9 @@ export default function TeacherLanding() {
             <span className="text-xl font-bold text-foreground">ListenFlow</span>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild>
+              <a href="#how-it-works">How It Works</a>
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
               For Students
             </Button>
@@ -314,7 +317,7 @@ export default function TeacherLanding() {
       </section>
 
       {/* How It Works */}
-      <section className="py-16 md:py-24">
+      <section id="how-it-works" className="py-16 md:py-24 scroll-mt-20">
         <div className="container mx-auto px-4">
           <motion.h2
             initial="hidden"
