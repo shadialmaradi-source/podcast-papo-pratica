@@ -314,7 +314,7 @@ export default function TeacherLanding() {
       </section>
 
       {/* How It Works */}
-      <section className="py-16 md:py-24">
+      <section id="how-it-works" className="py-16 md:py-24 scroll-mt-20">
         <div className="container mx-auto px-4">
           <motion.h2
             initial="hidden"
