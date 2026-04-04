@@ -20,6 +20,7 @@ import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreato
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeacherQuota } from "@/hooks/useTeacherQuota";
 import { trackPageLoad, trackPageView } from "@/lib/analytics";
+import { NextBestAction } from "@/components/teacher/NextBestAction";
 
 
 type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse" | "speaking_form";
@@ -401,6 +402,14 @@ export default function TeacherDashboard() {
                 )}
               </div>
             )}
+
+            {/* Next Best Action */}
+            <NextBestAction
+              teacherId={user?.id || ""}
+              quota={quota}
+              onNavigate={navigate}
+              onCreateLesson={() => quota?.canCreateLesson && setStep("choose_type")}
+            />
 
             {/* Hero Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
