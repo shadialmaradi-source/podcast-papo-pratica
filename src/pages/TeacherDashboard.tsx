@@ -403,6 +403,14 @@ export default function TeacherDashboard() {
               </div>
             )}
 
+            {/* Next Best Action */}
+            <NextBestAction
+              teacherId={user?.id || ""}
+              quota={quota}
+              onNavigate={navigate}
+              onCreateLesson={() => quota?.canCreateLesson && setStep("choose_type")}
+            />
+
             {/* Hero Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               <Card
