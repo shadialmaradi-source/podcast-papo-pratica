@@ -20,6 +20,7 @@ import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreato
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeacherQuota } from "@/hooks/useTeacherQuota";
 import { trackPageLoad, trackPageView } from "@/lib/analytics";
+import { NextBestAction } from "@/components/teacher/NextBestAction";
 
 
 type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse" | "speaking_form";
