@@ -1,33 +1,33 @@
 
 
-# Legal-Navigation Completion Patch — 1 File
+# "Help shape ListenFlow" Feedback Section
 
-## Current State
-- `LandingFooter.tsx` already lists Privacy Policy, Terms of Service, and Cookie Policy.
-- `TermsOfService.tsx` page exists and route `/terms` is registered in `App.tsx`.
-- Both landing pages already render `<LandingFooter />`.
-- **Gap**: `Auth.tsx` has no legal links. Users entering the auth flow cannot see Privacy Policy, Terms of Service, or Cookie Policy.
+## What
 
-## Change
+Add a lightweight feedback form section just above the footer on the landing page, and create a reusable `FeedbackSection` component.
 
-### `src/pages/Auth.tsx` (line ~523, after the "wrong account type" div)
-Add a small legal links row at the bottom of the Card:
+## Plan
 
-```tsx
-<div className="text-center text-xs text-muted-foreground pt-2 space-x-3">
-  <a href="/privacy" className="hover:underline">Privacy Policy</a>
-  <span>·</span>
-  <a href="/terms" className="hover:underline">Terms of Service</a>
-  <span>·</span>
-  <a href="/cookies" className="hover:underline">Cookie Policy</a>
-</div>
-```
+### 1. Create `src/components/FeedbackSection.tsx`
 
-## Summary
+A self-contained component with local state management:
+
+- **Fields**: name (optional input), email (optional input), category (Select dropdown: Feedback / Bug / Feature request), message (required Textarea)
+- **Validation**: only `message` is required; disable submit when empty
+- **Submit handler**: for now, just logs to console and shows success state (no backend). This keeps the patch minimal and avoids needing edge functions or DB tables.
+- **Success state**: replaces the form with a thank-you message and a checkmark icon, with a fade-in animation
+- **Style**: uses existing UI primitives (Input, Textarea, Select, Button, Card) and Tailwind classes consistent with the landing page. Subtle `bg-muted/30` background section, max-width container, clean spacing.
+
+### 2. Update `src/pages/LandingPage.tsx`
+
+- Import `FeedbackSection`
+- Place it between the Final CTA section and the Mobile Fixed Bottom CTA (before `</main>`)
+- No other changes to the page
+
+### Files changed
 
 | File | Change |
 |------|--------|
-| `src/pages/Auth.tsx` | Add legal links row below the auth card content |
-
-1 file, ~7 lines added. No architectural changes.
+| `src/components/FeedbackSection.tsx` | New ~90-line component |
+| `src/pages/LandingPage.tsx` | Import + render `<FeedbackSection />` (~2 lines) |
 
