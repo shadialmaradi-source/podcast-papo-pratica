@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import LandingFooter from "@/components/LandingFooter";
+import FeedbackSection from "@/components/FeedbackSection";
 import { detectUILanguage } from "@/utils/browserLanguage";
 import { trackPageView } from "@/lib/analytics";
 import { useNavigate } from "react-router-dom";
@@ -457,6 +458,8 @@ export default function LandingPage() {
           </motion.div>
         </div>
       </section>
+
+      <FeedbackSection />
 
       {/* Mobile Fixed Bottom CTA */}
       <motion.div
