@@ -26,7 +26,7 @@ interface TranscriptViewerProps {
   currentTime?: number;
   onSeek?: (timeSeconds: number) => void;
   onUpgradeClick: () => void;
-  cefrLevel?: string;
+  difficulty?: string;
   // Tutorial props
   tutorialActive?: boolean;
   tutorialStep?: TutorialStep;
@@ -55,13 +55,13 @@ export function TranscriptViewer({
   currentTime = 0,
   onSeek,
   onUpgradeClick,
+  difficulty,
   tutorialActive = false,
   tutorialStep,
   onTutorialExploreComplete,
   onTutorialFlashcardSaved,
   onTutorialExplorerOpened,
   transcriptRef,
-  cefrLevel,
 }: TranscriptViewerProps) {
   const { user } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +72,7 @@ export function TranscriptViewer({
   // Free users: show only first 2 sentences (unless tutorial is active)
   const isFreeUser = !isPremium;
   const showAllSegments = isPremium || tutorialActive;
+  const canUseSelectionActions = isPremium || tutorialActive;
   const segments = showAllSegments ? allSegments : allSegments.slice(0, FREE_USER_SENTENCE_LIMIT);
 
   // State
@@ -142,7 +143,7 @@ export function TranscriptViewer({
     if (allSegments.length === 0) return;
 
     setSuggestionsLoading(true);
-    getTranscriptSuggestions(videoId, transcript, language, cefrLevel)
+    getTranscriptSuggestions(videoId, transcript, language, difficulty)
       .then((suggestions) => {
         setSuggestedWords(suggestions);
       })
@@ -152,7 +153,7 @@ export function TranscriptViewer({
       .finally(() => {
         setSuggestionsLoading(false);
       });
-  }, [videoId, transcript, language, allSegments.length, cefrLevel]);
+  }, [videoId, transcript, language, difficulty, allSegments.length]);
 
   // Auto-scroll to current segment
   useEffect(() => {
@@ -193,6 +194,10 @@ export function TranscriptViewer({
 
   const handleCreateFlashcard = () => {
     if (!selection) return;
+    if (!canUseSelectionActions) {
+      onUpgradeClick();
+      return;
+    }
     const segmentIndex = segments.findIndex((s) =>
       s.text.toLowerCase().includes(selection.text.toLowerCase())
     );
@@ -230,6 +235,10 @@ export function TranscriptViewer({
 
   const handleExploreWord = () => {
     if (!selection) return;
+    if (!canUseSelectionActions) {
+      onUpgradeClick();
+      return;
+    }
     const segmentIndex = segments.findIndex((s) =>
       s.text.toLowerCase().includes(selection.text.toLowerCase())
     );
@@ -482,6 +491,8 @@ export function TranscriptViewer({
           onCreateFlashcard={handleCreateFlashcard}
           onExploreWord={handleExploreWord}
           onDismiss={handleDismiss}
+          actionsEnabled={canUseSelectionActions}
+          onUpgradeClick={onUpgradeClick}
         />
       )}
 

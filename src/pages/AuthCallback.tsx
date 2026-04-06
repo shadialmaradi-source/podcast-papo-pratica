@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
+import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Loader2 } from "lucide-react";
 
 export default function AuthCallback() {
@@ -102,26 +103,8 @@ export default function AuthCallback() {
         // Update user metadata
         await supabase.auth.updateUser({ data: { role: "teacher" } });
 
-        // Create trial subscription
-        const { data: existingSub } = await supabase
-          .from("teacher_subscriptions" as any)
-          .select("id")
-          .eq("teacher_id", user.id)
-          .maybeSingle();
-
-        if (!existingSub) {
-          const trialEndsAt = new Date();
-          trialEndsAt.setDate(trialEndsAt.getDate() + 14);
-
-          await supabase.from("teacher_subscriptions" as any).insert({
-            teacher_id: user.id,
-            plan: "trial",
-            status: "trialing",
-            trial_started_at: new Date().toISOString(),
-            trial_ends_at: trialEndsAt.toISOString(),
-            trial_used: true,
-          } as any);
-
+        const { error: trialError } = await ensureTeacherTrialSubscription(user.id);
+        if (!trialError) {
           trackEvent("trial_started", {
             teacher_id: user.id,
             plan_selected: "trial",
@@ -130,6 +113,10 @@ export default function AuthCallback() {
         }
 
         trackEvent("user_signup", { method: "oauth", role: "teacher" });
+        trackTeacherFunnelStep("signup_completed", {
+          method: "oauth",
+          source: "auth_callback",
+        });
         navigate("/teacher/onboarding", { replace: true });
         return;
       }
@@ -138,8 +125,9 @@ export default function AuthCallback() {
         trackEvent("user_signup", { method: "oauth", role: "student" });
       }
 
-      // Determine actual role for redirect
-      const actualRole = dbRole || (isNewUser ? intendedRole : "student");
+      // Determine actual role for redirect.
+      // Existing users should follow DB role, not URL role param from the login entry point.
+      const actualRole = dbRole || intendedRole;
 
       // Check for pending lesson token
       const pendingToken = localStorage.getItem("pending_lesson_token");

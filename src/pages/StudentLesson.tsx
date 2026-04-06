@@ -273,13 +273,12 @@ export default function StudentLesson() {
     if (!id || !user) return;
     setLoading(true);
 
-    // Bind authenticated identity to lesson before fetching
+    // If this route is opened via share token, bind assignment identity to
+    // the authenticated account before loading lesson/exercise data.
     try {
-      await supabase.rpc("bind_lesson_identity_by_share_token", {
-        p_share_token: id,
-      });
-    } catch (_) {
-      // Non-critical — continue loading
+      await supabase.rpc("bind_lesson_identity_by_share_token", { p_share_token: id });
+    } catch (err) {
+      console.error("Failed to bind lesson identity by share token:", err);
     }
 
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id!);
@@ -627,20 +626,20 @@ export default function StudentLesson() {
               videoTitle={lesson.title}
               language={lesson.language || "italian"}
               isPremium={true}
-              onUpgradeClick={() => {}}
+              onUpgradeClick={() => navigate("/premium")}
             />
           )}
 
-          {/* Paragraph content — interactive via TranscriptViewer */}
+          {/* Paragraph content with word exploration + AI suggestions */}
           {lesson.lesson_type === "paragraph" && lesson.paragraph_content && (
             <TranscriptViewer
               videoId={lesson.id}
-              transcript={`0:00\n${lesson.paragraph_content}`}
+              transcript={lesson.paragraph_content}
               videoTitle={lesson.title}
               language={lesson.language || "italian"}
+              difficulty={lesson.cefr_level}
               isPremium={true}
-              onUpgradeClick={() => {}}
-              cefrLevel={lesson.cefr_level}
+              onUpgradeClick={() => navigate("/premium")}
             />
           )}
 

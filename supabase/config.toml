@@ -36,8 +36,17 @@ image_transformation =
 [auth]
 enabled = true
 port = 54329
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://localhost:3000"]
+site_url = "http://localhost:5173"
+additional_redirect_urls = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+  "https://localhost:3000",
+  "https://localhost:5173",
+  "https://127.0.0.1:3000",
+  "https://127.0.0.1:5173"
+]
 jwt_expiry = 3600
 enable_signup = true
 email_double_confirm_changes = true
@@ -125,4 +134,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.notify-teacher-email]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = true
+
+[functions.cleanup-retention]
 verify_jwt = false

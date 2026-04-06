@@ -30,7 +30,8 @@ import {
   Loader2,
   GraduationCap,
   Globe,
-  RotateCcw
+  RotateCcw,
+  AlertTriangle
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
@@ -80,6 +81,14 @@ interface ProfilePageProps {
   selectedLanguage?: string;
 }
 
+
+function mapLevelForPath(raw: string | null | undefined): "beginner" | "intermediate" | "advanced" {
+  const value = (raw || "").toLowerCase();
+  if (value === "intermediate" || value === "b1" || value === "b2") return "intermediate";
+  if (value === "advanced" || value === "c1" || value === "c2") return "advanced";
+  return "beginner";
+}
+
 export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -95,13 +104,14 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ videosWatched: 0, wordsLearned: 0, studyTimeMinutes: 0 });
   const [portalLoading, setPortalLoading] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [learningPathProgress, setLearningPathProgress] = useState<{
     currentWeek: WeekWithProgress | null;
     totalWeeks: number;
     totalCompleted: number;
     totalVideosCompleted: number;
     totalVideos: number;
-    tierLabel: string;
+    level: "beginner" | "intermediate" | "advanced";
   } | null>(null);
   const [myLessons, setMyLessons] = useState<{
     id: string;
@@ -167,21 +177,19 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     }
   };
 
-  const cefrToTier = (cefr: string | null): string => {
-    const c = (cefr || 'A1').toUpperCase();
-    if (c.startsWith('C')) return 'advanced';
-    if (c.startsWith('B')) return 'intermediate';
-    return 'beginner';
-  };
-
-  const loadLearningPathData = async (profileOverride?: UserProfile) => {
-    const p = profileOverride || profile;
-    if (!user || !p) return;
-    const tier = cefrToTier(p.current_level);
-    const lang = p.selected_language || 'english';
+  const loadLearningPathData = async (
+    profileMeta?: Pick<UserProfile, "selected_language" | "current_level"> | null
+  ) => {
+    if (!user) return;
     try {
-      const weeks = await fetchWeeksForLevel(tier, lang, user.id);
-      if (weeks.length === 0) return;
+      const pathLanguage = profileMeta?.selected_language || selectedLanguage || localStorage.getItem('onboarding_language') || 'english';
+      const pathLevel = mapLevelForPath(profileMeta?.current_level);
+
+      const weeks = await fetchWeeksForLevel(pathLevel, pathLanguage, user.id);
+      if (weeks.length === 0) {
+        setLearningPathProgress(null);
+        return;
+      }
 
       const totalVideos = weeks.reduce((sum, w) => sum + w.total_videos, 0);
       const totalVideosCompleted = weeks.reduce((sum, w) => {
@@ -196,10 +204,11 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
         totalCompleted,
         totalVideosCompleted,
         totalVideos,
-        tierLabel: tier.charAt(0).toUpperCase() + tier.slice(1),
+        level: pathLevel,
       });
     } catch (error) {
       console.error("Error loading learning path data:", error);
+      setLearningPathProgress(null);
     }
   };
 
@@ -299,6 +308,8 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
         setNewUsername(profileData.username || "");
         loadLearningPathData(profileData);
       }
+
+      await loadLearningPathData(profileData || null);
 
       // Load exercise results for achievements
       const { data: exerciseResults } = await supabase
@@ -504,6 +515,46 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     navigate('/');
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user || deletingAccount) return;
+
+    const confirmed = window.confirm(
+      "Delete account permanently? This will remove your personal data and cannot be undone."
+    );
+    if (!confirmed) return;
+
+    const typed = window.prompt('Type DELETE to confirm account deletion.');
+    if (typed !== "DELETE") {
+      toast.error("Account deletion cancelled.");
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account", {
+        body: { confirmation: "DELETE" },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success("Your account has been deleted.");
+      } else {
+        throw new Error(data?.error || "Unable to delete account");
+      }
+    } catch (error: any) {
+      console.error("Delete account failed:", error);
+      toast.error(error?.message || "Failed to delete account.");
+      setDeletingAccount(false);
+      return;
+    }
+
+    try {
+      await signOut();
+    } catch {
+      // no-op
+    }
+    navigate("/");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -689,7 +740,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                     <h3 className="font-semibold text-foreground text-sm">Learning Path</h3>
                     <p className="text-xs text-muted-foreground">
                       {learningPathProgress.currentWeek
-                        ? `Week ${learningPathProgress.currentWeek.week_number} of ${learningPathProgress.totalWeeks} — ${learningPathProgress.tierLabel}`
+                        ? `Week ${learningPathProgress.currentWeek.week_number} of ${learningPathProgress.totalWeeks} — ${learningPathProgress.level.charAt(0).toUpperCase() + learningPathProgress.level.slice(1)}`
                         : `${learningPathProgress.totalCompleted} of ${learningPathProgress.totalWeeks} weeks completed`}
                     </p>
                     <div className="space-y-1">
@@ -1067,6 +1118,16 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Log out
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full mt-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                {deletingAccount ? "Deleting account..." : "Delete account"}
               </Button>
             </CardContent>
           </Card>

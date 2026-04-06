@@ -13,9 +13,10 @@ import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
 interface VideoFlashcardsProps {
   videoId: string;
   level: string;
+  sceneId?: string;
+  sceneTranscript?: string;
   onComplete: () => void;
   onBack: () => void;
-  sceneTranscript?: string;
   dbVideoId?: string | null;
   nativeLanguage?: string;
 }
@@ -26,14 +27,22 @@ interface Flashcard {
   why: string;
 }
 
-export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTranscript, dbVideoId: dbVideoIdProp, nativeLanguage: nativeLanguageProp }: VideoFlashcardsProps) {
+export function VideoFlashcards({
+  videoId,
+  level,
+  sceneId,
+  sceneTranscript,
+  onComplete,
+  onBack,
+  dbVideoId: dbVideoIdProp,
+  nativeLanguage: nativeLanguageProp,
+}: VideoFlashcardsProps) {
   const { user } = useAuth();
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [language, setLanguage] = useState<string>("english");
-  const [nativeLanguage, setNativeLanguage] = useState<string>(nativeLanguageProp || "english");
-
+const [isLoading, setIsLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
+const [language, setLanguage] = useState<string>("english");
+const [nativeLanguage, setNativeLanguage] = useState<string>(nativeLanguageProp || "english");
   useEffect(() => {
     const fetchFlashcards = async () => {
       setIsLoading(true);
@@ -128,7 +137,7 @@ export function VideoFlashcards({ videoId, level, onComplete, onBack, sceneTrans
     };
 
     fetchFlashcards();
-  }, [videoId, level]);
+  }, [videoId, level, sceneId, sceneTranscript]);
 
   if (isLoading) {
     return (

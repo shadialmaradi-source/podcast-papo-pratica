@@ -15,6 +15,13 @@ interface VideoInfo {
   thumbnail: string;
 }
 
+const UPLOAD_DURATION_LIMITS_SECONDS = {
+  free: 300,    // 5 minutes
+  trial: 600,   // 10 minutes
+  pro: 600,     // 10 minutes
+  premium: 900, // 15 minutes
+} as const;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -52,8 +59,8 @@ serve(async (req) => {
       throw new Error('Invalid YouTube URL');
     }
 
-    // Fetch video duration and enforce 10-minute limit for user uploads
-    const MAX_DURATION_SECONDS = 600; // 10 minutes
+    // Fetch video duration and enforce tier-aware upload limit
+    const maxDurationSeconds = await getUserMaxDurationSeconds(supabase, user.id);
     let videoDuration = 0;
     
     if (!skipDurationCheck) {
@@ -65,10 +72,11 @@ serve(async (req) => {
         throw new Error('Unable to verify video duration. Please try again or contact support.');
       }
       
-      if (videoDuration > MAX_DURATION_SECONDS) {
+      if (videoDuration > maxDurationSeconds) {
         const durationMins = Math.ceil(videoDuration / 60);
+        const maxMinutes = Math.ceil(maxDurationSeconds / 60);
         throw new Error(
-          `Video is ${durationMins} minutes long. Maximum allowed is 10 minutes. Please choose a shorter video.`
+          `Video is ${durationMins} minutes long. Maximum allowed is ${maxMinutes} minutes. Please choose a shorter video.`
         );
       }
     }
@@ -208,6 +216,38 @@ function extractVideoId(urlOrId: string): string | null {
   if (shortsMatch) return shortsMatch[1];
 
   return null;
+}
+
+async function getUserMaxDurationSeconds(supabase: ReturnType<typeof createClient>, userId: string): Promise<number> {
+  const { data: teacherSub } = await supabase
+    .from('teacher_subscriptions')
+    .select('plan')
+    .eq('teacher_id', userId)
+    .maybeSingle();
+
+  const teacherPlan = (teacherSub as any)?.plan as string | undefined;
+  if (teacherPlan) {
+    return UPLOAD_DURATION_LIMITS_SECONDS[teacherPlan as keyof typeof UPLOAD_DURATION_LIMITS_SECONDS]
+      ?? UPLOAD_DURATION_LIMITS_SECONDS.free;
+  }
+
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('tier, status, expires_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!subscription) return UPLOAD_DURATION_LIMITS_SECONDS.free;
+
+  const tier = subscription.tier;
+  const status = subscription.status;
+  const expiresAt = subscription.expires_at ? new Date(subscription.expires_at) : null;
+  const isActivePromo = tier === 'promo' && status === 'active' && (!expiresAt || expiresAt > new Date());
+  const isActivePremium = tier === 'premium' && status === 'active';
+
+  return (isActivePremium || isActivePromo)
+    ? UPLOAD_DURATION_LIMITS_SECONDS.premium
+    : UPLOAD_DURATION_LIMITS_SECONDS.free;
 }
 
 async function getVideoInfo(videoId: string): Promise<VideoInfo> {

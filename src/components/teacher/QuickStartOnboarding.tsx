@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/components/ui/sonner";
-import { trackEvent, trackFunnelStep } from "@/lib/analytics";
+import { trackEvent, trackFunnelStep, trackTeacherFunnelStep } from "@/lib/analytics";
 import { Play, Rocket, Loader2, CheckCircle, ArrowRight } from "lucide-react";
 
 export function QuickStartOnboarding() {
@@ -78,6 +78,9 @@ export function QuickStartOnboarding() {
 
       trackEvent("teacher_quickstart_demo_created");
       trackFunnelStep("teacher_onboarding", "completed", 1);
+      trackTeacherFunnelStep("onboarding_completed", {
+        source: "quickstart_demo",
+      });
 
       toast.success("🎉 Demo lesson created!");
       navigate(`/teacher/lesson/${lesson.id}?demo=true`);
@@ -99,6 +102,9 @@ export function QuickStartOnboarding() {
       // continue
     }
     trackEvent("teacher_quickstart_skipped");
+    trackTeacherFunnelStep("onboarding_completed", {
+      source: "quickstart_skip",
+    });
     navigate("/teacher");
   };
 

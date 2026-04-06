@@ -79,6 +79,13 @@ serve(async (req) => {
     // Create admin client for database operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Retention cleanup for temporary anonymous speech tracking (3-day window)
+    const cutoffIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    await supabaseAdmin
+      .from('anonymous_speech_attempts')
+      .delete()
+      .lt('updated_at', cutoffIso);
+
     if (isAnonymous) {
       // === ANONYMOUS USER HANDLING ===
       

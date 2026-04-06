@@ -119,7 +119,8 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
   // Step 4: Vocabulary
   const [vocabByQuestion, setVocabByQuestion] = useState<Record<number, VocabItem[]>>(() => loadSaved("vocabByQuestion", {}));
   const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
-  const [newWord, setNewWord] = useState("");
+  const [newWordsByQuestion, setNewWordsByQuestion] = useState<Record<number, string>>(() => loadSaved("newWordsByQuestion", {}));
+  const [usedTopicTitles, setUsedTopicTitles] = useState<string[]>(() => loadSaved("usedTopicTitles", []));
 
   // Step 5: Review
   const [title, setTitle] = useState(() => loadSaved("title", ""));
@@ -134,10 +135,10 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
     const state = {
       step, language, translationLanguage, level,
       topics, selectedTopicIdx, customMode, customTitle, customDescription,
-      questions, vocabByQuestion, title, studentEmail,
+      questions, vocabByQuestion, title, studentEmail, newWordsByQuestion, usedTopicTitles,
     };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [step, language, translationLanguage, level, topics, selectedTopicIdx, customMode, customTitle, customDescription, questions, vocabByQuestion, title, studentEmail]);
+  }, [step, language, translationLanguage, level, topics, selectedTopicIdx, customMode, customTitle, customDescription, questions, vocabByQuestion, title, studentEmail, newWordsByQuestion, usedTopicTitles]);
 
   const clearSavedState = () => {
     skipPersist.current = true;
@@ -152,6 +153,37 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
 
   const langLabel = LANGUAGES.find((l) => l.value === language)?.label || language;
   const transLabel = TRANSLATION_LANGUAGES.find((l) => l.value === translationLanguage)?.label || translationLanguage;
+
+  const speakingStepMeta: Record<Step, { order: number; title: string; subtitle: string }> = {
+    config: {
+      order: 1,
+      title: "Set up your speaking lesson",
+      subtitle: "Choose language, translation support, and student level.",
+    },
+    topics: {
+      order: 2,
+      title: "Choose a discussion topic",
+      subtitle: "Pick a strong prompt or regenerate for fresh ideas.",
+    },
+    questions: {
+      order: 3,
+      title: "Review generated questions",
+      subtitle: "Check question quality before adding vocabulary support.",
+    },
+    vocabulary: {
+      order: 4,
+      title: "Attach vocabulary per question",
+      subtitle: "Add key words where students need help most.",
+    },
+    review: {
+      order: 5,
+      title: "Finalize and assign",
+      subtitle: "Set title/email and publish your speaking lesson.",
+    },
+  };
+
+  const normalizedTopic = selectedTopic?.title?.trim() || "Speaking Practice";
+  const suggestedLessonTitle = `${normalizedTopic} (${langLabel}, ${level})`;
 
   // Load students on review step
   const loadStudents = useCallback(async () => {
@@ -170,10 +202,24 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
     setLoadingTopics(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-speaking-topics", {
-        body: { language: langLabel, level, count: 3 },
+        body: { language: langLabel, level, count: 6 },
       });
       if (error) throw error;
-      setTopics(data.topics || []);
+
+      const rawTopics = (data?.topics || []) as Topic[];
+      const deduped = rawTopics.filter((topic, idx, arr) => {
+        const key = topic.title.trim().toLowerCase();
+        return key && arr.findIndex((t) => t.title.trim().toLowerCase() === key) === idx;
+      });
+
+      const seen = new Set(usedTopicTitles.map((t) => t.trim().toLowerCase()));
+      const unseen = deduped.filter((t) => !seen.has(t.title.trim().toLowerCase()));
+      const nextTopics = (unseen.length >= 3 ? unseen : deduped).slice(0, 3);
+
+      setTopics(nextTopics);
+      setUsedTopicTitles((prev) => [
+        ...new Set([...prev, ...nextTopics.map((t) => t.title)]),
+      ]);
       setSelectedTopicIdx(null);
       setCustomMode(false);
       setStep("topics");
@@ -199,6 +245,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
       if (error) throw error;
       setQuestions(data.questions || []);
       setVocabByQuestion({});
+      setNewWordsByQuestion({});
       setStep("questions");
       trackEvent("speaking_questions_generated", { language, level, topic: selectedTopic.title });
     } catch (err: any) {
@@ -255,22 +302,25 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
   };
 
   const addVocabItem = (questionIdx: number) => {
-    if (!newWord.trim()) return;
+    const draftWord = (newWordsByQuestion[questionIdx] || "").trim();
+    if (!draftWord) return;
+
     const item: VocabItem = {
       id: crypto.randomUUID(),
-      target_word: newWord.trim(),
+      target_word: draftWord,
       translation: "",
       teacher_note: "",
     };
+
+    const nextIdx = (vocabByQuestion[questionIdx] || []).length;
     setVocabByQuestion((prev) => ({
       ...prev,
       [questionIdx]: [...(prev[questionIdx] || []), item],
     }));
-    setNewWord("");
+    setNewWordsByQuestion((prev) => ({ ...prev, [questionIdx]: "" }));
 
     // Auto-translate
-    const idx = (vocabByQuestion[questionIdx] || []).length;
-    setTimeout(() => handleTranslateWord(questionIdx, idx), 100);
+    setTimeout(() => handleTranslateWord(questionIdx, nextIdx), 100);
   };
 
   const removeVocabItem = (questionIdx: number, vocabIdx: number) => {
@@ -296,7 +346,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
 
     try {
       const shareToken = crypto.randomUUID();
-      const lessonTitle = title.trim() || `${selectedTopic.title} - ${level}`;
+      const lessonTitle = title.trim() || suggestedLessonTitle;
 
       // 1. Create teacher_lesson
       const { data: lessonData, error: lessonError } = await supabase
@@ -406,19 +456,17 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
 
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-4">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          Step {speakingStepMeta[step].order} of 5
+        </p>
+        <h3 className="text-lg font-semibold text-foreground mt-1">{speakingStepMeta[step].title}</h3>
+        <p className="text-sm text-muted-foreground mt-1">{speakingStepMeta[step].subtitle}</p>
+      </div>
+
       {/* STEP: Config */}
       {step === "config" && (
         <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-primary" />
-              Create Speaking Practice Lesson
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Choose the language and level for your speaking lesson.
-            </p>
-          </div>
-
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Target Language *</Label>
@@ -490,7 +538,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
           </div>
 
           {!customMode ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {topics.map((topic, idx) => (
                 <Card
                   key={idx}
@@ -593,11 +641,11 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
           <div className="space-y-3">
             {questions.map((q, idx) => (
               <Card key={idx}>
-                <CardContent className="p-4">
+                <CardContent className="p-5">
                   <div className="flex items-start gap-3">
                     <span className="text-sm font-bold text-muted-foreground mt-0.5">{idx + 1}.</span>
                     <div className="flex-1">
-                      <p className="text-foreground">{q.question}</p>
+                      <p className="text-foreground leading-relaxed">{q.question}</p>
                       <Badge className={`mt-2 text-xs ${difficultyColor(q.difficulty)}`}>
                         {difficultyLabel(q.difficulty)}
                       </Badge>
@@ -736,8 +784,8 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
 
                         <div className="flex gap-2">
                           <Input
-                            value={newWord}
-                            onChange={(e) => setNewWord(e.target.value)}
+                            value={newWordsByQuestion[idx] || ""}
+                            onChange={(e) => setNewWordsByQuestion((prev) => ({ ...prev, [idx]: e.target.value }))}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
                                 e.preventDefault();
@@ -751,7 +799,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
                             variant="outline"
                             size="sm"
                             onClick={() => addVocabItem(idx)}
-                            disabled={!newWord.trim()}
+                            disabled={!(newWordsByQuestion[idx] || "").trim()}
                           >
                             <Plus className="h-3.5 w-3.5" />
                           </Button>
@@ -820,7 +868,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={`${selectedTopic?.title} - ${level}`}
+                placeholder={suggestedLessonTitle}
               />
             </div>
 

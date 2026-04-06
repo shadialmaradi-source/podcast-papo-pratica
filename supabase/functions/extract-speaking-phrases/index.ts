@@ -6,6 +6,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const phraseCache = new Map<string, { phrases: Array<{ phrase: string; translation: string; why: string }>; cachedAt: number }>();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function getTranscriptHash(input: string): string {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+  }
+  return `${input.length}:${Math.abs(hash)}`;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -41,7 +52,7 @@ serve(async (req) => {
 
     console.log(`Authenticated request from user: ${user.id}`);
 
-    const { transcript, level, language } = await req.json();
+    const { transcript, level, language, videoId, sceneId } = await req.json();
     
     if (!transcript) {
       return new Response(
@@ -57,6 +68,15 @@ serve(async (req) => {
 
     // Truncate transcript if too long (first 3000 chars for phrase extraction)
     const truncatedTranscript = transcript.slice(0, 3000);
+    const transcriptHash = getTranscriptHash(truncatedTranscript);
+    const cacheKey = `${sceneId || videoId || "transcript"}::${level || "beginner"}::${language || "unknown"}::${transcriptHash}`;
+    const cached = phraseCache.get(cacheKey);
+    if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
+      return new Response(
+        JSON.stringify({ phrases: cached.phrases, cached: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     
     const systemPrompt = `You are a language learning expert. Extract exactly 3 useful phrases from the given video transcript that would help a language learner practice speaking.
 
@@ -134,6 +154,9 @@ Return ONLY valid JSON in this exact format:
 
     try {
       const parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed?.phrases)) {
+        phraseCache.set(cacheKey, { phrases: parsed.phrases, cachedAt: Date.now() });
+      }
       return new Response(
         JSON.stringify(parsed),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -9,92 +9,38 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Users, ArrowLeft, Settings, AlertTriangle, Mail, Clock, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackTeacherFunnelStep, trackPageLoad, trackPageView } from "@/lib/analytics";
+
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { LessonTypeSelector } from "@/components/teacher/LessonTypeSelector";
 import { TeacherNotificationBell } from "@/components/teacher/TeacherNotificationBell";
 import { YouTubeSourceSelector } from "@/components/teacher/YouTubeSourceSelector";
-import { CommunityVideoBrowser, type CommunityVideoSelection } from "@/components/teacher/CommunityVideoBrowser";
+import { CommunityVideoBrowser } from "@/components/teacher/CommunityVideoBrowser";
 import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreator";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeacherQuota } from "@/hooks/useTeacherQuota";
-import { trackPageLoad, trackPageView } from "@/lib/analytics";
 import { NextBestAction } from "@/components/teacher/NextBestAction";
 
 
 type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse" | "speaking_form";
 type LessonType = "paragraph" | "youtube" | "speaking";
-
-/**
- * Resolves teacher display name from available profile data.
- * Priority: teacher_profiles.full_name > profiles.display_name > profiles.full_name > profiles.username > email local-part
- */
-async function resolveTeacherDisplayName(userId: string, email?: string): Promise<string> {
-  // Try teacher_profiles first
-  const { data: tp } = await supabase
-    .from("teacher_profiles" as any)
-    .select("full_name")
-    .eq("teacher_id", userId)
-    .maybeSingle();
-  if ((tp as any)?.full_name) return (tp as any).full_name;
-
-  // Try profiles table
-  const { data: p } = await supabase
-    .from("profiles")
-    .select("display_name, full_name, username")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (p?.display_name) return p.display_name;
-  if (p?.full_name) return p.full_name;
-  if (p?.username) return p.username;
-
-  // Fallback to email local-part
-  return email?.split("@")[0] || "Teacher";
+interface CommunityVideoPrefill {
+  title: string;
+  language: string;
+  difficultyLevel: string;
+  category: string | null;
+  duration: number | null;
+  isShort: boolean;
 }
 
-/** Step-aware header content */
-function getStepHeader(step: FlowStep, lessonType: LessonType, displayName: string): { title: string; subtitle: string } {
-  switch (step) {
-    case "home":
-      return {
-        title: `Welcome back, ${displayName}`,
-        subtitle: "Create lessons, track students, and grow your teaching impact.",
-      };
-    case "choose_type":
-      return {
-        title: "Create a New Lesson",
-        subtitle: "Choose how you'd like to build your lesson.",
-      };
-    case "youtube_source":
-      return {
-        title: "Video Lesson",
-        subtitle: "Choose a video source to generate exercises from.",
-      };
-    case "youtube_browse":
-      return {
-        title: "Browse Videos",
-        subtitle: "Pick a video from the community library.",
-      };
-    case "form":
-      return lessonType === "youtube"
-        ? { title: "Video Lesson Setup", subtitle: "Configure your video-based lesson." }
-        : { title: "Custom Paragraph Lesson", subtitle: "Let AI generate a reading passage for your students." };
-    case "speaking_form":
-      return {
-        title: "Speaking Practice Lesson",
-        subtitle: "Create a discussion-based lesson with AI-generated questions.",
-      };
-    default:
-      return { title: "Teacher Dashboard", subtitle: "" };
-  }
-}
+
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { role, loading: roleLoading } = useUserRole();
-  const { quota, loading: quotaLoading, refresh: refreshQuota } = useTeacherQuota();
+const { quota, refresh: refreshQuota } = useTeacherQuota();
   const STORAGE_KEY = "teacher_dashboard_flow";
 
   const [step, setStep] = useState<FlowStep>(() => {
@@ -109,30 +55,28 @@ export default function TeacherDashboard() {
       return saved ? JSON.parse(saved).lessonType ?? "paragraph" : "paragraph";
     } catch { return "paragraph"; }
   });
-  const [refresh, setRefresh] = useState(0);
-  const [communityVideo, setCommunityVideo] = useState<CommunityVideoSelection | null>(() => {
+  const [teacherDisplayName, setTeacherDisplayName] = useState<string | null>(null);
+  const [prefillYoutubeUrl, setPrefillYoutubeUrl] = useState<string | null>(() => {
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved).communityVideo ?? null : null;
+      return saved ? JSON.parse(saved).prefillYoutubeUrl ?? null : null;
     } catch { return null; }
   });
-  const [displayName, setDisplayName] = useState<string>("");
-
-  // Resolve teacher display name
-  useEffect(() => {
-    if (user) {
-      resolveTeacherDisplayName(user.id, user.email).then(setDisplayName);
-    }
-  }, [user]);
+  const [prefillVideoMeta, setPrefillVideoMeta] = useState<CommunityVideoPrefill | null>(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved).prefillVideoMeta ?? null : null;
+    } catch { return null; }
+  });
 
   // Sync flow state to sessionStorage
   useEffect(() => {
     if (step === "home") {
       sessionStorage.removeItem(STORAGE_KEY);
     } else {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, lessonType, communityVideo }));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, lessonType, prefillYoutubeUrl, prefillVideoMeta }));
     }
-  }, [step, lessonType, communityVideo]);
+  }, [step, lessonType, prefillYoutubeUrl, prefillVideoMeta]);
 
   // Redirect non-teachers away; redirect teachers who haven't onboarded
   useEffect(() => {
@@ -162,8 +106,83 @@ export default function TeacherDashboard() {
     }
   }, [role, roleLoading, navigate, user, quota]);
 
+  useEffect(() => {
+    const loadTeacherName = async () => {
+      if (!user) return;
+
+      const [teacherProfileRes, profileRes] = await Promise.all([
+        supabase
+          .from("teacher_profiles" as any)
+          .select("full_name")
+          .eq("teacher_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("display_name, full_name, username")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+
+      const teacherFullName = (teacherProfileRes.data as any)?.full_name?.trim();
+      const profileDisplayName = (profileRes.data as any)?.display_name?.trim();
+      const profileFullName = (profileRes.data as any)?.full_name?.trim();
+      const profileUsername = (profileRes.data as any)?.username?.trim();
+
+      const fallback = user.email?.split("@")[0] || "Teacher";
+      setTeacherDisplayName(teacherFullName || profileDisplayName || profileFullName || profileUsername || fallback);
+    };
+
+    loadTeacherName();
+  }, [user]);
+
+  const getHeaderCopy = () => {
+    switch (step) {
+      case "home":
+        return {
+          title: `Welcome back, ${teacherDisplayName || user?.email?.split("@")[0] || "Teacher"}!`,
+          subtitle: "Choose your next action to create lessons or manage students.",
+        };
+      case "choose_type":
+        return {
+          title: "What would you like to create?",
+          subtitle: "Pick the fastest path to your next student-ready lesson.",
+        };
+      case "youtube_source":
+        return {
+          title: "Start your video lesson",
+          subtitle: "Choose whether to use a new link or reuse a community video.",
+        };
+      case "youtube_browse":
+        return {
+          title: "Reuse a community video",
+          subtitle: "Select a ready video and continue creating in one click.",
+        };
+      case "speaking_form":
+        return {
+          title: "Create speaking practice",
+          subtitle: "Configure topic, level, and prompts for a conversation-focused lesson.",
+        };
+      case "form":
+        return lessonType === "paragraph"
+          ? {
+              title: "Create a custom paragraph lesson",
+              subtitle: "Generate a paragraph, choose exercises, and assign it to a student.",
+            }
+          : {
+              title: "Create a YouTube lesson",
+              subtitle: "Finalize lesson settings and assign this video to your student.",
+            };
+      default:
+        return {
+          title: "Teacher Dashboard",
+          subtitle: "Manage your interactive lessons from here.",
+        };
+    }
+  };
+
+  const { title: headerTitle, subtitle: headerSubtitle } = getHeaderCopy();
+
   const handleCreated = (_lessonId: string) => {
-    setRefresh((r) => r + 1);
     refreshQuota();
     sessionStorage.removeItem(STORAGE_KEY);
   };
@@ -175,22 +194,40 @@ export default function TeacherDashboard() {
     } else if (type === "speaking") {
       setStep("speaking_form");
     } else {
-      setCommunityVideo(null);
+      setPrefillYoutubeUrl(null);
+      setPrefillVideoMeta(null);
       setStep("form");
     }
   };
 
   const handleYoutubeSource = (source: "scratch" | "community") => {
     if (source === "scratch") {
-      setCommunityVideo(null);
+      setPrefillYoutubeUrl(null);
+      setPrefillVideoMeta(null);
       setStep("form");
     } else {
       setStep("youtube_browse");
     }
   };
 
-  const handleCommunityVideoSelected = (selection: CommunityVideoSelection) => {
-    setCommunityVideo(selection);
+  const handleCommunityVideoSelected = (selection: {
+    youtubeUrl: string;
+    title: string;
+    language: string;
+    difficultyLevel: string;
+    category: string | null;
+    duration: number | null;
+    isShort: boolean;
+  }) => {
+    setPrefillYoutubeUrl(selection.youtubeUrl);
+    setPrefillVideoMeta({
+      title: selection.title,
+      language: selection.language,
+      difficultyLevel: selection.difficultyLevel,
+      category: selection.category,
+      duration: selection.duration,
+      isShort: selection.isShort,
+    });
     setStep("form");
   };
 
@@ -203,70 +240,159 @@ export default function TeacherDashboard() {
     else setStep("home");
   };
 
-  const header = getStepHeader(step, lessonType, displayName || "there");
+  const resendVerificationEmail = async () => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email: user?.email || '' });
+    if (!error) {
+      trackEvent("verification_email_resent", { source: "dashboard" });
+      toast({ title: "Verification email sent!", description: "Check your inbox." });
+    } else {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
 
-  if (roleLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border bg-card">
-          <div className="container mx-auto flex items-center justify-between px-4 py-4">
-            <Skeleton className="h-7 w-48" />
-            <Skeleton className="h-8 w-24" />
-          </div>
-        </header>
-        <main className="container mx-auto px-4 py-8 max-w-2xl">
-          <Skeleton className="h-8 w-64 mb-2" />
-          <Skeleton className="h-5 w-80 mb-8" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full rounded-lg" />
-            ))}
-          </div>
-          <Skeleton className="h-px w-full mb-6" />
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
-            ))}
-          </div>
-        </main>
-      </div>
-    );
+const getNextBestAction = (): {
+  title: string;
+  description: string;
+  ctaLabel: string;
+  action: "verify_email" | "fix_payment" | "upgrade_plan" | "create_lesson";
+  onClick: () => void | Promise<void>;
+  variant?: "default" | "outline" | "destructive";
+} | null => {
+  if (!quota) return null;
+
+  if (!quota.emailVerified) {
+    return {
+      title: "Verify your email",
+      description: "Email verification is required before creating lessons.",
+      ctaLabel: "Resend Email",
+      action: "verify_email",
+      onClick: resendVerificationEmail,
+      variant: "outline",
+    };
   }
 
+  if (quota.status === "past_due") {
+    return {
+      title: "Fix your subscription payment",
+      description: "Lesson creation is paused until payment is updated.",
+      ctaLabel: "Update Payment",
+      action: "fix_payment",
+      onClick: () => navigate("/teacher/pricing"),
+      variant: "destructive",
+    };
+  }
+
+  if (quota.trialExpired || !quota.canCreateLesson) {
+    return {
+      title: "Upgrade to keep creating lessons",
+      description: "You’ve hit a plan/trial limit. Upgrade to continue.",
+      ctaLabel: "View Plans",
+      action: "upgrade_plan",
+      onClick: () => navigate("/teacher/pricing"),
+      variant: "outline",
+    };
+  }
+
+  return {
+    title: "Create your next lesson",
+    description: "Start a new lesson from paragraph, YouTube, or speaking.",
+    ctaLabel: "Create Lesson",
+    action: "create_lesson",
+    onClick: () => setStep("choose_type"),
+    variant: "default",
+  };
+};
+
+const nextBestAction = getNextBestAction();
+
+if (roleLoading) {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
-            {step !== "home" && (
-              <Button variant="ghost" size="icon" onClick={handleBack} className="mr-1">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            )}
-            <BookOpen className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">{header.title}</h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <TeacherNotificationBell />
-            <Button variant="ghost" size="icon" onClick={() => navigate("/teacher/settings")}>
-              <Settings className="h-5 w-5" />
-            </Button>
-          </div>
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-8 w-24" />
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-2xl">
-        {step === "home" && header.subtitle && (
-          <div className="mb-6">
-            <p className="text-muted-foreground">{header.subtitle}</p>
-          </div>
-        )}
-        {step !== "home" && header.subtitle && (
-          <p className="text-muted-foreground mb-6">{header.subtitle}</p>
-        )}
+        <Skeleton className="h-8 w-64 mb-2" />
+        <Skeleton className="h-5 w-80 mb-8" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-lg" />
+          ))}
+        </div>
+        <Skeleton className="h-px w-full mb-6" />
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-lg" />
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+return (
+  <div className="min-h-screen bg-background">
+    <header className="border-b border-border bg-card">
+      <div className="container mx-auto flex items-center justify-between px-4 py-4">
+        <div className="flex items-center gap-2">
+          {step !== "home" && (
+            <Button variant="ghost" size="icon" onClick={handleBack} className="mr-1">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
+          <BookOpen className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold text-foreground">{headerTitle}</h1>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <TeacherNotificationBell />
+          <Button variant="ghost" size="icon" onClick={() => navigate("/teacher/settings")}>
+            <Settings className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+    </header>
+
+    <main className="container mx-auto px-4 py-8 max-w-2xl">
+
+
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-foreground">{headerTitle}</h2>
+          <p className="text-muted-foreground mt-1">{headerSubtitle}</p>
+        </div>
 
         {step === "home" && (
           <>
+            {nextBestAction && (
+              <Card className="mb-6 border-border/60">
+                <CardContent className="flex items-center justify-between gap-4 py-4">
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">{nextBestAction.title}</p>
+                    <p className="text-sm text-muted-foreground">{nextBestAction.description}</p>
+                  </div>
+                  <Button
+                    variant={nextBestAction.variant || "default"}
+                    size="sm"
+                    onClick={async () => {
+                      trackTeacherFunnelStep("dashboard_next_action_clicked", {
+                        action: nextBestAction.action,
+                        source: "teacher_dashboard_next_best_action",
+                        surface: "next_best_action_card",
+                        cta_label: nextBestAction.ctaLabel,
+                      });
+                      await nextBestAction.onClick();
+                    }}
+                  >
+                    {nextBestAction.ctaLabel}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             {/* 1. Email verification warning — most critical */}
             {quota && !quota.emailVerified && (
               <Card className="mb-6 border-yellow-500/30 bg-yellow-500/5">
@@ -278,15 +404,7 @@ export default function TeacherDashboard() {
                       Check your inbox for a verification link from ListenFlow.
                     </p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={async () => {
-                    const { error } = await supabase.auth.resend({ type: 'signup', email: user?.email || '' });
-                    if (!error) {
-                      trackEvent("verification_email_resent", { source: "dashboard" });
-                      toast({ title: "Verification email sent!", description: "Check your inbox." });
-                    } else {
-                      toast({ title: "Error", description: error.message, variant: "destructive" });
-                    }
-                  }}>
+                  <Button variant="outline" size="sm" onClick={resendVerificationEmail}>
                     Resend Email
                   </Button>
                 </CardContent>
@@ -415,7 +533,16 @@ export default function TeacherDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               <Card
                 className={`cursor-pointer transition-all hover:border-primary hover:shadow-md ${!quota?.canCreateLesson ? 'opacity-50 pointer-events-none' : ''}`}
-                onClick={() => quota?.canCreateLesson && setStep("choose_type")}
+                onClick={() => {
+                  if (!quota?.canCreateLesson) return;
+                  trackTeacherFunnelStep("dashboard_next_action_clicked", {
+                    action: "create_lesson",
+                    source: "teacher_dashboard_home",
+                    surface: "hero_card",
+                    cta_label: "Create a Lesson",
+                  });
+                  setStep("choose_type");
+                }}
               >
                 <CardContent className="flex flex-col items-center text-center gap-3 p-8">
                   <BookOpen className="h-12 w-12 text-primary" />
@@ -430,7 +557,15 @@ export default function TeacherDashboard() {
 
               <Card
                 className="cursor-pointer transition-all hover:border-primary hover:shadow-md"
-                onClick={() => navigate("/teacher/students")}
+                onClick={() => {
+                  trackTeacherFunnelStep("dashboard_next_action_clicked", {
+                    action: "open_students",
+                    source: "teacher_dashboard_home",
+                    surface: "hero_card",
+                    cta_label: "My Students",
+                  });
+                  navigate("/teacher/students");
+                }}
               >
                 <CardContent className="flex flex-col items-center text-center gap-3 p-8">
                   <Users className="h-12 w-12 text-primary" />
@@ -457,18 +592,27 @@ export default function TeacherDashboard() {
         )}
 
         {step === "form" && (
-          <Card>
-            <CardContent className="pt-6">
-              <CreateLessonForm
-                lessonType={lessonType as "paragraph" | "youtube"}
-                onCreated={handleCreated}
-                onCancel={handleBack}
-                prefillYoutubeUrl={communityVideo?.url}
-                prefillMeta={communityVideo ?? undefined}
-                maxVideoMinutes={quota?.maxVideoMinutes}
-              />
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <Button variant="ghost" size="sm" onClick={handleBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <Card>
+              <CardContent className="pt-6">
+                <CreateLessonForm
+                  lessonType={lessonType as "paragraph" | "youtube"}
+                  onCreated={handleCreated}
+                  onCancel={handleBack}
+                  prefillYoutubeUrl={prefillYoutubeUrl ?? undefined}
+                  prefillYoutubeTitle={prefillVideoMeta?.title}
+                  prefillYoutubeLanguage={prefillVideoMeta?.language}
+                  prefillYoutubeDifficulty={prefillVideoMeta?.difficultyLevel}
+                  prefillYoutubeCategory={prefillVideoMeta?.category}
+                  maxVideoMinutes={quota?.maxVideoMinutes}
+                />
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {step === "speaking_form" && (

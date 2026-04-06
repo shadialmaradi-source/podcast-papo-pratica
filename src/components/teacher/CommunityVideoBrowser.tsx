@@ -14,10 +14,12 @@ import {
 } from "@/components/ui/select";
 
 export interface CommunityVideoSelection {
-  url: string;
+  youtubeUrl: string;
   title: string;
   language: string;
   difficultyLevel: string;
+  category: string | null;
+  duration: number | null;
   isShort: boolean;
 }
 
@@ -33,6 +35,7 @@ interface VideoRow {
   duration: number | null;
   difficulty_level: string;
   language: string;
+  category: string | null;
   is_short: boolean;
 }
 
@@ -61,7 +64,7 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
       setLoading(true);
       let query = supabase
         .from("youtube_videos")
-        .select("id, video_id, title, thumbnail_url, duration, difficulty_level, language, is_short")
+        .select("id, video_id, title, thumbnail_url, duration, difficulty_level, language, category, is_short")
         .eq("status", "completed")
         .order("created_at", { ascending: false })
         .limit(50);
@@ -74,10 +77,8 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
         query = query.eq("difficulty_level", selectedDifficulty);
       }
 
-      if (selectedDuration === "short") {
-        query = query.eq("is_short", true);
-      } else if (selectedDuration === "long") {
-        query = query.eq("is_short", false);
+      if (selectedDuration !== "all") {
+        query = query.eq("is_short", selectedDuration === "short");
       }
 
       if (debouncedSearch) {
@@ -95,12 +96,14 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
   }, [selectedLanguage, selectedDifficulty, selectedDuration, debouncedSearch]);
 
   const handleSelectVideo = (video: VideoRow) => {
-    const url = `https://www.youtube.com/watch?v=${video.video_id}`;
+    const youtubeUrl = `https://www.youtube.com/watch?v=${video.video_id}`;
     onSelectVideo({
-      url,
+      youtubeUrl,
       title: video.title,
       language: video.language,
       difficultyLevel: video.difficulty_level,
+      category: video.category,
+      duration: video.duration,
       isShort: video.is_short,
     });
   };
@@ -122,43 +125,42 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
         </div>
 
         <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Languages</SelectItem>
-            {LANGUAGES.map((lang) => (
-              <SelectItem key={lang.value} value={lang.value}>
-                {lang.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+  <SelectTrigger className="w-[140px]">
+    <SelectValue />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="all">All Languages</SelectItem>
+    {LANGUAGES.map((lang) => (
+      <SelectItem key={lang.value} value={lang.value}>
+        {lang.label}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
 
-        <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Levels</SelectItem>
-            <SelectItem value="beginner">Beginner</SelectItem>
-            <SelectItem value="intermediate">Intermediate</SelectItem>
-            <SelectItem value="advanced">Advanced</SelectItem>
-          </SelectContent>
-        </Select>
+<Select value={selectedDuration} onValueChange={setSelectedDuration}>
+  <SelectTrigger className="w-[140px]">
+    <SelectValue />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="all">All Durations</SelectItem>
+    <SelectItem value="short">Shorts</SelectItem>
+    <SelectItem value="long">Long Videos</SelectItem>
+  </SelectContent>
+</Select>
 
-        <Select value={selectedDuration} onValueChange={setSelectedDuration}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Durations</SelectItem>
-            <SelectItem value="short">Shorts</SelectItem>
-            <SelectItem value="long">Long Videos</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
+<Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+  <SelectTrigger className="w-[140px]">
+    <SelectValue />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="all">All Levels</SelectItem>
+    <SelectItem value="beginner">Beginner</SelectItem>
+    <SelectItem value="intermediate">Intermediate</SelectItem>
+    <SelectItem value="advanced">Advanced</SelectItem>
+  </SelectContent>
+</Select>
+</div>
       {/* Video grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -178,9 +180,9 @@ export function CommunityVideoBrowser({ onSelectVideo }: CommunityVideoBrowserPr
               id={video.id}
               title={video.title}
               thumbnailUrl={video.thumbnail_url}
-              topics={video.is_short ? ["Short"] : ["Long-form"]}
               duration={video.duration}
               difficultyLevel={video.difficulty_level}
+              topics={video.category ? [video.category] : [video.is_short ? "shorts" : "long-form"]}
               isCurated={false}
               onClick={() => handleSelectVideo(video)}
             />

@@ -50,10 +50,10 @@ type AnalysisResult = BeginnerAnalysis | SummaryAnalysis;
 interface YouTubeSpeakingProps {
   videoId: string;
   level: string;
+    sceneId?: string;
+  sceneTranscript?: string;
   onComplete: () => void;
   onBack: () => void;
-  sceneId?: string;
-  sceneTranscript?: string;
   dbVideoId?: string | null;
 }
 
@@ -175,7 +175,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
 
         setTranscript(actualTranscript);
         setLanguage(normalizedLanguage);
-        
+
         // For beginners, extract key phrases
         if (!isSummaryMode) {
           const cacheKey = buildPhrasesCacheKey(videoId, level, sceneId);
@@ -218,7 +218,7 @@ export function YouTubeSpeaking({ videoId, level, onComplete, onBack, sceneId, s
     };
     
     loadData();
-  }, [videoId, level, isSummaryMode]);
+  }, [videoId, level, isSummaryMode, sceneId, sceneTranscript]);
 
   // Timer for summary mode
   useEffect(() => {

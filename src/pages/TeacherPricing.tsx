@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeacherQuota } from "@/hooks/useTeacherQuota";
-import { trackEvent, trackPageView } from "@/lib/analytics";
+import { trackEvent, trackPageView, trackTeacherFunnelStep } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -76,7 +76,7 @@ const comparisonRows = [
 const faqItems = [
   {
     q: "How does the 14-day free trial work?",
-    a: "Sign up and get 14 days to create unlimited lessons. No credit card required. After 14 days, choose Pro or Premium to continue. Your lessons stay active even if you don't upgrade immediately.",
+    a: "Sign up and get 14 days to create up to 30 lessons. No credit card required. After 14 days, choose Pro or Premium to continue. Your lessons stay active even if you don't upgrade immediately.",
   },
   {
     q: "Do I need to enter my credit card for the trial?",
@@ -157,6 +157,10 @@ export default function TeacherPricing() {
       if (error) throw error;
       if (data?.url) {
         trackEvent("checkout_started", { plan });
+        trackTeacherFunnelStep("checkout_started", {
+          source: "teacher_pricing",
+          plan,
+        });
         window.location.href = data.url;
       }
     } catch (err: any) {

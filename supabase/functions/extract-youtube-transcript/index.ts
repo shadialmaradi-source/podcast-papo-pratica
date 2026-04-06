@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const PLAN_VIDEO_LIMITS: Record<string, number> = {
   free: 5,
+  trial: 10,
   pro: 10,
   premium: 15,
 };
@@ -109,8 +110,31 @@ serve(async (req) => {
 
     console.log(`[extract-youtube-transcript] Processing: ${id}, teacherId: ${teacherId || 'none'}`);
 
-    // If teacherId is provided, enforce video duration limit
+    // If teacherId is provided, require authenticated caller to match teacher identity
     if (teacherId) {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized: teacherId requires authenticated user' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const authClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const token = authHeader.replace('Bearer ', '');
+      const { data: authData, error: authError } = await authClient.auth.getUser(token);
+      if (authError || !authData?.user || authData.user.id !== teacherId) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized: teacherId does not match authenticated user' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // teacherId is validated — enforce video duration limit
       const durationMinutes = await getVideoDurationMinutes(id);
       if (durationMinutes !== null) {
         const plan = await getTeacherPlan(teacherId);

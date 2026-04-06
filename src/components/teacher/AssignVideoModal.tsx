@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
@@ -38,6 +39,7 @@ export function AssignVideoModal({
   onAssigned,
 }: AssignVideoModalProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [selectedEmail, setSelectedEmail] = useState(preselectedStudentEmail || "");
   const [dueDate, setDueDate] = useState<Date | undefined>();
@@ -90,7 +92,17 @@ export function AssignVideoModal({
       if (!preselectedStudentEmail) setSelectedEmail("");
       onAssigned?.();
     } catch (err: any) {
-      toast.error(err.message || "Failed to assign video");
+      const msg = err?.message || "";
+      if (
+        msg.includes("TRIAL_EXPIRED") ||
+        msg.includes("PAYMENT_PAST_DUE") ||
+        msg.includes("LESSON_LIMIT_REACHED")
+      ) {
+        toast.error("Assignment blocked by your current plan. Upgrade or update billing in Pricing.");
+        navigate("/teacher/pricing");
+      } else {
+        toast.error(msg || "Failed to assign video");
+      }
     } finally {
       setSubmitting(false);
     }

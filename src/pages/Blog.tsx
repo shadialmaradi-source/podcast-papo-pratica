@@ -1,71 +1,54 @@
 import { Link } from "react-router-dom";
-import { blogPosts } from "@/data/blogPosts";
-import LandingFooter from "@/components/LandingFooter";
-import { Headphones, ArrowRight } from "lucide-react";
+import { SeoHead } from "@/components/SeoHead";
+import { BLOG_DEFAULT_LANGUAGE, BLOG_LIST_ITEMS } from "@/data/blogPosts";
 
 export default function Blog() {
-  // Show only English posts on the index page (translations are reached via article switcher)
-  const indexPosts = blogPosts.filter((p) => p.language === "en");
+  const structuredData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: `${window.location.origin}/` },
+        { "@type": "ListItem", position: 2, name: "Blog", item: `${window.location.origin}/blog` },
+      ],
+    },
+  ];
 
   return (
-    <div className="min-h-[100dvh] bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <Headphones className="h-5 w-5 text-primary" />
-            <span className="text-lg font-bold text-foreground">ListenFlow</span>
-          </Link>
-          <Link
-            to="/auth?role=student"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Log in
-          </Link>
-        </div>
-      </header>
-
-      <main className="flex-1 container mx-auto px-4 py-10 md:py-16 max-w-3xl">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2 tracking-tight">
-          Blog
-        </h1>
-        <p className="text-muted-foreground mb-10 text-sm md:text-base">
-          Tips, research, and updates on learning languages from real conversations.
+    <main className="min-h-screen bg-background px-4 py-12">
+      <SeoHead
+        title="ListenFlow Blog | Language Learning Resources"
+        description="Read practical language-learning resources for teachers and students."
+        canonicalPath="/blog"
+        type="website"
+        structuredData={structuredData}
+      />
+      <div className="mx-auto max-w-3xl space-y-6">
+        <h1 className="text-3xl font-bold">Blog</h1>
+        <p className="text-muted-foreground">
+          Practical resources for language teachers and students.
         </p>
 
-        <div className="space-y-6">
-          {indexPosts.map((post) => (
-            <Link
-              key={post.slug}
-              to={`/blog/${post.slug}`}
-              className="block group rounded-xl border border-border bg-background p-5 md:p-6 hover:border-primary/40 hover:shadow-sm transition-all"
-            >
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground mb-2.5">
-                <time dateTime={post.date}>
-                  {new Date(post.date).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </time>
-                <span aria-hidden>·</span>
-                <span>{post.readTime}</span>
-              </div>
-              <h2 className="text-lg md:text-xl font-semibold text-foreground group-hover:text-primary transition-colors mb-2 leading-snug">
-                {post.title}
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {post.excerpt}
+        <div className="space-y-4">
+          {BLOG_LIST_ITEMS.map((post) => (
+            <article key={post.slug} className="rounded-lg border border-border p-4">
+              <p className="text-xs text-muted-foreground">
+                {new Date(post.publishedAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
               </p>
-              <span className="inline-flex items-center gap-1 text-sm text-primary mt-3 font-medium">
-                Read more <ArrowRight className="h-3.5 w-3.5" />
-              </span>
-            </Link>
+              <h2 className="mt-1 text-xl font-semibold">
+                <Link to={`/blog/${BLOG_DEFAULT_LANGUAGE}/${post.slug}`} className="hover:underline">
+                  {post.title}
+                </Link>
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">{post.description}</p>
+            </article>
           ))}
         </div>
-      </main>
-
-      <LandingFooter />
-    </div>
+      </div>
+    </main>
   );
 }

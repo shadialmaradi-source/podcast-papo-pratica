@@ -70,9 +70,8 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   // Unified tour integration
   const { phase: tourPhase, advancePhase: advanceTourPhase } = useStudentTour();
   
-  // Tutorial state — activate if tour phase is 'transcript' OR legacy flag absent
-  const isTutorialCompleted = localStorage.getItem('transcript_tutorial_completed') === 'true';
-  const shouldRunTutorial = tourPhase === 'transcript' || !isTutorialCompleted;
+  // Tutorial state — activate only when unified tour reaches transcript phase
+  const shouldRunTutorial = tourPhase === 'transcript';
   const [tutorialStep, setTutorialStep] = useState<TutorialStep>(shouldRunTutorial ? 'completed' : 'completed');
   const [tutorialTriggered, setTutorialTriggered] = useState(false);
   const transcriptRef = useRef<HTMLDivElement>(null);

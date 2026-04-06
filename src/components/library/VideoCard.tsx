@@ -39,6 +39,8 @@ function formatTopic(topic: string): string {
     'conversation': 'Conversation',
     'entertainment': 'Entertainment',
     'health': 'Health',
+    'shorts': 'Short Video',
+    'long-form': 'Long Video',
     // Legacy mappings
     'cucina': 'Food',
     'viaggi': 'Travel',
@@ -65,6 +67,8 @@ function getTopicIcon(topic: string): string {
     'conversation': '💬',
     'entertainment': '🎬',
     'health': '❤️',
+    'shorts': '⚡',
+    'long-form': '🎞️',
     // Legacy mappings
     'cucina': '🍽️',
     'viaggi': '✈️',

@@ -27,7 +27,7 @@ serve(async (req) => {
     }
 
     const { word, language, contextSentence, nativeLanguage } = await req.json();
-    const targetLang = nativeLanguage || "english";
+    const learnerNativeLanguage = nativeLanguage || "english";
 
     if (!word || !language) {
       return new Response(
@@ -43,8 +43,8 @@ serve(async (req) => {
 
     const systemPrompt = `You are a language learning assistant specializing in ${language}. 
 Analyze the given word or phrase and provide detailed linguistic information.
-The user is learning ${language} and speaks ${targetLang}.
-Always respond using the analyze_word function tool. All translations and explanations must be in ${targetLang}.`;
+The user is learning ${language} and speaks ${learnerNativeLanguage}.
+Always respond using the analyze_word function tool. All translations and explanations must be in ${learnerNativeLanguage}.`;
 
     const userPrompt = contextSentence
       ? `Analyze this ${language} word/phrase: "${word}"\nContext sentence: "${contextSentence}"`
@@ -73,7 +73,7 @@ Always respond using the analyze_word function tool. All translations and explan
                 properties: {
                   translation: {
                     type: "string",
-                    description: `${targetLang} translation of the word/phrase`,
+                    description: `${learnerNativeLanguage} translation of the word/phrase`,
                   },
                   partOfSpeech: {
                     type: "string",
@@ -86,7 +86,7 @@ Always respond using the analyze_word function tool. All translations and explan
                   },
                   exampleTranslation: {
                     type: "string",
-                    description: `${targetLang} translation of the example sentence`,
+                    description: `${learnerNativeLanguage} translation of the example sentence`,
                   },
                   extras: {
                     type: "object",

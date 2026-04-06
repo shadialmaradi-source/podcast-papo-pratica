@@ -5,7 +5,6 @@ import { toast } from "@/hooks/use-toast";
 import { trackEvent } from "@/lib/analytics";
 import { Exercise } from "@/services/exerciseGeneratorService";
 import { canUserDoVocalExercise, type VocalQuotaResult } from "@/services/subscriptionService";
-import { normalizeLanguageCode } from "@/utils/languageUtils";
 import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
 
 // Levenshtein distance for fuzzy matching
@@ -143,57 +142,72 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
   const currentExercise = exercises[currentExerciseIndex];
   const progress = exercises.length > 0 ? ((currentExerciseIndex + 1) / exercises.length) * 100 : 0;
 
-  const saveProgress = async (questionIndex: number) => {
-    if (!dbVideoId) return;
-    try {
-      if (!user) return;
-      const dbDifficulty = mapLevelToDbDifficulty(level);
-      await supabase
-        .from('youtube_exercise_progress')
-        .upsert({
-          user_id: user.id,
-          video_id: dbVideoId,
-          difficulty: dbDifficulty,
-          current_question_index: questionIndex,
-          total_questions: exercises.length,
-          answers: answers,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,video_id,difficulty' });
-    } catch (error) {
-      console.error('Error saving progress:', error);
-    }
+  const getCurrentUser = async () => {
+    if (user) return user;
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    return authUser;
   };
 
+ const saveProgress = async (questionIndex: number) => {
+  if (!dbVideoId) return;
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return;
+
+    const dbDifficulty = mapLevelToDbDifficulty(level);
+    await supabase
+      .from('youtube_exercise_progress')
+      .upsert({
+        user_id: currentUser.id,
+        video_id: dbVideoId,
+        difficulty: dbDifficulty,
+        current_question_index: questionIndex,
+        total_questions: exercises.length,
+        answers: answers,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,video_id,difficulty' });
+  } catch (error) {
+    console.error('Error saving progress:', error);
+  }
+};
+
   const deleteProgress = async () => {
-    if (!dbVideoId) return;
-    try {
-      if (!user) return;
-      const dbDifficulty = mapLevelToDbDifficulty(level);
-      await supabase
-        .from('youtube_exercise_progress')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('video_id', dbVideoId)
-        .eq('difficulty', dbDifficulty);
-    } catch (error) {
-      console.error('Error deleting progress:', error);
-    }
-  };
+  if (!dbVideoId) return;
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return;
+
+    const dbDifficulty = mapLevelToDbDifficulty(level);
+    await supabase
+      .from('youtube_exercise_progress')
+      .delete()
+      .eq('user_id', currentUser.id)
+      .eq('video_id', dbVideoId)
+      .eq('difficulty', dbDifficulty);
+  } catch (error) {
+    console.error('Error deleting progress:', error);
+  }
+};
 
   useEffect(() => {
     const loadExercises = async () => {
       setIsLoading(true);
       setError("");
       try {
-        let userNativeLanguage = nativeLanguageProp || '';
-        if (!userNativeLanguage && user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('native_language')
-            .eq('user_id', user.id)
-            .single();
-          if (profile?.native_language) userNativeLanguage = profile.native_language;
-        }
+let userNativeLanguage = nativeLanguageProp || '';
+const currentUser = await getCurrentUser();
+
+if (!userNativeLanguage && currentUser) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('native_language')
+    .eq('user_id', currentUser.id)
+    .single();
+
+  if (profile?.native_language) {
+    userNativeLanguage = profile.native_language;
+  }
+}
         if (!userNativeLanguage) {
           const stored = localStorage.getItem('onboarding_native_language');
           if (stored) userNativeLanguage = stored;
@@ -229,11 +243,11 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
 
           const generateExercises = async (sceneIdParam?: string, sceneTranscriptParam?: string) => {
             const body: any = {
-              videoId: resolvedId!,
-              level: dbDifficulty,
-              nativeLanguage: userNativeLanguage,
-              language: videoLanguage,
-            };
+  videoId: resolvedId!,
+  level: dbDifficulty,
+  nativeLanguage: userNativeLanguage,
+  language: videoLanguage,
+};
             if (sceneIdParam) {
               body.sceneId = sceneIdParam;
               body.sceneTranscript = sceneTranscriptParam || '';
@@ -301,8 +315,7 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
       }
     };
     loadExercises();
-  }, [videoId, level, intensity, sceneId]);
-
+}, [videoId, level, intensity, sceneId, sceneTranscript, dbVideoIdProp, nativeLanguageProp]);
   useEffect(() => {
     if (showResults && user) {
       canUserDoVocalExercise(user.id).then(setVocalQuota);

@@ -18,11 +18,11 @@ interface SelectedVideo {
 export function VideoBrowserModal({ open, onOpenChange, studentEmail, onAssigned }: VideoBrowserModalProps) {
   const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null);
 
-  const handleSelectVideo = (selection: CommunityVideoSelection) => {
-    const match = selection.url.match(/[?&]v=([^&]+)/);
-    const videoId = match ? match[1] : "";
-    setSelectedVideo({ videoId, title: selection.title });
-  };
+ const handleSelectVideo = (selection: CommunityVideoSelection) => {
+  const match = selection.youtubeUrl.match(/[?&]v=([^&]+)/);
+  const videoId = match ? match[1] : "";
+  setSelectedVideo({ videoId, title: selection.title });
+};
 
   const handleClose = () => {
     setSelectedVideo(null);

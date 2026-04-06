@@ -22,6 +22,7 @@ interface LessonPostCreationViewProps {
   createdLessonId: string;
   form: UseFormReturn<any>;
   currentLanguage: string;
+  translationLanguage: string;
   isParagraph: boolean;
   paragraphContent: string;
   paragraphRef: RefObject<HTMLDivElement>;
@@ -144,7 +145,7 @@ function renderExerciseContent(exercise: Exercise, revealed: boolean) {
 export function LessonPostCreationView(props: LessonPostCreationViewProps) {
   const {
     shareLink, copied, onCopyLink, lessonYoutubeUrl, lessonTranscript,
-    createdLessonId, form, currentLanguage, isParagraph, paragraphContent,
+    createdLessonId, form, currentLanguage, translationLanguage, isParagraph, paragraphContent,
     paragraphRef, selectedExerciseTypes, generatedTypes, generatingType,
     onGenerateByType, exerciseGroups, groupStates, activeGroup, activeGroupRef,
     onUpdateGroupState, onSetActiveGroup, onCancel,
@@ -195,7 +196,7 @@ export function LessonPostCreationView(props: LessonPostCreationViewProps) {
             videoTitle={form.getValues("title") || "Lesson"}
             language={currentLanguage}
             isPremium={true}
-            onUpgradeClick={() => {}}
+            onUpgradeClick={() => window.location.assign("/teacher/pricing")}
           />
         )}
 
@@ -390,7 +391,7 @@ export function LessonPostCreationView(props: LessonPostCreationViewProps) {
         videoId=""
         videoTitle=""
         language={currentLanguage}
-        translationLanguage={form.getValues("translation_language") || "english"}
+        translationLanguage={translationLanguage}
         onSuccess={onFlashcardSuccess}
         preloadedAnalysis={null}
       />
