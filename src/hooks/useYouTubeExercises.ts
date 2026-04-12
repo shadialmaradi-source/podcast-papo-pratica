@@ -196,6 +196,11 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
       try {
 let userNativeLanguage = nativeLanguageProp || '';
 const currentUser = await getCurrentUser();
+if (!currentUser) {
+  setError("Please sign in to generate exercises.");
+  setIsLoading(false);
+  return;
+}
 
 if (!userNativeLanguage && currentUser) {
   const { data: profile } = await supabase
@@ -254,8 +259,14 @@ if (!userNativeLanguage && currentUser) {
               body.transcript = sceneTranscriptParam || '';
             }
             const { error: invokeError, data: invokeData } = await supabase.functions.invoke('generate-level-exercises', { body });
-            if (invokeError) console.error('Exercise generation error:', invokeError);
-            if (invokeData?.error) console.error('Exercise generation data error:', invokeData.error);
+            if (invokeError) {
+              console.error('Exercise generation error:', invokeError);
+              throw new Error(invokeError.message || 'Failed to generate exercises');
+            }
+            if (invokeData?.error) {
+              console.error('Exercise generation data error:', invokeData.error);
+              throw new Error(invokeData.error);
+            }
           };
 
           let dbExercises: any[] = [];

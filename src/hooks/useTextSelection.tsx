@@ -56,19 +56,24 @@ export function useTextSelection(
       const x = rect.left + rect.width / 2;
       const y = rect.top - 10;
 
-      // Try to get full sentence from the paragraph/line
+      // Try to get full sentence from the nearest transcript line, not the whole paragraph/container.
       let fullSentence = selectedText;
-      const parentElement = range.commonAncestorContainer.parentElement;
-      if (parentElement) {
-        const parentText = parentElement.textContent || '';
-        // Find sentence containing selection
-        const sentences = parentText.split(/(?<=[.!?])\s+/);
-        for (const sentence of sentences) {
-          if (sentence.includes(selectedText)) {
-            fullSentence = sentence.trim();
-            break;
-          }
-        }
+      const anchorElement =
+        range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+          ? (range.commonAncestorContainer as Element)
+          : range.commonAncestorContainer.parentElement;
+
+      const lineElement = anchorElement?.closest('[data-transcript-line-text="true"]') as HTMLElement | null;
+      const sourceText = (lineElement?.textContent || anchorElement?.textContent || selectedText).trim();
+
+      if (sourceText) {
+        const normalizedSource = sourceText.replace(/\s+/g, ' ').trim();
+        const normalizedSelection = selectedText.replace(/\s+/g, ' ').trim();
+        const sentences = normalizedSource.split(/(?<=[.!?])\s+/);
+        const sentenceMatch = sentences.find((sentence) =>
+          sentence.toLowerCase().includes(normalizedSelection.toLowerCase())
+        );
+        fullSentence = (sentenceMatch || normalizedSource).trim();
       }
 
       setSelection({

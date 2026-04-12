@@ -15,7 +15,26 @@ interface Flashcard {
 
 const getLocalizedText = (field: string | Record<string, string>, lang: string): string => {
   if (typeof field === 'string') return field;
-  return field[lang] || field['en'] || Object.values(field)[0] || '';
+  const normalizedLang = (lang || '').toLowerCase().trim();
+  const languageAliases: Record<string, string[]> = {
+    english: ['english', 'en'],
+    italian: ['italian', 'it'],
+    spanish: ['spanish', 'es'],
+    portuguese: ['portuguese', 'pt'],
+    french: ['french', 'fr'],
+    german: ['german', 'de'],
+  };
+
+  const candidates = languageAliases[normalizedLang] || [normalizedLang];
+  for (const key of candidates) {
+    if (field[key]) return field[key];
+  }
+
+  // Support common object schemas from services/edge functions.
+  if (typeof (field as any).translation === 'string') return (field as any).translation;
+  if (typeof (field as any).text === 'string') return (field as any).text;
+
+  return field['en'] || field['english'] || Object.values(field).find(v => typeof v === 'string') || '';
 };
 
 interface LessonFlashcardsProps {
