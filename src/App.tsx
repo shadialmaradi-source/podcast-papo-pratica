@@ -80,6 +80,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const studentLessonMatch = location.pathname.match(/^\/lesson\/student\/(.+)$/);
     if (studentLessonMatch) {
       localStorage.setItem('pending_lesson_token', studentLessonMatch[1]);
+      localStorage.setItem('post_auth_redirect', location.pathname + location.search + location.hash);
     }
     return <Navigate to="/auth" replace />;
   }

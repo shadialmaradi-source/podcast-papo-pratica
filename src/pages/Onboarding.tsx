@@ -67,6 +67,8 @@ export default function Onboarding() {
 
   const returnTo = searchParams.get('return');
   const stepParam = searchParams.get('step');
+  const storedPostAuthRedirect = localStorage.getItem('post_auth_redirect');
+  const resolvedReturnTarget = (returnTo && returnTo.startsWith('/')) ? returnTo : (storedPostAuthRedirect || null);
 
   const [step, setStep] = useState<Step>(() => {
     if (stepParam === 'level') return 'level';
@@ -87,7 +89,7 @@ export default function Onboarding() {
     localStorage.setItem('first_lesson_completed', 'false');
   }, []);
   const pendingLessonToken = localStorage.getItem('pending_lesson_token');
-  const isLessonOnboarding = !!pendingLessonToken;
+  const isLessonOnboarding = !!pendingLessonToken || (resolvedReturnTarget?.startsWith('/lesson/student/') ?? false);
 
   const proficiencyLevels = [
     { code: 'absolute_beginner', label: t('absoluteBeginner'), description: t('absoluteBeginnerDesc'), icon: Sprout },
@@ -157,7 +159,9 @@ export default function Onboarding() {
     // Clear the pending token and redirect to lesson
     const token = pendingLessonToken;
     localStorage.removeItem('pending_lesson_token');
-    navigate(`/lesson/student/${token}`);
+    localStorage.removeItem('post_auth_redirect');
+    const lessonDestination = resolvedReturnTarget || (token ? `/lesson/student/${token}` : '/app');
+    navigate(lessonDestination);
   };
 
   const handleFinalContinue = async () => {
@@ -166,6 +170,7 @@ export default function Onboarding() {
     localStorage.setItem('onboarding_level', selectedLevel);
     localStorage.setItem('onboarding_native_language', selectedNativeLanguage);
     localStorage.setItem('lesson_step', 'intro');
+    localStorage.removeItem('post_auth_redirect');
 
     trackEvent('onboarding_completed', {
       selected_language: selectedLanguage,
