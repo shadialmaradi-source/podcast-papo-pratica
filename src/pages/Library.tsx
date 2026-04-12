@@ -58,16 +58,14 @@ export default function Library() {
   const isTeacher = role === "teacher";
   
   // State
-  const [selectedLevel, setSelectedLevel] = useState<'beginner' | 'intermediate' | 'advanced'>(
-    () => (localStorage.getItem('library_selected_level') as 'beginner' | 'intermediate' | 'advanced') || 'beginner'
-  );
-  const [activeTab, setActiveTab] = useState<'curated' | 'community'>(
-    () => (localStorage.getItem('library_active_tab') as 'curated' | 'community') || 'curated'
-  );
-
-  // Persist library state
-  useEffect(() => { localStorage.setItem('library_selected_level', selectedLevel); }, [selectedLevel]);
-  useEffect(() => { localStorage.setItem('library_active_tab', activeTab); }, [activeTab]);
+  const [selectedLevel, setSelectedLevel] = useState<'beginner' | 'intermediate' | 'advanced'>(() => {
+    const saved = localStorage.getItem('library_selected_level');
+    return saved === 'intermediate' || saved === 'advanced' ? saved : 'beginner';
+  });
+  const [activeTab, setActiveTab] = useState<'curated' | 'community'>(() => {
+    const saved = localStorage.getItem('library_active_tab');
+    return saved === 'community' ? 'community' : 'curated';
+  });
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedLength, setSelectedLength] = useState<string | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -122,6 +120,14 @@ export default function Library() {
     });
   }, [tourPhase, advanceTourPhase]);
 
+
+  useEffect(() => {
+    localStorage.setItem('library_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('library_selected_level', selectedLevel);
+  }, [selectedLevel]);
   // Fetch curated video IDs (linked from week_videos)
   useEffect(() => {
     trackPageView("library", "student");
@@ -254,17 +260,21 @@ export default function Library() {
       }
 
       const videoDbId = data?.video?.id;
+      let shouldRefreshQuota = false;
       if (videoDbId) {
         setVideoUrl("");
         setImportDialogOpen(false);
         toast.success("Video ready! Starting your lesson...");
-        const quota = await getUploadQuotaStatus(user.id);
-        setUploadQuota(quota);
+        shouldRefreshQuota = true;
         navigate(`/lesson/${videoDbId}`);
       } else {
         toast.success("Video added! Check the library when processing completes.");
         setVideoUrl("");
         setImportDialogOpen(false);
+        shouldRefreshQuota = true;
+      }
+
+      if (shouldRefreshQuota) {
         const quota = await getUploadQuotaStatus(user.id);
         setUploadQuota(quota);
       }

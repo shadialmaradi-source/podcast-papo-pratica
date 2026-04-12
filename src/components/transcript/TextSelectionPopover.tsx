@@ -10,6 +10,8 @@ interface TextSelectionPopoverProps {
   onCreateFlashcard: () => void;
   onExploreWord: () => void;
   onDismiss: () => void;
+  actionsEnabled?: boolean;
+  onUpgradeClick?: () => void;
 }
 
 export function TextSelectionPopover({
@@ -18,6 +20,8 @@ export function TextSelectionPopover({
   onCreateFlashcard,
   onExploreWord,
   onDismiss,
+  actionsEnabled = true,
+  onUpgradeClick,
 }: TextSelectionPopoverProps) {
   const isMobile = useIsMobile();
 
@@ -37,9 +41,14 @@ export function TextSelectionPopover({
               size="lg"
               variant="ghost"
               className="flex-1 gap-2 text-base font-medium hover:bg-primary hover:text-primary-foreground"
+              disabled={!actionsEnabled}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (!actionsEnabled) {
+                  onUpgradeClick?.();
+                  return;
+                }
                 onCreateFlashcard();
               }}
             >
@@ -50,9 +59,14 @@ export function TextSelectionPopover({
               size="lg"
               variant="ghost"
               className="flex-1 gap-2 text-base font-medium hover:bg-accent hover:text-accent-foreground"
+              disabled={!actionsEnabled}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (!actionsEnabled) {
+                  onUpgradeClick?.();
+                  return;
+                }
                 onExploreWord();
               }}
             >
@@ -100,9 +114,14 @@ export function TextSelectionPopover({
             size="sm"
             variant="ghost"
             className="gap-1.5 text-sm font-medium hover:bg-primary hover:text-primary-foreground"
+            disabled={!actionsEnabled}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              if (!actionsEnabled) {
+                onUpgradeClick?.();
+                return;
+              }
               onCreateFlashcard();
             }}
           >
@@ -113,9 +132,14 @@ export function TextSelectionPopover({
             size="sm"
             variant="ghost"
             className="gap-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            disabled={!actionsEnabled}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              if (!actionsEnabled) {
+                onUpgradeClick?.();
+                return;
+              }
               onExploreWord();
             }}
           >

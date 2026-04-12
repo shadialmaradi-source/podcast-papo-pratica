@@ -94,28 +94,53 @@ export interface GroupState {
   revealed: boolean;
 }
 
-export interface CommunityVideoMeta {
-  url: string;
-  title: string;
-  language: string;
-  difficultyLevel: string;
-  isShort: boolean;
-}
 
 const DIFFICULTY_TO_CEFR: Record<string, string> = {
   beginner: "A1",
   intermediate: "B1",
   advanced: "C1",
+  a1: "A1",
+  a2: "A2",
+  b1: "B1",
+  b2: "B2",
+  c1: "C1",
+  c2: "C2",
 };
 
 interface UseCreateLessonOptions {
   lessonType: LessonType;
   onCreated: (lessonId: string) => void;
   prefillYoutubeUrl?: string;
-  prefillMeta?: CommunityVideoMeta;
+  prefillYoutubeTitle?: string;
+  prefillYoutubeLanguage?: string;
+  prefillYoutubeDifficulty?: string;
+  prefillYoutubeCategory?: string | null;
+}
+function normalizeCategoryTopic(category?: string | null): string {
+  if (!category) return "";
+  const normalized = category.trim().toLowerCase();
+  if (!normalized || ["general", "misc", "other", "unknown"].includes(normalized)) return "";
+  return category.trim();
 }
 
-export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, prefillMeta }: UseCreateLessonOptions) {
+function getSmartDefaultTranslationLanguage(sourceLanguage?: string): string {
+  const fallback = "english";
+  if (!sourceLanguage) return fallback;
+  const normalized = sourceLanguage.toLowerCase();
+  if (normalized !== fallback) return fallback;
+  const firstDifferent = TRANSLATION_LANGUAGES.find((lang) => lang.value !== normalized);
+  return firstDifferent?.value || fallback;
+}
+
+export function useCreateLesson({
+  lessonType,
+  onCreated,
+  prefillYoutubeUrl,
+  prefillYoutubeTitle,
+  prefillYoutubeLanguage,
+  prefillYoutubeDifficulty,
+  prefillYoutubeCategory,
+}: UseCreateLessonOptions) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
@@ -155,25 +180,32 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, pref
   const isParagraph = lessonType === "paragraph";
   const schema = isParagraph ? paragraphSchema : youtubeSchema;
   const exerciseTypeOptions = isParagraph ? EXERCISE_TYPES_PARAGRAPH : EXERCISE_TYPES_YOUTUBE;
+  const paragraphDraftKey = isParagraph && user ? `teacher_paragraph_lesson_draft:${user.id}` : null;
 
-  // Compute defaults from prefillMeta
-  const metaLanguage = prefillMeta?.language || "italian";
-  const metaCefr = prefillMeta ? (DIFFICULTY_TO_CEFR[prefillMeta.difficultyLevel] || "A1") : "A1";
-  const defaultTranslation = metaLanguage === "english" ? "spanish" : "english";
+const defaultYoutubeLanguage = prefillYoutubeLanguage?.toLowerCase() || "italian";
+const defaultYoutubeCefr =
+  (prefillYoutubeDifficulty
+    ? DIFFICULTY_TO_CEFR[prefillYoutubeDifficulty.toLowerCase()]
+    : null) || "A1";
+const defaultTranslation = getSmartDefaultTranslationLanguage(defaultYoutubeLanguage);
 
-  const form = useForm<any>({
-    resolver: zodResolver(schema as any),
-    defaultValues: {
-      title: prefillMeta?.title || "",
-      student_email: "",
-      cefr_level: metaCefr,
-      exercise_types: [],
-      translation_language: defaultTranslation,
-      ...(isParagraph
-        ? { paragraph_prompt: "", language: metaLanguage, paragraph_length: "medium" }
-        : { topic: "", youtube_url: prefillYoutubeUrl || "", language: metaLanguage }),
-    },
-  });
+const form = useForm<any>({
+  resolver: zodResolver(schema as any),
+  defaultValues: {
+    title: prefillYoutubeTitle || "",
+    student_email: "",
+    cefr_level: defaultYoutubeCefr,
+    exercise_types: [],
+    translation_language: defaultTranslation,
+    ...(isParagraph
+      ? { paragraph_prompt: "", language: "english", paragraph_length: "medium" }
+      : {
+          topic: normalizeCategoryTopic(prefillYoutubeCategory),
+          youtube_url: prefillYoutubeUrl || "",
+          language: defaultYoutubeLanguage,
+        }),
+  },
+});
   useEffect(() => {
     trackEvent("teacher_lesson_creation_started", { type: lessonType });
     const checkAccess = async () => {
@@ -194,6 +226,93 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, pref
     };
     checkAccess();
   }, [lessonType, user]);
+
+
+  useEffect(() => {
+    if (!paragraphDraftKey || !isParagraph) return;
+
+    try {
+      const raw = sessionStorage.getItem(paragraphDraftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+
+      form.reset({
+        ...form.getValues(),
+        title: draft.title ?? "",
+        student_email: draft.student_email ?? "",
+        cefr_level: draft.cefr_level ?? "A1",
+        exercise_types: Array.isArray(draft.exercise_types)
+          ? draft.exercise_types.filter((type: string) => type !== "flashcards")
+          : [],
+        translation_language: draft.translation_language ?? "english",
+        paragraph_prompt: draft.paragraph_prompt ?? "",
+        language: draft.language ?? "italian",
+        paragraph_length: draft.paragraph_length ?? "medium",
+      });
+
+      if (draft.paragraph_content) {
+        setParagraphContent(draft.paragraph_content);
+      }
+    } catch (err) {
+      console.error("Failed to restore paragraph lesson draft:", err);
+    }
+  }, [form, isParagraph, paragraphDraftKey]);
+
+  useEffect(() => {
+    if (!paragraphDraftKey || !isParagraph || createdLessonId) return;
+
+    const saveDraft = (values: any) => {
+      const draftPayload = {
+        title: values.title || "",
+        student_email: values.student_email || "",
+        cefr_level: values.cefr_level || "A1",
+        exercise_types: values.exercise_types || [],
+        translation_language: values.translation_language || "english",
+        paragraph_prompt: values.paragraph_prompt || "",
+        language: values.language || "italian",
+        paragraph_length: values.paragraph_length || "medium",
+        paragraph_content: paragraphContent || "",
+      };
+      sessionStorage.setItem(paragraphDraftKey, JSON.stringify(draftPayload));
+    };
+
+    saveDraft(form.getValues());
+    const subscription = form.watch((values) => saveDraft(values));
+
+    return () => subscription.unsubscribe();
+  }, [createdLessonId, form, isParagraph, paragraphContent, paragraphDraftKey]);
+
+  const clearParagraphDraft = () => {
+    if (!paragraphDraftKey) return;
+    sessionStorage.removeItem(paragraphDraftKey);
+  };
+
+  useEffect(() => {
+    if (isParagraph || !prefillYoutubeUrl) return;
+
+    const mappedCefr = prefillYoutubeDifficulty ? DIFFICULTY_TO_CEFR[prefillYoutubeDifficulty.toLowerCase()] : null;
+    const sourceLanguage = prefillYoutubeLanguage?.toLowerCase();
+    const smartTranslation = getSmartDefaultTranslationLanguage(sourceLanguage);
+    const normalizedTopic = normalizeCategoryTopic(prefillYoutubeCategory);
+
+    form.reset({
+      ...form.getValues(),
+      youtube_url: prefillYoutubeUrl,
+      title: prefillYoutubeTitle || form.getValues("title") || "",
+      topic: normalizedTopic || "",
+      language: sourceLanguage || form.getValues("language") || "italian",
+      cefr_level: (mappedCefr as any) || form.getValues("cefr_level") || "A1",
+      translation_language: smartTranslation,
+    });
+  }, [
+    form,
+    isParagraph,
+    prefillYoutubeUrl,
+    prefillYoutubeTitle,
+    prefillYoutubeLanguage,
+    prefillYoutubeDifficulty,
+    prefillYoutubeCategory,
+  ]);
 
   const handleGenerateParagraph = async () => {
     const prompt = form.getValues("paragraph_prompt");
@@ -225,14 +344,14 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, pref
   const handleExploreWord = async () => {
     if (!selection) return;
     const language = form.getValues("language") || "italian";
+    const translationLanguage = form.getValues("translation_language") || "english";
     setExploredWord(selection.text);
     setWordExplorerOpen(true);
     setWordLoading(true);
     setWordAnalysis(null);
     clearSelection();
     try {
-      const translationLang = form.getValues("translation_language") || "english";
-      const analysis = await analyzeWord(selection.text, language, selection.fullSentence, translationLang);
+      const analysis = await analyzeWord(selection.text, language, selection.fullSentence, translationLanguage);
       setWordAnalysis(analysis);
     } catch (err) {
       console.error("Word analysis failed:", err);
@@ -262,16 +381,38 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, pref
       toast({ title: "Generate a paragraph first", variant: "destructive" });
       return;
     }
+    const normalizedStudentEmail = values.student_email?.trim().toLowerCase() || null;
+
+    const sanitizedExerciseTypes = isParagraph
+      ? (values.exercise_types || []).filter((type: string) => type !== "flashcards")
+      : values.exercise_types;
+    const resolvedExerciseTypes = sanitizedExerciseTypes.length > 0
+      ? sanitizedExerciseTypes
+      : ["multiple_choice"];
+
     setLoading(true);
     try {
-      const normalizedEmail = values.student_email?.trim().toLowerCase() || "";
+      if (!isParagraph && values.youtube_url) {
+        const { data: transcriptProbe, error: transcriptProbeError } = await supabase.functions.invoke(
+          "extract-youtube-transcript",
+          { body: { videoUrl: values.youtube_url, teacherId: user.id } }
+        );
+
+        const transcriptProbeMessage = transcriptProbeError?.message || transcriptProbe?.error || "";
+        if (transcriptProbeMessage.includes("VIDEO_TOO_LONG")) {
+          const cleanMsg = transcriptProbeMessage.split("VIDEO_TOO_LONG:")[1] || "This video exceeds your plan's duration limit.";
+          toast({ title: "Video Too Long", description: cleanMsg, variant: "destructive" });
+          return;
+        }
+      }
+
       const shareToken = crypto.randomUUID();
       const insertData: any = {
         teacher_id: user.id,
         title: values.title,
-        student_email: normalizedEmail,
+        student_email: normalizedStudentEmail,
         cefr_level: values.cefr_level,
-        exercise_types: values.exercise_types,
+        exercise_types: resolvedExerciseTypes,
         status: "draft",
         lesson_type: lessonType,
         share_token: shareToken,
@@ -295,12 +436,12 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, pref
 
       if (error) throw error;
 
-      if (values.student_email) {
+      if (normalizedStudentEmail) {
         await supabase
           .from("teacher_students" as any)
           .upsert({
             teacher_id: user.id,
-            student_email: normalizedEmail,
+            student_email: normalizedStudentEmail,
             status: "invited",
           } as any, { onConflict: "teacher_id,student_email", ignoreDuplicates: true });
       }
@@ -309,15 +450,16 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, pref
       setShareLink(link);
       setCreatedLessonId(data.id);
       setLessonYoutubeUrl(values.youtube_url || null);
-      setSelectedExerciseTypes(values.exercise_types);
+      setSelectedExerciseTypes(resolvedExerciseTypes);
       toast({ title: "Lesson created!", description: "Click the exercise type buttons below to generate exercises." });
       trackEvent("teacher_lesson_creation_completed", { type: lessonType, language: values.language, cefr_level: values.cefr_level });
+      clearParagraphDraft();
       onCreated(data.id);
 
       if (!isParagraph && values.youtube_url) {
         try {
           await supabase.functions.invoke("generate-lesson-exercises-by-type", {
-            body: { lessonId: data.id, exerciseType: values.exercise_types[0] }
+            body: { lessonId: data.id, exerciseType: resolvedExerciseTypes[0] }
           });
           const [exRes, lessonRes] = await Promise.all([
             supabase.from("lesson_exercises").select("*").eq("lesson_id", data.id).order("order_index"),
@@ -421,6 +563,7 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, pref
   };
 
   const currentLanguage = form.watch("language") || "italian";
+  const currentTranslationLanguage = form.watch("translation_language") || "english";
 
   const exerciseGroups = useMemo(() => {
     const typeOrder: string[] = [];
@@ -485,6 +628,7 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, pref
     flashcardText,
     flashcardSentence,
     currentLanguage,
+    currentTranslationLanguage,
     exerciseGroups,
     generatedTypes,
     user,
@@ -504,5 +648,6 @@ export function useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, pref
     updateGroupState,
     handleResendVerification,
     clearSelection,
+    clearParagraphDraft,
   };
 }

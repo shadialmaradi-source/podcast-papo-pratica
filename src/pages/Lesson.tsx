@@ -197,13 +197,29 @@ export default function Lesson() {
         )
       )}
 
-      {lessonState === "flashcards" && (
-        isSegmented ? renderWithSceneNav(
-          <VideoFlashcards videoId={videoId} level={selectedLevel} onComplete={() => handleFlashcardsComplete()} onBack={handleBackToLibrary} sceneTranscript={currentScene?.scene_transcript} dbVideoId={dbVideoId} nativeLanguage={nativeLanguage} />
-        ) : (
-          <VideoFlashcards videoId={videoId} level={selectedLevel} onComplete={() => handleFlashcardsComplete()} onBack={handleBackToLibrary} dbVideoId={dbVideoId} nativeLanguage={nativeLanguage} />
-        )
-      )}
+    {lessonState === "flashcards" && (
+  isSegmented ? renderWithSceneNav(
+    <VideoFlashcards
+      videoId={videoId}
+      level={selectedLevel}
+      onComplete={() => handleFlashcardsComplete()}
+      onBack={handleBackToLibrary}
+      sceneId={currentScene?.id}
+      sceneTranscript={currentScene?.scene_transcript}
+      dbVideoId={dbVideoId}
+      nativeLanguage={nativeLanguage}
+    />
+  ) : (
+    <VideoFlashcards
+      videoId={videoId}
+      level={selectedLevel}
+      onComplete={() => handleFlashcardsComplete()}
+      onBack={handleBackToLibrary}
+      dbVideoId={dbVideoId}
+      nativeLanguage={nativeLanguage}
+    />
+  )
+)}
 
       {lessonState === "complete" && (
         <LessonCompleteScreen

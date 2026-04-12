@@ -71,3 +71,20 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Retention cleanup cron secret (required for scheduled cleanup)
+
+The scheduled `cleanup-retention` edge-function call uses `x-cron-secret` (not a service-role JWT).
+
+Set the same strong secret value in both places:
+
+1. **Postgres setting** (used by the cron migration header lookup):
+   ```sql
+   ALTER DATABASE postgres SET app.settings.cron_secret = '<strong-random-secret>';
+   ```
+2. **Edge function environment**:
+   ```bash
+   CRON_SECRET=<strong-random-secret>
+   ```
+
+This keeps scheduled cleanup protected without embedding privileged bearer tokens in SQL.

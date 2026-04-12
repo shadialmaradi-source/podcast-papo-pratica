@@ -1,142 +1,123 @@
-import { useParams, Link, Navigate, useNavigate } from "react-router-dom";
-import { blogPosts, getLanguageVersions } from "@/data/blogPosts";
-import LandingFooter from "@/components/LandingFooter";
-import { Headphones, ArrowLeft } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { SeoHead } from "@/components/SeoHead";
+import {
+  BLOG_DEFAULT_LANGUAGE,
+  getAvailableLanguagesForSlug,
+  getLocalizedBlogPost,
+} from "@/data/blogPosts";
 
 export default function BlogArticle() {
-  const { slug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
-  const post = blogPosts.find((p) => p.slug === slug);
+  const { lang, slug } = useParams();
+  const resolvedLang = lang || BLOG_DEFAULT_LANGUAGE;
+  const post = getLocalizedBlogPost(resolvedLang, slug);
 
-  if (!post) return <Navigate to="/blog" replace />;
+  if (!post) {
+    return (
+      <main className="min-h-screen bg-background px-4 py-12">
+        <SeoHead
+          title="Article Not Found | ListenFlow Blog"
+          description="The requested article could not be found."
+          canonicalPath={`/blog/${resolvedLang}/${slug || ""}`}
+          type="article"
+        />
+        <div className="mx-auto max-w-3xl space-y-4">
+          <h1 className="text-3xl font-bold">Article not found</h1>
+          <p className="text-muted-foreground">
+            This blog article does not exist yet. Browse all posts in the{" "}
+            <Link className="text-primary underline" to="/blog">
+              Blog
+            </Link>
+            .
+          </p>
+        </div>
+      </main>
+    );
+  }
 
-  const versions = getLanguageVersions(post.slug);
-  const langLabels: Record<string, string> = { en: "English", it: "Italiano", es: "Español", pt: "Português" };
+  const canonicalPath = `/blog/${post.lang}/${post.slug}`;
+  const availableLanguages = getAvailableLanguagesForSlug(post.slug);
+  const mappedAlternates = Object.entries(post.alternates).map(([language, alternateSlug]) => ({
+    hrefLang: language,
+    hrefPath: `/blog/${language}/${alternateSlug}`,
+  }));
+
+  const alternates = (mappedAlternates.length ? mappedAlternates : availableLanguages.map((language) => ({
+    hrefLang: language,
+    hrefPath: `/blog/${language}/${post.slug}`,
+  })));
+
+  alternates.push({
+    hrefLang: "x-default",
+    hrefPath: `/blog/${BLOG_DEFAULT_LANGUAGE}/${post.alternates[BLOG_DEFAULT_LANGUAGE] || post.slug}`,
+  });
+
+  const structuredData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: `${window.location.origin}/` },
+        { "@type": "ListItem", position: 2, name: "Blog", item: `${window.location.origin}/blog` },
+        { "@type": "ListItem", position: 3, name: post.title, item: `${window.location.origin}${canonicalPath}` },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: post.title,
+      description: post.description,
+      author: {
+        "@type": "Organization",
+        name: post.authorName,
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "ListenFlow",
+      },
+      datePublished: post.publishedAt,
+      dateModified: post.updatedAt || post.publishedAt,
+      inLanguage: post.lang,
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": `${window.location.origin}${canonicalPath}`,
+      },
+    },
+  ];
 
   return (
-    <div className="min-h-[100dvh] bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <Headphones className="h-5 w-5 text-primary" />
-            <span className="text-lg font-bold text-foreground">ListenFlow</span>
-          </Link>
-          <Link
-            to="/blog"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ← All posts
-          </Link>
+    <main className="min-h-screen bg-background px-4 py-12">
+      <SeoHead
+        title={`${post.title} | ListenFlow Blog`}
+        description={post.description}
+        canonicalPath={canonicalPath}
+        type="article"
+        structuredData={structuredData}
+        alternates={alternates}
+      />
+      <div className="mx-auto max-w-3xl space-y-6">
+        <p className="text-sm text-muted-foreground">
+          <Link className="underline hover:text-foreground" to="/blog">
+            Blog
+          </Link>{" "}
+          / {post.title}
+        </p>
+        <h1 className="text-3xl font-bold">{post.title}</h1>
+        <p className="text-sm text-muted-foreground">
+          {new Date(post.publishedAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}{" "}
+          · {post.authorName}
+        </p>
+        <div className="space-y-4">
+          {post.content.split(/\n\s*\n/).map((paragraph, index) => (
+            <p key={index} className="text-foreground leading-relaxed">
+              {paragraph.trim()}
+            </p>
+          ))}
         </div>
-      </header>
-
-      <main className="flex-1 container mx-auto px-4 py-10 md:py-16 max-w-2xl">
-        {/* Back link */}
-        <Link
-          to="/blog"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to blog
-        </Link>
-
-        <article>
-          {/* Meta row */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mb-4">
-            <time dateTime={post.date}>
-              {new Date(post.date).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </time>
-            <span aria-hidden>·</span>
-            <span>{post.author}</span>
-            <span aria-hidden>·</span>
-            <span>{post.readTime}</span>
-          </div>
-
-          {/* Title */}
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6 leading-tight tracking-tight">
-            {post.title}
-          </h1>
-
-          {/* Language switcher */}
-          {versions.length > 1 && (
-            <nav aria-label="Language versions" className="flex flex-wrap gap-2 mb-8">
-              {versions.map((v) => (
-                <button
-                  key={v.slug}
-                  onClick={() => navigate(`/blog/${v.slug}`)}
-                  className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                    v.slug === post.slug
-                      ? "border-primary bg-primary/10 text-primary font-medium"
-                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                  }`}
-                >
-                  <span>{v.flag}</span>
-                  <span>{langLabels[v.language] || v.language}</span>
-                </button>
-              ))}
-            </nav>
-          )}
-
-          {/* Article body */}
-          <div className="prose prose-sm md:prose-base prose-neutral dark:prose-invert max-w-none">
-            {post.content.split("\n\n").map((block, i) => {
-              if (block.startsWith("## ")) {
-                return (
-                  <h2 key={i} className="text-lg md:text-xl font-semibold text-foreground mt-10 mb-3">
-                    {block.replace("## ", "")}
-                  </h2>
-                );
-              }
-              if (block.startsWith("1. ") || block.startsWith("- ")) {
-                const items = block.split("\n");
-                const isOrdered = block.startsWith("1. ");
-                const ListTag = isOrdered ? "ol" : "ul";
-                return (
-                  <ListTag
-                    key={i}
-                    className={`${isOrdered ? "list-decimal" : "list-disc"} pl-5 space-y-1.5 my-5 text-muted-foreground`}
-                  >
-                    {items.map((item, j) => (
-                      <li
-                        key={j}
-                        className="text-sm md:text-base leading-relaxed"
-                        dangerouslySetInnerHTML={{
-                          __html: item
-                            .replace(/^\d+\.\s/, "")
-                            .replace(/^-\s/, "")
-                            .replace(
-                              /\*\*(.+?)\*\*/g,
-                              "<strong class='text-foreground'>$1</strong>"
-                            ),
-                        }}
-                      />
-                    ))}
-                  </ListTag>
-                );
-              }
-              return (
-                <p
-                  key={i}
-                  className="text-sm md:text-base text-muted-foreground leading-relaxed my-5"
-                  dangerouslySetInnerHTML={{
-                    __html: block.replace(
-                      /\*\*(.+?)\*\*/g,
-                      "<strong class='text-foreground'>$1</strong>"
-                    ),
-                  }}
-                />
-              );
-            })}
-          </div>
-        </article>
-      </main>
-
-      <LandingFooter />
-    </div>
+      </div>
+    </main>
   );
 }

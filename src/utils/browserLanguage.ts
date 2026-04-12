@@ -1,4 +1,4 @@
-import type { LanguageCode } from './translations';
+import { SUPPORTED_LANGUAGE_CODES, type LanguageCode } from './translations';
 
 /**
  * Detect the user's preferred UI language from the browser settings.
@@ -7,8 +7,7 @@ import type { LanguageCode } from './translations';
  */
 export function detectUILanguage(): LanguageCode {
   const browserLang = navigator.language.split('-')[0].toLowerCase();
-  const supported: LanguageCode[] = ['en', 'es', 'fr', 'it'];
-  return supported.includes(browserLang as LanguageCode)
+  return SUPPORTED_LANGUAGE_CODES.includes(browserLang as LanguageCode)
     ? (browserLang as LanguageCode)
     : 'en';
 }

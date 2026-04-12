@@ -9,6 +9,7 @@ const corsHeaders = {
 
 const PLAN_VIDEO_LIMITS: Record<string, number> = {
   free: 5,
+  trial: 10,
   pro: 10,
   premium: 15,
 };
@@ -81,6 +82,23 @@ async function checkVideoDurationLimit(videoId: string, teacherId: string): Prom
   }
 }
 
+
+function normalizeForComparison(text: string): string {
+  return (text || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function multipleChoiceFingerprint(content: any): string {
+  const question = normalizeForComparison(content?.question || "");
+  const options = Array.isArray(content?.options)
+    ? content.options.map((opt: string) => normalizeForComparison(opt)).sort()
+    : [];
+  return `${question}||${options.join("|")}`;
+}
+
 async function fetchTranscript(youtubeUrl: string): Promise<string | null> {
   const videoId = extractVideoId(youtubeUrl);
   if (!videoId) return null;
@@ -101,19 +119,9 @@ async function fetchTranscript(youtubeUrl: string): Promise<string | null> {
     return null;
   }
 }
-function mcqFingerprint(content: any): string {
-  const q = (content.question || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const opts = (content.options || []).map((o: string) => o.toLowerCase().replace(/[^a-z0-9]/g, "")).sort().join("|");
-  return `${q}::${opts}`;
-}
 
-function isDuplicateMCQ(newContent: any, existing: any[]): boolean {
-  const newFp = mcqFingerprint(newContent);
-  return existing.some(e => {
-    const fp = mcqFingerprint(e.content);
-    return fp === newFp;
-  });
-}
+
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -134,7 +142,7 @@ serve(async (req) => {
     );
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { lessonId, exerciseType } = await req.json();
+    const { lessonId, exerciseType, forceRegenerate = false } = await req.json();
     if (!lessonId) throw new Error("lessonId is required");
     if (!exerciseType) throw new Error("exerciseType is required");
 
@@ -176,6 +184,26 @@ serve(async (req) => {
     // Fetch transcript if not already stored
     let transcriptText = lesson.transcript;
     if (!transcriptText && lesson.youtube_url) {
+      const ytId = extractVideoId(lesson.youtube_url);
+      if (ytId) {
+        const { data: sharedVideo } = await supabase
+          .from("youtube_videos")
+          .select("id")
+          .eq("video_id", ytId)
+          .maybeSingle();
+
+        if (sharedVideo?.id) {
+          const { data: sharedTranscript } = await supabase
+            .from("youtube_transcripts")
+            .select("transcript")
+            .eq("video_id", sharedVideo.id)
+            .maybeSingle();
+          transcriptText = sharedTranscript?.transcript || transcriptText;
+        }
+      }
+    }
+
+    if (!transcriptText && lesson.youtube_url) {
       transcriptText = await fetchTranscript(lesson.youtube_url);
       if (transcriptText) {
         await supabase
@@ -183,6 +211,32 @@ serve(async (req) => {
           .update({ transcript: transcriptText })
           .eq("id", lessonId);
       }
+    }
+
+    // Reuse existing exercises for the same lesson/type/context instead of regenerating.
+    // Context is anchored by lesson_id (video/paragraph source on the lesson itself).
+    const { data: existingExercises, error: existingExercisesError } = await supabase
+      .from("lesson_exercises")
+      .select("id, exercise_type, content, order_index, created_at")
+      .eq("lesson_id", lessonId)
+      .eq("exercise_type", exerciseType)
+      .order("order_index", { ascending: true });
+
+    if (existingExercisesError) {
+      throw new Error(`Failed to check existing exercises: ${existingExercisesError.message}`);
+    }
+
+    if (!forceRegenerate && existingExercises && existingExercises.length > 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          count: existingExercises.length,
+          exerciseType,
+          cached: true,
+          exercises: existingExercises,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Check existing exercises count for order_index offset
@@ -197,35 +251,49 @@ serve(async (req) => {
     const language = lesson.language || "italian";
     const translationLanguage = lesson.translation_language || "english";
     const generatedExercises: any[] = [];
+    const seenMultipleChoiceFingerprints = new Set<string>();
 
     for (let q = 0; q < count; q++) {
       const transcriptContext = transcriptText
-        ? `\n\nBase the exercise on this video transcript:\n${transcriptText.slice(0, 3000)}`
+        ? `
+
+Base the exercise on this video transcript:
+${transcriptText.slice(0, 3000)}`
         : "";
 
-      const priorQuestions = exerciseType === "multiple_choice" && generatedExercises.length > 0
-        ? `\n\nDo NOT repeat or rephrase any of these previously generated questions:\n${generatedExercises.map((e, i) => `${i + 1}. "${e.content.question}"`).join("\n")}`
+      const previousQuestionContext = exerciseType === "multiple_choice" && generatedExercises.length > 0
+        ? `
+
+Previously accepted multiple-choice questions (DO NOT repeat or lightly reword these):
+${generatedExercises
+            .map((e, idx) => `${idx + 1}. Q: ${e.content?.question || ""} | Options: ${(e.content?.options || []).join(" | ")}`)
+            .join("\n")}`
         : "";
 
-      const systemPrompt = `You are an expert language teacher creating exercises for a 1-on-1 tutoring session.
+      let accepted = false;
+
+      for (let attempt = 0; attempt < 3 && !accepted; attempt++) {
+        const systemPrompt = `You are an expert language teacher creating exercises for a 1-on-1 tutoring session.
 The exercises MUST be written in ${language}. All sentences, questions, and options should be in ${language}.
 CEFR Level: ${lesson.cefr_level}.
 Topic: ${lesson.topic || "general conversation"}.
 Exercise format: ${exerciseType}.
 The "question_translation" and "answer_translation" fields MUST be in ${translationLanguage}.
 ${q > 0 ? `This is exercise ${q + 1} of ${count}. Make it DIFFERENT from previous exercises — vary the topic, grammar point, or vocabulary tested.` : ""}
-${exerciseType === "role_play" ? "Create a role-play scenario directly inspired by the video content themes, vocabulary, and situations." : ""}${priorQuestions}
+${exerciseType === "multiple_choice" ? "For multiple-choice, each new question must test a different target than prior ones (different intent, vocabulary focus, and distractors)." : ""}
+${exerciseType === "role_play" ? "Create a role-play scenario directly inspired by the video content themes, vocabulary, and situations." : ""}
 Return ONLY valid JSON, no markdown, no explanation.`;
 
-      const userPrompt = `${typePrompt}
+        const userPrompt = `${typePrompt}
 Make it appropriate for a ${lesson.cefr_level} level student. Write the exercise in ${language}. Write translations in ${translationLanguage}.${
-        lesson.paragraph_content ? `\n\nBase the question on this text:\n${lesson.paragraph_content}` : ""
-      }${transcriptContext}`;
+          lesson.paragraph_content ? `
 
-      const maxAttempts = exerciseType === "multiple_choice" ? 3 : 1;
-      let accepted = false;
+Base the question on this text:
+${lesson.paragraph_content}` : ""
+        }${transcriptContext}${previousQuestionContext}${attempt > 0 ? `
 
-      for (let attempt = 0; attempt < maxAttempts && !accepted; attempt++) {
+Attempt ${attempt + 1}/3: previous candidate was too similar. Produce a clearly different question and options.` : ""}`;
+
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -246,8 +314,8 @@ Make it appropriate for a ${lesson.cefr_level} level student. Write the exercise
           const status = response.status;
           if (status === 429) throw new Error("Rate limit exceeded. Please try again later.");
           if (status === 402) throw new Error("AI credits exhausted.");
-          console.error(`AI error for ${exerciseType} q${q}:`, status);
-          break;
+          console.error(`AI error for ${exerciseType} q${q} attempt ${attempt + 1}:`, status);
+          continue;
         }
 
         const aiData = await response.json();
@@ -262,9 +330,13 @@ Make it appropriate for a ${lesson.cefr_level} level student. Write the exercise
           continue;
         }
 
-        if (exerciseType === "multiple_choice" && isDuplicateMCQ(content, generatedExercises)) {
-          console.log(`Duplicate MCQ rejected (q${q}, attempt ${attempt + 1})`);
-          continue;
+        if (exerciseType === "multiple_choice") {
+          const fingerprint = multipleChoiceFingerprint(content);
+          if (!fingerprint || seenMultipleChoiceFingerprints.has(fingerprint)) {
+            console.warn(`Duplicate/near-duplicate multiple_choice detected for q${q} attempt ${attempt + 1}, retrying...`);
+            continue;
+          }
+          seenMultipleChoiceFingerprints.add(fingerprint);
         }
 
         generatedExercises.push({

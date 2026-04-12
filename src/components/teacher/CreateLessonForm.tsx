@@ -40,14 +40,35 @@ interface CreateLessonFormProps {
   onCreated: (lessonId: string) => void;
   onCancel: () => void;
   prefillYoutubeUrl?: string;
-  prefillMeta?: CommunityVideoMeta;
+  prefillYoutubeTitle?: string;
+  prefillYoutubeLanguage?: string;
+  prefillYoutubeDifficulty?: string;
+  prefillYoutubeCategory?: string | null;
   maxVideoMinutes?: number;
 }
 
-export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutubeUrl, prefillMeta, maxVideoMinutes }: CreateLessonFormProps) {
+export function CreateLessonForm({
+  lessonType,
+  onCreated,
+  onCancel,
+  prefillYoutubeUrl,
+  prefillYoutubeTitle,
+  prefillYoutubeLanguage,
+  prefillYoutubeDifficulty,
+  prefillYoutubeCategory,
+  maxVideoMinutes,
+}: CreateLessonFormProps) {
   const navigate = useNavigate();
 
-  const lesson = useCreateLesson({ lessonType, onCreated, prefillYoutubeUrl, prefillMeta });
+  const lesson = useCreateLesson({
+    lessonType,
+    onCreated,
+    prefillYoutubeUrl,
+    prefillYoutubeTitle,
+    prefillYoutubeLanguage,
+    prefillYoutubeDifficulty,
+    prefillYoutubeCategory,
+  });
 
   const {
     form, isParagraph, exerciseTypeOptions, emailVerified, trialExpired,
@@ -56,12 +77,12 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
     generatingType, selectedExerciseTypes, groupStates, activeGroup,
     activeGroupRef, paragraphRef, selection, wordExplorerOpen, wordAnalysis,
     wordLoading, exploredWord, flashcardModalOpen, flashcardText,
-    flashcardSentence, currentLanguage, exerciseGroups, generatedTypes,
+    flashcardSentence, currentLanguage, currentTranslationLanguage, exerciseGroups, generatedTypes,
     user, toast,
     setWordExplorerOpen, setFlashcardModalOpen, setActiveGroup,
     handleGenerateParagraph, handleExploreWord, handleCreateFlashcard,
     handleSaveFlashcardFromExplorer, onSubmit, handleGenerateByType,
-    handleCopyLink, updateGroupState, handleResendVerification, clearSelection,
+    handleCopyLink, updateGroupState, handleResendVerification, clearSelection, clearParagraphDraft,
   } = lesson;
 
   // Email verification gate
@@ -105,6 +126,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
         createdLessonId={createdLessonId}
         form={form}
         currentLanguage={currentLanguage}
+        translationLanguage={currentTranslationLanguage}
         isParagraph={isParagraph}
         paragraphContent={paragraphContent}
         paragraphRef={paragraphRef}
@@ -137,6 +159,11 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
       />
     );
   }
+
+  const handleCancel = () => {
+    if (isParagraph) clearParagraphDraft();
+    onCancel();
+  };
 
   // Creation form
   return (
@@ -297,7 +324,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Lesson
             </Button>
-            <Button type="button" variant="outline" onClick={onCancel} className="flex-1">Cancel</Button>
+            <Button type="button" variant="outline" onClick={handleCancel} className="flex-1">Cancel</Button>
           </div>
         </form>
       </Form>
@@ -331,7 +358,7 @@ export function CreateLessonForm({ lessonType, onCreated, onCancel, prefillYoutu
         videoId=""
         videoTitle=""
         language={currentLanguage}
-        translationLanguage={form.watch("translation_language") || "english"}
+        translationLanguage={currentTranslationLanguage}
         onSuccess={() => toast({ title: "Flashcard saved! ✨" })}
         preloadedAnalysis={
           wordAnalysis

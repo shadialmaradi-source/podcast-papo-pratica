@@ -35,6 +35,8 @@ interface Lesson {
   status: string;
   youtube_url: string | null;
   transcript: string | null;
+  paragraph_content: string | null;
+  paragraph_prompt: string | null;
   exercise_types: string[];
   language: string;
   lesson_type: string;
@@ -138,7 +140,7 @@ export default function TeacherLesson() {
       const [lessonRes, exercisesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, exercise_types, language, lesson_type, paragraph_content, paragraph_prompt")
+          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, paragraph_content, paragraph_prompt, exercise_types, language, lesson_type")
           .eq("id", id)
           .eq("teacher_id", user.id)
           .single(),
@@ -458,7 +460,7 @@ export default function TeacherLesson() {
                 videoTitle={lesson.title}
                 language={lesson.language || "italian"}
                 isPremium={true}
-                onUpgradeClick={() => {}}
+                onUpgradeClick={() => navigate("/teacher/pricing")}
               />
             )}
 

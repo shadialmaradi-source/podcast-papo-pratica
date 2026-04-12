@@ -3,9 +3,12 @@ import LandingFooter from "@/components/LandingFooter";
 import FeedbackSection from "@/components/FeedbackSection";
 import { detectUILanguage } from "@/utils/browserLanguage";
 import { trackPageView } from "@/lib/analytics";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { 
   Select,
   SelectContent,
@@ -14,37 +17,39 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Headphones, MessageSquare, BookOpen, Mic, Brain, ArrowRight, Check, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type LandingLanguage = 'en' | 'es' | 'fr' | 'it' | 'de';
 
 const landingTranslations = {
   en: {
     heroTitle: "Learn Languages from Real Conversations",
-    heroSubtitle: "Watch 60-second clips → Answer smart questions → Speak key phrases → Save forever",
-    tryCTA: "Try your first 60-second lesson",
-    diffTitle: "Not Duolingo. Not Babbel. This is Different.",
+    heroSubtitle: "ListenFlow turns short real-world clips into a simple 3-part system: Understand what you hear → Use it immediately → Remember useful phrases for later.",
+    tryCTA: "Start your first 60-second lesson",
+    diffTitle: "Why ListenFlow feels different",
     otherApps: "OTHER APPS",
     listenFlow: "LISTENFLOW",
-    comp1Other: "Fixed lessons",
-    comp1Flow: "Learn from your favorite videos/podcasts",
-    comp2Other: "Grammar drills",
-    comp2Flow: "Real conversations",
-    comp3Other: "Isolated words",
-    comp3Flow: "Full useful phrases",
-    comp4Other: "Gamified points",
-    comp4Flow: "Research-backed method",
-    comp5Other: "Endless repetition",
-    comp5Flow: "Smart listening + speaking",
-    methodTitle: "3 Steps Backed by Research",
-    step1Title: "WATCH",
-    step1Desc: "a 60-second real-world clip (comprehensible input)",
-    step2Title: "ANSWER",
-    step2Desc: "10 targeted questions (active comprehension)",
-    step3Title: "SPEAK + SAVE",
-    step3Desc: "5 key phrases (output + chunking research)",
-    trustText: "Built on 40+ years of research: Krashen Input Hypothesis + Swain Output Hypothesis",
-    finalCTA: "Ready to understand real conversations?",
-    startLesson: "Start 60-second lesson",
+    comp1Other: "Most apps teach language in isolation",
+    comp1Flow: "ListenFlow starts from real conversations",
+    comp2Other: "Most apps focus on streaks",
+    comp2Flow: "ListenFlow focuses on understanding and speaking",
+    comp3Other: "Most apps teach single words",
+    comp3Flow: "ListenFlow helps you keep useful full phrases",
+    comp4Other: "Most apps repeat content blindly",
+    comp4Flow: "ListenFlow gives targeted practice with purpose",
+    comp5Other: "Language app progress",
+    comp5Flow: "Language for real life",
+    methodTitle: "One lesson. Three outcomes.",
+    step1Title: "UNDERSTAND",
+    step1Desc: "Watch a short real-world clip and train your ear on natural speech.",
+    step2Title: "USE",
+    step2Desc: "Answer focused questions and say key phrases out loud right away.",
+    step3Title: "REMEMBER",
+    step3Desc: "Save practical phrases you actually want to use, and review them over time.",
+    trustText: "Science-backed, designed for everyday learners.",
+    finalCTA: "Ready to understand real conversations—then speak with confidence?",
+    startLesson: "Start your first 60-second lesson",
     selectLanguage: "Select language",
     login: "Log in",
   },
@@ -183,6 +188,13 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [selectedLanguage, setSelectedLanguage] = useState<LandingLanguage>(() => detectLandingLanguage());
   const [showMobileCTA, setShowMobileCTA] = useState(false);
+  const [feedbackName, setFeedbackName] = useState("");
+  const [feedbackEmail, setFeedbackEmail] = useState("");
+  const [feedbackCategory, setFeedbackCategory] = useState<"feedback" | "bug" | "feature_request">("feedback");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackHoneypot, setFeedbackHoneypot] = useState("");
+  const [feedbackCreatedAt] = useState<string>(() => new Date().toISOString());
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   const t = landingTranslations[selectedLanguage];
 
@@ -199,12 +211,65 @@ export default function LandingPage() {
     navigate('/onboarding');
   };
 
+  const handleFeedbackSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmittingFeedback) return;
+
+    const normalizedMessage = feedbackMessage.trim();
+    const normalizedEmail = feedbackEmail.trim();
+    const normalizedName = feedbackName.trim();
+
+    if (!normalizedMessage) {
+      toast.error("Please add your message before submitting.");
+      return;
+    }
+
+    if (!feedbackCategory) {
+      toast.error("Please select a feedback type.");
+      return;
+    }
+
+    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    if (feedbackHoneypot.trim().length > 0) {
+      toast.success("Thanks! Your feedback was submitted.");
+      setFeedbackMessage("");
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    const { error } = await supabase.from("landing_feedback_submissions").insert({
+      name: normalizedName || null,
+      email: normalizedEmail || null,
+      category: feedbackCategory,
+      message: normalizedMessage,
+      source_page: window.location.pathname,
+      user_agent: navigator.userAgent || null,
+      submitted_at_client: feedbackCreatedAt,
+    });
+    setIsSubmittingFeedback(false);
+
+    if (error) {
+      toast.error("We couldn't submit your feedback right now. Please try again.");
+      return;
+    }
+
+    setFeedbackName("");
+    setFeedbackEmail("");
+    setFeedbackCategory("feedback");
+    setFeedbackMessage("");
+    setFeedbackHoneypot("");
+    toast.success("Thanks! Your feedback was submitted.");
+  };
+
   const comparisonData = [
     { other: t.comp1Other, flow: t.comp1Flow },
     { other: t.comp2Other, flow: t.comp2Flow },
     { other: t.comp3Other, flow: t.comp3Flow },
     { other: t.comp4Other, flow: t.comp4Flow },
-    { other: t.comp5Other, flow: t.comp5Flow },
   ];
 
   return (
@@ -271,8 +336,13 @@ export default function LandingPage() {
             </h2>
 
             {/* Subheadline */}
-            <p className="text-base md:text-xl text-muted-foreground mb-6 md:mb-8 max-w-2xl mx-auto">
+            <p className="text-base md:text-xl text-muted-foreground mb-4 max-w-3xl mx-auto">
               {t.heroSubtitle}
+            </p>
+            <p className="text-sm md:text-base text-muted-foreground/90 mb-6 md:mb-8 max-w-2xl mx-auto">
+              No grammar drills. No random word lists.
+              <br className="hidden md:block" />
+              Built for real listening and real speaking.
             </p>
 
             {/* Language Picker */}
@@ -332,7 +402,7 @@ export default function LandingPage() {
             transition={{ delay: 0.2 }}
             className="max-w-3xl mx-auto"
           >
-            {/* Desktop Table */}
+            {/* Desktop Comparison */}
             <div className="hidden md:block bg-background rounded-2xl shadow-xl overflow-hidden border">
               <div className="grid grid-cols-2">
                 <div className="p-4 bg-muted/50 font-bold text-center text-muted-foreground border-b border-r">
@@ -356,7 +426,7 @@ export default function LandingPage() {
               ))}
             </div>
 
-            {/* Mobile Cards */}
+            {/* Mobile Comparison */}
             <div className="md:hidden space-y-4">
               {comparisonData.map((row, idx) => (
                 <div key={idx} className="bg-background rounded-xl shadow-md border overflow-hidden">
@@ -371,6 +441,9 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
+            <p className="text-center text-sm md:text-base text-muted-foreground mt-6">
+              Language for real life, not just app progress.
+            </p>
           </motion.div>
         </div>
       </section>
@@ -415,6 +488,9 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </div>
+          <p className="text-center text-muted-foreground mt-8 max-w-3xl mx-auto">
+            You don’t just study. You learn to understand, use, and keep the language.
+          </p>
         </div>
       </section>
 
@@ -428,8 +504,19 @@ export default function LandingPage() {
             className="text-center max-w-3xl mx-auto"
           >
             <BookOpen className="h-10 w-10 text-primary mx-auto mb-4" />
-            <p className="text-lg md:text-xl text-muted-foreground italic">
-              "{t.trustText}"
+            <h3 className="text-xl md:text-2xl font-semibold text-foreground mb-4">
+              Built on proven language-learning principles
+            </h3>
+            <p className="text-base md:text-lg text-muted-foreground mb-4">
+              ListenFlow is grounded in decades of language-learning research:
+            </p>
+            <ul className="text-left text-sm md:text-base text-muted-foreground space-y-2 max-w-2xl mx-auto">
+              <li>• strong input helps comprehension</li>
+              <li>• active output builds fluency</li>
+              <li>• phrase-level practice improves recall and real-world use</li>
+            </ul>
+            <p className="text-sm md:text-base text-muted-foreground mt-5 font-medium">
+              {t.trustText}
             </p>
           </motion.div>
         </div>
@@ -455,6 +542,9 @@ export default function LandingPage() {
               {t.startLesson}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
+            <p className="text-sm md:text-base text-muted-foreground mt-4">
+              Learn from real content. Use it today. Remember it tomorrow.
+            </p>
           </motion.div>
         </div>
       </section>

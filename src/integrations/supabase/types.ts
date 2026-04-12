@@ -226,6 +226,45 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_feedback_submissions: {
+        Row: {
+          category: string
+          created_at: string
+          email: string | null
+          honeypot: string | null
+          id: string
+          message: string
+          name: string | null
+          source_page: string | null
+          submitted_at_client: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          email?: string | null
+          honeypot?: string | null
+          id?: string
+          message: string
+          name?: string | null
+          source_page?: string | null
+          submitted_at_client?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          email?: string | null
+          honeypot?: string | null
+          id?: string
+          message?: string
+          name?: string | null
+          source_page?: string | null
+          submitted_at_client?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       learning_weeks: {
         Row: {
           cefr_level: string

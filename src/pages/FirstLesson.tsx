@@ -58,7 +58,7 @@ const FirstLesson = () => {
   }, [navigate, isTeacherPreview]);
 
   // Get fallback content for the selected language and level
-  const languageContent = allLessonContent[targetLanguage] || allLessonContent.spanish;
+  const languageContent = allLessonContent[targetLanguage] || allLessonContent.english;
   const rawContent = languageContent[userLevel] || languageContent.absolute_beginner;
   const content = getLocalizedContent(rawContent, nativeLanguage);
 

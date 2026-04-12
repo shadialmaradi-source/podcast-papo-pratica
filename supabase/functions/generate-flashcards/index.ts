@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface FlashcardInput {
   videoId: string;
+  sceneId?: string | null;
   transcript: string;
   language: string;
   level: string;
@@ -71,7 +72,7 @@ serve(async (req) => {
       );
     }
 
-    const { videoId, transcript, language, level, nativeLanguage } = await req.json() as FlashcardInput;
+    const { videoId, sceneId, transcript, language, level, nativeLanguage } = await req.json() as FlashcardInput;
 
     if (!videoId || !transcript) {
       return new Response(
@@ -83,13 +84,20 @@ serve(async (req) => {
     const effectiveNativeLang = normalizeLanguage(nativeLanguage || 'en');
 
     // Check if flashcards already exist for this video, level, and native language
-    const { data: existingFlashcards, error: fetchError } = await supabaseClient
+    let existingQuery = supabaseClient
       .from('youtube_flashcards')
-      .select('*')
+      .select('phrase, translation, why, order_index')
       .eq('video_id', videoId)
       .eq('difficulty', level || 'beginner')
-      .eq('native_language', effectiveNativeLang)
-      .order('order_index');
+      .eq('native_language', effectiveNativeLang);
+
+    if (sceneId) {
+      existingQuery = existingQuery.eq('scene_id', sceneId);
+    } else {
+      existingQuery = existingQuery.is('scene_id', null);
+    }
+
+    const { data: existingFlashcards, error: fetchError } = await existingQuery.order('order_index');
 
     if (fetchError) {
       console.error('Error fetching existing flashcards:', fetchError);
@@ -210,6 +218,7 @@ ${transcript.slice(0, 4000)}`;
     // Store flashcards in database
     const flashcardsToInsert = flashcards.map((f, index) => ({
       video_id: videoId,
+      scene_id: sceneId || null,
       phrase: f.phrase,
       translation: f.translation,
       why: f.why,

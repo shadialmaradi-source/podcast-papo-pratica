@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { resolveTeacherNotificationRoute } from "@/utils/teacherNotificationRouting";
 
 interface Notification {
   id: string;
@@ -87,7 +88,15 @@ export function TeacherNotificationBell() {
           toast.success(n.message, {
             action: {
               label: "View",
-              onClick: () => navigate("/teacher/notifications"),
+              onClick: () => {
+                void (async () => {
+                  const route = await resolveTeacherNotificationRoute({
+                    teacherId: user?.id,
+                    studentEmail: n.student_email ?? null,
+                  });
+                  navigate(route);
+                })();
+              },
             },
           });
         }
@@ -105,6 +114,17 @@ export function TeacherNotificationBell() {
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
     setUnreadCount((c) => Math.max(0, c - 1));
+  };
+
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read) await markAsRead(notification.id);
+    setOpen(false);
+    const route = await resolveTeacherNotificationRoute({
+      teacherId: user?.id,
+      studentEmail: notification.student_email,
+    });
+    navigate(route);
   };
 
   const markAllRead = async () => {
@@ -155,9 +175,7 @@ export function TeacherNotificationBell() {
                   !n.read && "bg-primary/5"
                 )}
                 onClick={() => {
-                  if (!n.read) markAsRead(n.id);
-                  setOpen(false);
-                  navigate("/teacher/notifications");
+                  void handleNotificationClick(n);
                 }}
               >
                 <div className={cn(

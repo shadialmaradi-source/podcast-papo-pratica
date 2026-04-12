@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { initAnalytics, trackSessionStart, trackSessionEnd } from "@/lib/analytics";
 import { StudentTourProvider } from "@/hooks/useStudentTour";
+import { AnalyticsConsentBanner } from "@/components/AnalyticsConsentBanner";
 
 // Eager imports — critical entry paths
 import LandingPage from "./pages/LandingPage";
@@ -120,13 +121,15 @@ function AuthRedirector() {
 }
 
 const App = () => {
+  const [consentVersion, setConsentVersion] = useState(0);
+
   useEffect(() => {
     initAnalytics();
     trackSessionStart();
     const handleBeforeUnload = () => trackSessionEnd();
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, []);
+  }, [consentVersion]);
 
   return (
   <QueryClientProvider client={queryClient}>
@@ -153,7 +156,12 @@ const App = () => {
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/blog" element={<Blog />} />
-              <Route path="/blog/:slug" element={<BlogArticle />} />
+<Route path="/blog/:lang/:slug" element={<BlogArticle />} />
+<Route path="/blog/:slug" element={<BlogArticle />} />
+
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/cookie-policy" element={<CookiePolicy />} />
 
               {/* Teacher routes */}
               <Route path="/teacher/onboarding" element={<ProtectedRoute><TeacherOnboarding /></ProtectedRoute>} />
@@ -182,6 +190,7 @@ const App = () => {
             </Routes>
           </Suspense>
         </BrowserRouter>
+        <AnalyticsConsentBanner onConsentUpdated={() => setConsentVersion((v) => v + 1)} />
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>

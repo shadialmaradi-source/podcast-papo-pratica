@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { trackEvent } from "@/lib/analytics";
+import { useNavigate } from "react-router-dom";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const LANGUAGES = ["English", "Spanish", "Portuguese", "French", "Italian", "German", "Chinese", "Japanese", "Korean", "Arabic"];
@@ -21,6 +22,7 @@ interface AddStudentModalProps {
 
 export function AddStudentModal({ open, onOpenChange, onAdded }: AddStudentModalProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -57,6 +59,13 @@ export function AddStudentModal({ open, onOpenChange, onAdded }: AddStudentModal
     if (error) {
       if (error.code === "23505") {
         toast({ title: "Student already exists", description: "This email is already in your student list.", variant: "destructive" });
+      } else if ((error.message || "").includes("STUDENT_LIMIT_REACHED")) {
+        toast({
+          title: "Student limit reached",
+          description: "Upgrade your plan to add more students.",
+          variant: "destructive",
+        });
+        navigate("/teacher/pricing");
       } else {
         toast({ title: "Error adding student", description: error.message, variant: "destructive" });
       }

@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Bell, CheckCheck, CheckCircle2 } from "lucide-react";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { cn } from "@/lib/utils";
+import { resolveTeacherNotificationRoute } from "@/utils/teacherNotificationRouting";
 
 interface Notification {
   id: string;
@@ -89,8 +90,11 @@ export default function TeacherNotifications() {
 
   const handleClick = async (n: Notification) => {
     if (!n.read) await markAsRead(n.id);
-    // Navigate to students page (could go to student detail if we resolve student_email to ID)
-    navigate("/teacher/students");
+    const route = await resolveTeacherNotificationRoute({
+      teacherId: user?.id,
+      studentEmail: n.student_email,
+    });
+    navigate(route);
   };
 
   const typeIcon = (type: string) => {

@@ -5,12 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, BarChart3, CreditCard, LogOut, Save } from "lucide-react";
+import { ArrowLeft, BarChart3, CreditCard, LogOut, Save, AlertTriangle } from "lucide-react";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { trackPageView, trackEvent } from "@/lib/analytics";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const settingsItems = [
   { icon: BarChart3, label: "Analytics", description: "Track student progress", path: "/teacher/analytics" },
@@ -23,6 +23,7 @@ export default function TeacherSettings() {
   const [resolvedName, setResolvedName] = useState("");
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     trackPageView("teacher_settings", "teacher");
@@ -65,9 +66,9 @@ export default function TeacherSettings() {
         .eq("teacher_id", user.id);
       if (error) throw error;
       setResolvedName(editName.trim());
-      toast({ title: "Display name updated" });
+      toast.success("Display name updated");
     } catch {
-      toast({ title: "Failed to update name", variant: "destructive" });
+      toast.error("Failed to update name");
     }
     setSaving(false);
   };
@@ -78,6 +79,41 @@ export default function TeacherSettings() {
   };
 
   const displayLabel = resolvedName || user?.email?.split("@")[0] || "Teacher";
+
+  const handleDeleteAccount = async () => {
+    if (deletingAccount) return;
+    const confirmed = window.confirm(
+      "Delete teacher account? Existing student lesson access will be preserved, and your account will be deactivated."
+    );
+    if (!confirmed) return;
+
+    const typed = window.prompt("Type DELETE to confirm account deletion.");
+    if (typed !== "DELETE") {
+      toast.error("Account deletion cancelled.");
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account", {
+        body: { confirmation: "DELETE" },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Unable to delete account");
+      toast.success("Account deactivated. You have been signed out.");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete account");
+      setDeletingAccount(false);
+      return;
+    }
+
+    try {
+      await signOut();
+    } catch {
+      // no-op
+    }
+    navigate("/auth");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -148,6 +184,15 @@ export default function TeacherSettings() {
         <Button variant="outline" className="w-full text-destructive hover:text-destructive" onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />
           Sign Out
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full mt-3 text-destructive hover:text-destructive"
+          onClick={handleDeleteAccount}
+          disabled={deletingAccount}
+        >
+          <AlertTriangle className="mr-2 h-4 w-4" />
+          {deletingAccount ? "Deleting account..." : "Delete Account"}
         </Button>
       </main>
       <TeacherNav />

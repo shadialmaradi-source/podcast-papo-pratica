@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
+import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff, GraduationCap, Headphones, Check } from "lucide-react";
 
 type AuthRole = "teacher" | "student";
@@ -23,7 +24,7 @@ const roleConfig = {
     signUpSubtitle: "14 days free · No credit card required",
     signInSubtitle: "Sign in to your teacher account",
     benefits: [
-      "Create unlimited lessons during trial",
+      "Create up to 30 lessons during trial",
       "All lesson types (YouTube, Paragraph, Speaking)",
       "Track student progress",
       "Full access to analytics",
@@ -207,19 +208,7 @@ export default function Auth() {
               .update({ role: "teacher" } as any)
               .eq("user_id", signUpData.user.id);
 
-            const trialEndsAt = new Date();
-            trialEndsAt.setDate(trialEndsAt.getDate() + 14);
-
-            await supabase
-              .from("teacher_subscriptions" as any)
-              .insert({
-                teacher_id: signUpData.user.id,
-                plan: "trial",
-                status: "trialing",
-                trial_started_at: new Date().toISOString(),
-                trial_ends_at: trialEndsAt.toISOString(),
-                trial_used: true,
-              } as any);
+            await ensureTeacherTrialSubscription(signUpData.user.id);
 
             trackEvent("trial_started", {
               teacher_id: signUpData.user.id,
@@ -233,22 +222,29 @@ export default function Auth() {
             timestamp: new Date().toISOString(),
           });
 
-          if (signUpData.session) {
-            toast({
-              title: "Account Created",
-              description: role === "teacher"
-                ? "Your 14-day free trial has started! Redirecting..."
-                : "Welcome! Redirecting...",
-            });
-          } else {
-            setPendingVerificationEmail(email);
-            toast({
-              title: "Registration Complete",
-              description: role === "teacher"
-                ? "Your 14-day free trial has started! Check your email to verify your account."
-                : "Check your email to confirm your account and start learning.",
+          if (role === "teacher") {
+            trackTeacherFunnelStep("signup_completed", {
+              method: "email",
+              source: "auth_page",
             });
           }
+
+          const emailConfirmationRequired = !signUpData.session;
+
+          if (emailConfirmationRequired) {
+            setPendingVerificationEmail(email);
+          }
+
+          toast({
+            title: "Registration Complete",
+            description: emailConfirmationRequired
+              ? (role === "teacher"
+                ? "Your 14-day free trial has started! Check your email to verify your account."
+                : "Check your email to confirm your account and start learning.")
+              : (role === "teacher"
+                ? "Your 14-day free trial has started! Redirecting you now..."
+                : "Your account is ready. Redirecting you now..."),
+          });
         }
       } else {
         const { data: authData, error } = await supabase.auth.signInWithPassword({
@@ -522,12 +518,22 @@ export default function Auth() {
                 )}
               </div>
 
-              <div className="text-center text-xs text-muted-foreground pt-2 space-x-3">
-                <a href="/privacy" className="hover:underline">Privacy Policy</a>
-                <span>·</span>
-                <a href="/terms" className="hover:underline">Terms of Service</a>
-                <span>·</span>
-                <a href="/cookies" className="hover:underline">Cookie Policy</a>
+              <div className="text-center text-xs text-muted-foreground">
+                <Link to="/privacy-policy" className="hover:text-foreground underline underline-offset-4">
+                  Privacy Policy
+                </Link>
+                <span className="mx-2">·</span>
+                <Link to="/blog" className="hover:text-foreground underline underline-offset-4">
+                  Blog
+                </Link>
+                <span className="mx-2">·</span>
+                <Link to="/terms-of-service" className="hover:text-foreground underline underline-offset-4">
+                  Terms of Service
+                </Link>
+                <span className="mx-2">·</span>
+                <Link to="/cookie-policy" className="hover:text-foreground underline underline-offset-4">
+                  Cookie Policy
+                </Link>
               </div>
             </CardContent>
           </Card>

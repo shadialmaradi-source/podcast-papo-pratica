@@ -60,8 +60,14 @@ export function useLessonFlow(videoId: string | undefined) {
   const [dbVideoId, setDbVideoId] = useState<string | null>(null);
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
-  const [videoLanguage, setVideoLanguage] = useState("italian");
+  const [videoLanguage, setVideoLanguage] = useState("english");
   const [videoDuration, setVideoDuration] = useState<number>(120);
+
+  const getCurrentUser = useCallback(async () => {
+    if (user) return user;
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    return authUser;
+  }, [user]);
 
   useEffect(() => {
     trackPageView("lesson", "student");
@@ -106,50 +112,58 @@ export function useLessonFlow(videoId: string | undefined) {
 
   const [nativeLanguage, setNativeLanguage] = useState<string>("");
 
-  const resolveLevel = async (): Promise<string | null> => {
-    const localLevel = mapLevel(localStorage.getItem("onboarding_level"));
-    if (localLevel) return localLevel;
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("current_level, native_language")
-        .eq("user_id", user.id)
-        .single();
-      // Capture native_language while we're here to share with children
-      if (profile?.native_language) setNativeLanguage(profile.native_language);
-      const profileLevel = mapLevel(profile?.current_level);
-      if (profileLevel) return profileLevel;
-    }
-    return null;
-  };
+ const resolveLevel = async (): Promise<string | null> => {
+  const localLevel = mapLevel(localStorage.getItem("onboarding_level"));
+  if (localLevel) return localLevel;
+
+  const authUser = await getCurrentUser();
+  if (!authUser) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("current_level, native_language")
+    .eq("user_id", authUser.id)
+    .single();
+
+  if (profile?.native_language) setNativeLanguage(profile.native_language);
+
+  const profileLevel = mapLevel(profile?.current_level);
+  if (profileLevel) return profileLevel;
+
+  return null;
+};
 
   const loadSceneProgress = async (videoDbId: string): Promise<{ currentScene: number; completed: number[] }> => {
     try {
-      if (!user) return { currentScene: 0, completed: [] };
+      const authUser = await getCurrentUser();
+      if (!authUser) return { currentScene: 0, completed: [] as number[] };
       const { data: progress } = await supabase
         .from("user_scene_progress")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", authUser.id)
         .eq("video_id", videoDbId)
         .single();
       if (progress) {
+        const completed = progress.completed_scenes || [];
         setCurrentSceneIndex(progress.current_scene);
-        setCompletedScenes(progress.completed_scenes || []);
-        return { currentScene: progress.current_scene, completed: progress.completed_scenes || [] };
+        setCompletedScenes(completed);
+        return { currentScene: progress.current_scene, completed };
       }
     } catch (err) {
       console.error("Error loading scene progress:", err);
     }
-    return { currentScene: 0, completed: [] };
+
+    return { currentScene: 0, completed: [] as number[] };
   };
 
   const saveSceneProgress = useCallback(async (sceneIdx: number, completed: number[]) => {
     try {
-      if (!user || !dbVideoId) return;
+      const authUser = await getCurrentUser();
+      if (!authUser || !dbVideoId) return;
       await supabase
         .from("user_scene_progress")
         .upsert({
-          user_id: user.id,
+          user_id: authUser.id,
           video_id: dbVideoId,
           current_scene: sceneIdx,
           completed_scenes: completed,
@@ -159,17 +173,36 @@ export function useLessonFlow(videoId: string | undefined) {
     } catch (err) {
       console.error("Error saving scene progress:", err);
     }
-  }, [dbVideoId, scenes, user]);
+  }, [dbVideoId, scenes, getCurrentUser]);
 
-  const trySegmentVideo = async (videoDbId: string, _level: string, persistedCompleted?: number[]) => {
+  const trySegmentVideo = async (
+    videoDbId: string,
+    _level: string,
+    persistedCompleted: number[] = [],
+    knownDuration?: number | null
+  ) => {
     setLessonState("loading");
-    const completedToUse = persistedCompleted || completedScenes;
     try {
-      // Use cached duration from resolvedVideoRef instead of re-fetching
-      const cached = resolvedVideoRef.current;
-      const duration = (cached && cached.id === videoDbId ? cached.duration : null) || 120;
-      setVideoDuration(duration);
-      if (duration <= 120) {
+      let duration = knownDuration ?? null;
+
+      // Fallback lookup when duration is not already available in state/caller.
+      if (duration === null || duration === undefined) {
+        const { data: videoData } = await supabase
+          .from("youtube_videos")
+          .select("duration")
+          .eq("id", videoDbId)
+          .single();
+        if (!videoData) {
+          setIsSegmented(false);
+          setLessonState("scene-video");
+          return;
+        }
+        duration = videoData.duration;
+      }
+
+      const resolvedDuration = duration || 120;
+      setVideoDuration(resolvedDuration);
+      if (duration !== null && duration <= 120) {
         setIsSegmented(false);
         setLessonState("scene-video");
         return;
@@ -185,7 +218,7 @@ export function useLessonFlow(videoId: string | undefined) {
       setScenes(data.scenes);
       setIsSegmented(true);
       const firstIncomplete = data.scenes.findIndex(
-        (s: VideoScene) => !completedToUse.includes(s.scene_index)
+        (s: VideoScene) => !persistedCompleted.includes(s.scene_index)
       );
       setCurrentSceneIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
       toast({
@@ -207,13 +240,14 @@ export function useLessonFlow(videoId: string | undefined) {
     setDbVideoId(videoData.id);
     setYoutubeVideoId(videoData.video_id);
     setVideoTitle(videoData.title || "");
-    setVideoLanguage(videoData.language || "italian");
+    setVideoLanguage(videoData.language || "english");
+    setVideoDuration(videoData.duration || 120);
     const sceneProgress = await loadSceneProgress(videoData.id);
     const level = await resolveLevel();
     if (!level) { setShowLevelPopup(true); return; }
     setSelectedLevel(level);
     trackEvent("video_started", { video_id: videoId, difficulty_level: level });
-    await trySegmentVideo(videoData.id, level, sceneProgress.completed);
+    await trySegmentVideo(videoData.id, level, sceneProgress.completed, videoData.duration);
   };
 
   const handleLevelSelect = async (level: string) => {
@@ -225,44 +259,59 @@ export function useLessonFlow(videoId: string | undefined) {
     }
     if (dbVideoId) {
       trackEvent("video_started", { video_id: videoId, difficulty_level: level });
-      await trySegmentVideo(dbVideoId, level, []);
+      await trySegmentVideo(dbVideoId, level, completedScenes, videoDuration);
     }
   };
 
   // Assignment helpers — use cached video_id and user from context
   const markAssignmentInProgress = async (vid: string) => {
-    try {
-      if (!user?.email) return;
-      // Use cached video_id if available, otherwise use the input
-      const cached = resolvedVideoRef.current;
-      const ytId = (cached && cached.id === vid) ? cached.video_id : vid;
-      await supabase
-        .from("video_assignments" as any)
-        .update({ status: "in_progress" } as any)
-        .eq("student_email", user.email)
-        .eq("video_id", ytId)
-        .eq("status", "assigned");
-    } catch (err) {
-      console.error("Error updating assignment status:", err);
-    }
-  };
+  try {
+    const authUser = await getCurrentUser();
+    if (!authUser?.email) return;
+
+    const cached = resolvedVideoRef.current;
+    const ytId =
+      cached?.id === vid || cached?.video_id === vid
+        ? cached.video_id
+        : vid;
+
+    await supabase
+      .from("video_assignments" as any)
+      .update({ status: "in_progress" } as any)
+      .eq("student_email", authUser.email)
+      .eq("video_id", ytId)
+      .eq("status", "assigned");
+  } catch (err) {
+    console.error("Error updating assignment status:", err);
+  }
+};
 
   const markAssignmentCompleted = async (vid: string) => {
-    try {
-      if (!user?.email) return;
-      const cached = resolvedVideoRef.current;
-      const ytId = (cached && cached.id === vid) ? cached.video_id : vid;
-      await supabase
-        .from("video_assignments" as any)
-        .update({ status: "completed", completed_at: new Date().toISOString() } as any)
-        .eq("student_email", user.email)
-        .eq("video_id", ytId)
-        .neq("status", "completed");
-      trackEvent("assignment_completed", { video_id: vid });
-    } catch (err) {
-      console.error("Error completing assignment:", err);
-    }
-  };
+  try {
+    const authUser = await getCurrentUser();
+    if (!authUser?.email) return;
+
+    const cached = resolvedVideoRef.current;
+    const ytId =
+      cached?.id === vid || cached?.video_id === vid
+        ? cached.video_id
+        : vid;
+
+    await supabase
+      .from("video_assignments" as any)
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      } as any)
+      .eq("student_email", authUser.email)
+      .eq("video_id", ytId)
+      .neq("status", "completed");
+
+    trackEvent("assignment_completed", { video_id: vid });
+  } catch (err) {
+    console.error("Error completing assignment:", err);
+  }
+};
 
   // Step handlers
   const handleSceneVideoComplete = () => {
