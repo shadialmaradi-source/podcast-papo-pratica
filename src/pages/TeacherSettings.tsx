@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, BarChart3, CreditCard, LogOut, Save, AlertTriangle } from "lucide-react";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { trackPageView, trackEvent } from "@/lib/analytics";
@@ -64,9 +66,9 @@ export default function TeacherSettings() {
         .eq("teacher_id", user.id);
       if (error) throw error;
       setResolvedName(editName.trim());
-      toast({ title: "Display name updated" });
+      toast.success("Display name updated");
     } catch {
-      toast({ title: "Failed to update name", variant: "destructive" });
+      toast.error("Failed to update name");
     }
     setSaving(false);
   };
@@ -77,42 +79,34 @@ export default function TeacherSettings() {
   };
 
   const displayLabel = resolvedName || user?.email?.split("@")[0] || "Teacher";
+
   const handleDeleteAccount = async () => {
-  if (deletingAccount) return;
-  const confirmed = window.confirm(
-    "Delete teacher account? Existing student lesson access will be preserved, and your account will be deactivated."
-  );
-  if (!confirmed) return;
+    if (deletingAccount) return;
+    const confirmed = window.confirm(
+      "Delete teacher account? Existing student lesson access will be preserved, and your account will be deactivated."
+    );
+    if (!confirmed) return;
 
-  const typed = window.prompt('Type DELETE to confirm account deletion.');
-  if (typed !== "DELETE") {
-    toast.error("Account deletion cancelled.");
-    return;
-  }
+    const typed = window.prompt("Type DELETE to confirm account deletion.");
+    if (typed !== "DELETE") {
+      toast.error("Account deletion cancelled.");
+      return;
+    }
 
-  setDeletingAccount(true);
-  try {
-    const { data, error } = await supabase.functions.invoke("delete-account", {
-      body: { confirmation: "DELETE" },
-    });
-    if (error) throw error;
-    if (!data?.success) throw new Error(data?.error || "Unable to delete account");
-    toast.success("Account deactivated. You have been signed out.");
-  } catch (error: any) {
-    toast.error(error?.message || "Failed to delete account");
-    setDeletingAccount(false);
-    return;
-  }
+    setDeletingAccount(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account", {
+        body: { confirmation: "DELETE" },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Unable to delete account");
+      toast.success("Account deactivated. You have been signed out.");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete account");
+      setDeletingAccount(false);
+      return;
+    }
 
-  try {
-    await signOut();
-  } catch {
-    // no-op
-  }
-  navigate("/auth");
-};
-
-const displayLabel = resolvedName || user?.email?.split("@")[0] || "Teacher";
     try {
       await signOut();
     } catch {
