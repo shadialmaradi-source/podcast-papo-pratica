@@ -202,11 +202,6 @@ export function useLessonFlow(videoId: string | undefined) {
 
       const resolvedDuration = duration || 120;
       setVideoDuration(resolvedDuration);
-      if (duration !== null && duration <= 120) {
-        setIsSegmented(false);
-        setLessonState("scene-video");
-        return;
-      }
       const { data, error } = await supabase.functions.invoke("segment-video-scenes", {
         body: { videoId: videoDbId },
       });
@@ -215,14 +210,28 @@ export function useLessonFlow(videoId: string | undefined) {
         setLessonState("scene-video");
         return;
       }
-      setScenes(data.scenes);
+      const sortedScenes = [...data.scenes].sort(
+        (a: VideoScene, b: VideoScene) => (a.start_time - b.start_time) || (a.scene_index - b.scene_index)
+      );
+      const normalizedScenes = sortedScenes.map((scene: VideoScene, index: number) => ({
+        ...scene,
+        scene_index: index,
+      }));
+      const normalizedCompleted = normalizedScenes
+        .filter((scene, index) => persistedCompleted.includes(scene.scene_index) || persistedCompleted.includes(sortedScenes[index].scene_index))
+        .map((scene) => scene.scene_index);
+
+      setScenes(normalizedScenes);
+      setCompletedScenes(normalizedCompleted);
       setIsSegmented(true);
-      const firstIncomplete = data.scenes.findIndex(
-        (s: VideoScene) => !persistedCompleted.includes(s.scene_index)
+      const firstIncomplete = normalizedScenes.findIndex(
+        (s: VideoScene) => !normalizedCompleted.includes(s.scene_index)
       );
       setCurrentSceneIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
+      const derivedDuration = normalizedScenes[normalizedScenes.length - 1]?.end_time || resolvedDuration;
+      setVideoDuration(Math.max(derivedDuration, resolvedDuration));
       toast({
-        title: `${data.scenes.length} scenes detected 🎬`,
+        title: `${normalizedScenes.length} scenes detected 🎬`,
         description: "This video has been split into micro-lessons",
       });
       setLessonState("scene-video");
