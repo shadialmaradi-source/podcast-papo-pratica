@@ -164,10 +164,13 @@ const FirstLesson = () => {
         <div className="relative">
           <LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />
           {!isTeacherPreview && (
-            <div className="fixed bottom-4 left-0 right-0 flex justify-center z-40">
+            <div className="absolute top-4 right-4 z-50">
               <button
-                onClick={() => navigate('/onboarding?step=level&return=first-lesson')}
-                className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
+                onClick={() => {
+                  localStorage.setItem('lesson_step', 'intro');
+                  navigate('/onboarding?step=level&return=first-lesson');
+                }}
+                className="text-sm text-muted-foreground underline hover:text-foreground transition-colors bg-background/80 backdrop-blur px-2 py-1 rounded-md"
               >
                 Change level
               </button>

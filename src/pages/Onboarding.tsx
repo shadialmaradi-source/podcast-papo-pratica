@@ -137,6 +137,7 @@ export default function Onboarding() {
     if (!selectedLanguage || !selectedNativeLanguage) return;
     localStorage.setItem('onboarding_language', selectedLanguage);
     localStorage.setItem('onboarding_native_language', selectedNativeLanguage);
+    localStorage.setItem('lesson_step', 'intro');
 
     trackEvent('onboarding_completed', {
       selected_language: selectedLanguage,
@@ -164,6 +165,7 @@ export default function Onboarding() {
     localStorage.setItem('onboarding_language', selectedLanguage);
     localStorage.setItem('onboarding_level', selectedLevel);
     localStorage.setItem('onboarding_native_language', selectedNativeLanguage);
+    localStorage.setItem('lesson_step', 'intro');
 
     trackEvent('onboarding_completed', {
       selected_language: selectedLanguage,

@@ -10,11 +10,16 @@ interface LessonIntroProps {
 }
 
 const languageNames: Record<string, string> = {
-  spanish: 'Spanish',
   english: 'English',
+  spanish: 'Spanish',
+  italian: 'Italian',
+  portuguese: 'Portuguese',
+  french: 'French',
+  german: 'German',
 };
 
-const LessonIntro = ({ onStart, level, language = 'spanish' }: LessonIntroProps) => {
+const LessonIntro = ({ onStart, level, language = 'english' }: LessonIntroProps) => {
+  const lessonLanguage = languageNames[language?.toLowerCase()] || language;
   const getDuration = () => {
     switch (level) {
       case 'absolute_beginner': return '60';
@@ -43,10 +48,10 @@ const LessonIntro = ({ onStart, level, language = 'spanish' }: LessonIntroProps)
               <Play className="w-7 h-7 md:w-10 md:h-10 text-primary" />
             </motion.div>
             <h1 className="text-2xl md:text-4xl font-bold text-foreground">
-              Your First {languageNames[language] || 'Language'} Lesson
+              {lessonLanguage ? `Your First ${lessonLanguage} Lesson` : "Your First Lesson"}
             </h1>
             <p className="text-muted-foreground text-base md:text-lg">
-              Learn {languageNames[language] || 'a language'} through real conversations
+              Learn {lessonLanguage || 'a language'} through real conversations
             </p>
           </div>
 

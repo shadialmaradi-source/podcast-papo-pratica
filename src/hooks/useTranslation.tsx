@@ -7,13 +7,17 @@ import { detectUILanguage } from "@/utils/browserLanguage";
 
 export function useTranslation() {
   const { user } = useAuth();
-  const [languageCode, setLanguageCode] = useState<LanguageCode>(() => detectUILanguage());
+  const [languageCode, setLanguageCode] = useState<LanguageCode>(() => {
+    const onboardingNative = localStorage.getItem("onboarding_native_language");
+    return onboardingNative ? mapLanguageToCode(onboardingNative) : detectUILanguage();
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserLanguage = async () => {
       if (!user) {
-        setLanguageCode(detectUILanguage());
+        const onboardingNative = localStorage.getItem("onboarding_native_language");
+        setLanguageCode(onboardingNative ? mapLanguageToCode(onboardingNative) : detectUILanguage());
         setLoading(false);
         return;
       }
@@ -21,12 +25,13 @@ export function useTranslation() {
       try {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('selected_language')
+          .select('selected_language, native_language')
           .eq('user_id', user.id)
           .single();
 
-        if (profile?.selected_language) {
-          setLanguageCode(mapLanguageToCode(profile.selected_language));
+        const uiLanguage = profile?.native_language || profile?.selected_language;
+        if (uiLanguage) {
+          setLanguageCode(mapLanguageToCode(uiLanguage));
         }
       } catch (error) {
         console.error('Error fetching user language:', error);
