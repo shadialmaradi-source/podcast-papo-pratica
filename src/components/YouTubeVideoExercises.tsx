@@ -308,6 +308,10 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
   const handleStartExercises = async (level: string) => {
     if (!videoData) return;
+    if (!user) {
+      toast({ title: "Sign-in required", description: "Please sign in again and retry.", variant: "destructive" });
+      return;
+    }
     
     setIsGenerating(true);
     setGeneratingLevel(level);

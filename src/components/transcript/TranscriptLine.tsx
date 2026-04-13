@@ -130,7 +130,7 @@ export function TranscriptLine({
           {timestamp}
         </Badge>
       )}
-      <span className="text-foreground leading-relaxed flex-1">
+      <span className="text-foreground leading-relaxed flex-1" data-transcript-line-text="true">
         {renderTextWithHighlights()}
       </span>
     </div>

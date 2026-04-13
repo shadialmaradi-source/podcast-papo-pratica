@@ -105,16 +105,19 @@ export default function Auth() {
             .select("native_language")
             .eq("user_id", user.id)
             .single()
-            .then(({ data }) => {
-              const pendingToken = localStorage.getItem("pending_lesson_token");
-              if (!data?.native_language) {
-                navigate("/onboarding");
-              } else if (pendingToken) {
-                localStorage.removeItem("pending_lesson_token");
-                navigate(`/lesson/student/${pendingToken}`);
-              } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
-                navigate("/lesson/first");
-              } else {
+              .then(({ data }) => {
+                const pendingToken = localStorage.getItem("pending_lesson_token");
+                const pendingRedirect = localStorage.getItem("post_auth_redirect");
+                const lessonRedirect = pendingRedirect || (pendingToken ? `/lesson/student/${pendingToken}` : null);
+                if (!data?.native_language) {
+                  navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
+                } else if (lessonRedirect) {
+                  localStorage.removeItem("pending_lesson_token");
+                  localStorage.removeItem("post_auth_redirect");
+                  navigate(lessonRedirect);
+                } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+                  navigate("/lesson/first");
+                } else {
                 navigate("/app");
               }
             });
@@ -288,11 +291,14 @@ export default function Auth() {
               .single();
 
             const pendingToken = localStorage.getItem("pending_lesson_token");
+            const pendingRedirect = localStorage.getItem("post_auth_redirect");
+            const lessonRedirect = pendingRedirect || (pendingToken ? `/lesson/student/${pendingToken}` : null);
             if (!profile?.native_language) {
-              navigate("/onboarding");
-            } else if (pendingToken) {
+              navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
+            } else if (lessonRedirect) {
               localStorage.removeItem("pending_lesson_token");
-              navigate(`/lesson/student/${pendingToken}`);
+              localStorage.removeItem("post_auth_redirect");
+              navigate(lessonRedirect);
             } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
               navigate("/lesson/first");
             } else {

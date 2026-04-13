@@ -131,6 +131,8 @@ export default function AuthCallback() {
 
       // Check for pending lesson token
       const pendingToken = localStorage.getItem("pending_lesson_token");
+      const pendingRedirect = localStorage.getItem("post_auth_redirect");
+      const lessonRedirect = pendingRedirect || (pendingToken ? `/lesson/student/${pendingToken}` : null);
 
       if (actualRole === "teacher") {
         const { data: tp } = await supabase
@@ -148,10 +150,11 @@ export default function AuthCallback() {
           .single();
 
         if (!profile?.native_language) {
-          navigate("/onboarding", { replace: true });
-        } else if (pendingToken) {
+          navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding", { replace: true });
+        } else if (lessonRedirect) {
           localStorage.removeItem("pending_lesson_token");
-          navigate(`/lesson/student/${pendingToken}`, { replace: true });
+          localStorage.removeItem("post_auth_redirect");
+          navigate(lessonRedirect, { replace: true });
         } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
           navigate("/lesson/first", { replace: true });
         } else {

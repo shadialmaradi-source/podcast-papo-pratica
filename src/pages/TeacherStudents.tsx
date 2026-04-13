@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive, Crown, ChevronLeft, ChevronRight, Video } from "lucide-react";
+import { ArrowLeft, Plus, Users, BookOpen, TrendingUp, Eye, Pencil, Archive, ArchiveRestore, Crown, ChevronLeft, ChevronRight, Video } from "lucide-react";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
 import { AddStudentModal } from "@/components/teacher/AddStudentModal";
 import { EditStudentModal } from "@/components/teacher/EditStudentModal";
@@ -158,6 +158,21 @@ export default function TeacherStudents() {
     } else {
       trackEvent("teacher_student_archived", { student_id: student.id });
       toast({ title: "Student archived" });
+      fetchData();
+    }
+  };
+
+  const handleUnarchive = async (student: StudentRow) => {
+    const { error } = await supabase
+      .from("teacher_students" as any)
+      .update({ status: "active" } as any)
+      .eq("id", student.id);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      trackEvent("teacher_student_unarchived", { student_id: student.id });
+      toast({ title: "Student restored" });
       fetchData();
     }
   };
@@ -380,9 +395,13 @@ export default function TeacherStudents() {
                             <Button variant="ghost" size="icon" onClick={() => setAssignStudentEmail(s.student_email)} title="Assign Video">
                               <Video className="h-4 w-4" />
                             </Button>
-                            {s.status !== "archived" && (
+                            {s.status !== "archived" ? (
                               <Button variant="ghost" size="icon" onClick={() => handleArchive(s)}>
                                 <Archive className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="icon" onClick={() => handleUnarchive(s)} title="Restore Student">
+                                <ArchiveRestore className="h-4 w-4" />
                               </Button>
                             )}
                           </div>

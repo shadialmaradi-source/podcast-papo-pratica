@@ -40,8 +40,6 @@ interface Lesson {
   exercise_types: string[];
   language: string;
   lesson_type: string;
-  paragraph_content: string | null;
-  paragraph_prompt: string | null;
 }
 
 export default function TeacherLesson() {
