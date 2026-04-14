@@ -31,6 +31,7 @@ import { getUploadQuotaStatus } from "@/services/subscriptionService";
 import { trackEvent, trackPageLoad, trackPageView } from "@/lib/analytics";
 import { AssignVideoModal } from "@/components/teacher/AssignVideoModal";
 import { useStudentTour } from "@/hooks/useStudentTour";
+import { isVideoShort } from "@/utils/videoClassification";
 
 interface VideoTopic {
   topic: string;
@@ -48,6 +49,7 @@ interface Video {
   difficulty_level: string;
   is_curated: boolean;
   language: string;
+  category?: string | null;
   is_short?: boolean;
 }
 
@@ -179,7 +181,8 @@ export default function Library() {
         // Transform data to include topics array
         const videosWithTopics = (data || []).map(video => ({
           ...video,
-          topics: video.video_topics?.map((vt: VideoTopic) => vt.topic) || []
+          topics: video.video_topics?.map((vt: VideoTopic) => vt.topic) || [],
+          is_short: isVideoShort(video),
         }));
         
         setVideos(videosWithTopics);
@@ -436,6 +439,7 @@ export default function Library() {
                           duration={video.duration}
                           difficultyLevel={video.difficulty_level}
                           isCurated={video.is_curated}
+                          isShort={video.is_short}
                           onClick={() => handleVideoClick(video.id)}
                           onAssign={isTeacher ? () => setAssignVideo({ id: video.id, title: video.title, videoId: video.video_id }) : undefined}
                         />
@@ -465,6 +469,7 @@ export default function Library() {
                           duration={video.duration}
                           difficultyLevel={video.difficulty_level}
                           isCurated={video.is_curated}
+                          isShort={video.is_short}
                           onClick={() => handleVideoClick(video.id)}
                           onAssign={isTeacher ? () => setAssignVideo({ id: video.id, title: video.title, videoId: video.video_id }) : undefined}
                         />

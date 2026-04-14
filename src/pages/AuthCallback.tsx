@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
 import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Loader2 } from "lucide-react";
+import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -130,9 +131,7 @@ export default function AuthCallback() {
       const actualRole = dbRole || intendedRole;
 
       // Check for pending lesson token
-      const pendingToken = localStorage.getItem("pending_lesson_token");
-      const pendingRedirect = localStorage.getItem("post_auth_redirect");
-      const lessonRedirect = pendingRedirect || (pendingToken ? `/lesson/student/${pendingToken}` : null);
+      const lessonRedirect = getPendingLessonRedirect();
 
       if (actualRole === "teacher") {
         const { data: tp } = await supabase
@@ -152,12 +151,12 @@ export default function AuthCallback() {
         if (!profile?.native_language) {
           navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding", { replace: true });
         } else if (lessonRedirect) {
-          localStorage.removeItem("pending_lesson_token");
-          localStorage.removeItem("post_auth_redirect");
           navigate(lessonRedirect, { replace: true });
         } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+          clearPendingLessonRedirect();
           navigate("/lesson/first", { replace: true });
         } else {
+          clearPendingLessonRedirect();
           navigate("/app", { replace: true });
         }
       }

@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
 import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff, GraduationCap, Headphones, Check } from "lucide-react";
+import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
 
 type AuthRole = "teacher" | "student";
 
@@ -106,18 +107,16 @@ export default function Auth() {
             .eq("user_id", user.id)
             .single()
               .then(({ data }) => {
-                const pendingToken = localStorage.getItem("pending_lesson_token");
-                const pendingRedirect = localStorage.getItem("post_auth_redirect");
-                const lessonRedirect = pendingRedirect || (pendingToken ? `/lesson/student/${pendingToken}` : null);
+                const lessonRedirect = getPendingLessonRedirect();
                 if (!data?.native_language) {
                   navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
                 } else if (lessonRedirect) {
-                  localStorage.removeItem("pending_lesson_token");
-                  localStorage.removeItem("post_auth_redirect");
                   navigate(lessonRedirect);
                 } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+                  clearPendingLessonRedirect();
                   navigate("/lesson/first");
                 } else {
+                clearPendingLessonRedirect();
                 navigate("/app");
               }
             });
@@ -290,18 +289,16 @@ export default function Auth() {
               .eq("user_id", authData.user.id)
               .single();
 
-            const pendingToken = localStorage.getItem("pending_lesson_token");
-            const pendingRedirect = localStorage.getItem("post_auth_redirect");
-            const lessonRedirect = pendingRedirect || (pendingToken ? `/lesson/student/${pendingToken}` : null);
+            const lessonRedirect = getPendingLessonRedirect();
             if (!profile?.native_language) {
               navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
             } else if (lessonRedirect) {
-              localStorage.removeItem("pending_lesson_token");
-              localStorage.removeItem("post_auth_redirect");
               navigate(lessonRedirect);
             } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+              clearPendingLessonRedirect();
               navigate("/lesson/first");
             } else {
+              clearPendingLessonRedirect();
               navigate("/app");
             }
           }

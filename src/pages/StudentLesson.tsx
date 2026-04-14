@@ -14,6 +14,7 @@ import { StudentSpeakingView } from "@/components/lesson/StudentSpeakingView";
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User, Radio, RefreshCw, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { trackEvent, trackPageView } from "@/lib/analytics";
+import { clearPendingLessonRedirect } from "@/utils/authRedirect";
 
 interface Lesson {
   id: string;
@@ -244,6 +245,12 @@ export default function StudentLesson() {
 
   const { branding, teacherName: brandTeacherName } = useTeacherBranding(lesson?.teacher_id ?? null);
   const hasBranding = branding && (branding.logo_url || branding.primary_color);
+
+  useEffect(() => {
+    if (user && id) {
+      clearPendingLessonRedirect();
+    }
+  }, [user, id]);
 
   // Group exercises by type
   const exerciseGroups = useMemo(() => {

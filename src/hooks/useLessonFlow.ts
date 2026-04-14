@@ -33,6 +33,16 @@ interface ResolvedVideo {
   duration: number | null;
 }
 
+function normalizeScenes(rawScenes: VideoScene[]): VideoScene[] {
+  return [...rawScenes]
+    .sort((a, b) => (a.start_time - b.start_time) || (a.scene_index - b.scene_index))
+    .map((scene, index) => ({
+      ...scene,
+      scene_index: index,
+      scene_transcript: scene.scene_transcript || "",
+    }));
+}
+
 export function useLessonFlow(videoId: string | undefined) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -179,10 +189,38 @@ export function useLessonFlow(videoId: string | undefined) {
     videoDbId: string,
     _level: string,
     persistedCompleted: number[] = [],
-    knownDuration?: number | null
+    knownDuration?: number | null,
+    attempt: number = 0
   ) => {
     setLessonState("loading");
     try {
+      const { data: storedScenes } = await supabase
+        .from("video_scenes")
+        .select("id, video_id, scene_index, start_time, end_time, scene_title, scene_transcript")
+        .eq("video_id", videoDbId)
+        .order("scene_index", { ascending: true });
+
+      if (storedScenes && storedScenes.length > 0) {
+        const normalizedScenes = normalizeScenes(storedScenes as VideoScene[]);
+        const normalizedCompleted = normalizedScenes
+          .filter((scene, index) => persistedCompleted.includes(scene.scene_index) || persistedCompleted.includes(index))
+          .map((scene) => scene.scene_index);
+
+        setScenes(normalizedScenes);
+        setCompletedScenes(normalizedCompleted);
+        setIsSegmented(true);
+
+        const firstIncomplete = normalizedScenes.findIndex(
+          (s: VideoScene) => !normalizedCompleted.includes(s.scene_index)
+        );
+        setCurrentSceneIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
+
+        const derivedDuration = normalizedScenes[normalizedScenes.length - 1]?.end_time || knownDuration || 120;
+        setVideoDuration(Math.max(derivedDuration, knownDuration || 120));
+        setLessonState("scene-video");
+        return;
+      }
+
       let duration = knownDuration ?? null;
 
       // Fallback lookup when duration is not already available in state/caller.
@@ -205,20 +243,46 @@ export function useLessonFlow(videoId: string | undefined) {
       const { data, error } = await supabase.functions.invoke("segment-video-scenes", {
         body: { videoId: videoDbId },
       });
-      if (error || !data?.scenes || data.scenes.length === 0) {
+      const reason = (data as { reason?: string } | null)?.reason;
+
+      if (reason === "transcript_not_ready") {
+        console.info(`[useLessonFlow] Segmentation deferred (transcript_not_ready), attempt=${attempt + 1}`);
+        if (attempt < 2) {
+          toast({
+            title: "Segmenting video…",
+            description: "Transcript is still finalizing. We'll retry scene generation in a few seconds.",
+          });
+          setTimeout(() => {
+            void trySegmentVideo(videoDbId, _level, persistedCompleted, knownDuration, attempt + 1);
+          }, 5000);
+        } else {
+          toast({
+            title: "Scene segmentation not ready",
+            description: "Transcript is still unavailable. You can continue now and try again later.",
+            variant: "default",
+          });
+        }
         setIsSegmented(false);
         setLessonState("scene-video");
         return;
       }
-      const sortedScenes = [...data.scenes].sort(
-        (a: VideoScene, b: VideoScene) => (a.start_time - b.start_time) || (a.scene_index - b.scene_index)
-      );
-      const normalizedScenes = sortedScenes.map((scene: VideoScene, index: number) => ({
-        ...scene,
-        scene_index: index,
-      }));
+
+      if (error || !data?.scenes || data.scenes.length === 0) {
+        if (resolvedDuration > 120) {
+          const errMessage = error?.message ? ` (${error.message})` : "";
+          console.warn(`[useLessonFlow] Segmentation unavailable for ${videoDbId}${errMessage}`);
+          toast({
+            title: "Scenes unavailable",
+            description: "Couldn't generate scene splits for this video right now.",
+          });
+        }
+        setIsSegmented(false);
+        setLessonState("scene-video");
+        return;
+      }
+      const normalizedScenes = normalizeScenes(data.scenes as VideoScene[]);
       const normalizedCompleted = normalizedScenes
-        .filter((scene, index) => persistedCompleted.includes(scene.scene_index) || persistedCompleted.includes(sortedScenes[index].scene_index))
+        .filter((scene, index) => persistedCompleted.includes(scene.scene_index) || persistedCompleted.includes(index))
         .map((scene) => scene.scene_index);
 
       setScenes(normalizedScenes);

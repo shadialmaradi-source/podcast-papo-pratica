@@ -42,9 +42,9 @@ export default function Lesson() {
   const renderWithSceneNav = (content: React.ReactNode) => {
     if (!isSegmented || scenes.length === 0) return content;
     return (
-      <div className="flex flex-col lg:flex-row gap-4 p-4">
+      <div className="flex flex-col lg:flex-row gap-4 px-4 pb-4">
         <div className="lg:w-64 flex-shrink-0 order-2 lg:order-1">
-          <div className="lg:sticky lg:top-4">
+          <div className="lg:sticky lg:top-20">
             <SceneNavigator
               scenes={scenes}
               currentSceneIndex={currentSceneIndex}
@@ -69,7 +69,7 @@ export default function Lesson() {
   };
 
   const BackButton = () => (
-    <div className="absolute top-4 left-4 z-10">
+    <div className="px-4 pt-4 pb-2">
       <Button variant="ghost" size="sm" onClick={handleBackToLibrary} className="gap-2">
         <ArrowLeft className="w-4 h-4" />
         Library
@@ -78,7 +78,7 @@ export default function Lesson() {
   );
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background">
       {lessonState !== "complete" && lessonState !== "loading" && <BackButton />}
 
       <Dialog open={showLevelPopup} onOpenChange={() => {}}>

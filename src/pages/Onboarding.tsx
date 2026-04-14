@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
+import { getPendingLessonRedirect, isSharedLessonPath, setPendingLessonRedirect } from "@/utils/authRedirect";
 
 const targetLanguages = [
   { code: 'english', name: 'English', flag: '🇺🇸', native: 'English', available: true },
@@ -63,12 +64,10 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { t } = useTranslation();
-
   const returnTo = searchParams.get('return');
   const stepParam = searchParams.get('step');
-  const storedPostAuthRedirect = localStorage.getItem('post_auth_redirect');
-  const resolvedReturnTarget = (returnTo && returnTo.startsWith('/')) ? returnTo : (storedPostAuthRedirect || null);
+  const storedLessonRedirect = getPendingLessonRedirect();
+  const resolvedReturnTarget = isSharedLessonPath(returnTo) ? returnTo : storedLessonRedirect;
 
   const [step, setStep] = useState<Step>(() => {
     if (stepParam === 'level') return 'level';
@@ -82,12 +81,20 @@ export default function Onboarding() {
     if (stepParam === 'level') return localStorage.getItem('onboarding_native_language') || detectBrowserNativeLanguage();
     return detectBrowserNativeLanguage();
   });
+  const [uiLanguage, setUiLanguage] = useState<string>(() => {
+    if (stepParam === 'level') return localStorage.getItem('onboarding_native_language') || detectBrowserNativeLanguage();
+    return detectBrowserNativeLanguage();
+  });
+  const { t } = useTranslation(uiLanguage);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
   useEffect(() => {
     trackPageView("onboarding", "shared");
     localStorage.setItem('first_lesson_completed', 'false');
-  }, []);
+    if (resolvedReturnTarget) {
+      setPendingLessonRedirect(resolvedReturnTarget);
+    }
+  }, [resolvedReturnTarget]);
   const pendingLessonToken = localStorage.getItem('pending_lesson_token');
   const isLessonOnboarding = !!pendingLessonToken || (resolvedReturnTarget?.startsWith('/lesson/student/') ?? false);
 
@@ -156,10 +163,8 @@ export default function Onboarding() {
       }).eq('user_id', user.id);
     }
 
-    // Clear the pending token and redirect to lesson
+    // Redirect to the preserved shared-lesson destination when available.
     const token = pendingLessonToken;
-    localStorage.removeItem('pending_lesson_token');
-    localStorage.removeItem('post_auth_redirect');
     const lessonDestination = resolvedReturnTarget || (token ? `/lesson/student/${token}` : '/app');
     navigate(lessonDestination);
   };
@@ -170,8 +175,6 @@ export default function Onboarding() {
     localStorage.setItem('onboarding_level', selectedLevel);
     localStorage.setItem('onboarding_native_language', selectedNativeLanguage);
     localStorage.setItem('lesson_step', 'intro');
-    localStorage.removeItem('post_auth_redirect');
-
     trackEvent('onboarding_completed', {
       selected_language: selectedLanguage,
       native_language: selectedNativeLanguage,
@@ -276,7 +279,10 @@ export default function Onboarding() {
                   {filteredNativeLanguages.map((lang) => (
                     <button
                       key={lang.code}
-                      onClick={() => setSelectedNativeLanguage(lang.code)}
+                      onClick={() => {
+                        setSelectedNativeLanguage(lang.code);
+                        setUiLanguage(lang.code);
+                      }}
                       className={`flex items-center gap-1.5 md:gap-2 px-2 py-2 md:px-3 md:py-2.5 rounded-lg border text-left transition-all ${
                         selectedNativeLanguage === lang.code
                           ? 'ring-2 ring-primary border-primary bg-primary/10 shadow-sm'
