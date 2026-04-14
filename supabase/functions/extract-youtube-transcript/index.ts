@@ -93,10 +93,13 @@ serve(async (req) => {
     const supabaseAuth = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
       global: { headers: { Authorization: authHeader } }
     });
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !user) {
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: authError } = await supabaseAuth.auth.getClaims(token);
+    if (authError || !claimsData?.claims?.sub) {
+      console.error('[extract-youtube-transcript] Auth failed:', authError?.message);
       return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    const userId = claimsData.claims.sub;
 
     const { videoId, videoUrl, teacherId } = await req.json();
     const id = videoId || extractVideoId(videoUrl);
