@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { trackPageView } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,8 @@ import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { EXERCISE_TYPE_LABELS, TYPE_COLORS } from "@/components/teacher/ExercisePresenter";
 import type { Exercise } from "@/components/teacher/ExercisePresenter";
 import { TeacherSpeakingView } from "@/components/lesson/TeacherSpeakingView";
+import SceneNavigator, { type VideoScene } from "@/components/lesson/SceneNavigator";
+import LessonVideoPlayer from "@/components/lesson/LessonVideoPlayer";
 import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight, X, Keyboard, PartyPopper, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
