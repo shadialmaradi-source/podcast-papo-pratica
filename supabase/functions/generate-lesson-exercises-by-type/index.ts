@@ -21,6 +21,15 @@ const EXERCISE_PROMPTS: Record<string, string> = {
   spot_the_mistake: `Generate a spot-the-mistake exercise. Return JSON: { "instruction": "Find the mistake in this sentence:", "sentence": "string with ONE grammatical mistake", "corrected": "string (correct version)", "explanation": "string", "question_translation": "string (translation of the sentence with mistake)", "answer_translation": "string (translation of the corrected sentence)" }`,
 };
 
+interface VideoSceneRow {
+  id: string;
+  scene_index: number;
+  start_time: number;
+  end_time: number;
+  scene_title: string;
+  scene_transcript: string;
+}
+
 function extractVideoId(url: string): string | null {
   if (!url) return null;
   let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
@@ -183,6 +192,8 @@ serve(async (req) => {
 
     // Fetch transcript if not already stored
     let transcriptText = lesson.transcript;
+    let sharedVideoId: string | null = null;
+    let sceneContexts: VideoSceneRow[] = [];
     if (!transcriptText && lesson.youtube_url) {
       const ytId = extractVideoId(lesson.youtube_url);
       if (ytId) {
@@ -192,6 +203,7 @@ serve(async (req) => {
           .eq("video_id", ytId)
           .maybeSingle();
 
+        sharedVideoId = sharedVideo?.id || null;
         if (sharedVideo?.id) {
           const { data: sharedTranscript } = await supabase
             .from("youtube_transcripts")
@@ -203,6 +215,18 @@ serve(async (req) => {
       }
     }
 
+    if (lesson.youtube_url && !sharedVideoId) {
+      const ytId = extractVideoId(lesson.youtube_url);
+      if (ytId) {
+        const { data: sharedVideo } = await supabase
+          .from("youtube_videos")
+          .select("id")
+          .eq("video_id", ytId)
+          .maybeSingle();
+        sharedVideoId = sharedVideo?.id || null;
+      }
+    }
+
     if (!transcriptText && lesson.youtube_url) {
       transcriptText = await fetchTranscript(lesson.youtube_url);
       if (transcriptText) {
@@ -210,6 +234,30 @@ serve(async (req) => {
           .from("teacher_lessons")
           .update({ transcript: transcriptText })
           .eq("id", lessonId);
+      }
+    }
+
+    if (sharedVideoId) {
+      try {
+        await supabase.functions.invoke("segment-video-scenes", {
+          body: { videoId: sharedVideoId },
+        });
+      } catch (segmentError) {
+        console.warn("[generate-lesson-exercises-by-type] Segment trigger failed:", segmentError);
+      }
+
+      const { data: storedScenes } = await supabase
+        .from("video_scenes")
+        .select("id, scene_index, start_time, end_time, scene_title, scene_transcript")
+        .eq("video_id", sharedVideoId)
+        .order("scene_index", { ascending: true });
+
+      sceneContexts = (storedScenes || []).filter(
+        (scene: any) => scene.end_time > scene.start_time && (scene.scene_transcript || "").trim().length > 0
+      ) as VideoSceneRow[];
+
+      if (sceneContexts.length === 0) {
+        console.warn(`[generate-lesson-exercises-by-type] No scene rows available for video ${sharedVideoId}; using full transcript context`);
       }
     }
 
@@ -254,12 +302,20 @@ serve(async (req) => {
     const seenMultipleChoiceFingerprints = new Set<string>();
 
     for (let q = 0; q < count; q++) {
-      const transcriptContext = transcriptText
+      const selectedScene = sceneContexts.length > 0 ? sceneContexts[q % sceneContexts.length] : null;
+      const transcriptContext = selectedScene
         ? `
+
+Base the exercise on THIS video scene:
+Scene ${selectedScene.scene_index + 1}: ${selectedScene.scene_title}
+Time range: ${Math.round(selectedScene.start_time)}s-${Math.round(selectedScene.end_time)}s
+${selectedScene.scene_transcript.slice(0, 2200)}`
+        : transcriptText
+          ? `
 
 Base the exercise on this video transcript:
 ${transcriptText.slice(0, 3000)}`
-        : "";
+          : "";
 
       const previousQuestionContext = exerciseType === "multiple_choice" && generatedExercises.length > 0
         ? `

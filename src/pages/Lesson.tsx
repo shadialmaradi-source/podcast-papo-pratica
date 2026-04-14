@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useLessonFlow } from "@/hooks/useLessonFlow";
 
 export default function Lesson() {
@@ -30,17 +31,19 @@ export default function Lesson() {
 
   const {
     lessonState, selectedLevel, nextVideoLoading, showLevelPopup, lessonStats,
-    scenes, currentSceneIndex, completedScenes, isSegmented, dbVideoId,
+    scenes, currentSceneIndex, completedScenes, dbVideoId,
     youtubeVideoId, videoTitle, videoLanguage, videoDuration, currentScene,
+    segmentationStatus,
     nativeLanguage,
     handleLevelSelect, handleSceneVideoComplete, handleContinueToSpeaking,
     handleTryNextLevel, handleSkipToFlashcards, handleFlashcardsComplete,
     handleSceneSelect, handleNextVideo, handleBackToLibrary, handleViewProgress,
     handleRetry,
   } = flow;
+  const hasSceneData = scenes.length > 0;
 
   const renderWithSceneNav = (content: React.ReactNode) => {
-    if (!isSegmented || scenes.length === 0) return content;
+    if (!hasSceneData) return content;
     return (
       <div className="flex flex-col lg:flex-row gap-4 px-4 pb-4">
         <div className="lg:w-64 flex-shrink-0 order-2 lg:order-1">
@@ -143,6 +146,13 @@ export default function Lesson() {
 
       {lessonState === "scene-video" && !currentScene && youtubeVideoId && (
         <div>
+          {!hasSceneData && segmentationStatus.state !== "idle" && (
+            <div className="max-w-3xl mx-auto px-3 md:px-8 pt-3">
+              <Alert>
+                <AlertDescription>{segmentationStatus.message || "Scene segmentation is still in progress."}</AlertDescription>
+              </Alert>
+            </div>
+          )}
           <LessonVideoPlayer
             video={{
               youtubeId: youtubeVideoId,
@@ -156,7 +166,7 @@ export default function Lesson() {
       )}
 
       {lessonState === "exercises" && (
-        isSegmented ? renderWithSceneNav(
+        hasSceneData ? renderWithSceneNav(
           <YouTubeExercises
             key={`${videoId}-${selectedLevel}-${currentSceneIndex}`}
             videoId={videoId}
@@ -190,7 +200,7 @@ export default function Lesson() {
       )}
 
       {lessonState === "speaking" && (
-        isSegmented ? renderWithSceneNav(
+        hasSceneData ? renderWithSceneNav(
           <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} sceneId={currentScene?.id} sceneTranscript={currentScene?.scene_transcript} dbVideoId={dbVideoId} />
         ) : (
           <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} dbVideoId={dbVideoId} />
@@ -198,7 +208,7 @@ export default function Lesson() {
       )}
 
     {lessonState === "flashcards" && (
-  isSegmented ? renderWithSceneNav(
+  hasSceneData ? renderWithSceneNav(
     <VideoFlashcards
       videoId={videoId}
       level={selectedLevel}

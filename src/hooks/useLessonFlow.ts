@@ -72,6 +72,11 @@ export function useLessonFlow(videoId: string | undefined) {
   const [videoTitle, setVideoTitle] = useState("");
   const [videoLanguage, setVideoLanguage] = useState("english");
   const [videoDuration, setVideoDuration] = useState<number>(120);
+  const [segmentationStatus, setSegmentationStatus] = useState<{
+    state: "idle" | "pending" | "failed";
+    message: string | null;
+  }>({ state: "idle", message: null });
+  const MAX_SEGMENT_RETRIES = 8;
 
   const getCurrentUser = useCallback(async () => {
     if (user) return user;
@@ -209,6 +214,7 @@ export function useLessonFlow(videoId: string | undefined) {
         setScenes(normalizedScenes);
         setCompletedScenes(normalizedCompleted);
         setIsSegmented(true);
+        setSegmentationStatus({ state: "idle", message: null });
 
         const firstIncomplete = normalizedScenes.findIndex(
           (s: VideoScene) => !normalizedCompleted.includes(s.scene_index)
@@ -247,7 +253,11 @@ export function useLessonFlow(videoId: string | undefined) {
 
       if (reason === "transcript_not_ready") {
         console.info(`[useLessonFlow] Segmentation deferred (transcript_not_ready), attempt=${attempt + 1}`);
-        if (attempt < 2) {
+        setSegmentationStatus({
+          state: "pending",
+          message: "Transcript is still finalizing. Scene splits will appear automatically once ready.",
+        });
+        if (attempt < MAX_SEGMENT_RETRIES) {
           toast({
             title: "Segmenting video…",
             description: "Transcript is still finalizing. We'll retry scene generation in a few seconds.",
@@ -261,6 +271,10 @@ export function useLessonFlow(videoId: string | undefined) {
             description: "Transcript is still unavailable. You can continue now and try again later.",
             variant: "default",
           });
+          setSegmentationStatus({
+            state: "failed",
+            message: "Scene generation timed out waiting for transcript.",
+          });
         }
         setIsSegmented(false);
         setLessonState("scene-video");
@@ -268,6 +282,16 @@ export function useLessonFlow(videoId: string | undefined) {
       }
 
       if (error || !data?.scenes || data.scenes.length === 0) {
+        console.warn("[useLessonFlow] Scene segmentation unavailable", {
+          videoDbId,
+          reason,
+          invokeError: error?.message || null,
+          sceneCount: data?.scenes?.length || 0,
+        });
+        setSegmentationStatus({
+          state: "failed",
+          message: reason ? `Scene generation unavailable (${reason}).` : "Scene generation unavailable.",
+        });
         if (resolvedDuration > 120) {
           const errMessage = error?.message ? ` (${error.message})` : "";
           console.warn(`[useLessonFlow] Segmentation unavailable for ${videoDbId}${errMessage}`);
@@ -288,6 +312,7 @@ export function useLessonFlow(videoId: string | undefined) {
       setScenes(normalizedScenes);
       setCompletedScenes(normalizedCompleted);
       setIsSegmented(true);
+      setSegmentationStatus({ state: "idle", message: null });
       const firstIncomplete = normalizedScenes.findIndex(
         (s: VideoScene) => !normalizedCompleted.includes(s.scene_index)
       );
@@ -301,6 +326,10 @@ export function useLessonFlow(videoId: string | undefined) {
       setLessonState("scene-video");
     } catch (err) {
       console.error("Segmentation error:", err);
+      setSegmentationStatus({
+        state: "failed",
+        message: "Scene generation failed unexpectedly. Check function logs.",
+      });
       setIsSegmented(false);
       setLessonState("scene-video");
     }
@@ -498,7 +527,8 @@ export function useLessonFlow(videoId: string | undefined) {
     initLesson();
   };
 
-  const currentScene = isSegmented && scenes.length > 0 ? scenes[currentSceneIndex] : null;
+  const hasSceneData = scenes.length > 0;
+  const currentScene = hasSceneData ? scenes[currentSceneIndex] : null;
 
   return {
     lessonState,
@@ -515,6 +545,7 @@ export function useLessonFlow(videoId: string | undefined) {
     videoTitle,
     videoLanguage,
     videoDuration,
+    segmentationStatus,
     currentScene,
     isAssignment,
     nativeLanguage,

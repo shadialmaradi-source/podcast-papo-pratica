@@ -21,6 +21,96 @@ interface Scene {
   scene_transcript: string;
 }
 
+function isValidDuration(duration: number | null | undefined): duration is number {
+  return typeof duration === 'number' && Number.isFinite(duration) && duration > 0;
+}
+
+function parseISO8601Duration(duration: string): number {
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+
+  const hours = parseInt(match[1] || '0', 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const seconds = parseInt(match[3] || '0', 10);
+
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+async function scrapeDurationFromYouTube(videoId: string): Promise<number> {
+  if (!videoId) return 0;
+
+  try {
+    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      }
+    });
+
+    if (!response.ok) return 0;
+
+    const html = await response.text();
+
+    const metaMatch = html.match(/<meta\s+itemprop="duration"\s+content="([^"]+)"/i);
+    if (metaMatch) {
+      const parsed = parseISO8601Duration(metaMatch[1]);
+      if (parsed > 0) return parsed;
+    }
+
+    const lengthMatch = html.match(/"lengthSeconds"\s*:\s*"?(\d+)"?/);
+    if (lengthMatch) {
+      const parsed = parseInt(lengthMatch[1], 10);
+      if (parsed > 0) return parsed;
+    }
+
+    const approxMatch = html.match(/"approxDurationMs"\s*:\s*"(\d+)"/);
+    if (approxMatch) {
+      const parsed = Math.round(parseInt(approxMatch[1], 10) / 1000);
+      if (parsed > 0) return parsed;
+    }
+
+    return 0;
+  } catch {
+    return 0;
+  }
+}
+
+function deriveDurationFromSegments(segments: TranscriptSegment[]): number {
+  if (segments.length === 0) return 0;
+
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const seg = segments[i];
+    if (!Number.isFinite(seg.start) || seg.start < 0) continue;
+    const end = seg.start + (Number.isFinite(seg.duration) && seg.duration > 0 ? seg.duration : 0);
+    if (end > 0) return Math.ceil(end);
+  }
+
+  return 0;
+}
+
+function estimateDurationFromTranscript(rawTranscript: string): number {
+  const wordsPerMinute = 150;
+  const secondsPerWord = 60 / wordsPerMinute;
+
+  const plainText = typeof rawTranscript === 'string' ? rawTranscript : '';
+  let textContent = plainText;
+
+  try {
+    const parsed = JSON.parse(plainText);
+    if (Array.isArray(parsed)) {
+      textContent = parsed.map((s: any) => s.text || '').join(' ');
+    }
+  } catch {
+    // plain text transcript
+  }
+
+  const wordCount = textContent.trim().split(/\s+/).filter(Boolean).length;
+  if (wordCount === 0) return 60;
+
+  return Math.max(1, Math.round(wordCount * secondsPerWord));
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -59,20 +149,12 @@ serve(async (req) => {
     // Fetch video duration
     const { data: videoData, error: videoError } = await supabase
       .from('youtube_videos')
-      .select('id, duration, title')
+      .select('id, video_id, duration, title')
       .eq('id', videoId)
       .single();
 
     if (videoError || !videoData) {
       throw new Error('Video not found');
-    }
-
-    const duration = videoData.duration;
-    if (typeof duration === 'number' && duration > 0 && duration <= 120) {
-      console.log(`[segment-video-scenes] Video too short (${duration}s), no segmentation needed`);
-      return new Response(JSON.stringify({ scenes: [], reason: 'video_too_short' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
     // Fetch transcript
@@ -94,7 +176,7 @@ serve(async (req) => {
     }
 
     const rawTranscript = transcriptData.transcript;
-    
+
     // Try to parse timed segments
     let segments: TranscriptSegment[] = [];
     try {
@@ -110,17 +192,56 @@ serve(async (req) => {
       // Plain text transcript - no timed segments
     }
 
+    let resolvedDuration = isValidDuration(videoData.duration) ? Math.ceil(videoData.duration) : 0;
+
+    if (!isValidDuration(resolvedDuration)) {
+      resolvedDuration = deriveDurationFromSegments(segments);
+      if (isValidDuration(resolvedDuration)) {
+        console.log(`[segment-video-scenes] Using duration from transcript timing: ${resolvedDuration}s`);
+      }
+    }
+
+    if (!isValidDuration(resolvedDuration)) {
+      resolvedDuration = await scrapeDurationFromYouTube(videoData.video_id);
+      if (isValidDuration(resolvedDuration)) {
+        console.log(`[segment-video-scenes] Using scraped YouTube duration: ${resolvedDuration}s`);
+      }
+    }
+
+    if (!isValidDuration(resolvedDuration)) {
+      resolvedDuration = estimateDurationFromTranscript(rawTranscript);
+      console.log(`[segment-video-scenes] Using estimated transcript duration: ${resolvedDuration}s`);
+    }
+
+    if (isValidDuration(resolvedDuration) && videoData.duration !== resolvedDuration) {
+      const { error: updateDurationError } = await supabase
+        .from('youtube_videos')
+        .update({ duration: resolvedDuration })
+        .eq('id', videoId);
+
+      if (updateDurationError) {
+        console.warn(`[segment-video-scenes] Failed to persist duration for ${videoId}: ${updateDurationError.message}`);
+      }
+    }
+
+    if (resolvedDuration <= 120) {
+      console.log(`[segment-video-scenes] Video too short (${resolvedDuration}s), no segmentation needed`);
+      return new Response(JSON.stringify({ scenes: [], reason: 'video_too_short' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     let scenes: Scene[];
 
     if (segments.length > 0) {
-      scenes = await segmentWithAI(segments, duration, videoData.title);
+      scenes = await segmentWithAI(segments, resolvedDuration, videoData.title);
     } else {
       // Fallback: split plain text by time estimate
-      scenes = fallbackTimeSplit(rawTranscript, duration);
+      scenes = fallbackTimeSplit(rawTranscript, resolvedDuration);
     }
 
     if (scenes.length === 0) {
-      scenes = fallbackTimeSplit(rawTranscript, duration);
+      scenes = fallbackTimeSplit(rawTranscript, resolvedDuration);
     }
 
     // Insert scenes
@@ -225,7 +346,7 @@ CRITICAL: Return ONLY the JSON array. No markdown, no code blocks.`;
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
-    
+
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (!jsonMatch) return [];
 
@@ -252,10 +373,11 @@ CRITICAL: Return ONLY the JSON array. No markdown, no code blocks.`;
 }
 
 function fallbackTimeSplit(transcript: string, totalDuration: number): Scene[] {
+  const safeTotalDuration = isValidDuration(totalDuration) ? totalDuration : Math.max(60, estimateDurationFromTranscript(transcript));
   const targetDuration = 60;
-  const sceneCount = Math.max(1, Math.round(totalDuration / targetDuration));
-  const sceneDuration = totalDuration / sceneCount;
-  
+  const sceneCount = Math.max(1, Math.round(safeTotalDuration / targetDuration));
+  const sceneDuration = safeTotalDuration / sceneCount;
+
   // Split transcript roughly by proportion
   const plainText = typeof transcript === 'string' ? transcript : '';
   let textContent = plainText;
@@ -264,7 +386,9 @@ function fallbackTimeSplit(transcript: string, totalDuration: number): Scene[] {
     if (Array.isArray(parsed)) {
       textContent = parsed.map((s: any) => s.text || '').join(' ');
     }
-  } catch {}
+  } catch {
+    // plain text transcript
+  }
 
   const words = textContent.split(/\s+/);
   const wordsPerScene = Math.ceil(words.length / sceneCount);
@@ -276,7 +400,7 @@ function fallbackTimeSplit(transcript: string, totalDuration: number): Scene[] {
     scenes.push({
       scene_index: i,
       start_time: Math.round(i * sceneDuration),
-      end_time: Math.round(Math.min((i + 1) * sceneDuration, totalDuration)),
+      end_time: Math.round(Math.min((i + 1) * sceneDuration, safeTotalDuration)),
       scene_title: `Part ${i + 1}`,
       scene_transcript: words.slice(startWords, endWords).join(' '),
     });
