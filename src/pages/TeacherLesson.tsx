@@ -493,16 +493,75 @@ export default function TeacherLesson() {
               <TeacherSpeakingView lessonId={lesson.id} />
             ) : (
             <>
-            {/* YouTube video */}
+            {/* YouTube video with scene segmentation */}
             {youtubeVideoId && (
-              <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
-                <iframe
-                  src={`https://www.youtube.com/embed/${youtubeVideoId}`}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title="Lesson video"
-                />
+              <div className="space-y-4">
+                {scenes.length > 0 ? (
+                  <>
+                    <SceneNavigator
+                      scenes={scenes}
+                      currentSceneIndex={currentSceneIndex}
+                      completedScenes={completedScenes}
+                      onSceneSelect={(idx) => setCurrentSceneIndex(idx)}
+                    />
+                    {(() => {
+                      const currentScene = scenes.find(s => s.scene_index === currentSceneIndex);
+                      if (!currentScene) return null;
+                      const sceneDuration = currentScene.end_time - currentScene.start_time;
+                      return (
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            Scene {currentScene.scene_index + 1} of {scenes.length}: {currentScene.scene_title}
+                          </h3>
+                          <LessonVideoPlayer
+                            key={`scene-${currentScene.scene_index}`}
+                            video={{
+                              youtubeId: youtubeVideoId,
+                              startTime: Math.floor(currentScene.start_time),
+                              duration: Math.ceil(sceneDuration),
+                              suggestedSpeed: 1,
+                            }}
+                            onComplete={() => {
+                              if (!completedScenes.includes(currentSceneIndex)) {
+                                setCompletedScenes(prev => [...prev, currentSceneIndex]);
+                              }
+                              // Auto-advance to next scene
+                              const nextIndex = currentSceneIndex + 1;
+                              if (nextIndex < scenes.length) {
+                                setCurrentSceneIndex(nextIndex);
+                              }
+                            }}
+                          />
+                          {currentScene.scene_transcript && (
+                            <div className="rounded-lg border border-border bg-muted/30 p-4">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Scene Transcript</p>
+                              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{currentScene.scene_transcript}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
+                    {scenesLoading ? (
+                      <div className="w-full h-full flex items-center justify-center bg-black/80">
+                        <div className="text-center space-y-2">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                          <p className="text-sm text-muted-foreground">Segmenting video into scenes...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title="Lesson video"
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
