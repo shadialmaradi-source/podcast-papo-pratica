@@ -1,33 +1,54 @@
 
 
-# "Help shape ListenFlow" Feedback Section
+# Fix Build Errors + Scene Segmentation for All Videos
 
-## What
+## Problem Analysis
 
-Add a lightweight feedback form section just above the footer on the landing page, and create a reusable `FeedbackSection` component.
+### Build Errors (3 issues)
+1. **`generate-speaking-topics/index.ts`**: The `serve` callback body has a `catch` block at line 106 but no matching `try`. Need to wrap the body in `try { ... }`.
+2. **`CreateLessonForm.tsx`**: Imports `CommunityVideoMeta` from `useCreateLesson`, but that type doesn't exist there. Need to either add the export or remove the import.
+3. **`LandingPage.tsx`**: Uses `FormEvent` without importing it from React. Fix: `React.FormEvent<HTMLFormElement>` or import `FormEvent`.
+
+### Scene Segmentation Bug
+Videos with `duration = NULL` in the database never get segmented. Root cause in `segment-video-scenes/index.ts` line 70:
+```ts
+const duration = videoData.duration || 0;  // NULL → 0
+if (duration <= 120) { return "video_too_short" }  // 0 ≤ 120 → skipped!
+```
+
+12 videos in the library have NULL durations and are all being skipped. The fix: treat NULL duration as "unknown" (candidate for segmentation) rather than "zero".
 
 ## Plan
 
-### 1. Create `src/components/FeedbackSection.tsx`
+### 1. Fix `segment-video-scenes/index.ts` — NULL duration handling
+- Change line 70-76: when `duration` is NULL, skip the "too short" check and proceed to segmentation. Only skip when duration is explicitly ≤ 120.
 
-A self-contained component with local state management:
+```ts
+const duration = videoData.duration;
+if (typeof duration === 'number' && duration > 0 && duration <= 120) {
+  // genuinely short video
+  return "video_too_short";
+}
+```
 
-- **Fields**: name (optional input), email (optional input), category (Select dropdown: Feedback / Bug / Feature request), message (required Textarea)
-- **Validation**: only `message` is required; disable submit when empty
-- **Submit handler**: for now, just logs to console and shows success state (no backend). This keeps the patch minimal and avoids needing edge functions or DB tables.
-- **Success state**: replaces the form with a thank-you message and a checkmark icon, with a fade-in animation
-- **Style**: uses existing UI primitives (Input, Textarea, Select, Button, Card) and Tailwind classes consistent with the landing page. Subtle `bg-muted/30` background section, max-width container, clean spacing.
+### 2. Fix `generate-speaking-topics/index.ts` — missing try block
+- Wrap the body of the `serve` callback (lines 15–105) in a `try {` block so the existing `catch` at line 106 is valid.
 
-### 2. Update `src/pages/LandingPage.tsx`
+### 3. Fix `CreateLessonForm.tsx` — remove or add `CommunityVideoMeta`
+- Check what the form actually uses; likely need to define and export the type from `useCreateLesson.ts`, or remove the unused import.
 
-- Import `FeedbackSection`
-- Place it between the Final CTA section and the Mobile Fixed Bottom CTA (before `</main>`)
-- No other changes to the page
+### 4. Fix `LandingPage.tsx` — `FormEvent` type
+- Change `FormEvent` to `React.FormEvent<HTMLFormElement>`.
+
+### 5. Backfill durations (one-time edge function invocation)
+- After deploying the fix, trigger the existing `backfill-video-durations` edge function to populate NULL durations for existing videos so future segmentation checks work correctly.
 
 ### Files changed
 
 | File | Change |
 |------|--------|
-| `src/components/FeedbackSection.tsx` | New ~90-line component |
-| `src/pages/LandingPage.tsx` | Import + render `<FeedbackSection />` (~2 lines) |
+| `supabase/functions/segment-video-scenes/index.ts` | Treat NULL duration as segmentation candidate |
+| `supabase/functions/generate-speaking-topics/index.ts` | Add missing `try {` block |
+| `src/components/teacher/CreateLessonForm.tsx` | Fix `CommunityVideoMeta` import |
+| `src/pages/LandingPage.tsx` | Fix `FormEvent` type reference |
 
