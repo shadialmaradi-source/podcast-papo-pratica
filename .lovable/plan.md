@@ -1,54 +1,66 @@
 
 
-# Fix Build Errors + Scene Segmentation for All Videos
+# Fix Scene Segmentation for Teacher Lessons + Sync Videos to Library
 
 ## Problem Analysis
 
-### Build Errors (3 issues)
-1. **`generate-speaking-topics/index.ts`**: The `serve` callback body has a `catch` block at line 106 but no matching `try`. Need to wrap the body in `try { ... }`.
-2. **`CreateLessonForm.tsx`**: Imports `CommunityVideoMeta` from `useCreateLesson`, but that type doesn't exist there. Need to either add the export or remove the import.
-3. **`LandingPage.tsx`**: Uses `FormEvent` without importing it from React. Fix: `React.FormEvent<HTMLFormElement>` or import `FormEvent`.
+### Issue 1: Teacher lessons play full video without scene splits
+`TeacherLesson.tsx` renders a raw `<iframe>` embed of the full YouTube video. It never calls `segment-video-scenes` and has no scene navigation. The student self-study flow (`Lesson.tsx` + `useLessonFlow`) handles segmentation, but teacher-created lessons are a completely separate page with no scene awareness.
 
-### Scene Segmentation Bug
-Videos with `duration = NULL` in the database never get segmented. Root cause in `segment-video-scenes/index.ts` line 70:
-```ts
-const duration = videoData.duration || 0;  // NULL → 0
-if (duration <= 120) { return "video_too_short" }  // 0 ≤ 120 → skipped!
-```
+### Issue 2: Teacher-added videos don't appear in student library
+When a teacher creates a YouTube lesson, the flow calls `extract-youtube-transcript` which only fetches the transcript text — it does NOT insert a record into `youtube_videos`. The function that creates `youtube_videos` records is `process-youtube-video`, which is only used by the student library upload flow. So teacher-added videos are invisible to the main library.
 
-12 videos in the library have NULL durations and are all being skipped. The fix: treat NULL duration as "unknown" (candidate for segmentation) rather than "zero".
+### Data evidence
+Out of 10 teacher YouTube lessons queried, 8 have `yv_id = NULL` — meaning no corresponding `youtube_videos` record exists. Only 2 had matches because those videos happened to already exist in the library from a separate upload.
 
 ## Plan
 
-### 1. Fix `segment-video-scenes/index.ts` — NULL duration handling
-- Change line 70-76: when `duration` is NULL, skip the "too short" check and proceed to segmentation. Only skip when duration is explicitly ≤ 120.
+### 1. Ensure teacher-created YouTube videos get inserted into `youtube_videos`
 
-```ts
-const duration = videoData.duration;
-if (typeof duration === 'number' && duration > 0 && duration <= 120) {
-  // genuinely short video
-  return "video_too_short";
-}
-```
+**File: `supabase/functions/extract-youtube-transcript/index.ts`**
 
-### 2. Fix `generate-speaking-topics/index.ts` — missing try block
-- Wrap the body of the `serve` callback (lines 15–105) in a `try {` block so the existing `catch` at line 106 is valid.
+After successfully fetching the transcript, upsert a record into `youtube_videos` with:
+- `video_id` = the YouTube video ID
+- `title` = fetched from YouTube oEmbed API (lightweight, no API key needed)
+- `language` = from Supadata response (`data.lang`) or the language passed in the request body
+- `difficulty_level` = passed from the caller (default `'beginner'`)
+- `is_listed` = `true` (makes it visible in the student library)
 
-### 3. Fix `CreateLessonForm.tsx` — remove or add `CommunityVideoMeta`
-- Check what the form actually uses; likely need to define and export the type from `useCreateLesson.ts`, or remove the unused import.
+Also upsert the transcript into `youtube_transcripts` so `segment-video-scenes` can find it later.
 
-### 4. Fix `LandingPage.tsx` — `FormEvent` type
-- Change `FormEvent` to `React.FormEvent<HTMLFormElement>`.
+Use `ON CONFLICT (video_id) DO NOTHING` to avoid overwriting existing records.
 
-### 5. Backfill durations (one-time edge function invocation)
-- After deploying the fix, trigger the existing `backfill-video-durations` edge function to populate NULL durations for existing videos so future segmentation checks work correctly.
+**File: `src/hooks/useCreateLesson.ts`**
+
+Pass the `language` field from the lesson form to `extract-youtube-transcript` so it can be stored in `youtube_videos`.
+
+### 2. Add scene segmentation to the teacher lesson view
+
+**File: `src/pages/TeacherLesson.tsx`**
+
+After loading the lesson, if it's a YouTube lesson:
+- Look up the `youtube_videos` record by the YouTube video ID extracted from `lesson.youtube_url`
+- Call `segment-video-scenes` with that DB video ID
+- Replace the plain `<iframe>` with the `LessonVideoPlayer` component (which supports `startTime`/`duration`)
+- Add `SceneNavigator` sidebar to show scene list with titles
+- Show the scene-specific transcript below each scene video
+
+This reuses the existing components from `Lesson.tsx` rather than duplicating logic.
+
+### 3. Backfill existing teacher videos into `youtube_videos`
+
+**New migration SQL**
+
+Insert into `youtube_videos` any YouTube video IDs from `teacher_lessons` that don't already have a `youtube_videos` record. Extract the 11-char video ID from the URL, set `is_listed = true`, and use the lesson's `language` field.
+
+Also trigger transcript extraction for these videos so segmentation can work.
 
 ### Files changed
 
 | File | Change |
 |------|--------|
-| `supabase/functions/segment-video-scenes/index.ts` | Treat NULL duration as segmentation candidate |
-| `supabase/functions/generate-speaking-topics/index.ts` | Add missing `try {` block |
-| `src/components/teacher/CreateLessonForm.tsx` | Fix `CommunityVideoMeta` import |
-| `src/pages/LandingPage.tsx` | Fix `FormEvent` type reference |
+| `supabase/functions/extract-youtube-transcript/index.ts` | Upsert into `youtube_videos` + `youtube_transcripts` after transcript fetch |
+| `src/hooks/useCreateLesson.ts` | Pass `language` to transcript extraction call |
+| `src/pages/TeacherLesson.tsx` | Add scene segmentation, replace iframe with `LessonVideoPlayer` + `SceneNavigator` |
+| New migration SQL | Backfill `youtube_videos` rows for existing teacher lesson YouTube URLs |
 
