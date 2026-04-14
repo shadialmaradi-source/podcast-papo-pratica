@@ -93,10 +93,13 @@ serve(async (req) => {
     const supabaseAuth = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
       global: { headers: { Authorization: authHeader } }
     });
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !user) {
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: authError } = await supabaseAuth.auth.getClaims(token);
+    if (authError || !claimsData?.claims?.sub) {
+      console.error('[extract-youtube-transcript] Auth failed:', authError?.message);
       return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    const userId = claimsData.claims.sub;
 
     const { videoId, videoUrl, teacherId } = await req.json();
     const id = videoId || extractVideoId(videoUrl);
@@ -112,22 +115,7 @@ serve(async (req) => {
 
     // If teacherId is provided, require authenticated caller to match teacher identity
     if (teacherId) {
-      const authHeader = req.headers.get('Authorization');
-      if (!authHeader?.startsWith('Bearer ')) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Unauthorized: teacherId requires authenticated user' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const authClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const token = authHeader.replace('Bearer ', '');
-      const { data: authData, error: authError } = await authClient.auth.getUser(token);
-      if (authError || !authData?.user || authData.user.id !== teacherId) {
+      if (userId !== teacherId) {
         return new Response(
           JSON.stringify({ success: false, error: 'Unauthorized: teacherId does not match authenticated user' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
