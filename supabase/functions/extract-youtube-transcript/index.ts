@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const PLAN_VIDEO_LIMITS: Record<string, number> = {
@@ -79,6 +79,92 @@ async function getTeacherPlan(teacherId: string): Promise<string> {
   return (data as any)?.plan || 'free';
 }
 
+async function fetchVideoTitle(videoId: string): Promise<string> {
+  try {
+    const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.title || `YouTube Video ${videoId}`;
+    }
+  } catch { /* ignore */ }
+  return `YouTube Video ${videoId}`;
+}
+
+async function upsertVideoAndTranscript(
+  supabase: any,
+  youtubeVideoId: string,
+  transcript: string,
+  language: string,
+  userId: string
+): Promise<void> {
+  try {
+    // Check if youtube_videos record already exists
+    const { data: existing } = await supabase
+      .from('youtube_videos')
+      .select('id')
+      .eq('video_id', youtubeVideoId)
+      .maybeSingle();
+
+    let dbVideoId: string;
+
+    if (existing) {
+      dbVideoId = existing.id;
+      console.log(`[extract-youtube-transcript] youtube_videos record already exists: ${dbVideoId}`);
+    } else {
+      // Fetch title from oEmbed
+      const title = await fetchVideoTitle(youtubeVideoId);
+      
+      const { data: inserted, error: insertError } = await supabase
+        .from('youtube_videos')
+        .insert({
+          video_id: youtubeVideoId,
+          title,
+          language: language || 'italian',
+          difficulty_level: 'beginner',
+          status: 'ready',
+          added_by_user_id: userId,
+          thumbnail_url: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`,
+        })
+        .select('id')
+        .single();
+
+      if (insertError) {
+        console.error('[extract-youtube-transcript] Failed to insert youtube_videos:', insertError.message);
+        return;
+      }
+      dbVideoId = inserted.id;
+      console.log(`[extract-youtube-transcript] Created youtube_videos record: ${dbVideoId}`);
+    }
+
+    // Upsert transcript into youtube_transcripts
+    const { data: existingTranscript } = await supabase
+      .from('youtube_transcripts')
+      .select('id')
+      .eq('video_id', dbVideoId)
+      .maybeSingle();
+
+    if (!existingTranscript) {
+      const wordCount = transcript.trim().split(/\s+/).filter(Boolean).length;
+      const { error: transcriptError } = await supabase
+        .from('youtube_transcripts')
+        .insert({
+          video_id: dbVideoId,
+          transcript,
+          language: language || 'italian',
+          word_count: wordCount,
+        });
+
+      if (transcriptError) {
+        console.error('[extract-youtube-transcript] Failed to insert youtube_transcripts:', transcriptError.message);
+      } else {
+        console.log(`[extract-youtube-transcript] Created youtube_transcripts record for video ${dbVideoId}`);
+      }
+    }
+  } catch (err) {
+    console.error('[extract-youtube-transcript] upsertVideoAndTranscript error:', err);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -101,7 +187,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    const { videoId, videoUrl, teacherId } = await req.json();
+    const { videoId, videoUrl, teacherId, language } = await req.json();
     const id = videoId || extractVideoId(videoUrl);
     
     if (!id) {
@@ -167,6 +253,20 @@ serve(async (req) => {
     
     if (data.content && data.content.length > 50) {
       console.log(`[extract-youtube-transcript] Success! ${data.content.length} chars, lang: ${data.lang}`);
+
+      // Upsert into youtube_videos + youtube_transcripts so the video appears in the library
+      const supabaseService = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+      await upsertVideoAndTranscript(
+        supabaseService,
+        id,
+        data.content,
+        language || data.lang || 'italian',
+        userId
+      );
+
       return new Response(
         JSON.stringify({ 
           success: true, 

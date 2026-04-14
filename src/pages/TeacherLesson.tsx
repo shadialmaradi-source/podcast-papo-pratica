@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { trackPageView } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,8 @@ import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { EXERCISE_TYPE_LABELS, TYPE_COLORS } from "@/components/teacher/ExercisePresenter";
 import type { Exercise } from "@/components/teacher/ExercisePresenter";
 import { TeacherSpeakingView } from "@/components/lesson/TeacherSpeakingView";
+import SceneNavigator, { type VideoScene } from "@/components/lesson/SceneNavigator";
+import LessonVideoPlayer from "@/components/lesson/LessonVideoPlayer";
 import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight, X, Keyboard, PartyPopper, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -53,6 +55,13 @@ export default function TeacherLesson() {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Scene segmentation state
+  const [scenes, setScenes] = useState<VideoScene[]>([]);
+  const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
+  const [completedScenes, setCompletedScenes] = useState<number[]>([]);
+  const [dbVideoId, setDbVideoId] = useState<string | null>(null);
+  const [scenesLoading, setScenesLoading] = useState(false);
 
   useEffect(() => { trackPageView("teacher_lesson", "teacher"); }, [id]);
 
@@ -173,6 +182,53 @@ export default function TeacherLesson() {
 
     fetchData();
   }, [id, user]);
+
+  // Fetch scenes for YouTube lessons
+  useEffect(() => {
+    if (!lesson?.youtube_url) return;
+    const ytId = extractYouTubeVideoId(lesson.youtube_url);
+    if (!ytId) return;
+
+    const fetchScenes = async () => {
+      setScenesLoading(true);
+      try {
+        // Find the youtube_videos DB record by video_id
+        const { data: videoRecord } = await supabase
+          .from("youtube_videos")
+          .select("id")
+          .eq("video_id", ytId)
+          .maybeSingle();
+
+        if (!videoRecord) {
+          console.log("[TeacherLesson] No youtube_videos record for", ytId);
+          setScenesLoading(false);
+          return;
+        }
+
+        setDbVideoId(videoRecord.id);
+
+        // Call segment-video-scenes
+        const { data: sceneData, error: sceneError } = await supabase.functions.invoke(
+          "segment-video-scenes",
+          { body: { videoId: videoRecord.id } }
+        );
+
+        if (sceneError) {
+          console.error("[TeacherLesson] Scene segmentation error:", sceneError);
+        } else if (sceneData?.scenes?.length > 0) {
+          setScenes(sceneData.scenes);
+          setCompletedScenes([]);
+          setCurrentSceneIndex(0);
+        }
+      } catch (err) {
+        console.error("[TeacherLesson] Failed to fetch scenes:", err);
+      } finally {
+        setScenesLoading(false);
+      }
+    };
+
+    fetchScenes();
+  }, [lesson?.youtube_url]);
 
   const handleComplete = async () => {
     if (!id) return;
@@ -437,16 +493,75 @@ export default function TeacherLesson() {
               <TeacherSpeakingView lessonId={lesson.id} />
             ) : (
             <>
-            {/* YouTube video */}
+            {/* YouTube video with scene segmentation */}
             {youtubeVideoId && (
-              <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
-                <iframe
-                  src={`https://www.youtube.com/embed/${youtubeVideoId}`}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title="Lesson video"
-                />
+              <div className="space-y-4">
+                {scenes.length > 0 ? (
+                  <>
+                    <SceneNavigator
+                      scenes={scenes}
+                      currentSceneIndex={currentSceneIndex}
+                      completedScenes={completedScenes}
+                      onSceneSelect={(idx) => setCurrentSceneIndex(idx)}
+                    />
+                    {(() => {
+                      const currentScene = scenes.find(s => s.scene_index === currentSceneIndex);
+                      if (!currentScene) return null;
+                      const sceneDuration = currentScene.end_time - currentScene.start_time;
+                      return (
+                        <div className="space-y-3">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            Scene {currentScene.scene_index + 1} of {scenes.length}: {currentScene.scene_title}
+                          </h3>
+                          <LessonVideoPlayer
+                            key={`scene-${currentScene.scene_index}`}
+                            video={{
+                              youtubeId: youtubeVideoId,
+                              startTime: Math.floor(currentScene.start_time),
+                              duration: Math.ceil(sceneDuration),
+                              suggestedSpeed: 1,
+                            }}
+                            onComplete={() => {
+                              if (!completedScenes.includes(currentSceneIndex)) {
+                                setCompletedScenes(prev => [...prev, currentSceneIndex]);
+                              }
+                              // Auto-advance to next scene
+                              const nextIndex = currentSceneIndex + 1;
+                              if (nextIndex < scenes.length) {
+                                setCurrentSceneIndex(nextIndex);
+                              }
+                            }}
+                          />
+                          {currentScene.scene_transcript && (
+                            <div className="rounded-lg border border-border bg-muted/30 p-4">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Scene Transcript</p>
+                              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{currentScene.scene_transcript}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
+                    {scenesLoading ? (
+                      <div className="w-full h-full flex items-center justify-center bg-black/80">
+                        <div className="text-center space-y-2">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                          <p className="text-sm text-muted-foreground">Segmenting video into scenes...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title="Lesson video"
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

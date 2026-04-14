@@ -395,7 +395,7 @@ const form = useForm<any>({
       if (!isParagraph && values.youtube_url) {
         const { data: transcriptProbe, error: transcriptProbeError } = await supabase.functions.invoke(
           "extract-youtube-transcript",
-          { body: { videoUrl: values.youtube_url, teacherId: user.id } }
+          { body: { videoUrl: values.youtube_url, teacherId: user.id, language: values.language || 'italian' } }
         );
 
         const transcriptProbeMessage = transcriptProbeError?.message || transcriptProbe?.error || "";
