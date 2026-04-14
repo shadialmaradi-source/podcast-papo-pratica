@@ -83,7 +83,14 @@ serve(async (req) => {
       .single();
 
     if (!transcriptData?.transcript) {
-      throw new Error('No transcript available');
+      console.warn('[segment-video-scenes] Transcript not ready yet');
+      return new Response(JSON.stringify({
+        scenes: [],
+        reason: 'transcript_not_ready',
+        retryable: true,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const rawTranscript = transcriptData.transcript;

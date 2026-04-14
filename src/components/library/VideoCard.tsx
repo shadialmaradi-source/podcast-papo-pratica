@@ -11,6 +11,7 @@ interface VideoCardProps {
   duration: number | null;
   difficultyLevel: string;
   isCurated: boolean;
+  isShort?: boolean;
   onClick: () => void;
   onAssign?: () => void;
 }
@@ -85,6 +86,7 @@ export function VideoCard({
   duration,
   difficultyLevel,
   isCurated,
+  isShort,
   onClick,
   onAssign,
 }: VideoCardProps) {
@@ -131,6 +133,13 @@ export function VideoCard({
           <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
             {durationDisplay}
           </div>
+        )}
+
+        {/* Shorts badge */}
+        {isShort && (
+          <Badge className="absolute bottom-2 left-2 bg-primary/90 text-primary-foreground text-[10px] uppercase tracking-wide">
+            Shorts
+          </Badge>
         )}
       </div>
 

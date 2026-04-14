@@ -162,7 +162,13 @@ const FirstLesson = () => {
     case 'intro':
       return wrapWithBanner(
         <div className="relative">
-          <LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />
+          <LessonIntro
+            level={userLevel}
+            language={targetLanguage}
+            exerciseCount={activeExercises.length}
+            flashcardCount={activeFlashcards.length}
+            onStart={() => setStep('video')}
+          />
           {!isTeacherPreview && (
             <div className="absolute top-4 right-4 z-50">
               <button
@@ -215,7 +221,15 @@ const FirstLesson = () => {
       );
     
     default:
-      return wrapWithBanner(<LessonIntro level={userLevel} language={targetLanguage} onStart={() => setStep('video')} />);
+      return wrapWithBanner(
+        <LessonIntro
+          level={userLevel}
+          language={targetLanguage}
+          exerciseCount={activeExercises.length}
+          flashcardCount={activeFlashcards.length}
+          onStart={() => setStep('video')}
+        />
+      );
   }
 };
 

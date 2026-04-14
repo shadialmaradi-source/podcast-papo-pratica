@@ -9,6 +9,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { initAnalytics, trackSessionStart, trackSessionEnd } from "@/lib/analytics";
 import { StudentTourProvider } from "@/hooks/useStudentTour";
 import { AnalyticsConsentBanner } from "@/components/AnalyticsConsentBanner";
+import { setPendingLessonRedirect } from "@/utils/authRedirect";
 
 // Eager imports — critical entry paths
 import LandingPage from "./pages/LandingPage";
@@ -79,8 +80,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) {
     const studentLessonMatch = location.pathname.match(/^\/lesson\/student\/(.+)$/);
     if (studentLessonMatch) {
-      localStorage.setItem('pending_lesson_token', studentLessonMatch[1]);
-      localStorage.setItem('post_auth_redirect', location.pathname + location.search + location.hash);
+      setPendingLessonRedirect(location.pathname + location.search + location.hash);
     }
     return <Navigate to="/auth" replace />;
   }

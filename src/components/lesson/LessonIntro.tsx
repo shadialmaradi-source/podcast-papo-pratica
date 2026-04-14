@@ -7,19 +7,31 @@ interface LessonIntroProps {
   onStart: () => void;
   level: string;
   language?: string;
+  exerciseCount?: number;
+  flashcardCount?: number;
 }
 
-const languageNames: Record<string, string> = {
-  english: 'English',
-  spanish: 'Spanish',
-  italian: 'Italian',
-  portuguese: 'Portuguese',
-  french: 'French',
-  german: 'German',
+const languageToIsoCode: Record<string, string> = {
+  english: 'en',
+  spanish: 'es',
+  italian: 'it',
+  portuguese: 'pt',
+  french: 'fr',
+  german: 'de',
 };
 
-const LessonIntro = ({ onStart, level, language = 'english' }: LessonIntroProps) => {
-  const lessonLanguage = languageNames[language?.toLowerCase()] || language;
+const resolveLanguageDisplayName = (language: string): string => {
+  const normalized = language.toLowerCase().trim();
+  const isoCode = languageToIsoCode[normalized] || normalized;
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'language' }).of(isoCode) || language;
+  } catch {
+    return language;
+  }
+};
+
+const LessonIntro = ({ onStart, level, language = 'english', exerciseCount = 5, flashcardCount = 5 }: LessonIntroProps) => {
+  const lessonLanguage = resolveLanguageDisplayName(language);
   const getDuration = () => {
     switch (level) {
       case 'absolute_beginner': return '60';
@@ -69,7 +81,7 @@ const LessonIntro = ({ onStart, level, language = 'english' }: LessonIntroProps)
                   <div>
                     <h3 className="font-semibold text-foreground text-sm md:text-base">Comprehension Check</h3>
                     <p className="text-muted-foreground text-xs md:text-sm">
-                      Answer 10 questions to test your understanding
+                      Answer {exerciseCount} questions to test your understanding
                     </p>
                   </div>
                 </div>
@@ -93,7 +105,7 @@ const LessonIntro = ({ onStart, level, language = 'english' }: LessonIntroProps)
                   <div>
                     <h3 className="font-semibold text-foreground text-sm md:text-base">Vocabulary Flashcards</h3>
                     <p className="text-muted-foreground text-xs md:text-sm">
-                      Save 5 essential phrases to your collection
+                      Save {flashcardCount} essential phrases to your collection
                     </p>
                   </div>
                 </div>
