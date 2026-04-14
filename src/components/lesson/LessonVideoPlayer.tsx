@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,6 +55,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
   const showSubtitles = true;
   const [canContinue, setCanContinue] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [playerDuration, setPlayerDuration] = useState<number | null>(null);
   const playerRef = useRef<any>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerIdRef = useRef(`yt-player-${Date.now()}`);
@@ -80,7 +81,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
         videoId: video.youtubeId,
         playerVars: {
           start: video.startTime,
-          ...(video.isShort ? {} : { end: video.startTime + video.duration }),
+          ...(video.isShort || !(video.duration > 0) ? {} : { end: video.startTime + video.duration }),
           autoplay: 1,
           cc_load_policy: showSubtitles ? 1 : 0,
           rel: 0,
@@ -90,6 +91,8 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
         events: {
           onReady: (event: any) => {
             event.target.setPlaybackRate(parseFloat(speed));
+            const actualDuration = event.target?.getDuration?.();
+            if (actualDuration > 0) setPlayerDuration(actualDuration);
           },
           onStateChange: (event: any) => {
             // 0 = ENDED
@@ -113,11 +116,18 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
         const current = p.getCurrentTime();
         const duration = p.getDuration();
         if (duration > 0) {
+          setPlayerDuration(duration);
           const startOffset = video.startTime;
-          const effectiveDuration = Math.min(video.duration, duration - startOffset);
-          const elapsed = current - startOffset;
-          const pct = Math.min(Math.max((elapsed / effectiveDuration) * 100, 0), 100);
-          setProgress(prev => Math.max(prev, pct));
+          const clippedDuration = Math.max(duration - startOffset, 0);
+          const effectiveDuration = video.duration > 0
+            ? Math.min(video.duration, clippedDuration || video.duration)
+            : clippedDuration;
+
+          if (effectiveDuration > 0) {
+            const elapsed = current - startOffset;
+            const pct = Math.min(Math.max((elapsed / effectiveDuration) * 100, 0), 100);
+            setProgress(prev => Math.max(prev, pct));
+          }
         }
       }, 500);
     };
@@ -138,6 +148,10 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
       playerRef.current = null;
     };
   }, [isPlaying]); // intentionally minimal deps — player created once
+
+  const hasValidPropDuration = video.duration > 0;
+  const displayDuration = hasValidPropDuration ? video.duration : (playerDuration ?? 0);
+  const elapsedSeconds = displayDuration > 0 ? Math.floor((progress / 100) * displayDuration) : null;
 
   return (
     <motion.div
@@ -207,7 +221,7 @@ const LessonVideoPlayer = ({ video, onComplete }: LessonVideoPlayerProps) => {
               </div>
 
               <div className="text-sm text-muted-foreground">
-                {Math.floor(progress / 100 * video.duration)}s / {video.duration}s
+                {elapsedSeconds !== null ? `${elapsedSeconds}s / ${Math.floor(displayDuration)}s` : `-- / --`}
               </div>
             </div>
           </CardContent>
