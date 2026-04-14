@@ -10,6 +10,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import { getPendingLessonRedirect, isSharedLessonPath, setPendingLessonRedirect } from "@/utils/authRedirect";
+import { hasExistingProgressEvidence, requiresOnboarding, shouldRouteToFirstLesson } from "@/utils/onboardingStatus";
 
 const targetLanguages = [
   { code: 'english', name: 'English', flag: '🇺🇸', native: 'English', available: true },
@@ -68,6 +69,8 @@ export default function Onboarding() {
   const stepParam = searchParams.get('step');
   const storedLessonRedirect = getPendingLessonRedirect();
   const resolvedReturnTarget = isSharedLessonPath(returnTo) ? returnTo : storedLessonRedirect;
+  const pendingLessonToken = localStorage.getItem('pending_lesson_token');
+  const isLessonOnboarding = !!pendingLessonToken || (resolvedReturnTarget?.startsWith('/lesson/student/') ?? false);
 
   const [step, setStep] = useState<Step>(() => {
     if (stepParam === 'level') return 'level';
@@ -90,13 +93,38 @@ export default function Onboarding() {
 
   useEffect(() => {
     trackPageView("onboarding", "shared");
-    localStorage.setItem('first_lesson_completed', 'false');
     if (resolvedReturnTarget) {
       setPendingLessonRedirect(resolvedReturnTarget);
     }
   }, [resolvedReturnTarget]);
-  const pendingLessonToken = localStorage.getItem('pending_lesson_token');
-  const isLessonOnboarding = !!pendingLessonToken || (resolvedReturnTarget?.startsWith('/lesson/student/') ?? false);
+
+  useEffect(() => {
+    if (!user || stepParam === 'level') return;
+
+    const runOnboardingGuard = async () => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date')
+        .eq('user_id', user.id)
+        .single();
+
+      if (requiresOnboarding(profile)) return;
+
+      if (isLessonOnboarding && resolvedReturnTarget) {
+        navigate(resolvedReturnTarget, { replace: true });
+        return;
+      }
+
+      if (shouldRouteToFirstLesson(profile) && !hasExistingProgressEvidence(profile)) {
+        navigate('/lesson/first', { replace: true });
+        return;
+      }
+
+      navigate('/app', { replace: true });
+    };
+
+    void runOnboardingGuard();
+  }, [isLessonOnboarding, navigate, resolvedReturnTarget, stepParam, user]);
 
   const proficiencyLevels = [
     { code: 'absolute_beginner', label: t('absoluteBeginner'), description: t('absoluteBeginnerDesc'), icon: Sprout },
