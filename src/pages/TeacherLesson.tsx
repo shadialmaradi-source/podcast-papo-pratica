@@ -183,6 +183,53 @@ export default function TeacherLesson() {
     fetchData();
   }, [id, user]);
 
+  // Fetch scenes for YouTube lessons
+  useEffect(() => {
+    if (!lesson?.youtube_url) return;
+    const ytId = extractYouTubeVideoId(lesson.youtube_url);
+    if (!ytId) return;
+
+    const fetchScenes = async () => {
+      setScenesLoading(true);
+      try {
+        // Find the youtube_videos DB record by video_id
+        const { data: videoRecord } = await supabase
+          .from("youtube_videos")
+          .select("id")
+          .eq("video_id", ytId)
+          .maybeSingle();
+
+        if (!videoRecord) {
+          console.log("[TeacherLesson] No youtube_videos record for", ytId);
+          setScenesLoading(false);
+          return;
+        }
+
+        setDbVideoId(videoRecord.id);
+
+        // Call segment-video-scenes
+        const { data: sceneData, error: sceneError } = await supabase.functions.invoke(
+          "segment-video-scenes",
+          { body: { videoId: videoRecord.id } }
+        );
+
+        if (sceneError) {
+          console.error("[TeacherLesson] Scene segmentation error:", sceneError);
+        } else if (sceneData?.scenes?.length > 0) {
+          setScenes(sceneData.scenes);
+          setCompletedScenes([]);
+          setCurrentSceneIndex(0);
+        }
+      } catch (err) {
+        console.error("[TeacherLesson] Failed to fetch scenes:", err);
+      } finally {
+        setScenesLoading(false);
+      }
+    };
+
+    fetchScenes();
+  }, [lesson?.youtube_url]);
+
   const handleComplete = async () => {
     if (!id) return;
     setCompleting(true);
