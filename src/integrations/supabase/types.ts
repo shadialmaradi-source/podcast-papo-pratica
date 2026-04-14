@@ -231,7 +231,6 @@ export type Database = {
           category: string
           created_at: string
           email: string | null
-          honeypot: string | null
           id: string
           message: string
           name: string | null
@@ -240,10 +239,9 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
-          category: string
+          category?: string
           created_at?: string
           email?: string | null
-          honeypot?: string | null
           id?: string
           message: string
           name?: string | null
@@ -255,7 +253,6 @@ export type Database = {
           category?: string
           created_at?: string
           email?: string | null
-          honeypot?: string | null
           id?: string
           message?: string
           name?: string | null
