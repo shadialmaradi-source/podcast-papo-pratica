@@ -5,6 +5,7 @@ import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
 import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Loader2 } from "lucide-react";
 import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
+import { requiresOnboarding, shouldRouteToFirstLesson } from "@/utils/onboardingStatus";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -144,15 +145,15 @@ export default function AuthCallback() {
       } else {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("native_language")
+          .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
           .eq("user_id", user.id)
           .single();
 
-        if (!profile?.native_language) {
+        if (requiresOnboarding(profile)) {
           navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding", { replace: true });
         } else if (lessonRedirect) {
           navigate(lessonRedirect, { replace: true });
-        } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+        } else if (shouldRouteToFirstLesson(profile)) {
           clearPendingLessonRedirect();
           navigate("/lesson/first", { replace: true });
         } else {

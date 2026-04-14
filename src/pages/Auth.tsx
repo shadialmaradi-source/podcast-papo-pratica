@@ -15,6 +15,7 @@ import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
 import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff, GraduationCap, Headphones, Check } from "lucide-react";
 import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
+import { requiresOnboarding, shouldRouteToFirstLesson } from "@/utils/onboardingStatus";
 
 type AuthRole = "teacher" | "student";
 
@@ -103,16 +104,16 @@ export default function Auth() {
         } else {
           supabase
             .from("profiles")
-            .select("native_language")
+            .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
             .eq("user_id", user.id)
             .single()
               .then(({ data }) => {
                 const lessonRedirect = getPendingLessonRedirect();
-                if (!data?.native_language) {
+                if (requiresOnboarding(data)) {
                   navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
                 } else if (lessonRedirect) {
                   navigate(lessonRedirect);
-                } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+                } else if (shouldRouteToFirstLesson(data)) {
                   clearPendingLessonRedirect();
                   navigate("/lesson/first");
                 } else {
@@ -285,16 +286,16 @@ export default function Auth() {
           } else {
             const { data: profile } = await supabase
               .from("profiles")
-              .select("native_language")
+              .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
               .eq("user_id", authData.user.id)
               .single();
 
             const lessonRedirect = getPendingLessonRedirect();
-            if (!profile?.native_language) {
+            if (requiresOnboarding(profile)) {
               navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
             } else if (lessonRedirect) {
               navigate(lessonRedirect);
-            } else if (localStorage.getItem('first_lesson_completed') !== 'true') {
+            } else if (shouldRouteToFirstLesson(profile)) {
               clearPendingLessonRedirect();
               navigate("/lesson/first");
             } else {
