@@ -28,7 +28,6 @@ import { LessonPostCreationView } from "./LessonPostCreationView";
 import {
   useCreateLesson,
   type LessonType,
-  type CommunityVideoMeta,
   CEFR_LEVELS,
   LANGUAGES,
   TRANSLATION_LANGUAGES,

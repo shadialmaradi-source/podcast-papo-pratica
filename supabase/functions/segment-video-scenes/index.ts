@@ -67,8 +67,8 @@ serve(async (req) => {
       throw new Error('Video not found');
     }
 
-    const duration = videoData.duration || 0;
-    if (duration <= 120) {
+    const duration = videoData.duration;
+    if (typeof duration === 'number' && duration > 0 && duration <= 120) {
       console.log(`[segment-video-scenes] Video too short (${duration}s), no segmentation needed`);
       return new Response(JSON.stringify({ scenes: [], reason: 'video_too_short' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

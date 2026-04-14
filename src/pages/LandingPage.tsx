@@ -211,7 +211,7 @@ export default function LandingPage() {
     navigate('/onboarding');
   };
 
-  const handleFeedbackSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleFeedbackSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSubmittingFeedback) return;
 
