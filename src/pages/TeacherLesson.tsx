@@ -56,6 +56,13 @@ export default function TeacherLesson() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Scene segmentation state
+  const [scenes, setScenes] = useState<VideoScene[]>([]);
+  const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
+  const [completedScenes, setCompletedScenes] = useState<number[]>([]);
+  const [dbVideoId, setDbVideoId] = useState<string | null>(null);
+  const [scenesLoading, setScenesLoading] = useState(false);
+
   useEffect(() => { trackPageView("teacher_lesson", "teacher"); }, [id]);
 
   const [completing, setCompleting] = useState(false);
