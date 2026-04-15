@@ -161,6 +161,60 @@ export function LessonPostCreationView(props: LessonPostCreationViewProps) {
 
   const youtubeVideoId = lessonYoutubeUrl ? extractYouTubeId(lessonYoutubeUrl) : null;
 
+  // Scene segmentation state
+  const [scenes, setScenes] = useState<VideoScene[]>([]);
+  const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
+  const [completedScenes, setCompletedScenes] = useState<number[]>([]);
+  const [scenesLoading, setScenesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!youtubeVideoId) return;
+    let cancelled = false;
+
+    const fetchScenes = async () => {
+      setScenesLoading(true);
+      try {
+        // Look up youtube_videos DB record
+        const { data: videoRow } = await supabase
+          .from('youtube_videos')
+          .select('id')
+          .eq('video_id', youtubeVideoId)
+          .maybeSingle();
+
+        if (!videoRow?.id || cancelled) {
+          setScenesLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('segment-video-scenes', {
+          body: { videoId: videoRow.id },
+        });
+
+        if (!cancelled && data?.scenes?.length) {
+          setScenes(data.scenes);
+        }
+      } catch (err) {
+        console.error('[PostCreation] Scene fetch error:', err);
+      } finally {
+        if (!cancelled) setScenesLoading(false);
+      }
+    };
+
+    fetchScenes();
+    return () => { cancelled = true; };
+  }, [youtubeVideoId]);
+
+  const currentScene = scenes[currentSceneIndex];
+
+  const handleSceneComplete = () => {
+    setCompletedScenes(prev =>
+      prev.includes(currentSceneIndex) ? prev : [...prev, currentSceneIndex]
+    );
+    if (currentSceneIndex < scenes.length - 1) {
+      setCurrentSceneIndex(currentSceneIndex + 1);
+    }
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -181,7 +235,42 @@ export function LessonPostCreationView(props: LessonPostCreationViewProps) {
           </Card>
         )}
 
-        {youtubeVideoId && (
+        {youtubeVideoId && scenesLoading && (
+          <div className="space-y-3">
+            <Skeleton className="w-full aspect-video rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+          </div>
+        )}
+
+        {youtubeVideoId && !scenesLoading && scenes.length > 0 && currentScene && (
+          <div className="space-y-4">
+            <SceneNavigator
+              scenes={scenes}
+              currentSceneIndex={currentSceneIndex}
+              completedScenes={completedScenes}
+              onSceneSelect={setCurrentSceneIndex}
+            />
+            <LessonVideoPlayer
+              video={{
+                youtubeId: youtubeVideoId,
+                startTime: currentScene.start_time,
+                duration: currentScene.end_time - currentScene.start_time,
+                suggestedSpeed: 1,
+              }}
+              onComplete={handleSceneComplete}
+            />
+            {currentScene.scene_transcript && (
+              <Card>
+                <CardContent className="pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Scene Transcript</p>
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{currentScene.scene_transcript}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {youtubeVideoId && !scenesLoading && scenes.length === 0 && (
           <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
             <iframe
               src={`https://www.youtube.com/embed/${youtubeVideoId}`}
