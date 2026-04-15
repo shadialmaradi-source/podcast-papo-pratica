@@ -1,66 +1,31 @@
 
 
-# Fix Scene Segmentation for Teacher Lessons + Sync Videos to Library
+# Fix: Add Scene Segmentation to Post-Creation View
 
-## Problem Analysis
+## Problem
+After creating a YouTube lesson, the teacher sees `LessonPostCreationView` which renders a raw `<iframe>`. The scene segmentation was only added to `TeacherLesson.tsx` (the `/teacher/lesson/:id` page), not this post-creation component.
 
-### Issue 1: Teacher lessons play full video without scene splits
-`TeacherLesson.tsx` renders a raw `<iframe>` embed of the full YouTube video. It never calls `segment-video-scenes` and has no scene navigation. The student self-study flow (`Lesson.tsx` + `useLessonFlow`) handles segmentation, but teacher-created lessons are a completely separate page with no scene awareness.
+## Solution
 
-### Issue 2: Teacher-added videos don't appear in student library
-When a teacher creates a YouTube lesson, the flow calls `extract-youtube-transcript` which only fetches the transcript text — it does NOT insert a record into `youtube_videos`. The function that creates `youtube_videos` records is `process-youtube-video`, which is only used by the student library upload flow. So teacher-added videos are invisible to the main library.
+### File: `src/components/teacher/LessonPostCreationView.tsx`
 
-### Data evidence
-Out of 10 teacher YouTube lessons queried, 8 have `yv_id = NULL` — meaning no corresponding `youtube_videos` record exists. Only 2 had matches because those videos happened to already exist in the library from a separate upload.
+1. **Add imports**: `useState`, `useEffect` from React; `supabase` client; `SceneNavigator` + `VideoScene` type; `LessonVideoPlayer`; `Loader2` (already imported).
 
-## Plan
+2. **Add scene state** inside the component:
+   - `scenes: VideoScene[]`, `currentSceneIndex: number`, `completedScenes: number[]`, `scenesLoading: boolean`
 
-### 1. Ensure teacher-created YouTube videos get inserted into `youtube_videos`
+3. **Add `useEffect`** that triggers when `youtubeVideoId` is available:
+   - Query `youtube_videos` by `video_id = youtubeVideoId` to get the DB UUID
+   - Call `supabase.functions.invoke("segment-video-scenes", { body: { videoId } })`
+   - Set `scenes` from the response
+   - This is the same pattern already working in `TeacherLesson.tsx` lines 187-231
 
-**File: `supabase/functions/extract-youtube-transcript/index.ts`**
+4. **Replace the `<iframe>` block** (lines 180-190) with conditional rendering:
+   - If `scenesLoading`: show a loading skeleton
+   - If `scenes.length > 0`: render `SceneNavigator` sidebar + `LessonVideoPlayer` with `startTime`/`duration` from the current scene, plus the scene transcript text below
+   - If no scenes: fall back to the existing `<iframe>` (for very short videos under 2 minutes)
 
-After successfully fetching the transcript, upsert a record into `youtube_videos` with:
-- `video_id` = the YouTube video ID
-- `title` = fetched from YouTube oEmbed API (lightweight, no API key needed)
-- `language` = from Supadata response (`data.lang`) or the language passed in the request body
-- `difficulty_level` = passed from the caller (default `'beginner'`)
-- `is_listed` = `true` (makes it visible in the student library)
+5. **Scene navigation handlers**: `onSceneSelect` updates `currentSceneIndex`; completing a scene adds it to `completedScenes`
 
-Also upsert the transcript into `youtube_transcripts` so `segment-video-scenes` can find it later.
-
-Use `ON CONFLICT (video_id) DO NOTHING` to avoid overwriting existing records.
-
-**File: `src/hooks/useCreateLesson.ts`**
-
-Pass the `language` field from the lesson form to `extract-youtube-transcript` so it can be stored in `youtube_videos`.
-
-### 2. Add scene segmentation to the teacher lesson view
-
-**File: `src/pages/TeacherLesson.tsx`**
-
-After loading the lesson, if it's a YouTube lesson:
-- Look up the `youtube_videos` record by the YouTube video ID extracted from `lesson.youtube_url`
-- Call `segment-video-scenes` with that DB video ID
-- Replace the plain `<iframe>` with the `LessonVideoPlayer` component (which supports `startTime`/`duration`)
-- Add `SceneNavigator` sidebar to show scene list with titles
-- Show the scene-specific transcript below each scene video
-
-This reuses the existing components from `Lesson.tsx` rather than duplicating logic.
-
-### 3. Backfill existing teacher videos into `youtube_videos`
-
-**New migration SQL**
-
-Insert into `youtube_videos` any YouTube video IDs from `teacher_lessons` that don't already have a `youtube_videos` record. Extract the 11-char video ID from the URL, set `is_listed = true`, and use the lesson's `language` field.
-
-Also trigger transcript extraction for these videos so segmentation can work.
-
-### Files changed
-
-| File | Change |
-|------|--------|
-| `supabase/functions/extract-youtube-transcript/index.ts` | Upsert into `youtube_videos` + `youtube_transcripts` after transcript fetch |
-| `src/hooks/useCreateLesson.ts` | Pass `language` to transcript extraction call |
-| `src/pages/TeacherLesson.tsx` | Add scene segmentation, replace iframe with `LessonVideoPlayer` + `SceneNavigator` |
-| New migration SQL | Backfill `youtube_videos` rows for existing teacher lesson YouTube URLs |
+No other files need changes — `CreateLessonForm.tsx` already passes `lessonYoutubeUrl` which provides the YouTube URL needed.
 
