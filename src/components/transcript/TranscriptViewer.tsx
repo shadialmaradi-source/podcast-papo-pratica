@@ -138,9 +138,9 @@ export function TranscriptViewer({
     loadSavedPhrases();
   }, [loadSavedPhrases]);
 
-  // Load AI-suggested words (for free users too, but only for visible segments)
+  // Load AI-suggested words (only for authenticated users)
   useEffect(() => {
-    if (allSegments.length === 0) return;
+    if (allSegments.length === 0 || !user) return;
 
     setSuggestionsLoading(true);
     getTranscriptSuggestions(videoId, transcript, language, difficulty)
@@ -153,7 +153,7 @@ export function TranscriptViewer({
       .finally(() => {
         setSuggestionsLoading(false);
       });
-  }, [videoId, transcript, language, difficulty, allSegments.length]);
+  }, [videoId, transcript, language, difficulty, allSegments.length, user]);
 
   // Auto-scroll to current segment
   useEffect(() => {
