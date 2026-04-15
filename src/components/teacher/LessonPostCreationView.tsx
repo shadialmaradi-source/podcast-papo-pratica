@@ -1,3 +1,4 @@
+import { useState, useEffect, RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +12,10 @@ import type { Exercise } from "@/components/teacher/ExercisePresenter";
 import { extractYouTubeId, type GroupState } from "@/hooks/useCreateLesson";
 import type { UseFormReturn } from "react-hook-form";
 import type { WordAnalysis } from "@/services/wordAnalysisService";
-import { RefObject } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import SceneNavigator, { type VideoScene } from "@/components/lesson/SceneNavigator";
+import LessonVideoPlayer from "@/components/lesson/LessonVideoPlayer";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface LessonPostCreationViewProps {
   shareLink: string | null;
