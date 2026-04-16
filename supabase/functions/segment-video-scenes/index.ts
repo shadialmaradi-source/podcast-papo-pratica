@@ -256,7 +256,7 @@ serve(async (req) => {
 
     const { error: insertError } = await supabase
       .from('video_scenes')
-      .insert(scenesToInsert);
+      .upsert(scenesToInsert, { onConflict: 'video_id,scene_index' });
 
     if (insertError) {
       console.error('[segment-video-scenes] Insert error:', insertError);
