@@ -182,9 +182,10 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
 
   const { title: headerTitle, subtitle: headerSubtitle } = getHeaderCopy();
 
-  const handleCreated = (_lessonId: string) => {
+  const handleCreated = (lessonId: string) => {
     refreshQuota();
     sessionStorage.removeItem(STORAGE_KEY);
+    navigate(`/teacher/lesson/${lessonId}`);
   };
 
   const handleSelectType = (type: LessonType) => {
