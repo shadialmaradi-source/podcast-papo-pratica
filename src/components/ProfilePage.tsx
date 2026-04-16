@@ -797,7 +797,7 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
-                {myLessons.map((lesson) => (
+                {myLessons.slice(0, 2).map((lesson) => (
                   <div
                     key={lesson.id}
                     className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/40 cursor-pointer transition-colors"
@@ -820,6 +820,16 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                     </div>
                   </div>
                 ))}
+                {myLessons.length > 2 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => navigate("/my-lessons")}
+                  >
+                    View all {myLessons.length} lessons
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </motion.div>
