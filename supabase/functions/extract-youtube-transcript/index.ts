@@ -101,7 +101,7 @@ async function upsertVideoAndTranscript(
     // Check if youtube_videos record already exists
     const { data: existing } = await supabase
       .from('youtube_videos')
-      .select('id')
+      .select('id, status, processed_at')
       .eq('video_id', youtubeVideoId)
       .maybeSingle();
 
@@ -110,6 +110,18 @@ async function upsertVideoAndTranscript(
     if (existing) {
       dbVideoId = existing.id;
       console.log(`[extract-youtube-transcript] youtube_videos record already exists: ${dbVideoId}`);
+      if (existing.status !== 'completed') {
+        const { error: statusUpdateError } = await supabase
+          .from('youtube_videos')
+          .update({
+            status: 'completed',
+            processed_at: existing.processed_at || new Date().toISOString(),
+          })
+          .eq('id', dbVideoId);
+        if (statusUpdateError) {
+          console.error('[extract-youtube-transcript] Failed to mark existing video as completed:', statusUpdateError.message);
+        }
+      }
     } else {
       // Fetch title from oEmbed
       const title = await fetchVideoTitle(youtubeVideoId);
@@ -121,7 +133,9 @@ async function upsertVideoAndTranscript(
           title,
           language: language || 'italian',
           difficulty_level: 'beginner',
-          status: 'ready',
+          status: 'completed',
+          processed_at: new Date().toISOString(),
+          is_curated: false,
           added_by_user_id: userId,
           thumbnail_url: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`,
         })
