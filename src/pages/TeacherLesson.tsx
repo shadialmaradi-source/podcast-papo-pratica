@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { EXERCISE_TYPE_LABELS, TYPE_COLORS } from "@/components/teacher/ExercisePresenter";
@@ -13,7 +14,7 @@ import type { Exercise } from "@/components/teacher/ExercisePresenter";
 import { TeacherSpeakingView } from "@/components/lesson/TeacherSpeakingView";
 import SceneNavigator, { type VideoScene } from "@/components/lesson/SceneNavigator";
 import LessonVideoPlayer from "@/components/lesson/LessonVideoPlayer";
-import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight, X, Keyboard, PartyPopper, Users } from "lucide-react";
+import { ArrowLeft, User, BookOpen, CheckCircle, Loader2, Sparkles, Eye, EyeOff, ChevronLeft, ChevronRight, X, Keyboard, PartyPopper, Users, Share2, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function extractYouTubeVideoId(url: string): string | null {
@@ -42,6 +43,7 @@ interface Lesson {
   exercise_types: string[];
   language: string;
   lesson_type: string;
+  share_token: string | null;
 }
 
 export default function TeacherLesson() {
@@ -73,6 +75,7 @@ export default function TeacherLesson() {
   const [groupStates, setGroupStates] = useState<Record<string, GroupState>>({});
   const [activeGroupType, setActiveGroupType] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   const exerciseGroups = useMemo(() => {
     const typeOrder: string[] = [];
@@ -147,7 +150,7 @@ export default function TeacherLesson() {
       const [lessonRes, exercisesRes] = await Promise.all([
         supabase
           .from("teacher_lessons")
-          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, paragraph_content, paragraph_prompt, exercise_types, language, lesson_type")
+          .select("id, title, student_email, cefr_level, topic, status, youtube_url, transcript, paragraph_content, paragraph_prompt, exercise_types, language, lesson_type, share_token")
           .eq("id", id)
           .eq("teacher_id", user.id)
           .single(),
@@ -414,6 +417,22 @@ export default function TeacherLesson() {
   const youtubeVideoId = lesson.youtube_url ? extractYouTubeVideoId(lesson.youtube_url) : null;
   const generatedTypes = new Set(exercises.map(e => e.exercise_type));
   const availableTypes = (lesson.exercise_types || []).filter((t: string) => t !== "flashcards" && t !== "image_discussion");
+  const shareLink = lesson.share_token ? `${window.location.origin}/student/lesson/${lesson.share_token}` : "";
+  const activeGroup = activeGroupType
+    ? exerciseGroups.find((group) => group.type === activeGroupType) ?? null
+    : null;
+
+  const handleCopyLink = async () => {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+      toast({ title: "Link copied!" });
+    } catch {
+      toast({ title: "Could not copy link", variant: "destructive" });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -436,6 +455,23 @@ export default function TeacherLesson() {
       </header>
 
       <main className="container mx-auto max-w-2xl px-4 py-8 space-y-6">
+        {shareLink && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="pt-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Share2 className="h-4 w-4 text-primary" />
+                Share this lesson with your student
+              </div>
+              <div className="flex items-center gap-2">
+                <Input value={shareLink} readOnly className="flex-1 text-sm" />
+                <Button type="button" size="sm" variant="outline" onClick={handleCopyLink}>
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Demo success banner */}
         {isDemo && (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 space-y-3">
@@ -498,12 +534,6 @@ export default function TeacherLesson() {
               <div className="space-y-4">
                 {scenes.length > 0 ? (
                   <>
-                    <SceneNavigator
-                      scenes={scenes}
-                      currentSceneIndex={currentSceneIndex}
-                      completedScenes={completedScenes}
-                      onSceneSelect={(idx) => setCurrentSceneIndex(idx)}
-                    />
                     {(() => {
                       const currentScene = scenes.find(s => s.scene_index === currentSceneIndex);
                       if (!currentScene) return null;
@@ -533,14 +563,31 @@ export default function TeacherLesson() {
                             }}
                           />
                           {currentScene.scene_transcript && (
-                            <div className="rounded-lg border border-border bg-muted/30 p-4">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Scene Transcript</p>
-                              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{currentScene.scene_transcript}</p>
-                            </div>
+                            <TranscriptViewer
+                              transcript={currentScene.scene_transcript}
+                              videoId={lesson.id}
+                              videoTitle={`${lesson.title} – Scene ${currentScene.scene_index + 1}`}
+                              language={lesson.language || "italian"}
+                              isPremium={true}
+                              onUpgradeClick={() => navigate("/teacher/pricing")}
+                            />
                           )}
                         </div>
                       );
                     })()}
+                    <details className="rounded-lg border border-border bg-card p-4">
+                      <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                        Jump to scene ({scenes.length} scenes)
+                      </summary>
+                      <div className="mt-3">
+                        <SceneNavigator
+                          scenes={scenes}
+                          currentSceneIndex={currentSceneIndex}
+                          completedScenes={completedScenes}
+                          onSceneSelect={(idx) => setCurrentSceneIndex(idx)}
+                        />
+                      </div>
+                    </details>
                   </>
                 ) : (
                   <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
@@ -631,53 +678,76 @@ export default function TeacherLesson() {
             )}
 
             {/* Exercise groups */}
-            {exerciseGroups.map((group) => {
-              const state = groupStates[group.type] || { currentIndex: 0, revealed: false };
-              const exercise = group.exercises[state.currentIndex];
-              if (!exercise) return null;
+            {exerciseGroups.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {exerciseGroups.map((group) => {
+                    const label = EXERCISE_TYPE_LABELS[group.type] || group.type;
+                    const isActive = activeGroupType === group.type;
+                    const colorClass = TYPE_COLORS[group.type] || "";
 
-              const label = EXERCISE_TYPE_LABELS[group.type] || group.type;
-              const colorClass = TYPE_COLORS[group.type] || "";
-              const isFirst = state.currentIndex === 0;
-              const isLast = state.currentIndex === group.exercises.length - 1;
-
-              return (
-                <div
-                  key={group.type}
-                  className={`space-y-3 rounded-lg transition-colors ${activeGroupType === group.type ? "border-l-4 border-primary pl-4" : "border-l-4 border-transparent pl-4"}`}
-                  onClick={() => setActiveGroupType(group.type)}
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
+                    return (
+                      <button
+                        key={group.type}
+                        type="button"
+                        onClick={() => setActiveGroupType(group.type)}
+                        className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          isActive
+                            ? `${colorClass} border-transparent`
+                            : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
                         {label}
-                      </span>
-                      <span className="text-sm text-muted-foreground font-normal">
-                        {state.currentIndex + 1} / {group.exercises.length}
-                      </span>
-                    </h3>
-                  </div>
-
-                  <Card className="border border-border shadow-sm">
-                    <CardContent className="pt-6 pb-6 px-6 space-y-6">
-                      {renderExerciseContent(exercise, state.revealed)}
-                    </CardContent>
-                  </Card>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <Button variant="outline" size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex - 1, revealed: false })} disabled={isFirst}>
-                      <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => updateGroupState(group.type, { revealed: !state.revealed })} className="flex-1">
-                      {state.revealed ? <><EyeOff className="h-4 w-4 mr-2" />Hide Answer</> : <><Eye className="h-4 w-4 mr-2" />Reveal Answer</>}
-                    </Button>
-                    <Button size="sm" onClick={() => updateGroupState(group.type, { currentIndex: state.currentIndex + 1, revealed: false })} disabled={isLast}>
-                      Next <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
+
+                {activeGroup && (() => {
+                  const state = groupStates[activeGroup.type] || { currentIndex: 0, revealed: false };
+                  const exercise = activeGroup.exercises[state.currentIndex];
+                  if (!exercise) return null;
+
+                  const label = EXERCISE_TYPE_LABELS[activeGroup.type] || activeGroup.type;
+                  const colorClass = TYPE_COLORS[activeGroup.type] || "";
+                  const isFirst = state.currentIndex === 0;
+                  const isLast = state.currentIndex === activeGroup.exercises.length - 1;
+
+                  return (
+                    <div className="space-y-3 rounded-lg border-l-4 border-primary pl-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}>
+                            {label}
+                          </span>
+                          <span className="text-sm text-muted-foreground font-normal">
+                            {state.currentIndex + 1} / {activeGroup.exercises.length}
+                          </span>
+                        </h3>
+                      </div>
+
+                      <Card className="border border-border shadow-sm">
+                        <CardContent className="pt-6 pb-6 px-6 space-y-6">
+                          {renderExerciseContent(exercise, state.revealed)}
+                        </CardContent>
+                      </Card>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <Button variant="outline" size="sm" onClick={() => updateGroupState(activeGroup.type, { currentIndex: state.currentIndex - 1, revealed: false })} disabled={isFirst}>
+                          <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => updateGroupState(activeGroup.type, { revealed: !state.revealed })} className="flex-1">
+                          {state.revealed ? <><EyeOff className="h-4 w-4 mr-2" />Hide Answer</> : <><Eye className="h-4 w-4 mr-2" />Reveal Answer</>}
+                        </Button>
+                        <Button size="sm" onClick={() => updateGroupState(activeGroup.type, { currentIndex: state.currentIndex + 1, revealed: false })} disabled={isLast}>
+                          Next <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* Complete button */}
             <Button
