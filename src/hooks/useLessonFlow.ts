@@ -527,7 +527,7 @@ export function useLessonFlow(videoId: string | undefined) {
     initLesson();
   };
 
-  const hasSceneData = scenes.length > 0;
+  const hasSceneData = isSegmented && scenes.length > 0;
   const currentScene = hasSceneData ? scenes[currentSceneIndex] : null;
 
   return {
