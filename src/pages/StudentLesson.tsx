@@ -772,9 +772,7 @@ export default function StudentLesson() {
                       className="gap-2"
                       title={unavailable ? (isPremium ? "Generate this missing exercise type." : "Premium required to generate this exercise type.") : undefined}
                     >
-                      {isGenerating ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : isGenerated && isActive ? (
+                      {isGenerated && isActive ? (
                         <CheckCircle className="h-4 w-4" />
                       ) : (
                         <Sparkles className="h-4 w-4" />
