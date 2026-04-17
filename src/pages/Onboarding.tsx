@@ -10,7 +10,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import { getPendingLessonRedirect, isSharedLessonPath, setPendingLessonRedirect } from "@/utils/authRedirect";
-import { hasExistingProgressEvidence, requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
+import { STUDENT_ONBOARDING_PROFILE_FIELDS, hasExistingProgressEvidence, requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
 
 const targetLanguages = [
   { code: 'english', name: 'English', flag: '🇺🇸', native: 'English', available: true },
@@ -104,7 +104,7 @@ export default function Onboarding() {
     const runOnboardingGuard = async () => {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date')
+        .select(STUDENT_ONBOARDING_PROFILE_FIELDS)
         .eq('user_id', user.id)
         .single();
 

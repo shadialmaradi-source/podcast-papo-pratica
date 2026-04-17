@@ -15,7 +15,7 @@ import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
 import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff, GraduationCap, Headphones, Check } from "lucide-react";
 import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
-import { requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
+import { STUDENT_ONBOARDING_PROFILE_FIELDS, requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
 
 type AuthRole = "teacher" | "student";
 
