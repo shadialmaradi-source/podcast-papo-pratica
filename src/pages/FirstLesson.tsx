@@ -46,15 +46,53 @@ const FirstLesson = () => {
   const targetLanguage = localStorage.getItem('onboarding_language') || 'english';
   const nativeLanguage = localStorage.getItem('onboarding_native_language') || 'en';
 
-  // Redirect to onboarding if required params are missing
+  // Backfill missing onboarding params from profile/defaults to avoid redirect loops.
+  // Only redirect to /onboarding when we truly have no language/native info anywhere.
   useEffect(() => {
     if (isTeacherPreview) return;
-    const hasLanguage = localStorage.getItem('onboarding_language');
-    const hasNative = localStorage.getItem('onboarding_native_language');
-    const hasLevel = localStorage.getItem('onboarding_level');
-    if (!hasLanguage || !hasNative || !hasLevel) {
-      navigate('/onboarding', { replace: true });
-    }
+    let cancelled = false;
+    (async () => {
+      let hasLanguage = localStorage.getItem('onboarding_language');
+      let hasNative = localStorage.getItem('onboarding_native_language');
+      let hasLevel = localStorage.getItem('onboarding_level');
+
+      if (!hasLanguage || !hasNative) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('selected_language, native_language, current_level')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          if (profile) {
+            if (!hasLanguage && profile.selected_language) {
+              localStorage.setItem('onboarding_language', profile.selected_language);
+              hasLanguage = profile.selected_language;
+            }
+            if (!hasNative && profile.native_language) {
+              localStorage.setItem('onboarding_native_language', profile.native_language);
+              hasNative = profile.native_language;
+            }
+            if (!hasLevel && profile.current_level) {
+              localStorage.setItem('onboarding_level', profile.current_level);
+              hasLevel = profile.current_level;
+            }
+          }
+        }
+      }
+
+      // Default level if still missing — never redirect just for level.
+      if (!hasLevel) {
+        localStorage.setItem('onboarding_level', 'absolute_beginner');
+        hasLevel = 'absolute_beginner';
+      }
+
+      if (cancelled) return;
+      if (!hasLanguage || !hasNative) {
+        navigate('/onboarding', { replace: true });
+      }
+    })();
+    return () => { cancelled = true; };
   }, [navigate, isTeacherPreview]);
 
   // Get fallback content for the selected language and level
