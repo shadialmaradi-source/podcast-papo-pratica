@@ -62,8 +62,15 @@ export async function analyzeWord(
   const cached = wordAnalysisCache.get(cacheKey);
   if (cached) return cached;
 
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+  if (!accessToken) {
+    throw new Error("You must be signed in to analyze words.");
+  }
+
   const { data, error } = await supabase.functions.invoke("analyze-word", {
     body: { word, language, contextSentence, nativeLanguage },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   if (error) {
