@@ -15,9 +15,7 @@ export function hasExistingProgressEvidence(profile: StudentProfileForOnboarding
     (profile.total_xp ?? 0) > 0 ||
     (profile.current_streak ?? 0) > 0 ||
     (profile.longest_streak ?? 0) > 0 ||
-    profile.last_login_date ||
-    (profile.selected_language && profile.selected_language !== 'portuguese') ||
-    (profile.current_level && profile.current_level !== 'A1')
+    profile.last_login_date
   );
 }
 
