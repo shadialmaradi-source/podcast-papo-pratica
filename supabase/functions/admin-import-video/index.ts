@@ -12,6 +12,10 @@ const FOUNDER_IDS = [
   '4019daee-273d-48e5-8128-fa3332e9acb0',
   'd16921f2-9385-4bcb-9052-5fd9902956fd',
 ];
+const FOUNDER_EMAILS = (Deno.env.get('ADMIN_IMPORT_ALLOWLIST_EMAILS') ?? '')
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 
 const TOPICS = [
   'technology', 'business', 'travel', 'culture', 'food',
@@ -44,8 +48,20 @@ serve(async (req) => {
     if (authError || !user) throw new Error('Unauthorized');
 
     // Founder check
-    if (!FOUNDER_IDS.includes(user.id)) {
-      return new Response(JSON.stringify({ error: 'Forbidden: founders only' }), {
+    const userEmail = user.email?.toLowerCase() ?? '';
+    const hasFounderAccess =
+      FOUNDER_IDS.includes(user.id) ||
+      (userEmail.length > 0 && FOUNDER_EMAILS.includes(userEmail));
+
+    if (!hasFounderAccess) {
+      return new Response(JSON.stringify({
+        error: 'Forbidden: founders only',
+        details: {
+          userId: user.id,
+          email: user.email ?? null,
+          reason: 'Account not found in founder ID allow-list or ADMIN_IMPORT_ALLOWLIST_EMAILS',
+        }
+      }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
