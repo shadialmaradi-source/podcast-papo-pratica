@@ -19,6 +19,8 @@ import { requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson,
 
 type AuthRole = "teacher" | "student";
 
+const STUDENT_ONBOARDING_PROFILE_FIELDS = "native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date";
+
 const roleConfig = {
   teacher: {
     signUpTitle: "Start Your Free Trial",
@@ -105,7 +107,7 @@ export default function Auth() {
           (async () => {
             const { data } = await supabase
               .from("profiles")
-              .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
+              .select(STUDENT_ONBOARDING_PROFILE_FIELDS)
               .eq("user_id", user.id)
               .single();
 
@@ -297,7 +299,7 @@ export default function Auth() {
           } else {
             const { data: profile } = await supabase
               .from("profiles")
-              .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
+              .select(STUDENT_ONBOARDING_PROFILE_FIELDS)
               .eq("user_id", authData.user.id)
               .single();
 
