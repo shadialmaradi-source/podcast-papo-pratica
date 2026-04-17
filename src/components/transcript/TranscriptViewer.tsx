@@ -8,6 +8,7 @@ import { useTextSelection } from '@/hooks/useTextSelection';
 import { getSavedPhrasesForVideo } from '@/services/flashcardService';
 import { getTranscriptSuggestions, analyzeWord, type TranscriptWordSuggestion, type WordAnalysis } from '@/services/wordAnalysisService';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import TranscriptLine from './TranscriptLine';
 import TextSelectionPopover from './TextSelectionPopover';
 import FlashcardCreatorModal from './FlashcardCreatorModal';
@@ -94,6 +95,7 @@ export function TranscriptViewer({
   const [selectedSentence, setSelectedSentence] = useState('');
   const [selectedTimestamp, setSelectedTimestamp] = useState('');
   const [preloadedAnalysis, setPreloadedAnalysis] = useState<{ translation: string; partOfSpeech: string } | null>(null);
+  const [translationLanguage, setTranslationLanguage] = useState<string>('english');
 
   // Word explorer state
   const [isExplorerOpen, setIsExplorerOpen] = useState(false);
@@ -105,6 +107,12 @@ export function TranscriptViewer({
   const [tutorialHighlightIndex, setTutorialHighlightIndex] = useState<number | null>(null);
 
   const currentSegmentIndex = getCurrentSegmentIndex(segments, currentTime);
+
+  const sanitizeSelectionText = useCallback((raw: string) => {
+    return raw
+      .replace(/^[\s"'“”‘’.,!?;:()[\]{}¡¿-]+|[\s"'“”‘’.,!?;:()[\]{}¡¿-]+$/g, '')
+      .trim();
+  }, []);
 
   // Text selection hook
   const { selection, clearSelection } = useTextSelection(containerRef, {
@@ -137,6 +145,38 @@ export function TranscriptViewer({
   useEffect(() => {
     loadSavedPhrases();
   }, [loadSavedPhrases]);
+
+  // Resolve translation language from profile (fallback to onboarding storage)
+  useEffect(() => {
+    if (!user?.id) {
+      const stored = localStorage.getItem('onboarding_native_language');
+      if (stored) setTranslationLanguage(stored);
+      return;
+    }
+
+    let mounted = true;
+    const resolveTranslationLanguage = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('native_language')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const resolved = profile?.native_language || localStorage.getItem('onboarding_native_language') || 'english';
+        if (mounted) {
+          setTranslationLanguage(resolved);
+        }
+      } catch (error) {
+        console.error('Failed to resolve translation language:', error);
+      }
+    };
+
+    resolveTranslationLanguage();
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
 
   // Load AI-suggested words (only for authenticated users)
   useEffect(() => {
@@ -198,12 +238,13 @@ export function TranscriptViewer({
       onUpgradeClick();
       return;
     }
+    const normalizedSelection = sanitizeSelectionText(selection.text) || selection.text.trim();
     const segmentIndex = segments.findIndex((s) =>
-      s.text.toLowerCase().includes(selection.text.toLowerCase())
+      s.text.toLowerCase().includes(normalizedSelection.toLowerCase())
     );
     const segment = segments[segmentIndex] || segments[currentSegmentIndex] || segments[0];
     openFlashcardModal(
-      selection.text,
+      normalizedSelection,
       selection.fullSentence || segment?.text || selection.text,
       segment?.timestamp || '0:00'
     );
@@ -223,7 +264,7 @@ export function TranscriptViewer({
     }
 
     try {
-      const analysis = await analyzeWord(word, language, contextSentence);
+      const analysis = await analyzeWord(word, language, contextSentence, translationLanguage);
       setExplorerAnalysis(analysis);
     } catch (error) {
       console.error('Error exploring word:', error);
@@ -239,11 +280,12 @@ export function TranscriptViewer({
       onUpgradeClick();
       return;
     }
+    const normalizedSelection = sanitizeSelectionText(selection.text) || selection.text.trim();
     const segmentIndex = segments.findIndex((s) =>
-      s.text.toLowerCase().includes(selection.text.toLowerCase())
+      s.text.toLowerCase().includes(normalizedSelection.toLowerCase())
     );
     const segment = segments[segmentIndex] || segments[currentSegmentIndex] || segments[0];
-    openExplorer(selection.text, segment?.text);
+    openExplorer(normalizedSelection, segment?.text);
   };
 
   const handleExplorerSaveFlashcard = () => {
@@ -506,6 +548,7 @@ export function TranscriptViewer({
         videoId={videoId}
         videoTitle={videoTitle}
         language={language}
+        translationLanguage={translationLanguage}
         onSuccess={handleFlashcardSuccess}
         preloadedAnalysis={preloadedAnalysis}
       />

@@ -54,6 +54,20 @@ export function YouTubeExercises({
   dbVideoId: dbVideoIdProp, nativeLanguage: nativeLanguageProp,
   onBack, onComplete, onContinueToSpeaking, onTryNextLevel, onSkipToFlashcards,
 }: YouTubeExercisesProps) {
+  const formatCorrectAnswer = (exercise: Exercise) => {
+    if (!exercise?.correctAnswer) return "";
+    const isSequenceExercise = exercise.type === "Sequencing" || exercise.type === "sequencing";
+    if (!isSequenceExercise) return exercise.correctAnswer;
+
+    const parsed = exercise.correctAnswer
+      .split(",")
+      .map((item: string) => Number.parseInt(item.trim(), 10))
+      .filter((item: number) => Number.isFinite(item));
+
+    if (parsed.length === 0) return exercise.correctAnswer;
+    return parsed.map((index: number) => index + 1).join(",");
+  };
+
   const {
     exercises, dragDropExercises, showDragDrop, currentExerciseIndex,
     answers, showResults, score, isLoading, error, showFeedback,
@@ -318,7 +332,7 @@ export function YouTubeExercises({
                     {currentAnswerCorrect ? 'Correct!' : 'Not quite'}
                   </p>
                   {!currentAnswerCorrect && (
-                    <p className="text-sm text-muted-foreground mt-1">Correct answer: {currentExercise.correctAnswer}</p>
+                    <p className="text-sm text-muted-foreground mt-1">Correct answer: {formatCorrectAnswer(currentExercise)}</p>
                   )}
                   {currentExercise.explanation && (
                     <p className="text-sm text-muted-foreground mt-1">{currentExercise.explanation}</p>
