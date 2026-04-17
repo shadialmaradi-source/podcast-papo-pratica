@@ -117,11 +117,17 @@ export default function Onboarding() {
 
       if (!isActive || requiresStudentOnboarding(profile)) return;
 
+      const hasOnboardingState = hasRequiredOnboardingState();
       const destination = resolvedReturnTarget
         ? resolvedReturnTarget
         : getPostOnboardingStudentDestination(profile, localStorage.getItem("first_lesson_completed"));
 
-      if (destination === "/lesson/first" && !hasRequiredOnboardingState()) {
+      const isFirstLessonDestination =
+        destination === "/lesson/first" || destination.startsWith("/lesson/first?");
+
+      if (isFirstLessonDestination && !hasOnboardingState) {
+        // Keep the student on onboarding when local onboarding state is incomplete.
+        // This avoids a redirect loop between /onboarding and /lesson/first on new devices/browsers.
         return;
       }
 
