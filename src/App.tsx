@@ -168,6 +168,7 @@ const App = () => {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/cookie-policy" element={<CookiePolicy />} />
+              <Route path="/student/lesson/:id" element={<LegacyStudentLessonRedirect />} />
 
               {/* Teacher routes */}
               <Route path="/teacher/onboarding" element={<ProtectedRoute><TeacherOnboarding /></ProtectedRoute>} />
@@ -189,10 +190,6 @@ const App = () => {
               <Route path="/learn/video/:weekVideoId" element={<ProtectedRoute><WeekVideo /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/lesson/student/:id" element={<ProtectedRoute><StudentLesson /></ProtectedRoute>} />
-              <Route
-                path="/student/lesson/:id"
-                element={<ProtectedRoute><LegacyStudentLessonRedirect /></ProtectedRoute>}
-              />
               <Route path="/speaking/:assignmentId" element={<ProtectedRoute><SpeakingAssignment /></ProtectedRoute>} />
               <Route path="/my-lessons" element={<ProtectedRoute><MyLessons /></ProtectedRoute>} />
               <Route path="/my-assignments" element={<ProtectedRoute><MyAssignments /></ProtectedRoute>} />
