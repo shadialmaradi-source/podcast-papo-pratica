@@ -10,6 +10,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent, trackPageView, trackFunnelStep } from "@/lib/analytics";
 import { getPendingLessonRedirect, isSharedLessonPath, setPendingLessonRedirect } from "@/utils/authRedirect";
+import { getPostOnboardingStudentDestination, requiresStudentOnboarding } from "@/utils/studentOnboarding";
 
 const targetLanguages = [
   { code: 'english', name: 'English', flag: '🇺🇸', native: 'English', available: true },
@@ -90,11 +91,37 @@ export default function Onboarding() {
 
   useEffect(() => {
     trackPageView("onboarding", "shared");
-    localStorage.setItem('first_lesson_completed', 'false');
     if (resolvedReturnTarget) {
       setPendingLessonRedirect(resolvedReturnTarget);
     }
   }, [resolvedReturnTarget]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (stepParam === "level") return;
+
+    let isActive = true;
+    const redirectReturningUsers = async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!isActive || requiresStudentOnboarding(profile)) return;
+
+      const destination = resolvedReturnTarget
+        ? resolvedReturnTarget
+        : getPostOnboardingStudentDestination(profile, localStorage.getItem("first_lesson_completed"));
+
+      navigate(destination, { replace: true });
+    };
+
+    redirectReturningUsers();
+    return () => {
+      isActive = false;
+    };
+  }, [navigate, resolvedReturnTarget, stepParam, user]);
   const pendingLessonToken = localStorage.getItem('pending_lesson_token');
   const isLessonOnboarding = !!pendingLessonToken || (resolvedReturnTarget?.startsWith('/lesson/student/') ?? false);
 
