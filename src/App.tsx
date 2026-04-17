@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import { useUserRole } from "@/hooks/useUserRole";
 import { initAnalytics, trackSessionStart, trackSessionEnd } from "@/lib/analytics";
 import { StudentTourProvider } from "@/hooks/useStudentTour";
 import { AnalyticsConsentBanner } from "@/components/AnalyticsConsentBanner";

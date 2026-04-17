@@ -1,3 +1,6 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
 export const STUDENT_ONBOARDING_PROFILE_FIELDS = 'native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date';
 
 export type StudentProfileForOnboarding = {
@@ -35,16 +38,6 @@ export function shouldRouteToFirstLesson(profile: StudentProfileForOnboarding | 
   return !hasExistingProgressEvidence(profile);
 }
 
-// Map a target language code (e.g. "english") to a native-language code (e.g. "en")
-const TARGET_TO_NATIVE_CODE: Record<string, string> = {
-  english: 'en',
-  spanish: 'es',
-  french: 'fr',
-  italian: 'it',
-  german: 'de',
-  portuguese: 'pt',
-};
-
 function detectBrowserNativeCode(): string {
   if (typeof navigator === 'undefined') return 'en';
   return navigator.language?.split('-')[0]?.toLowerCase() || 'en';
@@ -62,7 +55,7 @@ export type LessonForHydration = {
  * Only fills missing fields — never overwrites existing answers.
  */
 export async function hydrateProfileFromLesson(
-  supabase: { from: (t: string) => any },
+  supabase: SupabaseClient<Database>,
   userId: string,
   lesson: LessonForHydration | null | undefined,
 ): Promise<void> {
@@ -96,7 +89,7 @@ export async function hydrateProfileFromLesson(
  * fields needed to hydrate a student's profile.
  */
 export async function fetchLessonForHydration(
-  supabase: { from: (t: string) => any },
+  supabase: SupabaseClient<Database>,
   shareToken: string,
 ): Promise<LessonForHydration | null> {
   if (!shareToken) return null;
