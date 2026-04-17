@@ -17,6 +17,11 @@ const FOUNDER_IDS = [
   'd16921f2-9385-4bcb-9052-5fd9902956fd',
 ];
 
+const FOUNDER_EMAILS = (import.meta.env.VITE_ADMIN_IMPORT_ALLOWLIST_EMAILS || "")
+  .split(",")
+  .map((email: string) => email.trim().toLowerCase())
+  .filter(Boolean);
+
 const LANGUAGES = [
   { value: 'auto', label: '🔍 Auto-detect' },
   { value: 'italian', label: '🇮🇹 Italian' },
@@ -53,9 +58,47 @@ export default function AdminImport() {
   const [importing, setImporting] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [results, setResults] = useState<ImportResult[]>([]);
+  const userEmail = user?.email?.toLowerCase() || "";
+  const hasImportAccess = !!user && (
+    FOUNDER_IDS.includes(user.id) ||
+    (userEmail && FOUNDER_EMAILS.includes(userEmail))
+  );
 
   if (loading) return null;
-  if (!user || !FOUNDER_IDS.includes(user.id)) return <Navigate to="/app" replace />;
+  if (!user) return <Navigate to="/app" replace />;
+  if (!hasImportAccess) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="flex items-center gap-3">
+            <Link to="/app">
+              <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Founder Import Tool</h1>
+              <p className="text-sm text-muted-foreground">Access restricted to configured founders</p>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg text-destructive">Access denied</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <p>You are signed in, but this account is not allow-listed for <code>/admin/import</code>.</p>
+              <p><strong>User ID:</strong> <code>{user.id}</code></p>
+              <p><strong>Email:</strong> <code>{user.email || "(none)"}</code></p>
+              <p className="text-muted-foreground">
+                To restore access after auth migrations, add your email to
+                <code> VITE_ADMIN_IMPORT_ALLOWLIST_EMAILS</code> (comma-separated) and
+                <code> ADMIN_IMPORT_ALLOWLIST_EMAILS</code> on the edge function.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const updateEntry = (id: string, field: keyof VideoEntry, value: string) => {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
