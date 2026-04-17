@@ -197,6 +197,12 @@ export function useLessonFlow(videoId: string | undefined) {
     knownDuration?: number | null,
     attempt: number = 0
   ) => {
+    const clearSceneState = () => {
+      setScenes([]);
+      setCompletedScenes([]);
+      setCurrentSceneIndex(0);
+    };
+
     setLessonState("loading");
     try {
       const { data: storedScenes } = await supabase
@@ -237,6 +243,7 @@ export function useLessonFlow(videoId: string | undefined) {
           .eq("id", videoDbId)
           .single();
         if (!videoData) {
+          clearSceneState();
           setIsSegmented(false);
           setLessonState("scene-video");
           return;
@@ -276,6 +283,7 @@ export function useLessonFlow(videoId: string | undefined) {
             message: "Scene generation timed out waiting for transcript.",
           });
         }
+        clearSceneState();
         setIsSegmented(false);
         setLessonState("scene-video");
         return;
@@ -300,6 +308,7 @@ export function useLessonFlow(videoId: string | undefined) {
             description: "Couldn't generate scene splits for this video right now.",
           });
         }
+        clearSceneState();
         setIsSegmented(false);
         setLessonState("scene-video");
         return;
@@ -330,6 +339,7 @@ export function useLessonFlow(videoId: string | undefined) {
         state: "failed",
         message: "Scene generation failed unexpectedly. Check function logs.",
       });
+      clearSceneState();
       setIsSegmented(false);
       setLessonState("scene-video");
     }
