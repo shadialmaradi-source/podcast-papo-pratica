@@ -19,8 +19,6 @@ import { STUDENT_ONBOARDING_PROFILE_FIELDS, requiresOnboarding, shouldRouteToFir
 
 type AuthRole = "teacher" | "student";
 
-const STUDENT_ONBOARDING_PROFILE_FIELDS = "native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date";
-
 const roleConfig = {
   teacher: {
     signUpTitle: "Start Your Free Trial",
@@ -114,9 +112,9 @@ export default function Auth() {
             const lessonRedirect = getPendingLessonRedirect();
             const shareToken = extractShareTokenFromPath(lessonRedirect);
             if (shareToken && requiresOnboarding(data)) {
-              const lesson = await fetchLessonForHydration(supabase as any, shareToken);
+              const lesson = await fetchLessonForHydration(supabase, shareToken);
               if (lesson) {
-                await hydrateProfileFromLesson(supabase as any, user.id, lesson);
+                await hydrateProfileFromLesson(supabase, user.id, lesson);
                 navigate(lessonRedirect!);
                 return;
               }
@@ -306,9 +304,9 @@ export default function Auth() {
             const lessonRedirect = getPendingLessonRedirect();
             const shareToken = extractShareTokenFromPath(lessonRedirect);
             if (shareToken && requiresOnboarding(profile)) {
-              const lesson = await fetchLessonForHydration(supabase as any, shareToken);
+              const lesson = await fetchLessonForHydration(supabase, shareToken);
               if (lesson) {
-                await hydrateProfileFromLesson(supabase as any, authData.user.id, lesson);
+                await hydrateProfileFromLesson(supabase, authData.user.id, lesson);
                 navigate(lessonRedirect!);
                 return;
               }

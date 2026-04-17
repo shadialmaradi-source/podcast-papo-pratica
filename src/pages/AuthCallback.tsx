@@ -152,9 +152,9 @@ export default function AuthCallback() {
         // Shared-lesson signup: hydrate profile from lesson metadata and skip onboarding entirely.
         const shareToken = extractShareTokenFromPath(lessonRedirect);
         if (shareToken && requiresOnboarding(profile)) {
-          const lesson = await fetchLessonForHydration(supabase as any, shareToken);
+          const lesson = await fetchLessonForHydration(supabase, shareToken);
           if (lesson) {
-            await hydrateProfileFromLesson(supabase as any, user.id, lesson);
+            await hydrateProfileFromLesson(supabase, user.id, lesson);
             navigate(lessonRedirect!, { replace: true });
             return;
           }
