@@ -1,3 +1,5 @@
+export const STUDENT_ONBOARDING_PROFILE_FIELDS = 'native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date';
+
 export type StudentProfileForOnboarding = {
   native_language: string | null;
   selected_language: string | null;

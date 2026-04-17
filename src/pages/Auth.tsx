@@ -15,7 +15,7 @@ import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
 import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff, GraduationCap, Headphones, Check } from "lucide-react";
 import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
-import { requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
+import { STUDENT_ONBOARDING_PROFILE_FIELDS, requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
 
 type AuthRole = "teacher" | "student";
 
@@ -105,7 +105,7 @@ export default function Auth() {
           (async () => {
             const { data } = await supabase
               .from("profiles")
-              .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
+              .select(STUDENT_ONBOARDING_PROFILE_FIELDS)
               .eq("user_id", user.id)
               .single();
 
@@ -297,7 +297,7 @@ export default function Auth() {
           } else {
             const { data: profile } = await supabase
               .from("profiles")
-              .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
+              .select(STUDENT_ONBOARDING_PROFILE_FIELDS)
               .eq("user_id", authData.user.id)
               .single();
 
