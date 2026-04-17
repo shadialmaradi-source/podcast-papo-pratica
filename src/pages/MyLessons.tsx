@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, BookOpen, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +22,7 @@ interface AssignedLesson {
 
 export default function MyLessons() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [lessons, setLessons] = useState<AssignedLesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,8 @@ export default function MyLessons() {
     return null;
   }
 
+  const cameFromProfile = location.state?.from === "profile";
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader title="My Lessons" />
@@ -57,11 +60,11 @@ export default function MyLessons() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/app")}
+          onClick={() => navigate(cameFromProfile ? "/profile" : "/app")}
           className="mb-6 text-muted-foreground"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
-          Home
+          {cameFromProfile ? "Profile" : "Home"}
         </Button>
 
         <div className="flex items-center gap-2 mb-6">
@@ -90,7 +93,11 @@ export default function MyLessons() {
                 <Card
                   key={lesson.id}
                   className="cursor-pointer border border-border hover:border-primary/50 transition-colors overflow-hidden"
-                  onClick={() => navigate(`/lesson/student/${lesson.id}`)}
+                  onClick={() =>
+                    navigate(`/lesson/student/${lesson.id}`, {
+                      state: { from: "my-lessons", backTo: "/my-lessons", parentFrom: location.state?.from },
+                    })
+                  }
                 >
                   <div className="flex">
                     {ytId && (

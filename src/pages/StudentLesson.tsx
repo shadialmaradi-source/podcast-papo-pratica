@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeacherBranding } from "@/hooks/useTeacherBranding";
@@ -232,6 +232,7 @@ function StudentExerciseView({
 export default function StudentLesson() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
@@ -268,13 +269,33 @@ export default function StudentLesson() {
 
   interface GroupState { currentIndex: number; }
   const [groupStates, setGroupStates] = useState<Record<string, GroupState>>({});
+  const [activeGroupType, setActiveGroupType] = useState<string | null>(null);
+
+  const backTo = location.state?.backTo as string | undefined;
+  const parentFrom = location.state?.parentFrom as string | undefined;
+  const backLabel = backTo === "/my-lessons" ? "My Lessons" : "Home";
+
+  const handleBack = () => {
+    if (backTo === "/my-lessons") {
+      navigate("/my-lessons", { state: parentFrom === "profile" ? { from: "profile" } : undefined });
+      return;
+    }
+    navigate("/app");
+  };
 
   const updateGroupState = (type: string, update: Partial<GroupState>) => {
+    setActiveGroupType(type);
     setGroupStates((prev) => ({
       ...prev,
       [type]: { ...prev[type], ...update },
     }));
   };
+
+  useEffect(() => {
+    if (exerciseGroups.length > 0 && !activeGroupType) {
+      setActiveGroupType(exerciseGroups[0].type);
+    }
+  }, [exerciseGroups, activeGroupType]);
 
   const loadData = async () => {
     if (!id || !user) return;
@@ -466,6 +487,9 @@ export default function StudentLesson() {
           if (!newStates[t]) newStates[t] = { currentIndex: 0 };
         });
         setGroupStates(newStates);
+        if (!activeGroupType && fetchedExercises.length > 0) {
+          setActiveGroupType((fetchedExercises[0] as Exercise).exercise_type);
+        }
       }
 
       // Fetch transcript if updated
@@ -482,7 +506,7 @@ export default function StudentLesson() {
 
       toast.success(`${EXERCISE_TYPE_LABELS[exerciseType] || exerciseType} exercises ready!`);
     } catch (err: any) {
-      toast.error(err.message || "Failed to generate exercises");
+      toast.error(err.message || "This exercise type is not available for this lesson yet.");
     } finally {
       setGeneratingType(null);
     }
@@ -507,8 +531,8 @@ export default function StudentLesson() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-3">
           <p className="text-muted-foreground">Lesson not found or not assigned to you.</p>
-          <Button variant="outline" onClick={() => navigate("/app")}>
-            Back to Home
+          <Button variant="outline" onClick={handleBack}>
+            Back to {backLabel}
           </Button>
         </div>
       </div>
@@ -533,7 +557,7 @@ export default function StudentLesson() {
               <RefreshCw className="h-4 w-4" />
               Redo Lesson
             </Button>
-            <Button onClick={() => navigate("/app")}>Back to Home</Button>
+            <Button onClick={handleBack}>Back to {backLabel}</Button>
           </div>
         </div>
       </div>
@@ -558,11 +582,11 @@ export default function StudentLesson() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/app")}
+              onClick={handleBack}
               className="text-muted-foreground"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              Home
+              {backLabel}
             </Button>
             {hasBranding && branding!.logo_url ? (
               <img src={branding!.logo_url} alt="Logo" className="h-7 max-w-[120px] object-contain" />
@@ -650,7 +674,7 @@ export default function StudentLesson() {
             />
           )}
 
-          {/* Per-type generation buttons */}
+          {/* Exercise type selector + generation buttons */}
           {availableTypes.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-foreground">Exercises</h3>
@@ -659,19 +683,27 @@ export default function StudentLesson() {
                   const label = EXERCISE_TYPE_LABELS[type] || type;
                   const isGenerated = generatedTypes.has(type);
                   const isGenerating = generatingType === type;
+                  const isActive = activeGroupType === type;
 
                   return (
                     <Button
                       key={type}
-                      variant={isGenerated ? "outline" : "default"}
+                      variant={isActive ? "default" : "outline"}
                       size="sm"
-                      onClick={() => !isGenerated && handleGenerateByType(type)}
-                      disabled={isGenerating || (!!generatingType && !isGenerated) || isGenerated}
+                      onClick={() => {
+                        if (isGenerated) {
+                          setActiveGroupType(type);
+                          return;
+                        }
+                        setActiveGroupType(type);
+                        handleGenerateByType(type);
+                      }}
+                      disabled={isGenerating || (!!generatingType && !isGenerated)}
                       className="gap-2"
                     >
                       {isGenerating ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : isGenerated ? (
+                      ) : isGenerated && isActive ? (
                         <CheckCircle className="h-4 w-4" />
                       ) : (
                         <Sparkles className="h-4 w-4" />
@@ -684,11 +716,24 @@ export default function StudentLesson() {
             </div>
           )}
 
-          {/* Exercise sections grouped by type */}
-          {exerciseGroups.map((group) => {
+          {/* One active exercise section (teacher-style behavior) */}
+          {activeGroupType && (() => {
+            const group = exerciseGroups.find((g) => g.type === activeGroupType);
+            if (!group) return null;
+
             const state = groupStates[group.type] || { currentIndex: 0 };
             const exercise = group.exercises[state.currentIndex];
-            if (!exercise) return null;
+            if (!exercise || !exercise.content || typeof exercise.content !== "object") {
+              return (
+                <Card className="border border-border shadow-sm">
+                  <CardContent className="pt-6 pb-6 px-6">
+                    <p className="text-sm text-muted-foreground">
+                      This exercise is temporarily unavailable for this lesson. Please try another exercise type.
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            }
 
             const label = EXERCISE_TYPE_LABELS[group.type] || group.type;
             const colorClass = TYPE_COLORS[group.type] || "";
@@ -755,7 +800,7 @@ export default function StudentLesson() {
                 </div>
               </div>
             );
-          })}
+          })()}
 
           {/* Finish button */}
           {exercises.length > 0 && (
