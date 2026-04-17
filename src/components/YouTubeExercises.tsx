@@ -22,6 +22,7 @@ import { DragDropExercises } from "./DragDropExercises";
 import { TranslationHint } from "./exercises/TranslationHint";
 import { ExerciseRenderer } from "./exercises/ExerciseRenderer";
 import { useYouTubeExercises, checkAnswerCorrectness } from "@/hooks/useYouTubeExercises";
+import type { Exercise } from "@/services/exerciseGeneratorService";
 
 interface YouTubeExercisesProps {
   videoId: string;
