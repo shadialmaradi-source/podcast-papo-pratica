@@ -99,7 +99,7 @@ BEFORE INSERT OR UPDATE ON public.teacher_students
 FOR EACH ROW
 EXECUTE FUNCTION public.enforce_teacher_student_limit();
 
--- Block new video assignments when trial expired, payment past due, or monthly lesson cap is reached
+-- Block new video assignments when trial expired or payment is past due
 CREATE OR REPLACE FUNCTION public.enforce_teacher_assignment_limit()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -110,8 +110,6 @@ DECLARE
   v_plan TEXT;
   v_status TEXT;
   v_trial_ends_at TIMESTAMPTZ;
-  v_limit INTEGER;
-  v_count INTEGER;
 BEGIN
   SELECT plan, status, trial_ends_at INTO v_plan, v_status, v_trial_ends_at
   FROM public.teacher_subscriptions
@@ -127,23 +125,6 @@ BEGIN
 
   IF v_status = 'past_due' THEN
     RAISE EXCEPTION 'PAYMENT_PAST_DUE:Your payment is past due. Please update your payment method.';
-  END IF;
-
-  v_limit := CASE v_plan
-    WHEN 'free' THEN 10
-    WHEN 'trial' THEN 30
-    WHEN 'pro' THEN 30
-    WHEN 'premium' THEN 100
-    ELSE 10
-  END;
-
-  SELECT COUNT(*) INTO v_count
-  FROM public.teacher_lessons
-  WHERE teacher_id = NEW.teacher_id
-    AND created_at >= date_trunc('month', now());
-
-  IF v_count >= v_limit THEN
-    RAISE EXCEPTION 'LESSON_LIMIT_REACHED:You have reached your % plan limit of % lessons this month.', v_plan, v_limit;
   END IF;
 
   RETURN NEW;
