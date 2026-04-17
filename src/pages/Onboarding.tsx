@@ -100,6 +100,14 @@ export default function Onboarding() {
     if (!user) return;
 
     let isActive = true;
+    const hasRequiredOnboardingState = () => {
+      const requiredKeys = ["onboarding_language", "onboarding_native_language", "onboarding_level"];
+      return requiredKeys.every((key) => {
+        const value = localStorage.getItem(key);
+        return value !== null && value.trim().length > 0;
+      });
+    };
+
     const redirectReturningUsers = async () => {
       const { data: profile } = await supabase
         .from("profiles")
@@ -112,6 +120,10 @@ export default function Onboarding() {
       const destination = resolvedReturnTarget
         ? resolvedReturnTarget
         : getPostOnboardingStudentDestination(profile, localStorage.getItem("first_lesson_completed"));
+
+      if (destination === "/lesson/first" && !hasRequiredOnboardingState()) {
+        return;
+      }
 
       navigate(destination, { replace: true });
     };
