@@ -5,7 +5,7 @@ import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
 import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Loader2 } from "lucide-react";
 import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
-import { requiresOnboarding, shouldRouteToFirstLesson } from "@/utils/onboardingStatus";
+import { requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -148,6 +148,17 @@ export default function AuthCallback() {
           .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
           .eq("user_id", user.id)
           .single();
+
+        // Shared-lesson signup: hydrate profile from lesson metadata and skip onboarding entirely.
+        const shareToken = extractShareTokenFromPath(lessonRedirect);
+        if (shareToken && requiresOnboarding(profile)) {
+          const lesson = await fetchLessonForHydration(supabase as any, shareToken);
+          if (lesson) {
+            await hydrateProfileFromLesson(supabase as any, user.id, lesson);
+            navigate(lessonRedirect!, { replace: true });
+            return;
+          }
+        }
 
         if (requiresOnboarding(profile)) {
           navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding", { replace: true });

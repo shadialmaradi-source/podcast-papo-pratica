@@ -417,7 +417,7 @@ export default function TeacherLesson() {
   const youtubeVideoId = lesson.youtube_url ? extractYouTubeVideoId(lesson.youtube_url) : null;
   const generatedTypes = new Set(exercises.map(e => e.exercise_type));
   const availableTypes = (lesson.exercise_types || []).filter((t: string) => t !== "flashcards" && t !== "image_discussion");
-  const shareLink = lesson.share_token ? `${window.location.origin}/student/lesson/${lesson.share_token}` : "";
+  const shareLink = lesson.share_token ? `${window.location.origin}/lesson/student/${lesson.share_token}` : "";
   const activeGroup = activeGroupType
     ? exerciseGroups.find((group) => group.type === activeGroupType) ?? null
     : null;

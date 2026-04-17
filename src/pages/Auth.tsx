@@ -15,7 +15,7 @@ import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
 import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff, GraduationCap, Headphones, Check } from "lucide-react";
 import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
-import { requiresOnboarding, shouldRouteToFirstLesson } from "@/utils/onboardingStatus";
+import { requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
 
 type AuthRole = "teacher" | "student";
 
@@ -102,25 +102,36 @@ export default function Auth() {
               }
             });
         } else {
-          supabase
-            .from("profiles")
-            .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
-            .eq("user_id", user.id)
-            .single()
-              .then(({ data }) => {
-                const lessonRedirect = getPendingLessonRedirect();
-                if (requiresOnboarding(data)) {
-                  navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
-                } else if (lessonRedirect) {
-                  navigate(lessonRedirect);
-                } else if (shouldRouteToFirstLesson(data)) {
-                  clearPendingLessonRedirect();
-                  navigate("/lesson/first");
-                } else {
-                clearPendingLessonRedirect();
-                navigate("/app");
+          (async () => {
+            const { data } = await supabase
+              .from("profiles")
+              .select("native_language, selected_language, current_level, total_xp, current_streak, longest_streak, last_login_date")
+              .eq("user_id", user.id)
+              .single();
+
+            const lessonRedirect = getPendingLessonRedirect();
+            const shareToken = extractShareTokenFromPath(lessonRedirect);
+            if (shareToken && requiresOnboarding(data)) {
+              const lesson = await fetchLessonForHydration(supabase as any, shareToken);
+              if (lesson) {
+                await hydrateProfileFromLesson(supabase as any, user.id, lesson);
+                navigate(lessonRedirect!);
+                return;
               }
-            });
+            }
+
+            if (requiresOnboarding(data)) {
+              navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
+            } else if (lessonRedirect) {
+              navigate(lessonRedirect);
+            } else if (shouldRouteToFirstLesson(data)) {
+              clearPendingLessonRedirect();
+              navigate("/lesson/first");
+            } else {
+              clearPendingLessonRedirect();
+              navigate("/app");
+            }
+          })();
         }
       });
   }, [user, navigate]);
@@ -291,6 +302,16 @@ export default function Auth() {
               .single();
 
             const lessonRedirect = getPendingLessonRedirect();
+            const shareToken = extractShareTokenFromPath(lessonRedirect);
+            if (shareToken && requiresOnboarding(profile)) {
+              const lesson = await fetchLessonForHydration(supabase as any, shareToken);
+              if (lesson) {
+                await hydrateProfileFromLesson(supabase as any, authData.user.id, lesson);
+                navigate(lessonRedirect!);
+                return;
+              }
+            }
+
             if (requiresOnboarding(profile)) {
               navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
             } else if (lessonRedirect) {
