@@ -131,6 +131,11 @@ BEGIN
 END;
 $function$;
 
+-- Keep assignment inserts independent from lesson-creation monthly caps.
+-- Teachers must be able to assign existing library videos even after hitting
+-- their lesson limit; only trial expiry/past_due status should block inserts.
+DROP TRIGGER IF EXISTS enforce_lesson_limit ON public.video_assignments;
+DROP TRIGGER IF EXISTS enforce_teacher_lesson_limit_trigger ON public.video_assignments;
 DROP TRIGGER IF EXISTS enforce_teacher_assignment_limit_trigger ON public.video_assignments;
 CREATE TRIGGER enforce_teacher_assignment_limit_trigger
 BEFORE INSERT ON public.video_assignments
