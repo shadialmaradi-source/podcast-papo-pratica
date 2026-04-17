@@ -62,7 +62,14 @@ export const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): 
         const correctSequence = JSON.parse(exercise.correctAnswer);
         const userSequence = userAnswer.split(',').map(i => parseInt(i)).filter(i => !isNaN(i));
         if (userSequence.length !== correctSequence.length) return false;
-        return userSequence.every((val, idx) => val === correctSequence[idx]);
+        const exactMatch = userSequence.every((val, idx) => val === correctSequence[idx]);
+        if (exactMatch) return true;
+
+        // Backward/forward compatibility:
+        // some payloads use 0-based indices while others use 1-based labels.
+        const oneBasedUser = userSequence.map((value) => value + 1);
+        const oneBasedCorrect = correctSequence.map((value: number) => value + 1);
+        return oneBasedUser.every((val, idx) => val === oneBasedCorrect[idx]);
       } catch {
         return false;
       }
