@@ -801,7 +801,11 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                   <div
                     key={lesson.id}
                     className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/40 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/lesson/student/${lesson.share_token || lesson.id}`)}
+                    onClick={() =>
+                      navigate(`/lesson/student/${lesson.share_token || lesson.id}`, {
+                        state: { from: "profile", backTo: "/profile" },
+                      })
+                    }
                   >
                     <div className="min-w-0">
                       <p className="font-medium text-sm text-foreground truncate">{lesson.title}</p>
@@ -825,7 +829,9 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                     variant="outline"
                     size="sm"
                     className="w-full mt-2"
-                    onClick={() => navigate("/my-lessons")}
+                    onClick={() =>
+                      navigate("/my-lessons", { state: { from: "profile" } })
+                    }
                   >
                     View all {myLessons.length} lessons
                   </Button>
