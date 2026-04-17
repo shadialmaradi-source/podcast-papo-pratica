@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeacherBranding } from "@/hooks/useTeacherBranding";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { TranslationHint } from "@/components/exercises/TranslationHint";
 import { StudentSpeakingView } from "@/components/lesson/StudentSpeakingView";
-import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User, Radio, RefreshCw, Loader2, Sparkles } from "lucide-react";
+import SceneNavigator, { type VideoScene } from "@/components/lesson/SceneNavigator";
+import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, CheckCircle, Send, User, Radio, RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { trackEvent, trackPageView } from "@/lib/analytics";
 import { clearPendingLessonRedirect } from "@/utils/authRedirect";
@@ -242,7 +244,10 @@ export default function StudentLesson() {
   const [loading, setLoading] = useState(true);
   const [done, setDone] = useState(false);
   const [teacherIndex, setTeacherIndex] = useState<number | null>(null);
+  const [scenes, setScenes] = useState<VideoScene[]>([]);
+  const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [generatingType, setGeneratingType] = useState<string | null>(null);
+  const { isPremium } = useSubscription();
 
   const { branding, teacherName: brandTeacherName } = useTeacherBranding(lesson?.teacher_id ?? null);
   const hasBranding = branding && (branding.logo_url || branding.primary_color);
@@ -386,6 +391,58 @@ export default function StudentLesson() {
     loadData();
   }, [id, user]);
 
+  useEffect(() => {
+    if (!lesson?.youtube_url) {
+      setScenes([]);
+      setCurrentSceneIndex(0);
+      return;
+    }
+
+    const youtubeVideoId = extractYouTubeVideoId(lesson.youtube_url);
+    if (!youtubeVideoId) {
+      setScenes([]);
+      return;
+    }
+
+    let mounted = true;
+    const fetchScenes = async () => {
+      try {
+        const { data: videoRecord } = await supabase
+          .from("youtube_videos")
+          .select("id")
+          .eq("video_id", youtubeVideoId)
+          .maybeSingle();
+
+        if (!videoRecord) {
+          if (mounted) setScenes([]);
+          return;
+        }
+
+        const { data: sceneData, error: sceneError } = await supabase.functions.invoke(
+          "segment-video-scenes",
+          { body: { videoId: videoRecord.id } }
+        );
+
+        if (sceneError) {
+          console.error("[StudentLesson] Scene segmentation error:", sceneError);
+          return;
+        }
+
+        if (mounted && Array.isArray(sceneData?.scenes) && sceneData.scenes.length > 0) {
+          setScenes(sceneData.scenes);
+          setCurrentSceneIndex(0);
+        }
+      } catch (err) {
+        console.error("[StudentLesson] Failed to fetch scenes:", err);
+      }
+    };
+
+    fetchScenes();
+    return () => {
+      mounted = false;
+    };
+  }, [lesson?.youtube_url]);
+
   // Real-time sync
   useEffect(() => {
     if (!lesson) return;
@@ -461,6 +518,13 @@ export default function StudentLesson() {
 
   const handleGenerateByType = async (exerciseType: string) => {
     if (!lesson || generatingType) return;
+
+    if (!isPremium) {
+      toast.message("Premium required to generate missing exercises.");
+      navigate("/premium");
+      return;
+    }
+
     setGeneratingType(exerciseType);
     try {
       const { error } = await supabase.functions.invoke("generate-lesson-exercises-by-type", {
@@ -468,7 +532,6 @@ export default function StudentLesson() {
       });
       if (error) throw error;
 
-      // Re-fetch exercises
       const { data: fetchedExercises } = await supabase
         .from("lesson_exercises")
         .select("id, exercise_type, content, order_index")
@@ -487,26 +550,12 @@ export default function StudentLesson() {
           if (!newStates[t]) newStates[t] = { currentIndex: 0 };
         });
         setGroupStates(newStates);
-        if (!activeGroupType && fetchedExercises.length > 0) {
-          setActiveGroupType((fetchedExercises[0] as Exercise).exercise_type);
-        }
+        setActiveGroupType(exerciseType);
       }
 
-      // Fetch transcript if updated
-      if (!lesson.transcript) {
-        const { data: lessonData } = await supabase
-          .from("teacher_lessons")
-          .select("transcript")
-          .eq("id", lesson.id)
-          .single();
-        if (lessonData?.transcript) {
-          setLesson(prev => prev ? { ...prev, transcript: lessonData.transcript } : prev);
-        }
-      }
-
-      toast.success(`${EXERCISE_TYPE_LABELS[exerciseType] || exerciseType} exercises ready!`);
+      toast.success(`${EXERCISE_TYPE_LABELS[exerciseType] || exerciseType} is now available!`);
     } catch (err: any) {
-      toast.error(err.message || "This exercise type is not available for this lesson yet.");
+      toast.error(err.message || "Failed to generate this exercise. Please try again.");
     } finally {
       setGeneratingType(null);
     }
@@ -565,6 +614,11 @@ export default function StudentLesson() {
   }
 
   const youtubeVideoId = lesson.youtube_url ? extractYouTubeVideoId(lesson.youtube_url) : null;
+  const currentScene = scenes[currentSceneIndex] || null;
+  const transcriptForDisplay =
+    currentScene?.scene_transcript ||
+    lesson.transcript ||
+    (lesson.lesson_type === "paragraph" ? lesson.paragraph_content : null);
 
   const brandStyle = hasBranding
     ? { "--brand-primary": branding!.primary_color, "--brand-secondary": branding!.secondary_color } as React.CSSProperties
@@ -638,22 +692,38 @@ export default function StudentLesson() {
         <div className="space-y-6">
           {/* YouTube video */}
           {youtubeVideoId && (
-            <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
-              <iframe
-                src={`https://www.youtube.com/embed/${youtubeVideoId}`}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title="Lesson video"
-              />
+            <div className="space-y-3">
+              {scenes.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Scene {currentSceneIndex + 1} of {scenes.length}
+                  {currentScene?.scene_title ? `: ${currentScene.scene_title}` : ""}
+                </p>
+              )}
+              <div className="rounded-xl overflow-hidden border border-border bg-black aspect-video">
+                <iframe
+                  src={`https://www.youtube.com/embed/${youtubeVideoId}${currentScene ? `?start=${Math.floor(currentScene.start_time)}&end=${Math.floor(currentScene.end_time)}` : ""}`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title="Lesson video"
+                />
+              </div>
+              {scenes.length > 0 && (
+                <SceneNavigator
+                  scenes={scenes}
+                  currentSceneIndex={currentSceneIndex}
+                  completedScenes={scenes.map((scene) => scene.scene_index)}
+                  onSceneSelect={setCurrentSceneIndex}
+                />
+              )}
             </div>
           )}
 
           {/* Transcript */}
-          {lesson.transcript && (
+          {transcriptForDisplay && (
             <TranscriptViewer
               videoId={lesson.id}
-              transcript={lesson.transcript}
+              transcript={transcriptForDisplay}
               videoTitle={lesson.title}
               language={lesson.language || "italian"}
               isPremium={true}
@@ -682,8 +752,9 @@ export default function StudentLesson() {
                 {availableTypes.map((type: string) => {
                   const label = EXERCISE_TYPE_LABELS[type] || type;
                   const isGenerated = generatedTypes.has(type);
-                  const isGenerating = generatingType === type;
                   const isActive = activeGroupType === type;
+                  const unavailable = !isGenerated;
+                  const isGenerating = generatingType === type;
 
                   return (
                     <Button
@@ -695,11 +766,11 @@ export default function StudentLesson() {
                           setActiveGroupType(type);
                           return;
                         }
-                        setActiveGroupType(type);
                         handleGenerateByType(type);
                       }}
-                      disabled={isGenerating || (!!generatingType && !isGenerated)}
+                      disabled={!!generatingType && !isGenerating}
                       className="gap-2"
+                      title={unavailable ? (isPremium ? "Generate this missing exercise type." : "Premium required to generate this exercise type.") : undefined}
                     >
                       {isGenerating ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -708,7 +779,7 @@ export default function StudentLesson() {
                       ) : (
                         <Sparkles className="h-4 w-4" />
                       )}
-                      {label}
+                      {label} {unavailable ? "• Generate" : ""}
                     </Button>
                   );
                 })}
