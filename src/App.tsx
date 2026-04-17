@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { initAnalytics, trackSessionStart, trackSessionEnd } from "@/lib/analytics";
@@ -59,6 +59,11 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const LegacyStudentLessonRedirect = () => {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={id ? `/lesson/student/${id}` : "/lesson/student"} replace />;
+};
 
 function LoadingFallback() {
   return (
@@ -184,6 +189,10 @@ const App = () => {
               <Route path="/learn/video/:weekVideoId" element={<ProtectedRoute><WeekVideo /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/lesson/student/:id" element={<ProtectedRoute><StudentLesson /></ProtectedRoute>} />
+              <Route
+                path="/student/lesson/:id"
+                element={<ProtectedRoute><LegacyStudentLessonRedirect /></ProtectedRoute>}
+              />
               <Route path="/speaking/:assignmentId" element={<ProtectedRoute><SpeakingAssignment /></ProtectedRoute>} />
               <Route path="/my-lessons" element={<ProtectedRoute><MyLessons /></ProtectedRoute>} />
               <Route path="/my-assignments" element={<ProtectedRoute><MyAssignments /></ProtectedRoute>} />

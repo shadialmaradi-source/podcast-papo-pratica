@@ -20,6 +20,21 @@ with teacher_youtube_lessons as (
     transcript
   from teacher_youtube_lessons
   where extracted_video_id is not null
+), deduped_lessons as (
+  select video_id, title, language, teacher_id, transcript
+  from (
+    select
+      nl.*,
+      row_number() over (
+        partition by nl.video_id
+        order by
+          (nullif(trim(nl.transcript), '') is not null) desc,
+          nl.title asc,
+          nl.teacher_id asc nulls last
+      ) as row_num
+    from normalized_lessons nl
+  ) ranked_lessons
+  where row_num = 1
 )
 insert into youtube_videos (
   video_id,
@@ -33,20 +48,20 @@ insert into youtube_videos (
   is_curated
 )
 select
-  nl.video_id,
-  nl.title,
-  nl.language,
+  dl.video_id,
+  dl.title,
+  dl.language,
   'beginner',
   'completed',
   now(),
-  nl.teacher_id,
-  'https://img.youtube.com/vi/' || nl.video_id || '/hqdefault.jpg',
+  dl.teacher_id,
+  'https://img.youtube.com/vi/' || dl.video_id || '/hqdefault.jpg',
   false
-from normalized_lessons nl
+from deduped_lessons dl
 where not exists (
   select 1
   from youtube_videos yv
-  where yv.video_id = nl.video_id
+  where yv.video_id = dl.video_id
 );
 
 -- Ensure previously inserted "ready" rows with transcripts become visible in library.
@@ -72,6 +87,19 @@ with teacher_youtube_lessons as (
     and tl.youtube_url is not null
     and tl.transcript is not null
     and length(trim(tl.transcript)) > 0
+), deduped_transcripts as (
+  select extracted_video_id, language, transcript
+  from (
+    select
+      tyl.*,
+      row_number() over (
+        partition by tyl.extracted_video_id
+        order by length(trim(tyl.transcript)) desc
+      ) as row_num
+    from teacher_youtube_lessons tyl
+    where tyl.extracted_video_id is not null
+  ) ranked_transcripts
+  where row_num = 1
 )
 insert into youtube_transcripts (
   video_id,
@@ -81,12 +109,12 @@ insert into youtube_transcripts (
 )
 select
   yv.id,
-  tyl.transcript,
-  tyl.language,
-  array_length(regexp_split_to_array(trim(tyl.transcript), '\\s+'), 1)
-from teacher_youtube_lessons tyl
-join youtube_videos yv on yv.video_id = tyl.extracted_video_id
-where tyl.extracted_video_id is not null
+  dt.transcript,
+  dt.language,
+  array_length(regexp_split_to_array(trim(dt.transcript), '\\s+'), 1)
+from deduped_transcripts dt
+join youtube_videos yv on yv.video_id = dt.extracted_video_id
+where dt.extracted_video_id is not null
   and not exists (
     select 1
     from youtube_transcripts yt
