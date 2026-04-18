@@ -14,7 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
 import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionService";
 import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff, GraduationCap, Headphones, Check } from "lucide-react";
-import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
+import { clearPendingLessonRedirect, getPendingLessonRedirect, getPendingLessonEmail } from "@/utils/authRedirect";
 import { STUDENT_ONBOARDING_PROFILE_FIELDS, requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
 
 type AuthRole = "teacher" | "student";
@@ -66,9 +66,13 @@ export default function Auth() {
   const rawRole = searchParams.get("role");
   const role: AuthRole = rawRole === "teacher" ? "teacher" : "student";
   const config = roleConfig[role];
+  const modeParam = searchParams.get("mode");
+  const lessonTokenParam = searchParams.get("lessonToken");
+  const pendingLessonEmail = typeof window !== "undefined" ? getPendingLessonEmail() : null;
+  const hasLessonInvite = Boolean(lessonTokenParam || pendingLessonEmail);
 
-  const [isSignUp, setIsSignUp] = useState(rawRole === "teacher");
-  const [email, setEmail] = useState("");
+  const [isSignUp, setIsSignUp] = useState(modeParam === "signup" || hasLessonInvite || rawRole === "teacher");
+  const [email, setEmail] = useState(pendingLessonEmail ?? "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -470,8 +474,20 @@ export default function Auth() {
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10" required />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10"
+                      required
+                      readOnly={Boolean(pendingLessonEmail)}
+                    />
                   </div>
+                  {pendingLessonEmail && (
+                    <p className="text-xs text-muted-foreground">Your teacher invited you with this email.</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
