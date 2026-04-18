@@ -1317,13 +1317,12 @@ export type Database = {
           notes: string | null
           part_of_speech: string | null
           phrase: string
-          source_lesson_id: string | null
           source_timestamp: string | null
           times_reviewed: number
           translation: string | null
           updated_at: string
           user_id: string
-          video_id: string | null
+          video_id: string
         }
         Insert: {
           created_at?: string
@@ -1333,13 +1332,12 @@ export type Database = {
           notes?: string | null
           part_of_speech?: string | null
           phrase: string
-          source_lesson_id?: string | null
           source_timestamp?: string | null
           times_reviewed?: number
           translation?: string | null
           updated_at?: string
           user_id: string
-          video_id?: string | null
+          video_id: string
         }
         Update: {
           created_at?: string
@@ -1349,22 +1347,14 @@ export type Database = {
           notes?: string | null
           part_of_speech?: string | null
           phrase?: string
-          source_lesson_id?: string | null
           source_timestamp?: string | null
           times_reviewed?: number
           translation?: string | null
           updated_at?: string
           user_id?: string
-          video_id?: string | null
+          video_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "user_created_flashcards_source_lesson_id_fkey"
-            columns: ["source_lesson_id"]
-            isOneToOne: false
-            referencedRelation: "teacher_lessons"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "user_created_flashcards_video_id_fkey"
             columns: ["video_id"]
