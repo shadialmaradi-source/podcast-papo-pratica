@@ -104,6 +104,8 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ videosWatched: 0, wordsLearned: 0, studyTimeMinutes: 0 });
   const [portalLoading, setPortalLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [learningPathProgress, setLearningPathProgress] = useState<{
     currentWeek: WeekWithProgress | null;
