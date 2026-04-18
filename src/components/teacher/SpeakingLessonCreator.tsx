@@ -28,6 +28,7 @@ import {
   MessageSquare,
   BookOpen,
   Sparkles,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
@@ -73,7 +74,7 @@ interface VocabItem {
   translating?: boolean;
 }
 
-type Step = "config" | "topics" | "questions" | "vocabulary" | "review";
+type Step = "config" | "topics" | "vocabulary" | "review";
 
 interface SpeakingLessonCreatorProps {
   onCancel: () => void;
@@ -112,17 +113,17 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
   const [customDescription, setCustomDescription] = useState(() => loadSaved("customDescription", ""));
   const [loadingTopics, setLoadingTopics] = useState(false);
 
-  // Step 3: Questions
+  // Generated questions
   const [questions, setQuestions] = useState<Question[]>(() => loadSaved("questions", []));
   const [loadingQuestions, setLoadingQuestions] = useState(false);
 
-  // Step 4: Vocabulary
+  // Step 3: Vocabulary
   const [vocabByQuestion, setVocabByQuestion] = useState<Record<number, VocabItem[]>>(() => loadSaved("vocabByQuestion", {}));
   const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
   const [newWordsByQuestion, setNewWordsByQuestion] = useState<Record<number, string>>(() => loadSaved("newWordsByQuestion", {}));
   const [usedTopicTitles, setUsedTopicTitles] = useState<string[]>(() => loadSaved("usedTopicTitles", []));
 
-  // Step 5: Review
+  // Step 4: Review
   const [title, setTitle] = useState(() => loadSaved("title", ""));
   const [studentEmail, setStudentEmail] = useState(() => loadSaved("studentEmail", ""));
   const [creating, setCreating] = useState(false);
@@ -165,18 +166,13 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
       title: "Choose a discussion topic",
       subtitle: "Pick a strong prompt or regenerate for fresh ideas.",
     },
-    questions: {
-      order: 3,
-      title: "Review generated questions",
-      subtitle: "Check question quality before adding vocabulary support.",
-    },
     vocabulary: {
-      order: 4,
+      order: 3,
       title: "Attach vocabulary per question",
-      subtitle: "Add key words where students need help most.",
+      subtitle: "Review questions and add vocabulary cards students will see in this speaking lesson.",
     },
     review: {
-      order: 5,
+      order: 4,
       title: "Finalize and assign",
       subtitle: "Set title/email and publish your speaking lesson.",
     },
@@ -246,7 +242,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
       setQuestions(data.questions || []);
       setVocabByQuestion({});
       setNewWordsByQuestion({});
-      setStep("questions");
+      setStep("vocabulary");
       trackEvent("speaking_questions_generated", { language, level, topic: selectedTopic.title });
     } catch (err: any) {
       toast.error(err.message || "Failed to generate questions.");
@@ -458,7 +454,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
     <div className="space-y-4">
       <div className="rounded-lg border bg-card p-4">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Step {speakingStepMeta[step].order} of 5
+          Step {speakingStepMeta[step].order} of 4
         </p>
         <h3 className="text-lg font-semibold text-foreground mt-1">{speakingStepMeta[step].title}</h3>
         <p className="text-sm text-muted-foreground mt-1">{speakingStepMeta[step].subtitle}</p>
@@ -628,66 +624,30 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
         </div>
       )}
 
-      {/* STEP: Questions */}
-      {step === "questions" && (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">Discussion Questions</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              {langLabel} · {level} · {selectedTopic?.title}
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {questions.map((q, idx) => (
-              <Card key={idx}>
-                <CardContent className="p-5">
-                  <div className="flex items-start gap-3">
-                    <span className="text-sm font-bold text-muted-foreground mt-0.5">{idx + 1}.</span>
-                    <div className="flex-1">
-                      <p className="text-foreground leading-relaxed">{q.question}</p>
-                      <Badge className={`mt-2 text-xs ${difficultyColor(q.difficulty)}`}>
-                        {difficultyLabel(q.difficulty)}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleGenerateQuestions}
-            disabled={loadingQuestions}
-          >
-            <RefreshCw className={`mr-2 h-3.5 w-3.5 ${loadingQuestions ? "animate-spin" : ""}`} />
-            Regenerate Questions
-          </Button>
-
-          <div className="flex justify-between">
-            <Button variant="ghost" size="sm" onClick={() => setStep("topics")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            <Button onClick={() => setStep("vocabulary")}>
-              Next: Add Vocabulary
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* STEP: Vocabulary */}
       {step === "vocabulary" && (
         <div className="space-y-6">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Add Vocabulary Help</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Click a question to add words students might need. Auto-translated to {transLabel}.
+              Click a question to review it and add words students might need. Auto-translated to {transLabel}.
             </p>
           </div>
+
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-start gap-2 text-sm text-foreground">
+                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <p>
+                  Words added here are saved to this speaking lesson and shown to students as in-lesson vocabulary cards.
+                  They are persisted when you click <span className="font-medium">Create Lesson</span>.
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Added so far: <span className="font-medium text-foreground">{totalVocabCount}</span> word{totalVocabCount !== 1 ? "s" : ""}.
+              </p>
+            </CardContent>
+          </Card>
 
           <div className="space-y-3">
             {questions.map((q, idx) => {
@@ -708,11 +668,11 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
                           <Badge className={`text-xs ${difficultyColor(q.difficulty)}`}>
                             {difficultyLabel(q.difficulty)}
                           </Badge>
-                          {vocabItems.length > 0 && (
-                            <Badge variant="outline" className="text-xs">
-                              {vocabItems.length} word{vocabItems.length !== 1 ? "s" : ""}
-                            </Badge>
-                          )}
+                          <Badge variant="outline" className="text-xs">
+                            {vocabItems.length > 0
+                              ? `${vocabItems.length} word${vocabItems.length !== 1 ? "s" : ""} saved`
+                              : "No words added yet"}
+                          </Badge>
                         </div>
                       </div>
                       {isExpanded ? (
@@ -801,7 +761,8 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
                             onClick={() => addVocabItem(idx)}
                             disabled={!(newWordsByQuestion[idx] || "").trim()}
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            Add word
                           </Button>
                         </div>
                       </div>
@@ -813,7 +774,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
           </div>
 
           <div className="flex justify-between">
-            <Button variant="ghost" size="sm" onClick={() => setStep("questions")}>
+            <Button variant="ghost" size="sm" onClick={() => setStep("topics")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>

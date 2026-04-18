@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TranscriptViewer } from "@/components/transcript/TranscriptViewer";
 import { EXERCISE_TYPE_LABELS, TYPE_COLORS } from "@/components/teacher/ExercisePresenter";
 import type { Exercise } from "@/components/teacher/ExercisePresenter";
+import { buildStudentLessonShareLink } from "@/utils/lessonShare";
 import { TeacherSpeakingView } from "@/components/lesson/TeacherSpeakingView";
 import SceneNavigator, { type VideoScene } from "@/components/lesson/SceneNavigator";
 import LessonVideoPlayer from "@/components/lesson/LessonVideoPlayer";
@@ -417,7 +418,7 @@ export default function TeacherLesson() {
   const youtubeVideoId = lesson.youtube_url ? extractYouTubeVideoId(lesson.youtube_url) : null;
   const generatedTypes = new Set(exercises.map(e => e.exercise_type));
   const availableTypes = (lesson.exercise_types || []).filter((t: string) => t !== "flashcards" && t !== "image_discussion");
-  const shareLink = lesson.share_token ? `${window.location.origin}/lesson/student/${lesson.share_token}` : "";
+  const shareLink = lesson.share_token ? buildStudentLessonShareLink(lesson.share_token) : "";
   const activeGroup = activeGroupType
     ? exerciseGroups.find((group) => group.type === activeGroupType) ?? null
     : null;
@@ -625,22 +626,25 @@ export default function TeacherLesson() {
             )}
 
             {lesson.lesson_type === "paragraph" && lesson.paragraph_content && (
-              <Card>
-                <CardContent className="pt-4 space-y-3">
-                  {lesson.paragraph_prompt && (
-                    <div>
+              <div className="space-y-3">
+                {lesson.paragraph_prompt && (
+                  <Card>
+                    <CardContent className="pt-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Prompt</p>
                       <p className="text-sm text-muted-foreground italic">{lesson.paragraph_prompt}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Generated Paragraph</p>
-                    <div className="bg-background rounded-md p-4 text-foreground leading-relaxed whitespace-pre-wrap border text-sm">
-                      {lesson.paragraph_content}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+                )}
+                <TranscriptViewer
+                  videoId={lesson.id}
+                  transcript={lesson.paragraph_content}
+                  videoTitle={lesson.title}
+                  language={lesson.language || "italian"}
+                  difficulty={lesson.cefr_level}
+                  isPremium={true}
+                  onUpgradeClick={() => navigate("/teacher/pricing")}
+                />
+              </div>
             )}
 
             {/* Per-type generation buttons */}
