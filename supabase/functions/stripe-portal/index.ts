@@ -48,14 +48,14 @@ serve(async (req) => {
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     // Also check teacher subscriptions
     const { data: teacherSub } = await supabase
       .from('teacher_subscriptions')
       .select('stripe_customer_id')
       .eq('teacher_id', user.id)
-      .single();
+      .maybeSingle();
 
     const stripeCustomerId = teacherSub?.stripe_customer_id || studentSub?.stripe_customer_id;
 
