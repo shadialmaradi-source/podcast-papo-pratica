@@ -12,7 +12,18 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Check, Crown, Building2, Loader2, AlertTriangle, CalendarDays } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, Check, Crown, Building2, Loader2, AlertTriangle, CalendarDays, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface TeacherSub {
@@ -112,6 +123,7 @@ export default function TeacherPricing() {
   const [subscription, setSubscription] = useState<TeacherSub | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     if (roleLoading) return;
@@ -180,6 +192,44 @@ export default function TeacherPricing() {
       if (data?.url) window.location.href = data.url;
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleCancelSubscription = async (immediate: boolean) => {
+    setCancelLoading(true);
+    trackEvent("teacher_subscription_cancel_clicked", { immediate });
+    try {
+      const { data, error } = await supabase.functions.invoke("teacher-cancel-subscription", {
+        body: { immediate },
+      });
+      if (error) throw error;
+
+      if (immediate) {
+        toast({
+          title: "Subscription canceled",
+          description: "Your subscription has been canceled. You're now on the free plan.",
+        });
+      } else {
+        const endDate = data?.current_period_end
+          ? new Date(data.current_period_end * 1000).toLocaleDateString()
+          : "the end of your billing period";
+        toast({
+          title: "Cancellation scheduled",
+          description: `Your subscription will end on ${endDate}. You can keep using all features until then.`,
+        });
+      }
+
+      // Refresh subscription
+      const { data: refreshed } = await supabase
+        .from("teacher_subscriptions" as any)
+        .select("plan, status, stripe_customer_id, current_period_end, trial_ends_at")
+        .eq("teacher_id", user!.id)
+        .maybeSingle();
+      setSubscription(refreshed as unknown as TeacherSub | null);
+    } catch (err: any) {
+      toast({ title: "Cancellation failed", description: err.message, variant: "destructive" });
+    } finally {
+      setCancelLoading(false);
     }
   };
 
