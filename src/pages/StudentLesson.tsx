@@ -278,11 +278,16 @@ export default function StudentLesson() {
 
   const backTo = location.state?.backTo as string | undefined;
   const parentFrom = location.state?.parentFrom as string | undefined;
-  const backLabel = backTo === "/my-lessons" ? "My Lessons" : "Home";
+  const canUseHistoryBack = typeof window !== "undefined" && window.history.length > 1;
+  const backLabel = backTo === "/my-lessons" ? "My Lessons" : canUseHistoryBack ? "Back" : "Home";
 
   const handleBack = () => {
     if (backTo === "/my-lessons") {
       navigate("/my-lessons", { state: parentFrom === "profile" ? { from: "profile" } : undefined });
+      return;
+    }
+    if (canUseHistoryBack) {
+      navigate(-1);
       return;
     }
     navigate("/app");
@@ -708,14 +713,6 @@ export default function StudentLesson() {
                   title="Lesson video"
                 />
               </div>
-              {scenes.length > 0 && (
-                <SceneNavigator
-                  scenes={scenes}
-                  currentSceneIndex={currentSceneIndex}
-                  completedScenes={scenes.map((scene) => scene.scene_index)}
-                  onSceneSelect={setCurrentSceneIndex}
-                />
-              )}
             </div>
           )}
 
@@ -883,6 +880,16 @@ export default function StudentLesson() {
               <CheckCircle className="h-4 w-4 mr-2" />
               Finish Lesson
             </Button>
+          )}
+
+          {/* Scene list after exercises */}
+          {youtubeVideoId && scenes.length > 0 && (
+            <SceneNavigator
+              scenes={scenes}
+              currentSceneIndex={currentSceneIndex}
+              completedScenes={scenes.map((scene) => scene.scene_index)}
+              onSceneSelect={setCurrentSceneIndex}
+            />
           )}
 
           {/* Powered by footer */}
