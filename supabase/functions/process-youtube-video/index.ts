@@ -75,8 +75,15 @@ serve(async (req) => {
       if (videoDuration > maxDurationSeconds) {
         const durationMins = Math.ceil(videoDuration / 60);
         const maxMinutes = Math.ceil(maxDurationSeconds / 60);
-        throw new Error(
-          `Video is ${durationMins} minutes long. Maximum allowed is ${maxMinutes} minutes. Please choose a shorter video.`
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: 'VIDEO_TOO_LONG',
+            error: `Video is ${durationMins} minutes long. Maximum allowed is ${maxMinutes} minutes. Please choose a shorter video.`,
+            durationMinutes: durationMins,
+            maxMinutes,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
