@@ -8,7 +8,8 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { initAnalytics, trackSessionStart, trackSessionEnd } from "@/lib/analytics";
 import { StudentTourProvider } from "@/hooks/useStudentTour";
 import { AnalyticsConsentBanner } from "@/components/AnalyticsConsentBanner";
-import { setPendingLessonRedirect } from "@/utils/authRedirect";
+import { setPendingLessonRedirect, setPendingLessonEmail } from "@/utils/authRedirect";
+import { supabase } from "@/integrations/supabase/client";
 
 // Eager imports — critical entry paths
 import LandingPage from "./pages/LandingPage";
@@ -76,19 +77,50 @@ function LoadingFallback() {
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  
-  if (loading) {
+  const [lessonRedirect, setLessonRedirect] = useState<string | null>(null);
+  const [resolvingLesson, setResolvingLesson] = useState(false);
+
+  const studentLessonMatch = location.pathname.match(/^\/lesson\/student\/([^/?#]+)/);
+  const shareToken = studentLessonMatch?.[1];
+
+  useEffect(() => {
+    if (loading || user || !shareToken) return;
+    setResolvingLesson(true);
+    const fullPath = location.pathname + location.search + location.hash;
+    setPendingLessonRedirect(fullPath);
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("teacher_lessons")
+          .select("student_email")
+          .eq("share_token", shareToken)
+          .maybeSingle();
+        const email = (data as any)?.student_email;
+        if (email) setPendingLessonEmail(email);
+      } catch {
+        // ignore — we'll fall through to /auth without pre-fill
+      } finally {
+        setLessonRedirect(`/auth?role=student&mode=signup&lessonToken=${encodeURIComponent(shareToken)}`);
+        setResolvingLesson(false);
+      }
+    })();
+  }, [loading, user, shareToken, location.pathname, location.search, location.hash]);
+
+  if (loading || (shareToken && !user && resolvingLesson)) {
     return <LoadingFallback />;
   }
-  
+
   if (!user) {
-    const studentLessonMatch = location.pathname.match(/^\/lesson\/student\/(.+)$/);
-    if (studentLessonMatch) {
-      setPendingLessonRedirect(location.pathname + location.search + location.hash);
+    if (shareToken && lessonRedirect) {
+      return <Navigate to={lessonRedirect} replace />;
+    }
+    if (shareToken) {
+      // Still resolving — render fallback (shouldn't reach here often)
+      return <LoadingFallback />;
     }
     return <Navigate to="/auth" replace />;
   }
-  
+
   return <>{children}</>;
 }
 

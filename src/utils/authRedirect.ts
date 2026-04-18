@@ -28,7 +28,18 @@ export function getPendingLessonRedirect(): string | null {
   return null;
 }
 
+export function setPendingLessonEmail(email: string) {
+  if (typeof email !== "string" || !email.includes("@")) return;
+  localStorage.setItem("pending_lesson_email", email.trim().toLowerCase());
+}
+
+export function getPendingLessonEmail(): string | null {
+  const email = localStorage.getItem("pending_lesson_email");
+  return email && email.includes("@") ? email : null;
+}
+
 export function clearPendingLessonRedirect() {
   localStorage.removeItem("post_auth_redirect");
   localStorage.removeItem("pending_lesson_token");
+  localStorage.removeItem("pending_lesson_email");
 }
