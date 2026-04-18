@@ -128,9 +128,6 @@ export default function Auth() {
               navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
             } else if (lessonRedirect) {
               navigate(lessonRedirect);
-            } else if (shouldRouteToFirstLesson(data)) {
-              clearPendingLessonRedirect();
-              navigate("/lesson/first");
             } else {
               clearPendingLessonRedirect();
               navigate("/app");
