@@ -297,6 +297,56 @@ export default function TeacherPricing() {
                 </div>
                 <Progress value={usagePercent} className="h-2" />
               </div>
+              {subscription?.status === "canceling" ? (
+                <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                  Your subscription is scheduled to cancel
+                  {subscription.current_period_end && (
+                    <> on <strong className="text-foreground">{new Date(subscription.current_period_end).toLocaleDateString()}</strong></>
+                  )}
+                  . You can keep using all features until then.
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  {subscription?.stripe_customer_id && (
+                    <Button variant="outline" size="sm" onClick={handleManageSubscription}>
+                      Manage Billing
+                    </Button>
+                  )}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Cancel Subscription
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Cancel your subscription?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          You'll keep access to all {currentPlan} features until{" "}
+                          <strong>
+                            {subscription?.current_period_end
+                              ? new Date(subscription.current_period_end).toLocaleDateString()
+                              : "the end of your billing period"}
+                          </strong>
+                          . After that, your account will revert to the free plan and you won't be able to create new lessons. Existing lessons stay active.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={cancelLoading}>Keep Subscription</AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={cancelLoading}
+                          onClick={() => handleCancelSubscription(false)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {cancelLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Cancel at period end
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
