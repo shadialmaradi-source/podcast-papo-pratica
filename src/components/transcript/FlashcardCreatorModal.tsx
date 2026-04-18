@@ -32,6 +32,7 @@ interface FlashcardCreatorModalProps {
   fullSentence: string;
   timestamp?: string;
   videoId?: string;
+  sourceLessonId?: string;
   videoTitle?: string;
   language: string;
   translationLanguage?: string;
@@ -63,6 +64,7 @@ export function FlashcardCreatorModal({
   fullSentence,
   timestamp = '',
   videoId = '',
+  sourceLessonId = '',
   videoTitle = '',
   language,
   translationLanguage = "english",
@@ -134,7 +136,14 @@ export function FlashcardCreatorModal({
     setSaving(true);
 
     try {
-      const result = await createFlashcardFromTranscript(user.id, videoId || 'paragraph', {
+      if (!videoId && !sourceLessonId) {
+        toast.error('Unable to identify this lesson context');
+        return;
+      }
+
+      const result = await createFlashcardFromTranscript(user.id, {
+        videoId: videoId || undefined,
+        sourceLessonId: sourceLessonId || undefined,
         phrase: phrase.trim(),
         translation: translation.trim() || undefined,
         partOfSpeech: partOfSpeech || undefined,

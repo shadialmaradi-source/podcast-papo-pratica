@@ -20,6 +20,8 @@ import type { TutorialStep } from './TranscriptTutorial';
 
 interface TranscriptViewerProps {
   videoId: string;
+  flashcardVideoId?: string;
+  sourceLessonId?: string;
   transcript: string;
   videoTitle: string;
   language: string;
@@ -49,6 +51,8 @@ const FREE_USER_SENTENCE_LIMIT = 2;
 
 export function TranscriptViewer({
   videoId,
+  flashcardVideoId,
+  sourceLessonId,
   transcript,
   videoTitle,
   language,
@@ -135,12 +139,15 @@ export function TranscriptViewer({
   const loadSavedPhrases = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const phrases = await getSavedPhrasesForVideo(user.id, videoId);
+      const phrases = await getSavedPhrasesForVideo(user.id, {
+        videoId: flashcardVideoId ?? videoId,
+        sourceLessonId,
+      });
       setSavedPhrases(phrases);
     } catch (error) {
       console.error('Error loading saved phrases:', error);
     }
-  }, [user?.id, videoId]);
+  }, [user?.id, videoId, flashcardVideoId, sourceLessonId]);
 
   useEffect(() => {
     loadSavedPhrases();
@@ -545,7 +552,8 @@ export function TranscriptViewer({
         selectedText={selectedTextForModal}
         fullSentence={selectedSentence}
         timestamp={selectedTimestamp}
-        videoId={videoId}
+        videoId={flashcardVideoId ?? videoId}
+        sourceLessonId={sourceLessonId}
         videoTitle={videoTitle}
         language={language}
         translationLanguage={translationLanguage}

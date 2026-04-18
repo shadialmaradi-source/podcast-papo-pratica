@@ -5,7 +5,8 @@ import type { FlashcardExportData } from "@/services/pdfGeneratorService";
 export interface UserCreatedFlashcard {
   id: string;
   user_id: string;
-  video_id: string;
+  video_id: string | null;
+  source_lesson_id: string | null;
   phrase: string;
   translation: string | null;
   part_of_speech: string | null;
@@ -27,6 +28,8 @@ export interface CreateFlashcardData {
   exampleSentence?: string;
   notes?: string;
   sourceTimestamp?: string;
+  videoId?: string;
+  sourceLessonId?: string;
 }
 
 /**
@@ -188,12 +191,11 @@ export async function markFlashcardMastered(
  */
 export async function createFlashcardFromTranscript(
   userId: string,
-  videoId: string,
   data: CreateFlashcardData
 ): Promise<{ success: boolean; error?: string; flashcard?: UserCreatedFlashcard }> {
   try {
-    // Check if phrase already exists for this user and video
-    const existingPhrase = await isPhraseSaved(userId, videoId, data.phrase);
+    // Check if phrase already exists for this source context
+    const existingPhrase = await isPhraseSaved(userId, data.phrase, data.videoId, data.sourceLessonId);
     if (existingPhrase) {
       return { success: false, error: 'This phrase is already saved!' };
     }
@@ -202,7 +204,8 @@ export async function createFlashcardFromTranscript(
       .from('user_created_flashcards')
       .insert({
         user_id: userId,
-        video_id: videoId,
+        video_id: data.videoId || null,
+        source_lesson_id: data.sourceLessonId || null,
         phrase: data.phrase,
         translation: data.translation || null,
         part_of_speech: data.partOfSpeech || null,
@@ -230,7 +233,8 @@ export async function createFlashcardFromTranscript(
  */
 export async function getUserCreatedFlashcards(
   userId: string,
-  videoId?: string
+  videoId?: string,
+  sourceLessonId?: string
 ): Promise<UserCreatedFlashcard[]> {
   try {
     let query = supabase
@@ -238,6 +242,10 @@ export async function getUserCreatedFlashcards(
       .select(`
         *,
         youtube_videos (
+          title,
+          language
+        ),
+        teacher_lessons (
           title,
           language
         )
@@ -249,6 +257,10 @@ export async function getUserCreatedFlashcards(
       query = query.eq('video_id', videoId);
     }
 
+    if (sourceLessonId) {
+      query = query.eq('source_lesson_id', sourceLessonId);
+    }
+
     const { data, error } = await query;
 
     if (error) {
@@ -256,10 +268,13 @@ export async function getUserCreatedFlashcards(
       return [];
     }
 
-    return (data || []).map((item: any) => ({
+    return (data || []).map((item: UserCreatedFlashcard & {
+      youtube_videos?: { title: string | null; language: string | null } | null;
+      teacher_lessons?: { title: string | null; language: string | null } | null;
+    }) => ({
       ...item,
-      video_title: item.youtube_videos?.title,
-      video_language: item.youtube_videos?.language,
+      video_title: item.youtube_videos?.title || item.teacher_lessons?.title || undefined,
+      video_language: item.youtube_videos?.language || item.teacher_lessons?.language || undefined,
     }));
   } catch (error) {
     console.error('Error in getUserCreatedFlashcards:', error);
@@ -272,17 +287,27 @@ export async function getUserCreatedFlashcards(
  */
 export async function isPhraseSaved(
   userId: string,
-  videoId: string,
-  phrase: string
+  phrase: string,
+  videoId?: string,
+  sourceLessonId?: string
 ): Promise<boolean> {
   try {
     const normalizedPhrase = phrase.toLowerCase().trim();
-    
-    const { data, error } = await supabase
+
+    let query = supabase
       .from('user_created_flashcards')
       .select('id')
-      .eq('user_id', userId)
-      .eq('video_id', videoId);
+      .eq('user_id', userId);
+
+    if (videoId) {
+      query = query.eq('video_id', videoId);
+    } else if (sourceLessonId) {
+      query = query.eq('source_lesson_id', sourceLessonId);
+    } else {
+      return false;
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error checking if phrase is saved:', error);
@@ -292,11 +317,18 @@ export async function isPhraseSaved(
     // Check for approximate match (case-insensitive)
     if (data && data.length > 0) {
       // Fetch all phrases for this video and compare
-      const { data: phrases } = await supabase
+      let phrasesQuery = supabase
         .from('user_created_flashcards')
         .select('phrase')
-        .eq('user_id', userId)
-        .eq('video_id', videoId);
+        .eq('user_id', userId);
+
+      if (videoId) {
+        phrasesQuery = phrasesQuery.eq('video_id', videoId);
+      } else if (sourceLessonId) {
+        phrasesQuery = phrasesQuery.eq('source_lesson_id', sourceLessonId);
+      }
+
+      const { data: phrases } = await phrasesQuery;
 
       if (phrases) {
         return phrases.some(
@@ -317,14 +349,23 @@ export async function isPhraseSaved(
  */
 export async function getSavedPhrasesForVideo(
   userId: string,
-  videoId: string
+  source: { videoId?: string; sourceLessonId?: string }
 ): Promise<string[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('user_created_flashcards')
       .select('phrase')
-      .eq('user_id', userId)
-      .eq('video_id', videoId);
+      .eq('user_id', userId);
+
+    if (source.videoId) {
+      query = query.eq('video_id', source.videoId);
+    } else if (source.sourceLessonId) {
+      query = query.eq('source_lesson_id', source.sourceLessonId);
+    } else {
+      return [];
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching saved phrases:', error);

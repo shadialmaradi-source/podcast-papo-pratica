@@ -720,6 +720,8 @@ export default function StudentLesson() {
           {transcriptForDisplay && (
             <TranscriptViewer
               videoId={lesson.id}
+              sourceLessonId={lesson.id}
+              flashcardVideoId={undefined}
               transcript={transcriptForDisplay}
               videoTitle={lesson.title}
               language={lesson.language || "italian"}
@@ -732,6 +734,8 @@ export default function StudentLesson() {
           {lesson.lesson_type === "paragraph" && lesson.paragraph_content && (
             <TranscriptViewer
               videoId={lesson.id}
+              sourceLessonId={lesson.id}
+              flashcardVideoId={undefined}
               transcript={lesson.paragraph_content}
               videoTitle={lesson.title}
               language={lesson.language || "italian"}

@@ -567,6 +567,8 @@ export default function TeacherLesson() {
                             <TranscriptViewer
                               transcript={currentScene.scene_transcript}
                               videoId={lesson.id}
+                              sourceLessonId={lesson.id}
+                              flashcardVideoId={undefined}
                               videoTitle={`${lesson.title} – Scene ${currentScene.scene_index + 1}`}
                               language={lesson.language || "italian"}
                               isPremium={true}
@@ -617,6 +619,8 @@ export default function TeacherLesson() {
             {lesson.transcript && (
               <TranscriptViewer
                 videoId={lesson.id}
+                sourceLessonId={lesson.id}
+                flashcardVideoId={undefined}
                 transcript={lesson.transcript}
                 videoTitle={lesson.title}
                 language={lesson.language || "italian"}
@@ -637,6 +641,8 @@ export default function TeacherLesson() {
                 )}
                 <TranscriptViewer
                   videoId={lesson.id}
+                  sourceLessonId={lesson.id}
+                  flashcardVideoId={undefined}
                   transcript={lesson.paragraph_content}
                   videoTitle={lesson.title}
                   language={lesson.language || "italian"}

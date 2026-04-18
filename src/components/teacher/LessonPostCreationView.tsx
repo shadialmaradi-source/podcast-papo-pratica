@@ -285,6 +285,8 @@ export function LessonPostCreationView(props: LessonPostCreationViewProps) {
         {lessonTranscript && (
           <TranscriptViewer
             videoId={createdLessonId}
+            sourceLessonId={createdLessonId}
+            flashcardVideoId={undefined}
             transcript={lessonTranscript}
             videoTitle={form.getValues("title") || "Lesson"}
             language={currentLanguage}
