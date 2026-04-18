@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import LessonFlashcards from "@/components/lesson/LessonFlashcards";
 import { toast } from "sonner";
 import { getLanguageFlag, getLanguageName } from "@/utils/languageUtils";
+import { getUserCreatedFlashcards } from "@/services/flashcardService";
 
 interface FlashcardRepositoryProps {
   userId: string;
@@ -16,7 +17,7 @@ interface FlashcardRepositoryProps {
 
 interface UserFlashcard {
   id: string;
-  flashcard_id: string;
+  flashcard_id: string | null;
   video_id: string;
   first_viewed_at: string;
   last_reviewed_at: string;
@@ -28,6 +29,26 @@ interface UserFlashcard {
   video_title: string;
   video_thumbnail: string | null;
   video_language: string;
+}
+
+interface ViewedFlashcardRow {
+  id: string;
+  flashcard_id: string;
+  video_id: string;
+  first_viewed_at: string;
+  last_reviewed_at: string;
+  times_reviewed: number;
+  is_mastered: boolean;
+  youtube_flashcards: {
+    phrase: string;
+    translation: string;
+    why: string;
+  };
+  youtube_videos: {
+    title: string;
+    thumbnail_url: string | null;
+    language: string | null;
+  };
 }
 
 interface VideoGroup {
@@ -85,7 +106,8 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
       setLoading(true);
 
       // Fetch user's viewed flashcards with flashcard and video details
-      const { data, error } = await supabase
+      const [viewedResult, createdResult] = await Promise.all([
+        supabase
         .from('user_viewed_flashcards')
         .select(`
           id,
@@ -99,16 +121,18 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
           youtube_videos!inner(title, thumbnail_url, language)
         `)
         .eq('user_id', userId)
-        .order('last_reviewed_at', { ascending: false });
+        .order('last_reviewed_at', { ascending: false }),
+        getUserCreatedFlashcards(userId),
+      ]);
 
-      if (error) {
-        console.error('Error loading flashcards:', error);
+      if (viewedResult.error) {
+        console.error('Error loading flashcards:', viewedResult.error);
         toast.error('Failed to load flashcards');
         return;
       }
 
-      if (data) {
-        const formattedFlashcards: UserFlashcard[] = data.map((item: any) => ({
+      if (viewedResult.data) {
+        const viewedFlashcards: UserFlashcard[] = (viewedResult.data as ViewedFlashcardRow[]).map((item) => ({
           id: item.id,
           flashcard_id: item.flashcard_id,
           video_id: item.video_id,
@@ -124,6 +148,26 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
           video_language: item.youtube_videos.language || 'english',
         }));
 
+        const createdFlashcards: UserFlashcard[] = createdResult.map((item) => {
+          const sourceId = item.source_lesson_id || item.video_id || item.id;
+          return {
+            id: `created-${item.id}`,
+            flashcard_id: null,
+            video_id: sourceId,
+            first_viewed_at: item.created_at,
+            last_reviewed_at: item.updated_at || item.created_at,
+            times_reviewed: item.times_reviewed || 0,
+            is_mastered: item.is_mastered,
+            phrase: item.phrase,
+            translation: item.translation || "",
+            why: item.example_sentence || item.notes || "User-created flashcard",
+            video_title: item.video_title || "Teacher Lesson",
+            video_thumbnail: null,
+            video_language: item.video_language || "english",
+          };
+        });
+
+        const formattedFlashcards: UserFlashcard[] = [...viewedFlashcards, ...createdFlashcards];
         setFlashcards(formattedFlashcards);
 
         // Group by video
@@ -195,13 +239,25 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
     try {
       // Update each record - increment times_reviewed
       for (const id of flashcardIds) {
-        await supabase
-          .from('user_viewed_flashcards')
-          .update({
-            last_reviewed_at: new Date().toISOString(),
-            times_reviewed: filtered.find(fc => fc.id === id)!.times_reviewed + 1,
-          })
-          .eq('id', id);
+        const card = filtered.find(fc => fc.id === id);
+        if (!card) continue;
+
+        if (id.startsWith("created-")) {
+          await supabase
+            .from('user_created_flashcards')
+            .update({
+              times_reviewed: card.times_reviewed + 1,
+            })
+            .eq('id', id.replace("created-", ""));
+        } else {
+          await supabase
+            .from('user_viewed_flashcards')
+            .update({
+              last_reviewed_at: new Date().toISOString(),
+              times_reviewed: card.times_reviewed + 1,
+            })
+            .eq('id', id);
+        }
       }
 
       toast.success('Study session complete! 🎉');
