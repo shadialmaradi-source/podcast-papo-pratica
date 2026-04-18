@@ -1077,6 +1077,40 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                   )}
                 </div>
               )}
+
+              {/* Cancel Subscription */}
+              {subscription?.tier === 'premium' && subscription?.stripeCustomerId && subscription?.status !== 'cancelled' && (
+                <div
+                  className="flex items-center justify-between py-2 cursor-pointer hover:bg-destructive/10 -mx-3 px-3 rounded-lg transition-colors"
+                  onClick={() => setCancelDialogOpen(true)}
+                >
+                  <div className="flex items-center gap-3">
+                    <X className="h-4 w-4 text-destructive" />
+                    <span className="text-destructive">Cancel Subscription</span>
+                  </div>
+                </div>
+              )}
+
+              <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel your Premium subscription?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Your subscription will remain active until the end of the current billing period. After that, your account will revert to the Free plan. You can resubscribe anytime.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={cancelLoading}>Keep subscription</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(e) => { e.preventDefault(); handleCancelSubscription(); }}
+                      disabled={cancelLoading}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {cancelLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Yes, cancel'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               
               {/* Notifications */}
               <div 
