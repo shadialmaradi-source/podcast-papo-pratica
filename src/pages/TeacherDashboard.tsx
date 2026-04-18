@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BookOpen, Users, ArrowLeft, Settings, AlertTriangle, Mail, Clock, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { trackEvent, trackTeacherFunnelStep, trackPageLoad, trackPageView } from "@/lib/analytics";
@@ -21,6 +21,7 @@ import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreato
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeacherQuota } from "@/hooks/useTeacherQuota";
 import { NextBestAction } from "@/components/teacher/NextBestAction";
+import { LessonList } from "@/components/teacher/LessonList";
 
 
 type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse" | "speaking_form";
@@ -39,6 +40,7 @@ interface CommunityVideoPrefill {
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { role, loading: roleLoading } = useUserRole();
 const { quota, refresh: refreshQuota } = useTeacherQuota();
   const STORAGE_KEY = "teacher_dashboard_flow";
@@ -68,6 +70,7 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
       return saved ? JSON.parse(saved).prefillVideoMeta ?? null : null;
     } catch { return null; }
   });
+  const [lessonListRefresh, setLessonListRefresh] = useState(0);
 
   // Sync flow state to sessionStorage
   useEffect(() => {
@@ -105,6 +108,14 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
         });
     }
   }, [role, roleLoading, navigate, user, quota]);
+
+  useEffect(() => {
+    if (step !== "home" || location.hash !== "#teacher-lessons-section") return;
+    const timeout = window.setTimeout(() => {
+      document.getElementById("teacher-lessons-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    return () => window.clearTimeout(timeout);
+  }, [location.hash, step]);
 
   useEffect(() => {
     const loadTeacherName = async () => {
@@ -184,6 +195,7 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
 
   const handleCreated = (lessonId: string) => {
     refreshQuota();
+    setLessonListRefresh((prev) => prev + 1);
     sessionStorage.removeItem(STORAGE_KEY);
     navigate(`/teacher/lesson/${lessonId}`);
   };
@@ -577,6 +589,16 @@ return (
                 </CardContent>
               </Card>
             </div>
+
+            <section id="teacher-lessons-section" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">Your lessons</h3>
+                <Button variant="ghost" size="sm" onClick={() => setLessonListRefresh((prev) => prev + 1)}>
+                  Refresh
+                </Button>
+              </div>
+              <LessonList refresh={lessonListRefresh} />
+            </section>
           </>
         )}
 

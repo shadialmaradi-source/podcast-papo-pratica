@@ -10,6 +10,7 @@ import { analyzeWord, type WordAnalysis } from "@/services/wordAnalysisService";
 import { trackEvent } from "@/lib/analytics";
 import type { Exercise } from "@/components/teacher/ExercisePresenter";
 import { EXERCISE_TYPE_LABELS } from "@/components/teacher/ExercisePresenter";
+import { buildStudentLessonShareLink } from "@/utils/lessonShare";
 
 export type LessonType = "paragraph" | "youtube";
 
@@ -446,7 +447,7 @@ const form = useForm<any>({
           } as any, { onConflict: "teacher_id,student_email", ignoreDuplicates: true });
       }
 
-      const link = `${window.location.origin}/lesson/student/${shareToken}`;
+      const link = buildStudentLessonShareLink(shareToken);
       setShareLink(link);
       setCreatedLessonId(data.id);
       setLessonYoutubeUrl(values.youtube_url || null);
