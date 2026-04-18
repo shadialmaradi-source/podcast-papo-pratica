@@ -10,6 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   ArrowLeft, 
   Play,
@@ -104,6 +114,8 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ videosWatched: 0, wordsLearned: 0, studyTimeMinutes: 0 });
   const [portalLoading, setPortalLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [learningPathProgress, setLearningPathProgress] = useState<{
     currentWeek: WeekWithProgress | null;
@@ -477,36 +489,44 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     if (!user) return;
     setPortalLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        toast.error("Session expired. Please sign in again.");
-        return;
-      }
-      const response = await fetch(
-        `https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/stripe-portal`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlenB6aWhudmJsempyZHpnaW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODExNjksImV4cCI6MjA3MTk1NzE2OX0.LKxauwcMH0HaT-DeoBNG5mH7rneI8OiyfSQGrYG1R4M',
-          },
-          body: JSON.stringify({
-            returnUrl: `${window.location.origin}/app?view=profile`,
-          }),
-        }
-      );
-      const data = await response.json();
-      if (response.ok && data?.url) {
+      const { data, error } = await supabase.functions.invoke('stripe-portal', {
+        body: { returnUrl: `${window.location.origin}/app?view=profile` },
+      });
+      if (error) throw error;
+      if (data?.url) {
         window.location.href = data.url;
       } else {
         toast.error(data?.error || 'Unable to open subscription management.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error opening portal:', error);
-      toast.error('Network error. Please try again.');
+      toast.error(error?.message || 'Network error. Please try again.');
     } finally {
       setPortalLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!user) return;
+    setCancelLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('student-cancel-subscription', {
+        body: { immediate: false },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success("Subscription cancelled. You'll keep access until the end of your billing period.");
+        const updated = await getUserSubscription(user.id);
+        setSubscription(updated);
+      } else {
+        toast.error(data?.error || 'Unable to cancel subscription.');
+      }
+    } catch (error: any) {
+      console.error('Error cancelling subscription:', error);
+      toast.error(error?.message || 'Failed to cancel subscription.');
+    } finally {
+      setCancelLoading(false);
+      setCancelDialogOpen(false);
     }
   };
 
@@ -1057,6 +1077,40 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                   )}
                 </div>
               )}
+
+              {/* Cancel Subscription */}
+              {subscription?.tier === 'premium' && subscription?.stripeCustomerId && subscription?.status !== 'cancelled' && (
+                <div
+                  className="flex items-center justify-between py-2 cursor-pointer hover:bg-destructive/10 -mx-3 px-3 rounded-lg transition-colors"
+                  onClick={() => setCancelDialogOpen(true)}
+                >
+                  <div className="flex items-center gap-3">
+                    <X className="h-4 w-4 text-destructive" />
+                    <span className="text-destructive">Cancel Subscription</span>
+                  </div>
+                </div>
+              )}
+
+              <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel your Premium subscription?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Your subscription will remain active until the end of the current billing period. After that, your account will revert to the Free plan. You can resubscribe anytime.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={cancelLoading}>Keep subscription</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(e) => { e.preventDefault(); handleCancelSubscription(); }}
+                      disabled={cancelLoading}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {cancelLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Yes, cancel'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               
               {/* Notifications */}
               <div 
