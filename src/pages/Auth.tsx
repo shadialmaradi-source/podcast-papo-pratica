@@ -291,6 +291,11 @@ export default function Auth() {
           const userRole = (roleData as any)?.role || "student";
 
           if (userRole === "teacher") {
+            const lessonRedirectT = getPendingLessonRedirect();
+            if (lessonRedirectT) {
+              navigate(lessonRedirectT);
+              return;
+            }
             const { data: tp } = await supabase
               .from("teacher_profiles" as any)
               .select("onboarding_completed")
@@ -299,14 +304,17 @@ export default function Auth() {
 
             navigate((!tp || !(tp as any).onboarding_completed) ? "/teacher/onboarding" : "/teacher");
           } else {
+            // Existing student via shared lesson link → go straight to the lesson.
+            const lessonRedirect = getPendingLessonRedirect();
+            const shareToken = extractShareTokenFromPath(lessonRedirect);
+
             const { data: profile } = await supabase
               .from("profiles")
               .select(STUDENT_ONBOARDING_PROFILE_FIELDS)
               .eq("user_id", authData.user.id)
               .single();
 
-            const lessonRedirect = getPendingLessonRedirect();
-            const shareToken = extractShareTokenFromPath(lessonRedirect);
+            // New student arriving from a teacher's share link → hydrate from lesson and skip onboarding.
             if (shareToken && requiresOnboarding(profile)) {
               const lesson = await fetchLessonForHydration(supabase, shareToken);
               if (lesson) {
@@ -316,10 +324,14 @@ export default function Auth() {
               }
             }
 
+            // Existing student (no onboarding needed) but came via lesson link → go to the lesson.
+            if (lessonRedirect && !requiresOnboarding(profile)) {
+              navigate(lessonRedirect);
+              return;
+            }
+
             if (requiresOnboarding(profile)) {
               navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
-            } else if (lessonRedirect) {
-              navigate(lessonRedirect);
             } else if (shouldRouteToFirstLesson(profile)) {
               clearPendingLessonRedirect();
               navigate("/lesson/first");
