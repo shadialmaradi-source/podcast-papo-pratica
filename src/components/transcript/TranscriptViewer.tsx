@@ -552,7 +552,7 @@ export function TranscriptViewer({
         selectedText={selectedTextForModal}
         fullSentence={selectedSentence}
         timestamp={selectedTimestamp}
-        videoId={flashcardVideoId ?? videoId}
+        videoId={flashcardVideoId ?? (sourceLessonId ? undefined : videoId)}
         sourceLessonId={sourceLessonId}
         videoTitle={videoTitle}
         language={language}
