@@ -1,55 +1,28 @@
 
+The user wants:
+1. Fix the immediate bug: existing student signs in via shared lesson link → should land on the lesson, not `/app`.
+2. New student via shared link (Google or email) → skip onboarding entirely, hydrate profile from teacher lesson metadata (language, native language, level) — this already exists via `hydrateProfileFromLesson` in `AuthCallback.tsx` but needs to also work in the email signup path in `Auth.tsx`.
 
-## Problem
+Looking at the code, `AuthCallback.tsx` already handles the new-user-from-share-token case (hydrate + skip onboarding). The gaps:
+- `Auth.tsx` sign-in handler likely doesn't check `getPendingLessonRedirect()` before defaulting to `/app`.
+- `Auth.tsx` email signup handler likely doesn't apply the same hydration shortcut as `AuthCallback.tsx`.
 
-When a teacher shares a lesson link (`/lesson/student/<token>`) with a student, the expected flow is:
-1. Student clicks link → lands on **app signup page** with the **email pre-filled** (matching what teacher entered as `student_email`)
-2. Student signs up → automatically taken into the lesson with the same view as the teacher
+## Plan
 
-Currently:
-- The link goes through `ProtectedRoute` → redirects to `/auth` → but the email is **NOT pre-filled** from the lesson's `student_email`.
-- The Auth page also defaults to **sign-in mode** for students (`isSignUp = rawRole === "teacher"`), so new students see "Welcome Back" instead of "Create Account".
-- The user's screenshot 4 shows `lovable.dev/login` — that is the Lovable editor's own auth wall (because they opened the preview link while not logged into the editor). When opened in a normal browser / published URL, the user lands on `/auth` instead — but still without pre-fill.
+### 1. `src/pages/Auth.tsx` — sign-in path (existing users)
+After successful sign-in, before any default redirect:
+- Read `getPendingLessonRedirect()`. If present → `navigate(lessonRedirect, { replace: true })` immediately. This covers existing students who already completed onboarding.
 
-Note: Share token lookup, profile hydration, and post-auth redirect to the lesson **already work** (`AuthCallback.tsx` + `Auth.tsx` use `getPendingLessonRedirect` + `hydrateProfileFromLesson`). The missing piece is **email pre-fill + signup default + locking the email field**.
+### 2. `src/pages/Auth.tsx` — email signup path (new users)
+After successful email signup + session established, mirror `AuthCallback.tsx` logic:
+- Read pending lesson redirect → extract share token via `extractShareTokenFromPath`.
+- If token exists and profile requires onboarding → call `fetchLessonForHydration` + `hydrateProfileFromLesson` → `navigate(lessonRedirect)` directly, **skipping onboarding**.
+- Profile gets `selected_language` (lesson.language), `native_language` (lesson.translation_language), `current_level` (lesson.cefr_level) from teacher's lesson — exactly what the user requested.
 
-## Changes
+### 3. Google OAuth path
+Already handled correctly in `AuthCallback.tsx` (lines that call `hydrateProfileFromLesson`). No change needed — but verify that the Google sign-in button in `Auth.tsx` preserves the `pending_lesson_token` in localStorage through the OAuth round-trip (it does, since localStorage persists).
 
-### 1. `src/utils/authRedirect.ts`
-Add helpers to store/retrieve a "pending lesson email" alongside the pending lesson token:
-- `setPendingLessonEmail(email)` / `getPendingLessonEmail()` / clear in `clearPendingLessonRedirect()`.
+### 4. Files touched
+- `src/pages/Auth.tsx` — add lesson-redirect check in sign-in handler; add hydration shortcut in email signup handler (import the same helpers `AuthCallback.tsx` uses).
 
-### 2. `src/App.tsx` — `ProtectedRoute`
-When intercepting `/lesson/student/:token` for an unauthenticated user:
-- Fetch `teacher_lessons.student_email` by `share_token` (public read via existing RLS used in `fetchLessonForHydration`).
-- Store the email via `setPendingLessonEmail`.
-- Redirect to `/auth?role=student&mode=signup&lessonToken=<token>` (instead of bare `/auth`).
-
-Since this requires an async fetch, convert the redirect logic into a small wrapper component that does the lookup, then `<Navigate>`.
-
-### 3. `src/pages/Auth.tsx`
-- Read `mode=signup` query param → set `isSignUp = true` initial state when present (overrides current teacher-only default).
-- On mount, read pending lesson email (`getPendingLessonEmail()`) → pre-fill `email` state and **lock the input** (`readOnly` + helper text: "Your teacher invited you with this email").
-- Show a friendly banner at top of the card when `lessonToken` is present: "You've been invited to a lesson. Sign up to get started."
-
-### 4. Verify trial / lesson sharing parity
-No DB changes. The post-signup flow in `AuthCallback.tsx` and `Auth.tsx` already:
-- detects `pending_lesson_token`,
-- hydrates the profile from lesson metadata,
-- redirects to `/lesson/student/<token>`.
-
-This works for **all three lesson types** (video, paragraph, speaking) because routing is driven by `share_token`, not lesson type, and `StudentLesson.tsx` already renders all three.
-
-### 5. Note about the Lovable editor login (screenshot 4)
-That `lovable.dev/login` page is shown when the **preview project visibility is private** and the link is opened in the Lovable editor iframe. This is unrelated to our app code. The user should:
-- Share the **published URL** (`https://listenflow.lovable.app/lesson/student/<token>`) instead of the `lovableproject.com` preview URL, **or**
-- Set the project visibility to public.
-
-We'll mention this in the chat reply but no code change is needed.
-
-## Files Touched
-
-- `src/utils/authRedirect.ts` — add email helpers
-- `src/App.tsx` — async ProtectedRoute lookup for student lesson links
-- `src/pages/Auth.tsx` — pre-fill email, default to signup, banner
-
+No DB changes. No new utilities — reuses `getPendingLessonRedirect`, `extractShareTokenFromPath`, `fetchLessonForHydration`, `hydrateProfileFromLesson`, `requiresOnboarding`.
