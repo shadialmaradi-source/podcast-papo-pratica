@@ -477,36 +477,44 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
     if (!user) return;
     setPortalLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        toast.error("Session expired. Please sign in again.");
-        return;
-      }
-      const response = await fetch(
-        `https://fezpzihnvblzjrdzgioq.supabase.co/functions/v1/stripe-portal`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlenB6aWhudmJsempyZHpnaW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODExNjksImV4cCI6MjA3MTk1NzE2OX0.LKxauwcMH0HaT-DeoBNG5mH7rneI8OiyfSQGrYG1R4M',
-          },
-          body: JSON.stringify({
-            returnUrl: `${window.location.origin}/app?view=profile`,
-          }),
-        }
-      );
-      const data = await response.json();
-      if (response.ok && data?.url) {
+      const { data, error } = await supabase.functions.invoke('stripe-portal', {
+        body: { returnUrl: `${window.location.origin}/app?view=profile` },
+      });
+      if (error) throw error;
+      if (data?.url) {
         window.location.href = data.url;
       } else {
         toast.error(data?.error || 'Unable to open subscription management.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error opening portal:', error);
-      toast.error('Network error. Please try again.');
+      toast.error(error?.message || 'Network error. Please try again.');
     } finally {
       setPortalLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!user) return;
+    setCancelLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('student-cancel-subscription', {
+        body: { immediate: false },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success("Subscription cancelled. You'll keep access until the end of your billing period.");
+        const updated = await getUserSubscription(user.id);
+        setSubscription(updated);
+      } else {
+        toast.error(data?.error || 'Unable to cancel subscription.');
+      }
+    } catch (error: any) {
+      console.error('Error cancelling subscription:', error);
+      toast.error(error?.message || 'Failed to cancel subscription.');
+    } finally {
+      setCancelLoading(false);
+      setCancelDialogOpen(false);
     }
   };
 
