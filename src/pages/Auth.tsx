@@ -128,9 +128,6 @@ export default function Auth() {
               navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
             } else if (lessonRedirect) {
               navigate(lessonRedirect);
-            } else if (shouldRouteToFirstLesson(data)) {
-              clearPendingLessonRedirect();
-              navigate("/lesson/first");
             } else {
               clearPendingLessonRedirect();
               navigate("/app");
@@ -332,10 +329,8 @@ export default function Auth() {
 
             if (requiresOnboarding(profile)) {
               navigate(lessonRedirect ? `/onboarding?return=${encodeURIComponent(lessonRedirect)}` : "/onboarding");
-            } else if (shouldRouteToFirstLesson(profile)) {
-              clearPendingLessonRedirect();
-              navigate("/lesson/first");
             } else {
+              // Onboarding already done — go straight to the app, even with no progress yet.
               clearPendingLessonRedirect();
               navigate("/app");
             }
