@@ -1091,26 +1091,28 @@ export function ProfilePage({ onBack, selectedLanguage }: ProfilePageProps) {
                 </div>
               )}
 
-              <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Cancel your Premium subscription?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Your subscription will remain active until the end of the current billing period. After that, your account will revert to the Free plan. You can resubscribe anytime.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={cancelLoading}>Keep subscription</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={(e) => { e.preventDefault(); handleCancelSubscription(); }}
-                      disabled={cancelLoading}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      {cancelLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Yes, cancel'}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {cancelDialogOpen && (
+                <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Cancel your Premium subscription?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Your subscription will remain active until the end of the current billing period. After that, your account will revert to the Free plan. You can resubscribe anytime.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={cancelLoading}>Keep subscription</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={(e) => { e.preventDefault(); handleCancelSubscription(); }}
+                        disabled={cancelLoading}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {cancelLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Yes, cancel'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
               
               {/* Notifications */}
               <div 
