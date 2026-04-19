@@ -2,38 +2,45 @@
 
 ## Root cause
 
-`TranscriptViewer` is rendered for teacher lessons with `videoId={lesson.id}` (the `teacher_lessons.id`) and also `sourceLessonId={lesson.id}`. Inside the component (line 555):
-
+In `src/components/FlashcardRepository.tsx` (line 452-455), the video card click handler does:
 ```ts
-videoId={flashcardVideoId ?? videoId}
+onClick={() => {
+  setFilter(group.video_id);   // schedules state update (async)
+  startStudySession(false);    // runs NOW with stale `filter`
+}}
 ```
 
-So the modal forwards the lesson's UUID as `videoId` to `createFlashcardFromTranscript`, which inserts it into `user_created_flashcards.video_id`. That column has a FK to `youtube_videos(id)` — the lesson UUID does not exist there → `user_created_flashcards_video_id_fkey` violation (the toast in screenshot 2).
-
-The DB schema is correct now (lesson source is supported via `source_lesson_id`); the bug is purely client-side: the wrong identifier is being passed into the `video_id` slot.
+`startStudySession` calls `getFilteredFlashcards()` which closes over the current `filter` state. Because React batches state updates, `filter` is still the previous value when `startStudySession` runs — so the cards shown belong to whatever was previously selected ("all" by default on first click, hence cards from a different video appear). On the second click, `filter` has already been set to that video, so it works.
 
 ## Fix
 
-Single targeted change in `src/components/transcript/TranscriptViewer.tsx` (line 555 area):
+Pass the target video ID directly into `startStudySession` instead of relying on state. One small refactor in `FlashcardRepository.tsx`:
 
-When `sourceLessonId` is set, **do not** pass any `videoId` to `FlashcardCreatorModal` (it should be `undefined`), so the insert only sets `source_lesson_id` and leaves `video_id` null. The CHECK constraint (`video_id IS NOT NULL OR source_lesson_id IS NOT NULL`) is satisfied; the FK is not violated.
+1. Make `getFilteredFlashcards` accept an optional `filterOverride` parameter; when provided, use it instead of the `filter` state.
+2. Make `startStudySession` accept an optional `filterOverride` and forward it.
+3. In the video card `onClick`, call `startStudySession(false, group.video_id)` and still call `setFilter(group.video_id)` so the dropdown UI reflects the selection for next time.
 
-Effective logic:
+Effective change (concept):
 ```ts
-videoId={flashcardVideoId ?? (sourceLessonId ? undefined : videoId)}
+const getFilteredFlashcards = (filterOverride?: string) => {
+  const activeFilter = filterOverride ?? filter;
+  // ...use activeFilter instead of filter
+};
+
+const startStudySession = (shuffle = false, filterOverride?: string) => {
+  const filtered = getFilteredFlashcards(filterOverride);
+  // ...rest unchanged
+};
+
+onClick={() => {
+  setFilter(group.video_id);
+  startStudySession(false, group.video_id);
+}}
 ```
 
-Also pass `sourceLessonId` through unchanged (already done).
-
-No other call sites need changes:
-- `StudentLesson.tsx` already passes `sourceLessonId={lesson.id}` → covered by the fix.
-- `TeacherLesson.tsx` already passes `sourceLessonId={lesson.id}` → covered.
-- `LessonPostCreationView.tsx` already passes `sourceLessonId={createdLessonId}` → covered.
-- `Lesson.tsx` and `YouTubeVideoExercises.tsx` use real `youtube_videos.id` as `videoId` and no `sourceLessonId` → unchanged behavior.
-
-No DB migration. No edge-function change. No prop signature change.
+No other call sites change behavior (they pass no override → use `filter` state as before). No DB / edge function / prop changes.
 
 ## Files touched
 
-- `src/components/transcript/TranscriptViewer.tsx` — one-line guard so lesson contexts never put the lesson UUID into `video_id`.
+- `src/components/FlashcardRepository.tsx` — pass an explicit filter override through `startStudySession` → `getFilteredFlashcards` so the first click on a video card studies that video's cards immediately.
 
