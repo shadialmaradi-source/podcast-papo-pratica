@@ -193,20 +193,21 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
     }
   };
 
-  const getFilteredFlashcards = () => {
+  const getFilteredFlashcards = (filterOverride?: string) => {
+    const activeFilter = filterOverride ?? filter;
     let filtered = languageFilteredFlashcards;
 
-    if (filter === "unmastered") {
+    if (activeFilter === "unmastered") {
       filtered = filtered.filter(fc => !fc.is_mastered);
-    } else if (filter !== "all") {
-      filtered = filtered.filter(fc => fc.video_id === filter);
+    } else if (activeFilter !== "all") {
+      filtered = filtered.filter(fc => fc.video_id === activeFilter);
     }
 
     return filtered;
   };
 
-  const startStudySession = (shuffle = false) => {
-    const filtered = getFilteredFlashcards();
+  const startStudySession = (shuffle = false, filterOverride?: string) => {
+    const filtered = getFilteredFlashcards(filterOverride);
     
     if (filtered.length === 0) {
       toast.error('No flashcards to study');
