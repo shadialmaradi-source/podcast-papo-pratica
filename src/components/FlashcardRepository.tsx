@@ -452,7 +452,7 @@ export function FlashcardRepository({ userId, onClose }: FlashcardRepositoryProp
                       className="cursor-pointer"
                       onClick={() => {
                         setFilter(group.video_id);
-                        startStudySession(false);
+                        startStudySession(false, group.video_id);
                       }}
                     >
                       <Card className="hover:border-primary/40 transition-colors">
