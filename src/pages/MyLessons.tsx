@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, BookOpen, GraduationCap } from "lucide-react";
+import { ArrowLeft, BookOpen, GraduationCap, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,15 +57,28 @@ export default function MyLessons() {
     <div className="min-h-screen bg-background">
       <AppHeader title="My Lessons" />
       <main className="container mx-auto px-4 py-8 max-w-lg">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(cameFromProfile ? "/profile" : "/app")}
-          className="mb-6 text-muted-foreground"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          {cameFromProfile ? "Profile" : "Home"}
-        </Button>
+        <div className="mb-6 flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(cameFromProfile ? "/profile" : "/app")}
+            className="text-muted-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            {cameFromProfile ? "Profile" : "Back"}
+          </Button>
+          {cameFromProfile && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/app")}
+              className="text-muted-foreground"
+            >
+              <Home className="h-4 w-4 mr-1" />
+              Home
+            </Button>
+          )}
+        </div>
 
         <div className="flex items-center gap-2 mb-6">
           <GraduationCap className="h-5 w-5 text-primary" />
