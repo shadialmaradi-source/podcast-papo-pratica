@@ -75,14 +75,33 @@ serve(async (req) => {
       });
     }
 
+    const normalizeLanguageName = (value?: string | null): string | null => {
+      if (!value) return null;
+      const lower = value.toLowerCase().trim();
+      const base = lower.split('-')[0].split('_')[0];
+      const aliases: Record<string, string> = {
+        en: 'english',
+        it: 'italian',
+        es: 'spanish',
+        pt: 'portuguese',
+        fr: 'french',
+        de: 'german',
+      };
+      if (aliases[lower]) return aliases[lower];
+      if (aliases[base]) return aliases[base];
+      return lower;
+    };
+
     // Use scene transcript if provided, otherwise fall back to full transcript
     let transcriptText = sceneTranscript || transcript;
+    let transcriptLanguage: string | null = null;
+
     if (!transcriptText) {
       console.log(`[generate-level-exercises] No transcript provided, fetching from DB...`);
       
       const { data: transcriptData, error: transcriptError } = await supabase
         .from('youtube_transcripts')
-        .select('transcript')
+        .select('transcript, language')
         .eq('video_id', videoId)
         .single();
       
@@ -92,6 +111,7 @@ serve(async (req) => {
       
       if (transcriptData) {
         transcriptText = transcriptData.transcript;
+        transcriptLanguage = normalizeLanguageName(transcriptData.language);
         console.log(`[generate-level-exercises] Fetched transcript, length: ${transcriptText?.length || 0}`);
       }
     }
@@ -108,8 +128,9 @@ serve(async (req) => {
     // Truncate transcript to avoid token limits
     const truncatedTranscript = transcriptText.substring(0, 5000);
     
-    // Get language name for prompt
-    const languageName = language || 'italian';
+    // Get target language for prompt.
+    // Priority: explicit request language -> transcript language -> english fallback.
+    const languageName = normalizeLanguageName(language) || transcriptLanguage || 'english';
     const languageDisplay = languageName.charAt(0).toUpperCase() + languageName.slice(1);
     const nativeLangDisplay = nativeLangName.charAt(0).toUpperCase() + nativeLangName.slice(1);
 

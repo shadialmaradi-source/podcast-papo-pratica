@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Volume2, VolumeX, SkipForward, CheckCircle, XCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { TranslationHint } from "@/components/exercises/TranslationHint";
 
 interface BeginnerExerciseProps {
   exercise: {
@@ -49,9 +50,12 @@ export function WordRecognitionExercise({ exercise, language, onAnswer, showFeed
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground text-center">
-        {exercise.questionTranslation || "Was this word in the video?"}
-      </p>
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground">
+          {exercise.question || "Was this word in the video?"}
+        </p>
+        <TranslationHint translation={exercise.questionTranslation} question={exercise.question} />
+      </div>
 
       {/* Large word display */}
       <div className="flex flex-col items-center gap-4 py-6">
@@ -124,9 +128,12 @@ export function EmojiMatchExercise({ exercise, language, onAnswer, showFeedback,
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground text-center">
-        {exercise.questionTranslation || "Which emoji matches this word?"}
-      </p>
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground">
+          {exercise.question || "Which emoji matches this word?"}
+        </p>
+        <TranslationHint translation={exercise.questionTranslation} question={exercise.question} />
+      </div>
 
       {/* Word display + TTS */}
       <div className="flex flex-col items-center gap-3 py-4">
@@ -168,9 +175,7 @@ export function ComprehensionCheckExercise({ exercise, onAnswer, showFeedback, i
         <h3 className="text-xl sm:text-2xl font-semibold text-foreground leading-relaxed">
           {exercise.question}
         </h3>
-        {exercise.questionTranslation && (
-          <p className="text-sm text-muted-foreground mt-2">{exercise.questionTranslation}</p>
-        )}
+        <TranslationHint translation={exercise.questionTranslation} question={exercise.question} />
       </div>
 
       {!showFeedback && (
@@ -212,9 +217,7 @@ export function SequenceRecallExercise({ exercise, onAnswer, showFeedback, isCor
         <h3 className="text-xl sm:text-2xl font-semibold text-foreground leading-relaxed">
           {exercise.question}
         </h3>
-        {exercise.questionTranslation && (
-          <p className="text-sm text-muted-foreground mt-2">{exercise.questionTranslation}</p>
-        )}
+        <TranslationHint translation={exercise.questionTranslation} question={exercise.question} />
       </div>
 
       {!showFeedback && (

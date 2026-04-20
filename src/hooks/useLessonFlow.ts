@@ -288,6 +288,16 @@ export function useLessonFlow(videoId: string | undefined) {
           invokeError: error?.message || null,
           sceneCount: data?.scenes?.length || 0,
         });
+
+        // Short videos are expected to remain in single-video mode.
+        // Do not surface technical warnings to students for this valid case.
+        if (reason === "video_too_short") {
+          setSegmentationStatus({ state: "idle", message: null });
+          setIsSegmented(false);
+          setLessonState("scene-video");
+          return;
+        }
+
         setSegmentationStatus({
           state: "failed",
           message: reason ? `Scene generation unavailable (${reason}).` : "Scene generation unavailable.",

@@ -6,6 +6,7 @@ import { trackEvent } from "@/lib/analytics";
 import { Exercise } from "@/services/exerciseGeneratorService";
 import { canUserDoVocalExercise, type VocalQuotaResult } from "@/services/subscriptionService";
 import { resolveDbVideoId, resolveTranscriptMeta } from "@/utils/videoResolver";
+import { normalizeLanguageCode } from "@/utils/languageUtils";
 
 // Levenshtein distance for fuzzy matching
 const levenshteinDistance = (a: string, b: string): number => {
@@ -202,6 +203,7 @@ export function useYouTubeExercises({ videoId, level, intensity, sceneId, sceneT
       setError("");
       try {
 let userNativeLanguage = nativeLanguageProp || '';
+let videoLanguage = '';
 const currentUser = await getCurrentUser();
 if (!currentUser) {
   setError("Please sign in to generate exercises.");
@@ -212,12 +214,16 @@ if (!currentUser) {
 if (!userNativeLanguage && currentUser) {
   const { data: profile } = await supabase
     .from('profiles')
-    .select('native_language')
+    .select('native_language, selected_language')
     .eq('user_id', currentUser.id)
     .single();
 
   if (profile?.native_language) {
     userNativeLanguage = profile.native_language;
+  }
+
+  if (!videoLanguage && profile?.selected_language) {
+    videoLanguage = normalizeLanguageCode(profile.selected_language);
   }
 }
         if (!userNativeLanguage) {
@@ -236,10 +242,12 @@ if (!userNativeLanguage && currentUser) {
           setDbVideoId(resolvedId);
           const dbDifficulty = mapLevelToDbDifficulty(level);
 
-          let videoLanguage = 'english';
           const transcriptMeta = await resolveTranscriptMeta(resolvedId);
           if (transcriptMeta?.language) {
             videoLanguage = transcriptMeta.language;
+          }
+          if (!videoLanguage) {
+            videoLanguage = 'english';
           }
 
           const fetchExercises = async (sceneIdParam: string | null) => {
