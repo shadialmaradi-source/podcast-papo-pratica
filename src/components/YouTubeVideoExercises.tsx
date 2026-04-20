@@ -11,6 +11,7 @@ import TranscriptViewer from "@/components/transcript/TranscriptViewer";
 import TranscriptTutorial, { type TutorialStep } from "@/components/transcript/TranscriptTutorial";
 import { UpgradePrompt } from "@/components/subscription/UpgradePrompt";
 import { useStudentTour } from "@/hooks/useStudentTour";
+import { normalizeLanguageCode } from "@/utils/languageUtils";
 
 interface YouTubeVideoExercisesProps {
   videoId: string;
@@ -54,6 +55,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
   const { user } = useAuth();
   const [videoData, setVideoData] = useState<VideoData | null>(null);
   const [transcript, setTranscript] = useState<string>('');
+  const [transcriptLanguage, setTranscriptLanguage] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingLevel, setGeneratingLevel] = useState<string | null>(null);
@@ -291,12 +293,19 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
 
       const { data: transcriptData } = await supabase
         .from('youtube_transcripts')
-        .select('transcript')
+        .select('transcript, language')
         .eq('video_id', data.id)
         .single();
       
       if (transcriptData?.transcript) {
         setTranscript(transcriptData.transcript);
+      }
+      if (transcriptData?.language) {
+        const normalizedTranscriptLanguage = normalizeLanguageCode(transcriptData.language);
+        setTranscriptLanguage(normalizedTranscriptLanguage);
+        if (!data.language) {
+          setVideoData(prev => prev ? { ...prev, language: normalizedTranscriptLanguage } : prev);
+        }
       }
     } catch (error) {
       console.error('Error loading video:', error);
@@ -344,7 +353,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
         const langMap: Record<string, string> = { en: 'english', it: 'italian', es: 'spanish', pt: 'portuguese', fr: 'french' };
         userNativeLanguage = langMap[browserLang] || 'english';
       }
-      const videoLang = (videoData.language || 'italian').toLowerCase();
+      const videoLang = normalizeLanguageCode(videoData.language || transcriptLanguage || 'english');
       if (userNativeLanguage.toLowerCase() === videoLang) {
         userNativeLanguage = videoLang === 'english' ? 'italian' : 'english';
       }
@@ -352,7 +361,7 @@ const YouTubeVideoExercises: React.FC<YouTubeVideoExercisesProps> = ({ videoId, 
       const { data, error } = await supabase.functions.invoke('generate-level-exercises', {
         body: { 
           videoId: videoData.id, level: dbLevel, transcript: transcript,
-          language: videoData.language || 'italian', nativeLanguage: userNativeLanguage,
+          language: videoLang, nativeLanguage: userNativeLanguage,
           source: source || undefined
         }
       });
