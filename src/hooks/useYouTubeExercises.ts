@@ -60,17 +60,32 @@ export const checkAnswerCorrectness = (exercise: Exercise, userAnswer: string): 
     case "Sequencing":
     case "sequencing":
       try {
-        const correctSequence = JSON.parse(exercise.correctAnswer);
-        const userSequence = userAnswer.split(',').map(i => parseInt(i)).filter(i => !isNaN(i));
-        if (userSequence.length !== correctSequence.length) return false;
-        const exactMatch = userSequence.every((val, idx) => val === correctSequence[idx]);
-        if (exactMatch) return true;
+        const parseSequence = (value: string): number[] => {
+          const trimmed = value.trim();
+          if (!trimmed) return [];
 
-        // Backward/forward compatibility:
-        // some payloads use 0-based indices while others use 1-based labels.
-        const oneBasedUser = userSequence.map((value) => value + 1);
-        const oneBasedCorrect = correctSequence.map((value: number) => value + 1);
-        return oneBasedUser.every((val, idx) => val === oneBasedCorrect[idx]);
+          if (trimmed.startsWith("[")) {
+            const parsed = JSON.parse(trimmed);
+            if (!Array.isArray(parsed)) return [];
+            return parsed
+              .map((item) => Number.parseInt(String(item), 10))
+              .filter((item) => Number.isFinite(item));
+          }
+
+          return trimmed
+            .split(",")
+            .map((item) => Number.parseInt(item.trim(), 10))
+            .filter((item) => Number.isFinite(item));
+        };
+
+        const correctSequence = parseSequence(exercise.correctAnswer);
+        const userSequence = parseSequence(userAnswer);
+        if (userSequence.length !== correctSequence.length) return false;
+
+        return userSequence.every((value, index) => {
+          const expected = correctSequence[index];
+          return value === expected || value + 1 === expected || value - 1 === expected;
+        });
       } catch {
         return false;
       }
