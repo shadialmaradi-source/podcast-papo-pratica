@@ -80,28 +80,37 @@ const features = [
 
 const pricingTiers = [
   {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    features: ["3 students max", "Basic features", "Email support"],
-    cta: "Get Started",
-    highlighted: false,
-  },
-  {
     name: "Pro",
+    description: "Perfect for active tutors",
     price: "$19",
     period: "/month",
-    features: ["Unlimited students", "All features", "Priority support", "Remove branding"],
+    features: [
+      "Unlimited students",
+      "30 lessons/month",
+      "Videos up to 10 min",
+      "All lesson types (YouTube, Paragraph, Speaking)",
+      "Student progress tracking",
+      "Basic analytics",
+      "Email support",
+    ],
     cta: "Start Free Trial",
-    highlighted: true,
+    highlighted: false,
   },
   {
     name: "Premium",
+    description: "For professional tutors",
     price: "$39",
     period: "/month",
-    features: ["Everything in Pro", "White-label option", "Custom video upload", "API access"],
+    features: [
+      "Everything in Pro, plus:",
+      "100 lessons/month",
+      "Videos up to 15 min",
+      "Advanced analytics (retention, churn, engagement)",
+      "Email notifications when students complete",
+      "Priority support",
+    ],
     cta: "Start Free Trial",
-    highlighted: false,
+    highlighted: true,
   },
 ];
 
