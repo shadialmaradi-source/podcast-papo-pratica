@@ -104,6 +104,13 @@ export default function Library() {
     setTourStep(tourPhase === 'library' ? 1 : null);
   }, [tourPhase]);
 
+  // Persist completion as soon as the tour is shown, so it never replays
+  useEffect(() => {
+    if (tourPhase === 'library' && tourStep === 1) {
+      localStorage.setItem('library_tour_completed', 'true');
+    }
+  }, [tourPhase, tourStep]);
+
   const advanceTour = useCallback(() => {
     setTourStep((prev) => {
       if (prev === null) return null;
