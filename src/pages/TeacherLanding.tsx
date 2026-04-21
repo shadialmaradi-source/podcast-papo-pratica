@@ -80,28 +80,37 @@ const features = [
 
 const pricingTiers = [
   {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    features: ["3 students max", "Basic features", "Email support"],
-    cta: "Get Started",
-    highlighted: false,
-  },
-  {
     name: "Pro",
+    description: "Perfect for active tutors",
     price: "$19",
     period: "/month",
-    features: ["Unlimited students", "All features", "Priority support", "Remove branding"],
+    features: [
+      "Unlimited students",
+      "30 lessons/month",
+      "Videos up to 10 min",
+      "All lesson types (YouTube, Paragraph, Speaking)",
+      "Student progress tracking",
+      "Basic analytics",
+      "Email support",
+    ],
     cta: "Start Free Trial",
-    highlighted: true,
+    highlighted: false,
   },
   {
     name: "Premium",
+    description: "For professional tutors",
     price: "$39",
     period: "/month",
-    features: ["Everything in Pro", "White-label option", "Custom video upload", "API access"],
+    features: [
+      "Everything in Pro, plus:",
+      "100 lessons/month",
+      "Videos up to 15 min",
+      "Advanced analytics (retention, churn, engagement)",
+      "Email notifications when students complete",
+      "Priority support",
+    ],
     cta: "Start Free Trial",
-    highlighted: false,
+    highlighted: true,
   },
 ];
 
@@ -401,10 +410,10 @@ export default function TeacherLanding() {
             custom={0}
             className="text-2xl md:text-4xl font-bold text-center text-foreground mb-4"
           >
-            Simple, Transparent Pricing
+            Choose Your Plan
           </motion.h2>
-          <p className="text-center text-muted-foreground mb-12">Start free. Upgrade when you're ready.</p>
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <p className="text-center text-muted-foreground mb-12">Start with a 14-day free trial. No credit card required.</p>
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {pricingTiers.map((tier, i) => (
               <motion.div
                 key={i}
@@ -426,6 +435,7 @@ export default function TeacherLanding() {
                   )}
                   <CardHeader className="text-center">
                     <CardTitle className="text-xl">{tier.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground">{tier.description}</p>
                     <div className="mt-2">
                       <span className="text-4xl font-bold text-foreground">{tier.price}</span>
                       <span className="text-muted-foreground">{tier.period}</span>
