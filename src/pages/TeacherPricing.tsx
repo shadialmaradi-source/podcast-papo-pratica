@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeacherQuota } from "@/hooks/useTeacherQuota";
 import { trackEvent, trackPageView, trackTeacherFunnelStep } from "@/lib/analytics";
+import { canAccessSection } from "@/lib/accessControl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -127,8 +128,8 @@ export default function TeacherPricing() {
 
   useEffect(() => {
     if (roleLoading) return;
-    if (role !== "teacher") { navigate("/app"); return; }
-  }, [role, roleLoading, navigate]);
+    if (!canAccessSection("teacher", role, user?.email)) { navigate("/app"); return; }
+  }, [role, roleLoading, navigate, user]);
 
   useEffect(() => {
     trackPageView("teacher_pricing", "teacher");

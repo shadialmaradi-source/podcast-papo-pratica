@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { type AppSection, canAccessSection, getDefaultHomeForRole } from "@/lib/accessControl";
 import { initAnalytics, trackSessionStart, trackSessionEnd } from "@/lib/analytics";
 import { StudentTourProvider } from "@/hooks/useStudentTour";
 import { AnalyticsConsentBanner } from "@/components/AnalyticsConsentBanner";
@@ -74,8 +75,8 @@ function LoadingFallback() {
 }
 
 // Protected Route Component
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+function ProtectedRoute({ children, section = "any" }: { children: React.ReactNode; section?: AppSection }) {
+  const { user, loading, role, roleLoading } = useAuth();
   const location = useLocation();
   const [lessonRedirect, setLessonRedirect] = useState<string | null>(null);
   const [resolvingLesson, setResolvingLesson] = useState(false);
@@ -106,7 +107,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     })();
   }, [loading, user, shareToken, location.pathname, location.search, location.hash]);
 
-  if (loading || (shareToken && !user && resolvingLesson)) {
+  if (loading || roleLoading || (shareToken && !user && resolvingLesson)) {
     return <LoadingFallback />;
   }
 
@@ -119,6 +120,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       return <LoadingFallback />;
     }
     return <Navigate to="/auth" replace />;
+  }
+
+  if (!canAccessSection(section, role, user.email)) {
+    return <Navigate to={getDefaultHomeForRole(role, user.email)} replace />;
   }
 
   return <>{children}</>;
@@ -201,33 +206,33 @@ const App = () => {
               <Route path="/cookie-policy" element={<CookiePolicy />} />
 
               {/* Teacher routes */}
-              <Route path="/teacher/onboarding" element={<ProtectedRoute><TeacherOnboarding /></ProtectedRoute>} />
-              <Route path="/teacher" element={<ProtectedRoute><TeacherDashboard /></ProtectedRoute>} />
-              <Route path="/teacher/pricing" element={<ProtectedRoute><TeacherPricing /></ProtectedRoute>} />
-              <Route path="/teacher/analytics" element={<ProtectedRoute><TeacherAnalytics /></ProtectedRoute>} />
-              <Route path="/teacher/notifications" element={<ProtectedRoute><TeacherNotifications /></ProtectedRoute>} />
-              <Route path="/teacher/settings" element={<ProtectedRoute><TeacherSettings /></ProtectedRoute>} />
-              <Route path="/teacher/lessons" element={<ProtectedRoute><Navigate to="/teacher" replace /></ProtectedRoute>} />
-              <Route path="/teacher/students" element={<ProtectedRoute><TeacherStudents /></ProtectedRoute>} />
-              <Route path="/teacher/student/:studentId" element={<ProtectedRoute><TeacherStudentDetail /></ProtectedRoute>} />
-              <Route path="/teacher/lesson/:id" element={<ProtectedRoute><TeacherLesson /></ProtectedRoute>} />
+              <Route path="/teacher/onboarding" element={<ProtectedRoute section="teacher"><TeacherOnboarding /></ProtectedRoute>} />
+              <Route path="/teacher" element={<ProtectedRoute section="teacher"><TeacherDashboard /></ProtectedRoute>} />
+              <Route path="/teacher/pricing" element={<ProtectedRoute section="teacher"><TeacherPricing /></ProtectedRoute>} />
+              <Route path="/teacher/analytics" element={<ProtectedRoute section="teacher"><TeacherAnalytics /></ProtectedRoute>} />
+              <Route path="/teacher/notifications" element={<ProtectedRoute section="teacher"><TeacherNotifications /></ProtectedRoute>} />
+              <Route path="/teacher/settings" element={<ProtectedRoute section="teacher"><TeacherSettings /></ProtectedRoute>} />
+              <Route path="/teacher/lessons" element={<ProtectedRoute section="teacher"><Navigate to="/teacher" replace /></ProtectedRoute>} />
+              <Route path="/teacher/students" element={<ProtectedRoute section="teacher"><TeacherStudents /></ProtectedRoute>} />
+              <Route path="/teacher/student/:studentId" element={<ProtectedRoute section="teacher"><TeacherStudentDetail /></ProtectedRoute>} />
+              <Route path="/teacher/lesson/:id" element={<ProtectedRoute section="teacher"><TeacherLesson /></ProtectedRoute>} />
 
               {/* Protected app routes — wrapped with StudentTourProvider */}
-              <Route path="/app" element={<ProtectedRoute><StudentTourProvider><AppHome /></StudentTourProvider></ProtectedRoute>} />
-              <Route path="/library" element={<ProtectedRoute><StudentTourProvider><Library /></StudentTourProvider></ProtectedRoute>} />
-              <Route path="/lesson/:videoId" element={<ProtectedRoute><StudentTourProvider><Lesson /></StudentTourProvider></ProtectedRoute>} />
-              <Route path="/learn/week/:weekId" element={<ProtectedRoute><WeekDetail /></ProtectedRoute>} />
-              <Route path="/learn/video/:weekVideoId" element={<ProtectedRoute><WeekVideo /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              <Route path="/app" element={<ProtectedRoute section="student"><StudentTourProvider><AppHome /></StudentTourProvider></ProtectedRoute>} />
+              <Route path="/library" element={<ProtectedRoute section="student"><StudentTourProvider><Library /></StudentTourProvider></ProtectedRoute>} />
+              <Route path="/lesson/:videoId" element={<ProtectedRoute section="student"><StudentTourProvider><Lesson /></StudentTourProvider></ProtectedRoute>} />
+              <Route path="/learn/week/:weekId" element={<ProtectedRoute section="student"><WeekDetail /></ProtectedRoute>} />
+              <Route path="/learn/video/:weekVideoId" element={<ProtectedRoute section="student"><WeekVideo /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute section="student"><ProfilePage /></ProtectedRoute>} />
               <Route path="/lesson/student/:id" element={<ProtectedRoute><StudentLesson /></ProtectedRoute>} />
               <Route
                 path="/student/lesson/:id"
                 element={<ProtectedRoute><LegacyStudentLessonRedirect /></ProtectedRoute>}
               />
-              <Route path="/speaking/:assignmentId" element={<ProtectedRoute><SpeakingAssignment /></ProtectedRoute>} />
-              <Route path="/my-lessons" element={<ProtectedRoute><MyLessons /></ProtectedRoute>} />
-              <Route path="/my-assignments" element={<ProtectedRoute><MyAssignments /></ProtectedRoute>} />
-              <Route path="/admin/import" element={<ProtectedRoute><AdminImport /></ProtectedRoute>} />
+              <Route path="/speaking/:assignmentId" element={<ProtectedRoute section="student"><SpeakingAssignment /></ProtectedRoute>} />
+              <Route path="/my-lessons" element={<ProtectedRoute section="student"><MyLessons /></ProtectedRoute>} />
+              <Route path="/my-assignments" element={<ProtectedRoute section="student"><MyAssignments /></ProtectedRoute>} />
+              <Route path="/admin/import" element={<ProtectedRoute section="teacher"><AdminImport /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

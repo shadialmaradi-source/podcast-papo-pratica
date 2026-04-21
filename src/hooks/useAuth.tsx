@@ -2,8 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { identifyUser, setUserProperties, setSection, trackEvent, resetAnalytics } from "@/lib/analytics";
-
-type AppRole = "teacher" | "student";
+import { type AppRole, resolveUserRole } from "@/lib/accessControl";
 
 interface AuthContextType {
   user: User | null;
@@ -42,21 +41,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const uid = session.user.id;
             setRoleLoading(true);
 
-            const [roleRes, profileRes] = await Promise.all([
-              supabase
-                .from("user_roles" as any)
-                .select("role")
-                .eq("user_id", uid)
-                .limit(1)
-                .maybeSingle(),
+            const [fetchedRole, profileRes] = await Promise.all([
+              resolveUserRole(uid),
               supabase
                 .from("profiles")
                 .select("current_level, selected_language, native_language")
                 .eq("user_id", uid)
                 .maybeSingle(),
             ]);
-
-            const fetchedRole = ((roleRes.data as any)?.role || "student") as AppRole;
             setRole(fetchedRole);
             setRoleLoading(false);
 
@@ -104,16 +96,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         // Load role on initial session restore
         setRoleLoading(true);
-        supabase
-          .from("user_roles" as any)
-          .select("role")
-          .eq("user_id", session.user.id)
-          .limit(1)
-          .maybeSingle()
-          .then(({ data }) => {
-            setRole(((data as any)?.role || "student") as AppRole);
-            setRoleLoading(false);
-          });
+        resolveUserRole(session.user.id).then((resolvedRole) => {
+          setRole(resolvedRole);
+          setRoleLoading(false);
+        });
       } else {
         setRoleLoading(false);
       }
