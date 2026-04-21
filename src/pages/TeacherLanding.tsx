@@ -410,10 +410,10 @@ export default function TeacherLanding() {
             custom={0}
             className="text-2xl md:text-4xl font-bold text-center text-foreground mb-4"
           >
-            Simple, Transparent Pricing
+            Choose Your Plan
           </motion.h2>
-          <p className="text-center text-muted-foreground mb-12">Start free. Upgrade when you're ready.</p>
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <p className="text-center text-muted-foreground mb-12">Start with a 14-day free trial. No credit card required.</p>
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {pricingTiers.map((tier, i) => (
               <motion.div
                 key={i}
@@ -435,6 +435,7 @@ export default function TeacherLanding() {
                   )}
                   <CardHeader className="text-center">
                     <CardTitle className="text-xl">{tier.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground">{tier.description}</p>
                     <div className="mt-2">
                       <span className="text-4xl font-bold text-foreground">{tier.price}</span>
                       <span className="text-muted-foreground">{tier.period}</span>
