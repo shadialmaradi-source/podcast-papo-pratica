@@ -1,39 +1,29 @@
 
 
-## Root cause
+## Update `/teachers` pricing section to match the current model
 
-The library tour replays whenever the user revisits `/library` before reaching step 4. The completion flag (`library_tour_completed` in `localStorage`) is only written inside `advanceTour` when `next > 4` (Library.tsx line 114-115). So if the user:
+The pricing block on `TeacherLanding.tsx` still advertises a 3-tier model (Free / Pro / Premium) with outdated Premium claims like "White-label option", "Custom video upload", and "API access". The live model in `TeacherPricing.tsx` is a 2-tier trial-first plan with concrete usage limits.
 
-- closes the browser / navigates away mid-tour
-- reloads the page during any of the 4 steps
-- dismisses a tooltip via the X (which fires the same auto-advance, but if they reload before reaching step 4)
+### Changes (single file: `src/pages/TeacherLanding.tsx`)
 
-…the flag never gets set and the tour starts again from step 1 on the next visit.
+1. **Replace `pricingTiers` data** with the same two tiers used in `TeacherPricing.tsx`:
+   - **Pro — $19/month** ("Perfect for active tutors"): Unlimited students · 30 lessons/month · Videos up to 10 min · All lesson types (YouTube, Paragraph, Speaking) · Student progress tracking · Basic analytics · Email support
+   - **Premium — $39/month** ("For professional tutors", marked **Most Popular**): Everything in Pro, plus: · 100 lessons/month · Videos up to 15 min · Advanced analytics (retention, churn, engagement) · Email notifications when students complete · Priority support
+   - Both CTAs: **Start Free Trial**
 
-`useStudentTour` resolves the initial phase from those same localStorage keys, so the same root cause affects the whole student tour pattern, but the visible bug today is the library step the user is seeing.
+2. **Update the pricing section heading/subheading** to match the in-app page:
+   - Title: "Choose Your Plan"
+   - Subtitle: "Start with a 14-day free trial. No credit card required."
 
-## Fix
+3. **Update the grid** from `md:grid-cols-3` to `md:grid-cols-2` and shrink `max-w-4xl` → `max-w-3xl` so two cards display correctly centered.
 
-Mark the library tour as completed **as soon as it is shown for the first time**, instead of waiting for the user to reach step 4. This guarantees a single appearance per browser, regardless of whether the user finishes the steps or not.
+4. **Add small visual touches** to align with the in-app card:
+   - Show a tier description line under the name (e.g. "Perfect for active tutors").
+   - Keep existing "Most Popular" ribbon styling, applied to Premium (not Pro).
 
-In `src/pages/Library.tsx`:
+No other sections change. No data, route, or backend changes. The CTA still routes to `/auth?role=teacher` via the existing `handleCTA` handler — the trial is provisioned post-signup as it is today.
 
-1. Add a `useEffect` that runs once when `tourPhase === 'library'` and `tourStep` is set to 1: write `localStorage.setItem('library_tour_completed', 'true')` immediately.
-2. Keep the existing in-memory `tourStep` flow so the tooltips still auto-advance for users who stay on the page — only the persistence timing changes.
-3. Leave `advanceTour` as-is for the `advanceTourPhase()` hand-off at the end (it becomes a no-op for the localStorage write, which is fine).
+### Files touched
 
-Effective change (concept):
-```ts
-useEffect(() => {
-  if (tourPhase === 'library' && tourStep === 1) {
-    localStorage.setItem('library_tour_completed', 'true');
-  }
-}, [tourPhase, tourStep]);
-```
-
-No changes to `useStudentTour`, `LibraryTourTooltip`, or any other tour phase. The home and transcript tours already follow the same "mark on first show" pattern via their own keys, so this aligns library with them.
-
-## Files touched
-
-- `src/pages/Library.tsx` — write `library_tour_completed=true` the first time the library tour renders, so it never replays on subsequent visits.
+- `src/pages/TeacherLanding.tsx` — replace the `pricingTiers` array + the Pricing section markup (heading, subhead, grid columns, card description) so the public landing page mirrors the live 2-tier trial pricing model shown in `/teacher/pricing`.
 
