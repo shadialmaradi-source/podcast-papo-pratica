@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Users, BookOpen, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { trackEvent, trackPageView } from "@/lib/analytics";
+import { canAccessSection } from "@/lib/accessControl";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays, isAfter, differenceInWeeks, differenceInDays } from "date-fns";
 import { RetentionMetrics } from "@/components/teacher/analytics/RetentionMetrics";
@@ -57,8 +58,8 @@ export default function TeacherAnalytics() {
 
   useEffect(() => {
     if (roleLoading) return;
-    if (role !== "teacher") { navigate("/app"); return; }
-  }, [role, roleLoading, navigate]);
+    if (!canAccessSection("teacher", role, user?.email)) { navigate("/app"); return; }
+  }, [role, roleLoading, navigate, user]);
 
   useEffect(() => {
     trackPageView("teacher_analytics", "teacher");

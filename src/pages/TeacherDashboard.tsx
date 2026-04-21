@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { BookOpen, Users, ArrowLeft, Settings, AlertTriangle, Mail, Clock, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { trackEvent, trackTeacherFunnelStep, trackPageLoad, trackPageView } from "@/lib/analytics";
+import { canAccessSection } from "@/lib/accessControl";
 
 import { CreateLessonForm } from "@/components/teacher/CreateLessonForm";
 import { TeacherNav } from "@/components/teacher/TeacherNav";
@@ -90,7 +91,7 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
       trackEvent("trial_banner_viewed", { days_remaining: quota.trialDaysRemaining });
     }
     if (roleLoading) return;
-    if (role !== "teacher") {
+    if (!canAccessSection("teacher", role, user?.email)) {
       navigate("/app");
       return;
     }

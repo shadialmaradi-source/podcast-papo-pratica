@@ -18,6 +18,7 @@ import { VideoBrowserModal } from "@/components/teacher/VideoBrowserModal";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { trackEvent, trackPageView } from "@/lib/analytics";
+import { canAccessSection } from "@/lib/accessControl";
 
 interface StudentRow {
   id: string;
@@ -63,10 +64,10 @@ export default function TeacherStudents() {
 
   useEffect(() => {
     if (roleLoading) return;
-    if (role !== "teacher") { navigate("/app"); return; }
+    if (!canAccessSection("teacher", role, user?.email)) { navigate("/app"); return; }
     trackPageView("teacher_students", "teacher");
     trackEvent("teacher_students_viewed");
-  }, [role, roleLoading, navigate]);
+  }, [role, roleLoading, navigate, user]);
 
   const fetchData = async () => {
     if (!user) return;
