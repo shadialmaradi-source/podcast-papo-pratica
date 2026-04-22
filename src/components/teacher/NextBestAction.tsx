@@ -73,7 +73,7 @@ export function NextBestAction({
           title: "Finish your draft lesson",
           description: `You have ${draftCount} draft${draftCount > 1 ? "s" : ""} waiting to be completed.`,
           cta: "View Lessons",
-          onClick: () => onNavigate("/teacher#teacher-lessons-section"),
+          onClick: () => onNavigate("/teacher/lessons"),
         });
         return;
       }

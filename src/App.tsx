@@ -36,6 +36,7 @@ const TeacherNotifications = lazy(() => import("./pages/TeacherNotifications"));
 const TeacherSettings = lazy(() => import("./pages/TeacherSettings"));
 const TeacherOnboarding = lazy(() => import("./pages/TeacherOnboarding"));
 const TeacherStudents = lazy(() => import("./pages/TeacherStudents"));
+const TeacherLessons = lazy(() => import("./pages/TeacherLessons"));
 const TeacherStudentDetail = lazy(() => import("./pages/TeacherStudentDetail"));
 const TeacherLesson = lazy(() => import("./pages/TeacherLesson"));
 const StudentLesson = lazy(() => import("./pages/StudentLesson"));
@@ -212,7 +213,7 @@ const App = () => {
               <Route path="/teacher/analytics" element={<ProtectedRoute section="teacher"><TeacherAnalytics /></ProtectedRoute>} />
               <Route path="/teacher/notifications" element={<ProtectedRoute section="teacher"><TeacherNotifications /></ProtectedRoute>} />
               <Route path="/teacher/settings" element={<ProtectedRoute section="teacher"><TeacherSettings /></ProtectedRoute>} />
-              <Route path="/teacher/lessons" element={<ProtectedRoute section="teacher"><Navigate to="/teacher" replace /></ProtectedRoute>} />
+              <Route path="/teacher/lessons" element={<ProtectedRoute section="teacher"><TeacherLessons /></ProtectedRoute>} />
               <Route path="/teacher/students" element={<ProtectedRoute section="teacher"><TeacherStudents /></ProtectedRoute>} />
               <Route path="/teacher/student/:studentId" element={<ProtectedRoute section="teacher"><TeacherStudentDetail /></ProtectedRoute>} />
               <Route path="/teacher/lesson/:id" element={<ProtectedRoute section="teacher"><TeacherLesson /></ProtectedRoute>} />
