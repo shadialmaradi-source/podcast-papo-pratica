@@ -484,14 +484,18 @@ serve(async (req) => {
       transcript = await tryYouTubeTimedText(id);
     }
 
-    // Plan C: Voxtral (teacher only, audio ASR)
+    // Plan C: OpenAI Whisper (teacher only, audio ASR — primary)
+    // Plan D: Voxtral (teacher only, audio ASR — backup)
     if (!transcript && callerRole === 'teacher') {
       const durationMinutes = await getVideoDurationMinutes(id);
-      const VOXTRAL_HARD_CAP = 15;
-      if (durationMinutes !== null && durationMinutes > VOXTRAL_HARD_CAP) {
-        console.log(`[transcript] Skipping Voxtral: ${durationMinutes.toFixed(1)}min > ${VOXTRAL_HARD_CAP}min cap`);
+      const ASR_HARD_CAP = 15;
+      if (durationMinutes !== null && durationMinutes > ASR_HARD_CAP) {
+        console.log(`[transcript] Skipping ASR: ${durationMinutes.toFixed(1)}min > ${ASR_HARD_CAP}min cap`);
       } else {
-        transcript = await tryVoxtral(id, language);
+        transcript = await tryWhisper(id, language);
+        if (!transcript) {
+          transcript = await tryVoxtral(id, language);
+        }
       }
     }
 
