@@ -101,36 +101,60 @@ async function tryYouTubeTimedText(videoId: string): Promise<{ text: string; lan
 }
 
 async function getYouTubeAudioUrl(videoId: string): Promise<string | null> {
-  try {
-    const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        videoId,
-        context: {
-          client: {
-            clientName: 'ANDROID',
-            clientVersion: '19.09.37',
-            androidSdkVersion: 30,
-            hl: 'en',
-            gl: 'US',
-          },
-        },
-      }),
-    });
-    if (!playerRes.ok) {
-      console.error(`[voxtral] player API HTTP ${playerRes.status}`);
-      return null;
+  // Plan 1: Supadata audio endpoint (uses our existing SUPADATA_API_KEY)
+  const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY');
+  if (SUPADATA_API_KEY) {
+    try {
+      const res = await fetch(
+        `https://api.supadata.ai/v1/youtube/video?videoId=${videoId}&audio=true`,
+        { headers: { 'x-api-key': SUPADATA_API_KEY } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const url =
+          data?.audioUrl ||
+          data?.audio_url ||
+          data?.audio?.url ||
+          data?.audio?.[0]?.url ||
+          (Array.isArray(data?.formats)
+            ? data.formats.find((f: any) => f.mimeType?.startsWith('audio/') || f.type === 'audio')?.url
+            : null);
+        if (url) {
+          console.log('[audio] resolved via supadata');
+          return url;
+        }
+        console.log('[audio] supadata response had no audio URL');
+      } else {
+        console.error(`[audio] supadata HTTP ${res.status}: ${await res.text().catch(() => '')}`);
+      }
+    } catch (e) {
+      console.error('[audio] supadata error:', e);
     }
-    const data = await playerRes.json();
-    const formats = data?.streamingData?.adaptiveFormats || [];
-    const audioFormats = formats.filter((f: any) => f.mimeType?.startsWith('audio/'));
-    audioFormats.sort((a: any, b: any) => (a.bitrate || 0) - (b.bitrate || 0));
-    return audioFormats[0]?.url || null;
-  } catch (e) {
-    console.error('[voxtral] getYouTubeAudioUrl error:', e);
-    return null;
   }
+
+  // Plan 2: optional hosted yt-dlp microservice
+  const AUDIO_RESOLVER_URL = Deno.env.get('AUDIO_RESOLVER_URL');
+  if (AUDIO_RESOLVER_URL) {
+    try {
+      const sep = AUDIO_RESOLVER_URL.includes('?') ? '&' : '?';
+      const res = await fetch(`${AUDIO_RESOLVER_URL}${sep}id=${videoId}`);
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const url = data?.audioUrl || data?.url || null;
+        if (url) {
+          console.log('[audio] resolved via fallback resolver');
+          return url;
+        }
+      } else {
+        console.error(`[audio] fallback resolver HTTP ${res.status}`);
+      }
+    } catch (e) {
+      console.error('[audio] fallback resolver error:', e);
+    }
+  }
+
+  console.log('[audio] no resolver available — set SUPADATA_API_KEY or AUDIO_RESOLVER_URL');
+  return null;
 }
 
 async function tryWhisper(videoId: string, languageHint?: string): Promise<{ text: string; lang: string; method: string } | null> {
