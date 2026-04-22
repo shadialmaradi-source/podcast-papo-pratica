@@ -77,6 +77,7 @@ export default function TeacherLesson() {
   const [activeGroupType, setActiveGroupType] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [demoHintStep, setDemoHintStep] = useState(0);
 
   const exerciseGroups = useMemo(() => {
     const typeOrder: string[] = [];
@@ -91,6 +92,14 @@ export default function TeacherLesson() {
     return typeOrder.map((type) => ({ type, exercises: grouped[type] }));
   }, [exercises]);
 
+  const displayExerciseGroups = useMemo(() => {
+    if (!isDemo) return exerciseGroups;
+    return exerciseGroups.map((group) => ({
+      ...group,
+      exercises: group.exercises.slice(0, 1),
+    }));
+  }, [exerciseGroups, isDemo]);
+
   const updateGroupState = (type: string, update: Partial<GroupState>) => {
     setActiveGroupType(type);
     setGroupStates((prev) => ({
@@ -101,10 +110,10 @@ export default function TeacherLesson() {
 
   // Set default active group when exercise groups change
   useEffect(() => {
-    if (exerciseGroups.length > 0 && !activeGroupType) {
-      setActiveGroupType(exerciseGroups[0].type);
+    if (displayExerciseGroups.length > 0 && !activeGroupType) {
+      setActiveGroupType(displayExerciseGroups[0].type);
     }
-  }, [exerciseGroups, activeGroupType]);
+  }, [displayExerciseGroups, activeGroupType]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -113,7 +122,7 @@ export default function TeacherLesson() {
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (!activeGroupType) return;
 
-      const group = exerciseGroups.find((g) => g.type === activeGroupType);
+      const group = displayExerciseGroups.find((g) => g.type === activeGroupType);
       if (!group) return;
       const state = groupStates[activeGroupType] || { currentIndex: 0, revealed: false };
 
@@ -140,7 +149,7 @@ export default function TeacherLesson() {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [activeGroupType, exerciseGroups, groupStates]);
+  }, [activeGroupType, displayExerciseGroups, groupStates]);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -420,8 +429,31 @@ export default function TeacherLesson() {
   const availableTypes = (lesson.exercise_types || []).filter((t: string) => t !== "flashcards" && t !== "image_discussion");
   const shareLink = lesson.share_token ? buildStudentLessonShareLink(lesson.share_token) : "";
   const activeGroup = activeGroupType
-    ? exerciseGroups.find((group) => group.type === activeGroupType) ?? null
+    ? displayExerciseGroups.find((group) => group.type === activeGroupType) ?? null
     : null;
+
+  const demoGuideSteps = [
+    {
+      title: "Paste any YouTube video",
+      description: "In production, you can paste any public YouTube URL and ListenFlow generates a lesson from it.",
+    },
+    {
+      title: "Video + transcript",
+      description: "This demo uses a real YouTube Short and shows the generated transcript directly under the video.",
+    },
+    {
+      title: "Select words, Explore, save flashcards",
+      description: "Highlight transcript text to open Explore and save key words or phrases as flashcards.",
+    },
+    {
+      title: "4 exercise types",
+      description: "Use the exercise tabs to switch types. In demo mode, each type shows 1 sample question.",
+    },
+    {
+      title: "Real workflow",
+      description: "The full teacher workflow follows this same sequence: video → transcript → word tools → exercises → share.",
+    },
+  ];
 
   const handleCopyLink = async () => {
     if (!shareLink) return;
@@ -484,7 +516,7 @@ export default function TeacherLesson() {
             </div>
             <p className="text-sm text-muted-foreground">
               This is what your students will see when you assign them a lesson.
-              Generate exercises below, then share the link.
+              This demo lesson is already prepared with transcript + exercises so you can review the full workflow quickly.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => navigate("/teacher")}>
@@ -494,6 +526,33 @@ export default function TeacherLesson() {
                 <Users className="h-4 w-4 mr-1" />
                 Add Your First Student
               </Button>
+            </div>
+
+            <div className="rounded-lg border border-primary/25 bg-background p-3 space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">
+                  Guided demo {demoHintStep + 1}/{demoGuideSteps.length}
+                </p>
+                <h3 className="text-sm font-semibold text-foreground mt-1">{demoGuideSteps[demoHintStep].title}</h3>
+                <p className="text-xs text-muted-foreground mt-1">{demoGuideSteps[demoHintStep].description}</p>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setDemoHintStep((prev) => Math.max(prev - 1, 0))}
+                  disabled={demoHintStep === 0}
+                >
+                  Previous
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setDemoHintStep((prev) => Math.min(prev + 1, demoGuideSteps.length - 1))}
+                  disabled={demoHintStep === demoGuideSteps.length - 1}
+                >
+                  Next tip
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -688,10 +747,10 @@ export default function TeacherLesson() {
             )}
 
             {/* Exercise groups */}
-            {exerciseGroups.length > 0 && (
+            {displayExerciseGroups.length > 0 && (
               <div className="space-y-4">
                 <div className="flex flex-wrap gap-2">
-                  {exerciseGroups.map((group) => {
+                  {displayExerciseGroups.map((group) => {
                     const label = EXERCISE_TYPE_LABELS[group.type] || group.type;
                     const isActive = activeGroupType === group.type;
                     const colorClass = TYPE_COLORS[group.type] || "";
@@ -776,7 +835,7 @@ export default function TeacherLesson() {
       </main>
 
       {/* Keyboard shortcuts hint */}
-      {showShortcuts && exerciseGroups.length > 0 && !done && lesson?.status !== "completed" && (
+      {showShortcuts && displayExerciseGroups.length > 0 && !done && lesson?.status !== "completed" && (
         <div className="fixed bottom-0 inset-x-0 bg-card/95 backdrop-blur border-t border-border px-4 py-2 z-50">
           <div className="container mx-auto max-w-2xl flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
