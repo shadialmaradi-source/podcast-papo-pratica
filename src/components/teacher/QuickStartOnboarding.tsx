@@ -9,6 +9,9 @@ import { toast } from "@/components/ui/sonner";
 import { trackEvent, trackFunnelStep, trackTeacherFunnelStep } from "@/lib/analytics";
 import { Play, Rocket, Loader2, CheckCircle, ArrowRight } from "lucide-react";
 
+const DEMO_YOUTUBE_URL = "https://www.youtube.com/shorts/ileoFbDsd8M";
+const DEMO_TRANSCRIPT = "Hi officer. How can I help you? I want to tell you something. You want to tell me something? Yes. To the police? Oh, you want to do a report? Yeah, I want to report something. What is it about? My document is lost. What document? Where my face? Your ID? Yeah, I lost my ID. Do you have your passport? I also lost my passport. Do you have a copy of your passport or ID? No. Do you have a photo? No, I don't have that full name. Katalina Golans and your ID number. Yeah, it's 67 >> 67 >> 67 67. >> Kids, I never understand them. 67 3394. Did you find me? Yeah, but doesn't look like you at all. Not again. No. Oh, perfect. That would be 250 cash only.";
+
 export function QuickStartOnboarding() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -34,13 +37,14 @@ export function QuickStartOnboarding() {
         .from("teacher_lessons")
         .insert({
           teacher_id: user.id,
-          title: "Demo: Morning Routine in Spanish",
+          title: "Demo: Reporting a Lost ID at the Police Station",
           lesson_type: "youtube",
-          youtube_url: "https://www.youtube.com/watch?v=S9bCLPwzSC0",
+          youtube_url: DEMO_YOUTUBE_URL,
+          transcript: DEMO_TRANSCRIPT,
           cefr_level: "A2",
-          language: "Spanish",
+          language: "English",
           translation_language: "English",
-          exercise_types: ["multiple_choice", "fill_in_blank"],
+          exercise_types: ["multiple_choice", "fill_in_blank", "role_play", "spot_the_mistake"],
           status: "draft",
         } as any)
         .select()
@@ -48,15 +52,57 @@ export function QuickStartOnboarding() {
 
       if (lessonError) throw lessonError;
 
-      // 2. Generate exercises via edge function
-      const { error: genError } = await supabase.functions.invoke(
-        "generate-lesson-exercises-by-type",
-        { body: { lessonId: lesson.id, exerciseType: "multiple_choice" } }
-      );
+      // 2. Seed a lightweight 1-question-per-type demo set
+      const { error: exerciseError } = await supabase
+        .from("lesson_exercises")
+        .insert([
+          {
+            lesson_id: lesson.id,
+            exercise_type: "multiple_choice",
+            order_index: 0,
+            content: {
+              question: "Why does the woman talk to the officer?",
+              options: ["She lost her ID", "She needs directions", "She found a wallet", "She wants a job"],
+              correct: "A",
+              explanation: "She says she wants to report that her document/ID is lost.",
+            },
+          },
+          {
+            lesson_id: lesson.id,
+            exercise_type: "fill_in_blank",
+            order_index: 1,
+            content: {
+              sentence: "Yeah, I lost my ____.",
+              hint: "It is the identity document discussed in the clip.",
+              answer: "ID",
+            },
+          },
+          {
+            lesson_id: lesson.id,
+            exercise_type: "role_play",
+            order_index: 2,
+            content: {
+              scenario: "Role-play at a police station where a traveler reports a lost document.",
+              teacher_role: "Police officer",
+              student_role: "Traveler reporting a lost ID and passport",
+              starter: "Hi officer, I want to report something.",
+              useful_phrases: ["I want to report something.", "My ID is lost.", "Do you have a copy?", "That would be 250 cash only."],
+            },
+          },
+          {
+            lesson_id: lesson.id,
+            exercise_type: "spot_the_mistake",
+            order_index: 3,
+            content: {
+              instruction: "Find and fix the incorrect statement based on the video transcript.",
+              sentence: "I found my passport and ID.",
+              corrected: "I also lost my passport, and I lost my ID.",
+              explanation: "In the video, she reports both documents are lost, not found.",
+            },
+          },
+        ] as any);
 
-      if (genError) {
-        console.warn("Exercise generation failed, continuing:", genError);
-      }
+      if (exerciseError) throw exerciseError;
 
       // 3. Mark onboarding completed, seed full_name from profiles if available
       let seedName: string | undefined;
@@ -203,7 +249,7 @@ export function QuickStartOnboarding() {
                       Create Your First Lesson
                     </h2>
                     <p className="text-muted-foreground text-sm">
-                      One click — we'll use a pre-selected Spanish video
+                      One click — we'll use a pre-selected English YouTube Short
                     </p>
                   </div>
 
@@ -224,8 +270,9 @@ export function QuickStartOnboarding() {
                     </p>
                     <ul className="space-y-2 text-sm text-muted-foreground">
                       {[
-                        "A real Spanish A2 lesson is created",
-                        "AI generates exercises from the video",
+                        "A real English A2 demo lesson is created",
+                        "The transcript appears under the video",
+                        "You get 4 demo exercise types (1 question each)",
                         "You'll see exactly what students see",
                       ].map((item, i) => (
                         <li key={i} className="flex items-start gap-2">
@@ -257,7 +304,7 @@ export function QuickStartOnboarding() {
 
                   {isCreating && (
                     <p className="text-xs text-center text-muted-foreground animate-pulse">
-                      Generating exercises from video... ~30 seconds
+                      Preparing demo lesson... ~10 seconds
                     </p>
                   )}
 
