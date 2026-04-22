@@ -132,26 +132,49 @@ serve(async (req) => {
 
     // Get video info from YouTube oEmbed API
     const videoInfo = await getVideoInfo(videoId);
-    
-    // Create video record with processing status
-    const { data: video, error: videoError } = await supabase
-      .from('youtube_videos')
-      .insert({
-        video_id: videoId,
-        title: videoInfo.title,
-        description: videoInfo.description,
-        thumbnail_url: videoInfo.thumbnail,
-        duration: videoDuration > 0 ? videoDuration : null,
-        language,
-        difficulty_level: difficulty,
-        status: 'processing',
-        processing_started_at: new Date().toISOString(),
-        added_by_user_id: userId,
-        is_curated: false,
-        is_short: isShort
-      })
-      .select()
-      .single();
+
+    const videoPayload = {
+      video_id: videoId,
+      title: videoInfo.title,
+      description: videoInfo.description,
+      thumbnail_url: videoInfo.thumbnail,
+      duration: videoDuration > 0 ? videoDuration : null,
+      language,
+      difficulty_level: difficulty,
+      status: 'processing',
+      processing_started_at: new Date().toISOString(),
+      added_by_user_id: userId,
+      is_curated: false,
+      is_short: isShort,
+    };
+
+    // If a row still exists at this point (e.g. status='pending' from a prior partial run),
+    // update it in place instead of inserting (which would violate the unique constraint).
+    const shouldUpdateExisting =
+      existingVideo && existingVideo.status !== 'failed';
+
+    let video: any;
+    let videoError: any;
+
+    if (shouldUpdateExisting) {
+      console.log(`Reusing existing video row (status=${existingVideo.status}):`, existingVideo.id);
+      const { data, error } = await supabase
+        .from('youtube_videos')
+        .update(videoPayload)
+        .eq('id', existingVideo.id)
+        .select()
+        .single();
+      video = data;
+      videoError = error;
+    } else {
+      const { data, error } = await supabase
+        .from('youtube_videos')
+        .insert(videoPayload)
+        .select()
+        .single();
+      video = data;
+      videoError = error;
+    }
 
     if (videoError) {
       throw new Error(`Failed to create video record: ${videoError.message}`);
