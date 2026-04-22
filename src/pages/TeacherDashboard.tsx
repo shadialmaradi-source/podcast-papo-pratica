@@ -22,7 +22,7 @@ import { SpeakingLessonCreator } from "@/components/teacher/SpeakingLessonCreato
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTeacherQuota } from "@/hooks/useTeacherQuota";
 import { NextBestAction } from "@/components/teacher/NextBestAction";
-import { LessonList } from "@/components/teacher/LessonList";
+
 
 
 type FlowStep = "home" | "choose_type" | "form" | "youtube_source" | "youtube_browse" | "speaking_form";
@@ -71,7 +71,7 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
       return saved ? JSON.parse(saved).prefillVideoMeta ?? null : null;
     } catch { return null; }
   });
-  const [lessonListRefresh, setLessonListRefresh] = useState(0);
+  
 
   // Sync flow state to sessionStorage
   useEffect(() => {
@@ -109,14 +109,6 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
         });
     }
   }, [role, roleLoading, navigate, user, quota]);
-
-  useEffect(() => {
-    if (step !== "home" || location.hash !== "#teacher-lessons-section") return;
-    const timeout = window.setTimeout(() => {
-      document.getElementById("teacher-lessons-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-    return () => window.clearTimeout(timeout);
-  }, [location.hash, step]);
 
   useEffect(() => {
     const loadTeacherName = async () => {
@@ -196,7 +188,6 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
 
   const handleCreated = (lessonId: string) => {
     refreshQuota();
-    setLessonListRefresh((prev) => prev + 1);
     sessionStorage.removeItem(STORAGE_KEY);
     navigate(`/teacher/lesson/${lessonId}`);
   };
@@ -589,17 +580,30 @@ return (
                   </div>
                 </CardContent>
               </Card>
-            </div>
 
-            <section id="teacher-lessons-section" className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-foreground">Your lessons</h3>
-                <Button variant="ghost" size="sm" onClick={() => setLessonListRefresh((prev) => prev + 1)}>
-                  Refresh
-                </Button>
-              </div>
-              <LessonList refresh={lessonListRefresh} />
-            </section>
+              <Card
+                className="cursor-pointer transition-all hover:border-primary hover:shadow-md sm:col-span-2"
+                onClick={() => {
+                  trackTeacherFunnelStep("dashboard_next_action_clicked", {
+                    action: "open_lessons",
+                    source: "teacher_dashboard_home",
+                    surface: "hero_card",
+                    cta_label: "Your Lessons",
+                  });
+                  navigate("/teacher/lessons");
+                }}
+              >
+                <CardContent className="flex flex-col items-center text-center gap-3 p-8">
+                  <BookOpen className="h-12 w-12 text-primary" />
+                  <div>
+                    <p className="text-lg font-semibold text-foreground">Your Lessons</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      View, resume, and manage every lesson you've created
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </>
         )}
 
