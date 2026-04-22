@@ -133,6 +133,59 @@ async function getYouTubeAudioUrl(videoId: string): Promise<string | null> {
   }
 }
 
+async function tryWhisper(videoId: string, languageHint?: string): Promise<{ text: string; lang: string; method: string } | null> {
+  const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+  if (!OPENAI_API_KEY) {
+    console.log('[whisper] OPENAI_API_KEY missing, skipping');
+    return null;
+  }
+  try {
+    const audioUrl = await getYouTubeAudioUrl(videoId);
+    if (!audioUrl) {
+      console.log('[whisper] No audio URL resolved');
+      return null;
+    }
+    console.log('[whisper] Fetching audio stream…');
+    const audioRes = await fetch(audioUrl);
+    if (!audioRes.ok) {
+      console.error(`[whisper] audio fetch HTTP ${audioRes.status}`);
+      return null;
+    }
+    const audioBlob = await audioRes.blob();
+    console.log(`[whisper] audio bytes: ${audioBlob.size}`);
+    if (audioBlob.size > 25 * 1024 * 1024) {
+      console.log('[whisper] audio > 25MB, skipping (OpenAI limit)');
+      return null;
+    }
+
+    const form = new FormData();
+    form.append('file', audioBlob, 'audio.webm');
+    form.append('model', 'whisper-1');
+    form.append('response_format', 'json');
+    if (languageHint) form.append('language', languageHint.slice(0, 2));
+
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[whisper] openai HTTP ${res.status}: ${errText}`);
+      return null;
+    }
+    const result = await res.json();
+    const text = result?.text || '';
+    if (text.length > 50) {
+      return { text, lang: languageHint || 'unknown', method: 'whisper' };
+    }
+    return null;
+  } catch (e) {
+    console.error('[whisper] error:', e);
+    return null;
+  }
+}
+
 async function tryVoxtral(videoId: string, languageHint?: string): Promise<{ text: string; lang: string; method: string } | null> {
   const MISTRAL_API_KEY = Deno.env.get('MISTRAL_API_KEY');
   if (!MISTRAL_API_KEY) {
