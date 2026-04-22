@@ -1,41 +1,58 @@
 
+## Plan B/C transcript fallback — role-aware
 
-## Move "Your lessons" to a dedicated page
+### Two unrelated things to handle
 
-Today the lessons list lives at the bottom of `/teacher`, and the "View Lessons" button on the draft-lesson card just scrolls down the same page (`/teacher#teacher-lessons-section`). The user wants a real separate page so clicking "View Lessons" navigates somewhere new instead of scrolling.
+**1. Build error (blocking everything)**
+`supabase/functions/send-weekly-recaps/index.ts` imports `npm:resend@2.0.0`, which the current Deno runtime can't resolve. Fix: change the import to the esm.sh form used elsewhere in the project (e.g. `https://esm.sh/resend@2.0.0`). One-line edit, unrelated to transcripts but must ship first or nothing deploys.
 
-### Changes
+**2. Transcript fallback chain with role gating**
 
-**1. New page: `src/pages/TeacherLessons.tsx`**
-- Standalone page with header (back button → `/teacher`, title "Your lessons", `TeacherNotificationBell`, settings icon — same chrome as the dashboard).
-- Body: a `Refresh` button + the existing `<LessonList refresh={...} />` component, reusing the same data/UI so card behaviour (Start, Resume, Regenerate, Preview) is identical.
-- Includes `<TeacherNav />` at the bottom.
-- Uses the same `ProtectedRoute section="teacher"` guard.
+Today: `extract-youtube-transcript` calls Supadata only. If Supadata fails (no captions, like your Brazilian video `tl-Pu3lFh7Q`), the lesson dies.
 
-**2. Routing: `src/App.tsx`**
-- Replace the current redirect on `/teacher/lessons` with the new page:
-  ```
-  <Route path="/teacher/lessons" element={<ProtectedRoute section="teacher"><TeacherLessons /></ProtectedRoute>} />
-  ```
-- Add the import for `TeacherLessons`.
+New chain inside `supabase/functions/extract-youtube-transcript/index.ts`:
 
-**3. Dashboard: `src/pages/TeacherDashboard.tsx`**
-- Remove the `<section id="teacher-lessons-section">` block (lines ~594–602) and the related scroll-into-view `useEffect` (lines ~113–119).
-- Remove the now-unused `lessonListRefresh` state, the `LessonList` import, and the `setLessonListRefresh` call inside `handleCreated` (after creation we navigate to `/teacher/lesson/:id` anyway).
-- Add a small "Your lessons" entry-point card in the home grid (next to "Create a Lesson" / "My Students") that routes to `/teacher/lessons`, so teachers still have a one-tap way in from the dashboard.
+```text
+1. Supadata           — captions, fast, cheap            (everyone)
+2. YouTube timedtext  — captions, free, no key           (everyone)
+3. Voxtral (Mistral)  — audio ASR, paid per minute       (TEACHERS ONLY)
+```
 
-**4. Update internal link: `src/components/teacher/NextBestAction.tsx`**
-- Change the draft-lesson card CTA from `onNavigate("/teacher#teacher-lessons-section")` to `onNavigate("/teacher/lessons")`.
+Voxtral is gated by **caller role**, not by URL flag:
+- The function already authenticates the user (`claimsData.claims.sub`).
+- Look up the user's role via `user_roles` (same pattern as `resolveUserRole` in `src/lib/accessControl.ts`) inside the edge function using the service-role client.
+- If role = `teacher` → allow Voxtral fallback.
+- If role = `student` → stop after step 2 and return `NO_TRANSCRIPT_AVAILABLE` with a clear message ("This video has no captions. Ask your teacher to add it, or try a different video.").
+- Admin override email (`shadi.almaradi@gmail.com`) is treated as teacher.
 
-**5. Anywhere else that links to `#teacher-lessons-section`**
-- Sweep and update those links to `/teacher/lessons` (currently only `NextBestAction` and the dashboard's own scroll handler use it).
+### Voxtral integration details
 
-No backend, data, or styling changes. `LessonList` is reused as-is. After creating a lesson, the existing flow still navigates to `/teacher/lesson/:id`, unchanged.
+- Endpoint: `POST https://api.mistral.ai/v1/audio/transcriptions`
+- Model: `voxtral-mini-latest` (cheap default; `voxtral-small-latest` reserved for future).
+- Auth: `Authorization: Bearer ${MISTRAL_API_KEY}`.
+- Audio source: fetch the YouTube audio stream server-side via a yt-dlp-style HTTPS resolver. Cleanest option for the edge runtime is a hosted resolver call — I'll implement using a small `getYouTubeAudioUrl(videoId)` helper that hits `https://www.youtube.com/youtubei/v1/player` to get an `audio/webm` stream URL, then forwards bytes to Mistral as multipart. If that proves flaky in production we swap in a managed yt-dlp microservice — single helper to swap.
+- Hard caps before invoking Voxtral:
+  - Skip if `getVideoDurationMinutes()` > teacher plan limit (already implemented above).
+  - Absolute ceiling: 15 minutes regardless of plan.
+- Logging: tag `[transcript] method=supadata|timedtext|voxtral` so we can monitor cost.
+
+### Recover the stuck lesson
+
+For `9f30ba71-6c73-433d-9883-447ac2788158` (`tl-Pu3lFh7Q`): once the new code deploys, reset that `youtube_videos` row to `status='pending'` so revisiting the page re-runs the chain. Since this lesson belongs to a teacher, Voxtral will pick it up.
+
+### Failure UX (kept from previous plan)
+
+`src/hooks/useLessonFlow.ts` + `src/pages/Lesson.tsx`: shorter retry budget, single toast, and a real failure card with **Try again** / **Pick a different video** buttons when all providers fail.
+
+### Secrets
+
+- `MISTRAL_API_KEY` — you provided it (`HwnH5ONSYwHd58kVvwz9kcx2VG3jpJgl`). I'll add it via the secrets tool when implementing; not stored in code.
 
 ### Files touched
 
-- `src/pages/TeacherLessons.tsx` — new dedicated page hosting `LessonList` with the standard teacher header + nav.
-- `src/App.tsx` — route `/teacher/lessons` now renders `TeacherLessons` instead of redirecting.
-- `src/pages/TeacherDashboard.tsx` — remove the inline lessons section + scroll effect; add a "Your lessons" entry card linking to `/teacher/lessons`.
-- `src/components/teacher/NextBestAction.tsx` — draft-lesson CTA navigates to `/teacher/lessons`.
-
+- `supabase/functions/send-weekly-recaps/index.ts` — fix `npm:resend` import to esm.sh form to unblock builds.
+- `supabase/functions/extract-youtube-transcript/index.ts` — add `tryYouTubeTimedText`, `tryVoxtral`, role lookup, chain providers, enforce duration cap + teacher-only Voxtral.
+- One-off DB action — reset `youtube_videos` row for `9f30ba71-…` to retry through the new chain.
+- `src/hooks/useLessonFlow.ts` — fewer retries, longer interval, single toast, faster stale detection.
+- `src/pages/Lesson.tsx` — failure card with Try again / Library actions when all providers fail.
+- New runtime secret: `MISTRAL_API_KEY`.
