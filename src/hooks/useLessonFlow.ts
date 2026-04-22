@@ -76,7 +76,8 @@ export function useLessonFlow(videoId: string | undefined) {
     state: "idle" | "pending" | "failed";
     message: string | null;
   }>({ state: "idle", message: null });
-  const MAX_SEGMENT_RETRIES = 8;
+  const MAX_SEGMENT_RETRIES = 4;
+  const SEGMENT_RETRY_DELAY = 8000;
 
   const getCurrentUser = useCallback(async () => {
     if (user) return user;
@@ -259,19 +260,16 @@ export function useLessonFlow(videoId: string | undefined) {
           message: "Transcript is still finalizing. Scene splits will appear automatically once ready.",
         });
         if (attempt < MAX_SEGMENT_RETRIES) {
-          toast({
-            title: "Segmenting video…",
-            description: "Transcript is still finalizing. We'll retry scene generation in a few seconds.",
-          });
+          if (attempt === 0) {
+            toast({
+              title: "Segmenting video…",
+              description: "Transcript is still finalizing. We'll retry scene generation shortly.",
+            });
+          }
           setTimeout(() => {
             void trySegmentVideo(videoDbId, _level, persistedCompleted, knownDuration, attempt + 1);
-          }, 5000);
+          }, SEGMENT_RETRY_DELAY);
         } else {
-          toast({
-            title: "Scene segmentation not ready",
-            description: "Transcript is still unavailable. You can continue now and try again later.",
-            variant: "default",
-          });
           setSegmentationStatus({
             state: "failed",
             message: "Scene generation timed out waiting for transcript.",
