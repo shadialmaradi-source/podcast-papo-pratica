@@ -11,7 +11,175 @@ const PLAN_VIDEO_LIMITS: Record<string, number> = {
   trial: 10,
   pro: 10,
   premium: 15,
-};
+const ADMIN_OVERRIDE_EMAIL = "shadi.almaradi@gmail.com";
+
+async function resolveCallerRole(supabase: any, userId: string, email?: string | null): Promise<'teacher' | 'student'> {
+  if ((email || '').trim().toLowerCase() === ADMIN_OVERRIDE_EMAIL) return 'teacher';
+  try {
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+    if (roleData?.role === 'teacher' || roleData?.role === 'student') return roleData.role;
+    const { data: teacherProfile } = await supabase
+      .from('teacher_profiles')
+      .select('teacher_id')
+      .eq('teacher_id', userId)
+      .maybeSingle();
+    if (teacherProfile) return 'teacher';
+  } catch (e) {
+    console.error('[role] resolveCallerRole error:', e);
+  }
+  return 'student';
+}
+
+async function trySupadata(videoId: string): Promise<{ text: string; lang: string; method: string } | null> {
+  const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY');
+  if (!SUPADATA_API_KEY) {
+    console.log('[transcript] Supadata key missing, skipping');
+    return null;
+  }
+  try {
+    const res = await fetch(
+      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`,
+      { headers: { 'x-api-key': SUPADATA_API_KEY } }
+    );
+    if (!res.ok) {
+      console.error(`[transcript] supadata HTTP ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    if (data?.content && data.content.length > 50) {
+      return { text: data.content, lang: data.lang || 'unknown', method: 'supadata' };
+    }
+    return null;
+  } catch (e) {
+    console.error('[transcript] supadata error:', e);
+    return null;
+  }
+}
+
+async function tryYouTubeTimedText(videoId: string): Promise<{ text: string; lang: string; method: string } | null> {
+  // Try several languages — auto-detect tracks via list endpoint first
+  try {
+    const listRes = await fetch(`https://video.google.com/timedtext?type=list&v=${videoId}`);
+    if (!listRes.ok) {
+      console.log(`[transcript] timedtext list HTTP ${listRes.status}`);
+      return null;
+    }
+    const listXml = await listRes.text();
+    const langMatches = [...listXml.matchAll(/lang_code="([^"]+)"/g)].map((m) => m[1]);
+    const langs = langMatches.length > 0 ? langMatches : ['en', 'pt', 'pt-BR', 'es', 'it', 'fr', 'de'];
+
+    for (const lang of langs) {
+      const res = await fetch(`https://video.google.com/timedtext?lang=${lang}&v=${videoId}`);
+      if (!res.ok) continue;
+      const xml = await res.text();
+      if (!xml || xml.length < 50) continue;
+      const text = xml
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (text.length > 50) {
+        return { text, lang, method: 'timedtext' };
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error('[transcript] timedtext error:', e);
+    return null;
+  }
+}
+
+async function getYouTubeAudioUrl(videoId: string): Promise<string | null> {
+  try {
+    const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: 'ANDROID',
+            clientVersion: '19.09.37',
+            androidSdkVersion: 30,
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+      }),
+    });
+    if (!playerRes.ok) {
+      console.error(`[voxtral] player API HTTP ${playerRes.status}`);
+      return null;
+    }
+    const data = await playerRes.json();
+    const formats = data?.streamingData?.adaptiveFormats || [];
+    const audioFormats = formats.filter((f: any) => f.mimeType?.startsWith('audio/'));
+    audioFormats.sort((a: any, b: any) => (a.bitrate || 0) - (b.bitrate || 0));
+    return audioFormats[0]?.url || null;
+  } catch (e) {
+    console.error('[voxtral] getYouTubeAudioUrl error:', e);
+    return null;
+  }
+}
+
+async function tryVoxtral(videoId: string, languageHint?: string): Promise<{ text: string; lang: string; method: string } | null> {
+  const MISTRAL_API_KEY = Deno.env.get('MISTRAL_API_KEY');
+  if (!MISTRAL_API_KEY) {
+    console.log('[voxtral] MISTRAL_API_KEY missing, skipping');
+    return null;
+  }
+  try {
+    const audioUrl = await getYouTubeAudioUrl(videoId);
+    if (!audioUrl) {
+      console.log('[voxtral] No audio URL resolved');
+      return null;
+    }
+    console.log('[voxtral] Fetching audio stream…');
+    const audioRes = await fetch(audioUrl);
+    if (!audioRes.ok) {
+      console.error(`[voxtral] audio fetch HTTP ${audioRes.status}`);
+      return null;
+    }
+    const audioBlob = await audioRes.blob();
+    console.log(`[voxtral] audio bytes: ${audioBlob.size}`);
+
+    const form = new FormData();
+    form.append('file', audioBlob, 'audio.webm');
+    form.append('model', 'voxtral-mini-latest');
+    if (languageHint) form.append('language', languageHint.slice(0, 2));
+
+    const transRes = await fetch('https://api.mistral.ai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${MISTRAL_API_KEY}` },
+      body: form,
+    });
+    if (!transRes.ok) {
+      const errText = await transRes.text();
+      console.error(`[voxtral] mistral HTTP ${transRes.status}: ${errText}`);
+      return null;
+    }
+    const result = await transRes.json();
+    const text = result?.text || '';
+    if (text.length > 50) {
+      return { text, lang: result?.language || languageHint || 'unknown', method: 'voxtral' };
+    }
+    return null;
+  } catch (e) {
+    console.error('[voxtral] error:', e);
+    return null;
+  }
+}
+
+
 
 function extractVideoId(urlOrId: string): string | null {
   if (!urlOrId) return null;
