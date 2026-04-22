@@ -11,6 +11,8 @@ const PLAN_VIDEO_LIMITS: Record<string, number> = {
   trial: 10,
   pro: 10,
   premium: 15,
+};
+
 const ADMIN_OVERRIDE_EMAIL = "shadi.almaradi@gmail.com";
 
 async function resolveCallerRole(supabase: any, userId: string, email?: string | null): Promise<'teacher' | 'student'> {
