@@ -71,7 +71,7 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
       return saved ? JSON.parse(saved).prefillVideoMeta ?? null : null;
     } catch { return null; }
   });
-  const [lessonListRefresh, setLessonListRefresh] = useState(0);
+  
 
   // Sync flow state to sessionStorage
   useEffect(() => {
@@ -109,14 +109,6 @@ const { quota, refresh: refreshQuota } = useTeacherQuota();
         });
     }
   }, [role, roleLoading, navigate, user, quota]);
-
-  useEffect(() => {
-    if (step !== "home" || location.hash !== "#teacher-lessons-section") return;
-    const timeout = window.setTimeout(() => {
-      document.getElementById("teacher-lessons-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-    return () => window.clearTimeout(timeout);
-  }, [location.hash, step]);
 
   useEffect(() => {
     const loadTeacherName = async () => {
