@@ -96,8 +96,15 @@ export async function getTranscriptSuggestions(
   language: string,
   difficulty?: string
 ): Promise<TranscriptWordSuggestion[]> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+  if (!accessToken) {
+    throw new Error("You must be signed in to load suggestions.");
+  }
+
   const { data, error } = await supabase.functions.invoke("suggest-transcript-words", {
     body: { videoId, transcript, language, difficulty },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   if (error) {
