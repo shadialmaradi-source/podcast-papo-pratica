@@ -243,57 +243,66 @@ serve(async (req) => {
       }
     }
 
-    const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY');
-    if (!SUPADATA_API_KEY) {
-      throw new Error('SUPADATA_API_KEY not configured');
-    }
-
-    const response = await fetch(
-      `https://api.supadata.ai/v1/youtube/transcript?videoId=${id}&text=true`,
-      {
-        headers: {
-          'x-api-key': SUPADATA_API_KEY
-        }
-      }
+    // Resolve caller role for fallback gating
+    const supabaseService = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+    const callerRole = await resolveCallerRole(supabaseService, userId, claimsData?.claims?.email);
+    console.log(`[extract-youtube-transcript] Caller role: ${callerRole}`);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[Supadata] Error ${response.status}: ${errorText}`);
-      throw new Error(`Supadata API error: ${response.status}`);
+    let transcript: { text: string; lang: string; method: string } | null = null;
+
+    // Plan A: Supadata
+    transcript = await trySupadata(id);
+
+    // Plan B: YouTube timedtext (free, captions)
+    if (!transcript) {
+      transcript = await tryYouTubeTimedText(id);
     }
 
-    const data = await response.json();
-    
-    if (data.content && data.content.length > 50) {
-      console.log(`[extract-youtube-transcript] Success! ${data.content.length} chars, lang: ${data.lang}`);
+    // Plan C: Voxtral (teacher only, audio ASR)
+    if (!transcript && callerRole === 'teacher') {
+      const durationMinutes = await getVideoDurationMinutes(id);
+      const VOXTRAL_HARD_CAP = 15;
+      if (durationMinutes !== null && durationMinutes > VOXTRAL_HARD_CAP) {
+        console.log(`[transcript] Skipping Voxtral: ${durationMinutes.toFixed(1)}min > ${VOXTRAL_HARD_CAP}min cap`);
+      } else {
+        transcript = await tryVoxtral(id, language);
+      }
+    }
 
-      // Upsert into youtube_videos + youtube_transcripts so the video appears in the library
-      const supabaseService = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
+    if (transcript && transcript.text.length > 50) {
+      console.log(`[transcript] method=${transcript.method} success, ${transcript.text.length} chars, lang: ${transcript.lang}`);
       await upsertVideoAndTranscript(
         supabaseService,
         id,
-        data.content,
-        language || data.lang || 'italian',
+        transcript.text,
+        language || transcript.lang || 'italian',
         userId
       );
-
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          transcript: data.content,
-          language: data.lang,
-          availableLanguages: data.availableLangs,
-          method: 'supadata' 
+        JSON.stringify({
+          success: true,
+          transcript: transcript.text,
+          language: transcript.lang,
+          method: transcript.method,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    throw new Error('No transcript available for this video');
+    // All providers failed
+    const studentMessage = "This video has no captions available. Ask your teacher to add it, or try a different video.";
+    const teacherMessage = "We couldn't extract a transcript from this video. The video may not have captions and audio transcription failed.";
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: callerRole === 'teacher' ? teacherMessage : studentMessage,
+        reason: 'NO_TRANSCRIPT_AVAILABLE',
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('[extract-youtube-transcript] Error:', error);
