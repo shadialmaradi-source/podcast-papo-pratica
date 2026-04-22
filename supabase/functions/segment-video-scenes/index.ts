@@ -149,7 +149,7 @@ serve(async (req) => {
     // Fetch video duration
     const { data: videoData, error: videoError } = await supabase
       .from('youtube_videos')
-      .select('id, video_id, duration, title')
+      .select('id, video_id, duration, title, status, processing_started_at, processed_at')
       .eq('id', videoId)
       .single();
 
@@ -165,11 +165,38 @@ serve(async (req) => {
       .single();
 
     if (!transcriptData?.transcript) {
-      console.warn('[segment-video-scenes] Transcript not ready yet');
+      const processingStartedAt = videoData.processing_started_at
+        ? new Date(videoData.processing_started_at).getTime()
+        : null;
+      const processingAgeMs = processingStartedAt ? Date.now() - processingStartedAt : null;
+      const hasTimedOutInProcessing = processingAgeMs !== null && processingAgeMs > (15 * 60 * 1000);
+
+      let reason = 'transcript_not_ready';
+      let retryable = true;
+
+      if (videoData.status === 'failed') {
+        reason = 'transcript_failed';
+        retryable = false;
+      } else if (videoData.status === 'completed') {
+        // Completed video but missing transcript row indicates an upstream write/link issue.
+        reason = 'transcript_missing';
+        retryable = false;
+      } else if (videoData.status === 'processing' && hasTimedOutInProcessing) {
+        // Guard against stale "processing" records that can trap the UI in retry loops.
+        reason = 'transcript_stalled';
+        retryable = false;
+      }
+
+      console.warn('[segment-video-scenes] Transcript unavailable', {
+        videoId,
+        status: videoData.status,
+        reason,
+        retryable,
+      });
       return new Response(JSON.stringify({
         scenes: [],
-        reason: 'transcript_not_ready',
-        retryable: true,
+        reason,
+        retryable,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
