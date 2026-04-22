@@ -149,7 +149,7 @@ serve(async (req) => {
     // Fetch video duration
     const { data: videoData, error: videoError } = await supabase
       .from('youtube_videos')
-      .select('id, video_id, duration, title')
+      .select('id, video_id, duration, title, status, processing_started_at, processed_at')
       .eq('id', videoId)
       .single();
 
@@ -157,25 +157,92 @@ serve(async (req) => {
       throw new Error('Video not found');
     }
 
-    // Fetch transcript
+    // Fetch transcript from canonical store
     const { data: transcriptData } = await supabase
       .from('youtube_transcripts')
       .select('transcript')
       .eq('video_id', videoId)
       .single();
 
-    if (!transcriptData?.transcript) {
-      console.warn('[segment-video-scenes] Transcript not ready yet');
+    let rawTranscript = transcriptData?.transcript || null;
+
+    // Recovery path: some teacher-uploaded lessons may have transcript persisted on
+    // teacher_lessons.transcript even when youtube_transcripts is missing.
+    // Reuse that transcript and backfill canonical storage so segmentation can proceed.
+    if (!rawTranscript && videoData.video_id) {
+      const { data: lessonTranscriptSource } = await supabase
+        .from('teacher_lessons')
+        .select('id, transcript, created_at')
+        .ilike('youtube_url', `%${videoData.video_id}%`)
+        .not('transcript', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const lessonTranscript = lessonTranscriptSource?.transcript?.trim() || '';
+      if (lessonTranscript.length > 50) {
+        rawTranscript = lessonTranscript;
+        const { error: backfillError } = await supabase
+          .from('youtube_transcripts')
+          .upsert({
+            video_id: videoId,
+            transcript: rawTranscript,
+            language: videoData.language || 'english',
+            word_count: rawTranscript.split(/\s+/).filter(Boolean).length,
+          }, { onConflict: 'video_id' });
+
+        if (backfillError) {
+          console.warn('[segment-video-scenes] Failed transcript backfill from teacher_lessons', {
+            videoId,
+            lessonId: lessonTranscriptSource?.id,
+            error: backfillError.message,
+          });
+        } else {
+          console.log('[segment-video-scenes] Recovered transcript from teacher_lessons', {
+            videoId,
+            lessonId: lessonTranscriptSource?.id,
+          });
+        }
+      }
+    }
+
+    if (!rawTranscript) {
+      const processingStartedAt = videoData.processing_started_at
+        ? new Date(videoData.processing_started_at).getTime()
+        : null;
+      const processingAgeMs = processingStartedAt ? Date.now() - processingStartedAt : null;
+      const hasTimedOutInProcessing = processingAgeMs !== null && processingAgeMs > (15 * 60 * 1000);
+
+      let reason = 'transcript_not_ready';
+      let retryable = true;
+
+      if (videoData.status === 'failed') {
+        reason = 'transcript_failed';
+        retryable = false;
+      } else if (videoData.status === 'completed') {
+        // Completed video but missing transcript row indicates an upstream write/link issue.
+        reason = 'transcript_missing';
+        retryable = false;
+      } else if (videoData.status === 'processing' && hasTimedOutInProcessing) {
+        // Guard against stale "processing" records that can trap the UI in retry loops.
+        reason = 'transcript_stalled';
+        retryable = false;
+      }
+
+      console.warn('[segment-video-scenes] Transcript unavailable', {
+        videoId,
+        status: videoData.status,
+        reason,
+        retryable,
+      });
       return new Response(JSON.stringify({
         scenes: [],
-        reason: 'transcript_not_ready',
-        retryable: true,
+        reason,
+        retryable,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const rawTranscript = transcriptData.transcript;
 
     // Try to parse timed segments
     let segments: TranscriptSegment[] = [];

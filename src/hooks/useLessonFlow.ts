@@ -249,9 +249,10 @@ export function useLessonFlow(videoId: string | undefined) {
       const { data, error } = await supabase.functions.invoke("segment-video-scenes", {
         body: { videoId: videoDbId },
       });
-      const reason = (data as { reason?: string } | null)?.reason;
+      const reason = (data as { reason?: string; retryable?: boolean } | null)?.reason;
+      const retryable = (data as { reason?: string; retryable?: boolean } | null)?.retryable ?? false;
 
-      if (reason === "transcript_not_ready") {
+      if (reason === "transcript_not_ready" && retryable) {
         console.info(`[useLessonFlow] Segmentation deferred (transcript_not_ready), attempt=${attempt + 1}`);
         setSegmentationStatus({
           state: "pending",
@@ -276,6 +277,25 @@ export function useLessonFlow(videoId: string | undefined) {
             message: "Scene generation timed out waiting for transcript.",
           });
         }
+        setIsSegmented(false);
+        setLessonState("scene-video");
+        return;
+      }
+
+      if (reason === "transcript_failed" || reason === "transcript_stalled" || reason === "transcript_missing") {
+        const statusMessage =
+          reason === "transcript_missing"
+            ? "We couldn't prepare scene splits for this lesson because the transcript is unavailable."
+            : "We couldn't prepare scene splits for this lesson yet because transcript processing did not complete.";
+
+        setSegmentationStatus({
+          state: "failed",
+          message: statusMessage,
+        });
+        toast({
+          title: "Scenes unavailable",
+          description: "You can continue with the full video now. We'll show scene splits after transcript processing is fixed.",
+        });
         setIsSegmented(false);
         setLessonState("scene-video");
         return;
