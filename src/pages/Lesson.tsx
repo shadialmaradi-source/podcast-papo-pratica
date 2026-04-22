@@ -144,7 +144,22 @@ export default function Lesson() {
         )
       )}
 
-      {lessonState === "scene-video" && !currentScene && youtubeVideoId && (
+      {lessonState === "scene-video" && !currentScene && youtubeVideoId && segmentationStatus.state === "failed" && (
+        <div className="max-w-2xl mx-auto px-4 py-12">
+          <div className="rounded-lg border bg-card p-8 text-center space-y-4">
+            <h2 className="text-2xl font-semibold">We couldn't prepare this lesson</h2>
+            <p className="text-muted-foreground">
+              {segmentationStatus.message || "Transcript extraction failed. This video may not have captions available."}
+            </p>
+            <div className="flex gap-3 justify-center pt-2">
+              <Button onClick={handleRetry}>Try again</Button>
+              <Button variant="outline" onClick={handleBackToLibrary}>Pick a different video</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lessonState === "scene-video" && !currentScene && youtubeVideoId && segmentationStatus.state !== "failed" && (
         <div>
           {!hasSceneData && segmentationStatus.state !== "idle" && (
             <div className="max-w-3xl mx-auto px-3 md:px-8 pt-3">
