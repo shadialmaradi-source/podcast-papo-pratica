@@ -3,24 +3,19 @@ import { supabase } from "@/integrations/supabase/client";
 export type AppRole = "teacher" | "student";
 export type AppSection = "teacher" | "student" | "any";
 
-export const ADMIN_OVERRIDE_EMAIL = "shadi.almaradi@gmail.com";
-
-function normalizeEmail(email?: string | null): string {
-  return (email || "").trim().toLowerCase();
+// Admin override is enforced server-side only (via edge function env var
+// ADMIN_OVERRIDE_EMAIL). The client must never know the privileged email,
+// otherwise it leaks the admin identity to anyone inspecting the bundle.
+export function isAdminOverrideEmail(_email?: string | null): boolean {
+  return false;
 }
 
-export function isAdminOverrideEmail(email?: string | null): boolean {
-  return normalizeEmail(email) === ADMIN_OVERRIDE_EMAIL;
-}
-
-export function canAccessSection(section: AppSection, role: AppRole | null, email?: string | null): boolean {
+export function canAccessSection(section: AppSection, role: AppRole | null, _email?: string | null): boolean {
   if (section === "any") return true;
-  if (isAdminOverrideEmail(email)) return true;
   return role === section;
 }
 
-export function getDefaultHomeForRole(role: AppRole | null, email?: string | null): string {
-  if (isAdminOverrideEmail(email)) return "/teacher";
+export function getDefaultHomeForRole(role: AppRole | null, _email?: string | null): string {
   return role === "teacher" ? "/teacher" : "/app";
 }
 

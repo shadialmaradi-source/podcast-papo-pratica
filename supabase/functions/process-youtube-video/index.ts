@@ -90,6 +90,56 @@ serve(async (req) => {
 
     const userId = user.id;
 
+    // Server-side enforcement of free-tier monthly upload quota.
+    // The UI also checks this, but a free user could otherwise call the
+    // edge function directly and bypass the limit.
+    {
+      const { data: teacherSub } = await supabase
+        .from('teacher_subscriptions')
+        .select('plan, status')
+        .eq('teacher_id', userId)
+        .maybeSingle();
+      const isTeacher = !!teacherSub;
+
+      if (!isTeacher) {
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('tier, status, expires_at')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        const tier = (sub as any)?.tier;
+        const status = (sub as any)?.status;
+        const expiresAt = (sub as any)?.expires_at ? new Date((sub as any).expires_at) : null;
+        const isActivePremium = tier === 'premium' && status === 'active';
+        const isActivePromo = tier === 'promo' && status === 'active' && (!expiresAt || expiresAt > new Date());
+        const isPremium = isActivePremium || isActivePromo;
+
+        if (!isPremium) {
+          const startOfMonth = new Date();
+          startOfMonth.setUTCDate(1);
+          startOfMonth.setUTCHours(0, 0, 0, 0);
+
+          const { count } = await supabase
+            .from('user_video_uploads')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .gte('uploaded_at', startOfMonth.toISOString());
+
+          if ((count ?? 0) >= 2) {
+            return new Response(
+              JSON.stringify({
+                success: false,
+                code: 'UPLOAD_QUOTA_EXCEEDED',
+                error: 'Monthly upload limit reached. Upgrade to premium for unlimited uploads.',
+              }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+      }
+    }
+
     // Check if video already exists with transcript
     const { data: existingVideo } = await supabase
       .from('youtube_videos')
