@@ -30,6 +30,15 @@ interface VideoSceneRow {
   scene_transcript: string;
 }
 
+interface LessonExerciseRow {
+  id: string;
+  lesson_id: string;
+  exercise_type: string;
+  content: any;
+  order_index: number;
+  created_at: string;
+}
+
 function extractVideoId(url: string): string | null {
   if (!url) return null;
   let match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
@@ -108,6 +117,29 @@ function multipleChoiceFingerprint(content: any): string {
   return `${question}||${options.join("|")}`;
 }
 
+function hasValidExerciseContent(exerciseType: string, content: any): boolean {
+  if (!content || typeof content !== "object") return false;
+
+  if (exerciseType === "fill_in_blank") {
+    return !!(content.sentence && content.answer);
+  }
+  if (exerciseType === "multiple_choice") {
+    return !!(
+      content.question &&
+      Array.isArray(content.options) &&
+      content.options.length === 4 &&
+      ["A", "B", "C", "D"].includes(content.correct)
+    );
+  }
+  if (exerciseType === "role_play") {
+    return !!(content.scenario && content.teacher_role && content.student_role);
+  }
+  if (exerciseType === "spot_the_mistake") {
+    return !!(content.sentence && content.corrected);
+  }
+  return false;
+}
+
 async function fetchTranscript(youtubeUrl: string): Promise<string | null> {
   const videoId = extractVideoId(youtubeUrl);
   if (!videoId) return null;
@@ -157,6 +189,7 @@ serve(async (req) => {
 
     const typePrompt = EXERCISE_PROMPTS[exerciseType];
     if (!typePrompt) throw new Error(`Unknown exercise type: ${exerciseType}`);
+    const expectedCount = exerciseType === "role_play" ? 3 : 5;
 
     // Fetch lesson — verify teacher owns it OR student has access
     const { data: lesson, error: lessonError } = await supabase
@@ -238,14 +271,6 @@ serve(async (req) => {
     }
 
     if (sharedVideoId) {
-      try {
-        await supabase.functions.invoke("segment-video-scenes", {
-          body: { videoId: sharedVideoId },
-        });
-      } catch (segmentError) {
-        console.warn("[generate-lesson-exercises-by-type] Segment trigger failed:", segmentError);
-      }
-
       const { data: storedScenes } = await supabase
         .from("video_scenes")
         .select("id, scene_index, start_time, end_time, scene_title, scene_transcript")
@@ -257,7 +282,27 @@ serve(async (req) => {
       ) as VideoSceneRow[];
 
       if (sceneContexts.length === 0) {
-        console.warn(`[generate-lesson-exercises-by-type] No scene rows available for video ${sharedVideoId}; using full transcript context`);
+        try {
+          await supabase.functions.invoke("segment-video-scenes", {
+            body: { videoId: sharedVideoId },
+          });
+        } catch (segmentError) {
+          console.warn("[generate-lesson-exercises-by-type] Segment trigger failed:", segmentError);
+        }
+
+        const { data: refreshedScenes } = await supabase
+          .from("video_scenes")
+          .select("id, scene_index, start_time, end_time, scene_title, scene_transcript")
+          .eq("video_id", sharedVideoId)
+          .order("scene_index", { ascending: true });
+
+        sceneContexts = (refreshedScenes || []).filter(
+          (scene: any) => scene.end_time > scene.start_time && (scene.scene_transcript || "").trim().length > 0
+        ) as VideoSceneRow[];
+
+        if (sceneContexts.length === 0) {
+          console.warn(`[generate-lesson-exercises-by-type] No scene rows available for video ${sharedVideoId}; using full transcript context`);
+        }
       }
     }
 
@@ -274,17 +319,114 @@ serve(async (req) => {
       throw new Error(`Failed to check existing exercises: ${existingExercisesError.message}`);
     }
 
-    if (!forceRegenerate && existingExercises && existingExercises.length > 0) {
+    const validExistingExercises = (existingExercises || []).filter((exercise: any) =>
+      hasValidExerciseContent(exerciseType, exercise.content)
+    );
+
+    if (!forceRegenerate && validExistingExercises.length >= expectedCount) {
+      console.log(`[generate-lesson-exercises-by-type] Reusing ${validExistingExercises.length} existing exercises in same lesson`, {
+        lessonId,
+        exerciseType,
+      });
       return new Response(
         JSON.stringify({
           success: true,
-          count: existingExercises.length,
+          count: validExistingExercises.length,
           exerciseType,
           cached: true,
-          exercises: existingExercises,
+          source: "lesson_cache",
+          exercises: validExistingExercises,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Reuse from other lessons that share the exact same canonical input key.
+    // Reuse key: canonical youtube_video_id + exercise_type + cefr_level + language + translation_language.
+    if (!forceRegenerate && sharedVideoId) {
+      const { data: reusableLessons } = await supabase
+        .from("teacher_lessons")
+        .select("id")
+        .eq("lesson_type", "youtube")
+        .neq("id", lessonId)
+        .eq("cefr_level", lesson.cefr_level || "A1")
+        .eq("language", lesson.language || "italian")
+        .eq("translation_language", lesson.translation_language || "english")
+        .ilike("youtube_url", `%${extractVideoId(lesson.youtube_url || "")}%`)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      const reusableLessonIds = (reusableLessons || []).map((row: any) => row.id);
+      if (reusableLessonIds.length > 0) {
+        const { data: reusableExercises, error: reusableExercisesError } = await supabase
+          .from("lesson_exercises")
+          .select("id, lesson_id, exercise_type, content, order_index, created_at")
+          .in("lesson_id", reusableLessonIds)
+          .eq("exercise_type", exerciseType)
+          .order("created_at", { ascending: false })
+          .order("order_index", { ascending: true });
+
+        if (reusableExercisesError) {
+          throw new Error(`Failed to check reusable exercises: ${reusableExercisesError.message}`);
+        }
+
+        const groupedByLesson = new Map<string, LessonExerciseRow[]>();
+        for (const row of (reusableExercises || []) as LessonExerciseRow[]) {
+          const bucket = groupedByLesson.get(row.lesson_id) || [];
+          bucket.push(row);
+          groupedByLesson.set(row.lesson_id, bucket);
+        }
+
+        for (const reusableLessonId of reusableLessonIds) {
+          const candidate = (groupedByLesson.get(reusableLessonId) || [])
+            .filter((exercise) => hasValidExerciseContent(exerciseType, exercise.content))
+            .sort((a, b) => a.order_index - b.order_index);
+
+          if (candidate.length >= expectedCount) {
+            const { count: existingCount } = await supabase
+              .from("lesson_exercises")
+              .select("id", { count: "exact", head: true })
+              .eq("lesson_id", lessonId);
+
+            let nextOrder = existingCount || 0;
+            const rowsToInsert = candidate.slice(0, expectedCount).map((exercise) => ({
+              lesson_id: lessonId,
+              exercise_type: exerciseType,
+              content: exercise.content,
+              order_index: nextOrder++,
+            }));
+
+            const { error: copyError } = await supabase
+              .from("lesson_exercises")
+              .insert(rowsToInsert);
+
+            if (copyError) {
+              throw new Error(`Failed to copy reusable exercises: ${copyError.message}`);
+            }
+
+            console.log(`[generate-lesson-exercises-by-type] Reused exercises from prior lesson`, {
+              lessonId,
+              sourceLessonId: reusableLessonId,
+              sharedVideoId,
+              exerciseType,
+              cefr: lesson.cefr_level || "A1",
+              language: lesson.language || "italian",
+              translationLanguage: lesson.translation_language || "english",
+            });
+
+            return new Response(
+              JSON.stringify({
+                success: true,
+                count: rowsToInsert.length,
+                exerciseType,
+                cached: true,
+                source: "cross_lesson_cache",
+              }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+      }
     }
 
     // Check existing exercises count for order_index offset
@@ -295,7 +437,7 @@ serve(async (req) => {
 
     let orderIndex = existingCount || 0;
 
-    const count = exerciseType === "role_play" ? 3 : 5;
+    const count = expectedCount;
     const language = lesson.language || "italian";
     const translationLanguage = lesson.translation_language || "english";
     const generatedExercises: any[] = [];

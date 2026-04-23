@@ -21,6 +21,81 @@ interface Scene {
   scene_transcript: string;
 }
 
+interface ParsedTranscript {
+  text: string;
+  segments: TranscriptSegment[];
+}
+
+function isValidStoredScene(scene: Record<string, unknown> | null | undefined): boolean {
+  if (!scene) return false;
+  const start = Number(scene.start_time);
+  const end = Number(scene.end_time);
+  const transcript = typeof scene.scene_transcript === 'string' ? scene.scene_transcript.trim() : '';
+  return Number.isFinite(start) && Number.isFinite(end) && end > start && transcript.length > 0;
+}
+
+function parseTranscriptPayload(rawTranscript: string): ParsedTranscript {
+  const fallbackText = typeof rawTranscript === 'string' ? rawTranscript.trim() : '';
+  const fallback: ParsedTranscript = { text: fallbackText, segments: [] };
+  if (!fallbackText) return fallback;
+
+  try {
+    const parsed = JSON.parse(rawTranscript);
+
+    if (Array.isArray(parsed)) {
+      const segments = parsed.map((s: Record<string, unknown>) => ({
+        text: String(s?.text || '').trim(),
+        start: parseFloat(String(s?.start ?? s?.offset ?? 0)),
+        duration: parseFloat(String(s?.duration ?? s?.dur ?? 0)),
+      })).filter((s: TranscriptSegment) => s.text.length > 0);
+      const mergedText = segments.map((s) => s.text).join(' ').trim();
+      return { text: mergedText || fallbackText, segments };
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      const embeddedText = String(parsed.content || parsed.text || parsed.transcript || '').trim();
+      const rawSegments = Array.isArray(parsed.segments) ? parsed.segments : [];
+      const segments = rawSegments.map((s: Record<string, unknown>) => ({
+        text: String(s?.text || '').trim(),
+        start: parseFloat(String(s?.start ?? s?.offset ?? 0)),
+        duration: parseFloat(String(s?.duration ?? s?.dur ?? 0)),
+      })).filter((s: TranscriptSegment) => s.text.length > 0);
+
+      const mergedText = embeddedText || segments.map((s) => s.text).join(' ').trim();
+      return { text: mergedText || fallbackText, segments };
+    }
+  } catch {
+    // Plain-text transcript
+  }
+
+  return fallback;
+}
+
+function normalizeGeneratedScenes(scenes: Scene[], totalDuration: number): Scene[] {
+  if (!Array.isArray(scenes) || scenes.length === 0) return [];
+
+  const safeTotalDuration = isValidDuration(totalDuration) ? totalDuration : 0;
+  const normalized = scenes
+    .map((scene, idx) => {
+      const start = Math.max(0, Number(scene.start_time) || 0);
+      const endRaw = Number(scene.end_time) || 0;
+      const end = safeTotalDuration > 0 ? Math.min(safeTotalDuration, endRaw) : endRaw;
+      const title = String(scene.scene_title || `Scene ${idx + 1}`).trim() || `Scene ${idx + 1}`;
+      const transcript = String(scene.scene_transcript || '').trim();
+      return {
+        scene_index: idx,
+        start_time: start,
+        end_time: end,
+        scene_title: title,
+        scene_transcript: transcript,
+      };
+    })
+    .filter((scene) => scene.end_time > scene.start_time && scene.scene_transcript.length > 0)
+    .sort((a, b) => a.start_time - b.start_time);
+
+  return normalized.map((scene, idx) => ({ ...scene, scene_index: idx }));
+}
+
 function isValidDuration(duration: number | null | undefined): duration is number {
   return typeof duration === 'number' && Number.isFinite(duration) && duration > 0;
 }
@@ -99,7 +174,7 @@ function estimateDurationFromTranscript(rawTranscript: string): number {
   try {
     const parsed = JSON.parse(plainText);
     if (Array.isArray(parsed)) {
-      textContent = parsed.map((s: any) => s.text || '').join(' ');
+      textContent = parsed.map((s: Record<string, unknown>) => s.text || '').join(' ');
     }
   } catch {
     // plain text transcript
@@ -152,17 +227,27 @@ serve(async (req) => {
       .eq('video_id', videoId)
       .order('scene_index', { ascending: true });
 
-    if (existingScenes && existingScenes.length > 0) {
-      console.log(`[segment-video-scenes] Returning ${existingScenes.length} cached scenes`);
-      return new Response(JSON.stringify({ scenes: existingScenes, cached: true }), {
+    const validExistingScenes = (existingScenes || []).filter(isValidStoredScene);
+    if (validExistingScenes.length > 0 && validExistingScenes.length === (existingScenes || []).length) {
+      console.log(`[segment-video-scenes] Returning ${validExistingScenes.length} cached scenes`);
+      return new Response(JSON.stringify({ scenes: validExistingScenes, cached: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    if (existingScenes && existingScenes.length > 0 && validExistingScenes.length !== existingScenes.length) {
+      console.warn(`[segment-video-scenes] Found partially/fully invalid cached scenes; regenerating`, {
+        videoId,
+        total: existingScenes.length,
+        valid: validExistingScenes.length,
+      });
+      await supabase.from('video_scenes').delete().eq('video_id', videoId);
     }
 
     // Fetch video duration
     const { data: videoData, error: videoError } = await supabase
       .from('youtube_videos')
-      .select('id, video_id, duration, title, status, processing_started_at, processed_at')
+      .select('id, video_id, duration, title, language, status, processing_started_at, processed_at')
       .eq('id', videoId)
       .single();
 
@@ -257,19 +342,22 @@ serve(async (req) => {
       });
     }
 
-    // Try to parse timed segments
-    let segments: TranscriptSegment[] = [];
-    try {
-      const parsed = JSON.parse(rawTranscript);
-      if (Array.isArray(parsed)) {
-        segments = parsed.map((s: any) => ({
-          text: s.text || '',
-          start: parseFloat(s.start || s.offset || 0),
-          duration: parseFloat(s.duration || s.dur || 0),
-        }));
-      }
-    } catch {
-      // Plain text transcript - no timed segments
+    const parsedTranscript = parseTranscriptPayload(rawTranscript);
+    const normalizedTranscriptText = parsedTranscript.text.trim();
+    const segments = parsedTranscript.segments;
+
+    if (normalizedTranscriptText.length < 50) {
+      console.warn('[segment-video-scenes] Transcript payload too short/invalid for segmentation', {
+        videoId,
+        transcriptLength: normalizedTranscriptText.length,
+      });
+      return new Response(JSON.stringify({
+        scenes: [],
+        reason: 'transcript_invalid',
+        retryable: false,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     let resolvedDuration = isValidDuration(videoData.duration) ? Math.ceil(videoData.duration) : 0;
@@ -289,7 +377,7 @@ serve(async (req) => {
     }
 
     if (!isValidDuration(resolvedDuration)) {
-      resolvedDuration = estimateDurationFromTranscript(rawTranscript);
+      resolvedDuration = estimateDurationFromTranscript(normalizedTranscriptText);
       console.log(`[segment-video-scenes] Using estimated transcript duration: ${resolvedDuration}s`);
     }
 
@@ -311,17 +399,41 @@ serve(async (req) => {
       });
     }
 
-    let scenes: Scene[];
+    let scenes: Scene[] = [];
+    let generationMode: 'ai' | 'fallback' = 'fallback';
 
     if (segments.length > 0) {
       scenes = await segmentWithAI(segments, resolvedDuration, videoData.title);
+      generationMode = 'ai';
+      console.log(`[segment-video-scenes] AI segmentation returned ${scenes.length} candidate scenes`);
     } else {
       // Fallback: split plain text by time estimate
-      scenes = fallbackTimeSplit(rawTranscript, resolvedDuration);
+      scenes = fallbackTimeSplit(normalizedTranscriptText, resolvedDuration);
+      generationMode = 'fallback';
+      console.log(`[segment-video-scenes] No timed transcript segments; using fallback segmentation`);
     }
 
     if (scenes.length === 0) {
-      scenes = fallbackTimeSplit(rawTranscript, resolvedDuration);
+      scenes = fallbackTimeSplit(normalizedTranscriptText, resolvedDuration);
+      generationMode = 'fallback';
+      console.log(`[segment-video-scenes] Falling back to deterministic splitter after AI/primary path produced no scenes`);
+    }
+
+    scenes = normalizeGeneratedScenes(scenes, resolvedDuration);
+    if (scenes.length === 0) {
+      console.warn('[segment-video-scenes] Segmentation failed after normalization', {
+        videoId,
+        mode: generationMode,
+        resolvedDuration,
+      });
+      return new Response(JSON.stringify({
+        scenes: [],
+        reason: 'segmentation_failed',
+        retryable: false,
+      }), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Insert scenes
@@ -343,7 +455,7 @@ serve(async (req) => {
       throw new Error(`Failed to save scenes: ${insertError.message}`);
     }
 
-    console.log(`[segment-video-scenes] Saved ${scenes.length} scenes`);
+    console.log(`[segment-video-scenes] Saved ${scenes.length} scenes`, { mode: generationMode, videoId });
 
     // Return the inserted scenes
     const { data: savedScenes } = await supabase
@@ -434,7 +546,7 @@ CRITICAL: Return ONLY the JSON array. No markdown, no code blocks.`;
     if (!Array.isArray(parsed) || parsed.length === 0) return [];
 
     // Validate scenes
-    return parsed.map((s: any, i: number) => ({
+    return parsed.map((s: Record<string, unknown>, i: number) => ({
       scene_index: i,
       start_time: parseFloat(s.start_time) || 0,
       end_time: parseFloat(s.end_time) || 0,
@@ -464,13 +576,13 @@ function fallbackTimeSplit(transcript: string, totalDuration: number): Scene[] {
   try {
     const parsed = JSON.parse(plainText);
     if (Array.isArray(parsed)) {
-      textContent = parsed.map((s: any) => s.text || '').join(' ');
+      textContent = parsed.map((s: Record<string, unknown>) => s.text || '').join(' ');
     }
   } catch {
     // plain text transcript
   }
 
-  const words = textContent.split(/\s+/);
+  const words = textContent.split(/\s+/).filter(Boolean);
   const wordsPerScene = Math.ceil(words.length / sceneCount);
 
   const scenes: Scene[] = [];
