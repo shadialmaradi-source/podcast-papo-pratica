@@ -13,6 +13,24 @@ export default function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const promoteUserToTeacher = async (userId: string) => {
+      await supabase
+        .from("user_roles" as any)
+        .update({ role: "teacher" } as any)
+        .eq("user_id", userId);
+
+      await supabase.auth.updateUser({ data: { role: "teacher" } });
+
+      const { error: trialError } = await ensureTeacherTrialSubscription(userId);
+      if (!trialError) {
+        trackEvent("trial_started", {
+          teacher_id: userId,
+          plan_selected: "trial",
+          signup_method: "oauth",
+        });
+      }
+    };
+
     const handleAuthCallback = async () => {
       // Check for error in URL hash/query
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -91,36 +109,26 @@ export default function AuthCallback() {
 
       const dbRole = (roleData as any)?.role || null;
 
-      // For new OAuth signups: if role param says teacher but DB says student (default), upgrade
+      // If the user explicitly started from teacher auth, honor that intent even when
+      // OAuth roundtrips or previously-created student accounts would otherwise default to student.
       const isNewUser = new Date(user.created_at).getTime() > Date.now() - 30000;
       const intendedRole = roleParam || metadataRole || dbRole || "student";
 
-      if (isNewUser && intendedRole === "teacher" && dbRole !== "teacher") {
-        // Update role to teacher
-        await supabase
-          .from("user_roles" as any)
-          .update({ role: "teacher" } as any)
-          .eq("user_id", user.id);
+      if (intendedRole === "teacher" && dbRole !== "teacher") {
+        await promoteUserToTeacher(user.id);
 
-        // Update user metadata
-        await supabase.auth.updateUser({ data: { role: "teacher" } });
-
-        const { error: trialError } = await ensureTeacherTrialSubscription(user.id);
-        if (!trialError) {
-          trackEvent("trial_started", {
-            teacher_id: user.id,
-            plan_selected: "trial",
-            signup_method: "oauth",
+        if (isNewUser) {
+          trackEvent("user_signup", { method: "oauth", role: "teacher" });
+          trackTeacherFunnelStep("signup_completed", {
+            method: "oauth",
+            source: "auth_callback",
+          });
+        } else {
+          trackEvent("teacher_role_upgraded", {
+            method: "oauth",
+            source: "auth_callback",
           });
         }
-
-        trackEvent("user_signup", { method: "oauth", role: "teacher" });
-        trackTeacherFunnelStep("signup_completed", {
-          method: "oauth",
-          source: "auth_callback",
-        });
-        navigate("/teacher/onboarding", { replace: true });
-        return;
       }
 
       if (isNewUser && intendedRole === "student") {
@@ -129,7 +137,7 @@ export default function AuthCallback() {
 
       // Determine actual role for redirect.
       // Existing users should follow DB role, not URL role param from the login entry point.
-      const actualRole = dbRole || intendedRole;
+      const actualRole = intendedRole === "teacher" ? "teacher" : (dbRole || intendedRole);
 
       // Check for pending lesson token
       const lessonRedirect = getPendingLessonRedirect();

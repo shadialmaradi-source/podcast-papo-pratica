@@ -297,8 +297,8 @@ export default function TeacherLesson() {
       }
 
       toast({ title: `${EXERCISE_TYPE_LABELS[exerciseType] || exerciseType} exercises generated!` });
-    } catch (err: any) {
-      const msg = err?.message || JSON.stringify(err) || "";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : JSON.stringify(err) || "";
       if (msg.includes("VIDEO_TOO_LONG")) {
         const cleanMsg = msg.split("VIDEO_TOO_LONG:")[1] || "This video exceeds your plan's duration limit.";
         toast({ title: "Video Too Long", description: cleanMsg, variant: "destructive" });
@@ -311,29 +311,65 @@ export default function TeacherLesson() {
   };
 
   const renderExerciseContent = (exercise: Exercise, revealed: boolean) => {
-    const c = exercise.content;
+    const c = (exercise.content || {}) as Record<string, unknown>;
+    const demoFallbacks: Record<string, Record<string, unknown>> = {
+      multiple_choice: {
+        question: "What is the main topic in this video?",
+        options: ["A lost document", "A restaurant order", "A school lesson", "A weather report"],
+        correct: "A",
+        explanation: "This demo lesson focuses on reporting a lost ID/passport.",
+      },
+      fill_in_blank: {
+        sentence: "I want to report my ____.",
+        hint: "Identity document",
+        answer: "ID",
+      },
+      role_play: {
+        scenario: "Role-play a short conversation at the police station.",
+        teacher_role: "Police officer",
+        student_role: "Traveler reporting a lost document",
+        starter: "Hi officer, I want to report something.",
+        useful_phrases: ["I lost my ID.", "Can you help me?", "I also lost my passport."],
+      },
+      spot_the_mistake: {
+        instruction: "Find and fix the incorrect sentence.",
+        sentence: "I found my passport and ID.",
+        corrected: "I lost my passport and my ID.",
+        explanation: "In this demo, the speaker reports lost documents.",
+      },
+    };
+    const fallback = demoFallbacks[exercise.exercise_type] || {};
+
     if (exercise.exercise_type === "fill_in_blank") {
+      const sentence = c.sentence || fallback.sentence || "Complete the sentence.";
+      const hint = c.hint || fallback.hint;
+      const answer = c.answer || fallback.answer || "N/A";
       return (
         <div className="space-y-4">
-          <p className="text-xl font-medium text-foreground leading-relaxed">{c.sentence}</p>
-          {c.hint && <p className="text-sm text-muted-foreground italic">💡 Hint: {c.hint}</p>}
+          <p className="text-xl font-medium text-foreground leading-relaxed">{sentence}</p>
+          {hint && <p className="text-sm text-muted-foreground italic">💡 Hint: {hint}</p>}
           {revealed && (
             <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-1">Answer</p>
-              <p className="text-lg font-bold text-primary">{c.answer}</p>
+              <p className="text-lg font-bold text-primary">{answer}</p>
             </div>
           )}
         </div>
       );
     }
     if (exercise.exercise_type === "multiple_choice") {
+      const optionsRaw = c.options ?? fallback.options ?? [];
+      const options = Array.isArray(optionsRaw) ? optionsRaw : [];
+      const question = c.question || fallback.question || "Choose the correct option.";
+      const correct = (c.correct || fallback.correct || "A").toString().toUpperCase();
+      const explanation = c.explanation || fallback.explanation;
       return (
         <div className="space-y-4">
-          <p className="text-xl font-medium text-foreground">{c.question}</p>
+          <p className="text-xl font-medium text-foreground">{question}</p>
           <ul className="space-y-2">
-            {(c.options || []).map((opt: string, i: number) => {
+            {options.map((opt: string, i: number) => {
               const letter = ["A", "B", "C", "D"][i];
-              const isCorrect = revealed && letter === c.correct;
+              const isCorrect = revealed && letter === correct;
               return (
                 <li key={i} className={`rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${isCorrect ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-foreground"}`}>
                   <span className="font-bold mr-2">{letter}.</span>{opt}
@@ -342,30 +378,36 @@ export default function TeacherLesson() {
               );
             })}
           </ul>
-          {revealed && c.explanation && <p className="text-sm text-muted-foreground italic">{c.explanation}</p>}
+          {revealed && explanation && <p className="text-sm text-muted-foreground italic">{explanation}</p>}
         </div>
       );
     }
     if (exercise.exercise_type === "role_play") {
+      const scenario = c.scenario || fallback.scenario || "Practice a short role-play.";
+      const teacherRole = c.teacher_role || fallback.teacher_role || "Teacher";
+      const studentRole = c.student_role || fallback.student_role || "Student";
+      const starter = c.starter || fallback.starter;
+      const usefulPhrasesRaw = c.useful_phrases ?? fallback.useful_phrases ?? [];
+      const usefulPhrases = Array.isArray(usefulPhrasesRaw) ? usefulPhrasesRaw : [];
       return (
         <div className="space-y-4">
-          <p className="text-lg font-medium text-foreground">{c.scenario}</p>
+          <p className="text-lg font-medium text-foreground">{scenario}</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Teacher</p>
-              <p className="text-sm text-foreground">{c.teacher_role}</p>
+              <p className="text-sm text-foreground">{teacherRole}</p>
             </div>
             <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Student</p>
-              <p className="text-sm text-foreground">{c.student_role}</p>
+              <p className="text-sm text-foreground">{studentRole}</p>
             </div>
           </div>
-          {c.starter && <p className="text-sm italic text-muted-foreground">🗣 Starter: <span className="text-foreground">"{c.starter}"</span></p>}
-          {c.useful_phrases?.length > 0 && revealed && (
+          {starter && <p className="text-sm italic text-muted-foreground">🗣 Starter: <span className="text-foreground">"{starter}"</span></p>}
+          {usefulPhrases.length > 0 && revealed && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Useful Phrases</p>
               <div className="flex flex-wrap gap-2">
-                {c.useful_phrases.map((p: string, i: number) => (
+                {usefulPhrases.map((p: string, i: number) => (
                   <span key={i} className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs">{p}</span>
                 ))}
               </div>
@@ -375,20 +417,24 @@ export default function TeacherLesson() {
       );
     }
     if (exercise.exercise_type === "spot_the_mistake") {
+      const instruction = c.instruction || fallback.instruction || "Find and correct the mistake.";
+      const sentence = c.sentence || fallback.sentence || "This sentence contains a mistake.";
+      const corrected = c.corrected || fallback.corrected || "Correct answer unavailable.";
+      const explanation = c.explanation || fallback.explanation;
       return (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">{c.instruction}</p>
+          <p className="text-sm text-muted-foreground">{instruction}</p>
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-destructive mb-1">Find the mistake</p>
-            <p className="text-xl text-foreground">{c.sentence}</p>
+            <p className="text-xl text-foreground">{sentence}</p>
           </div>
           {revealed && (
             <>
               <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-1">Correction</p>
-                <p className="text-xl font-bold text-primary">{c.corrected}</p>
+                <p className="text-xl font-bold text-primary">{corrected}</p>
               </div>
-              {c.explanation && <p className="text-sm text-muted-foreground italic">{c.explanation}</p>}
+              {explanation && <p className="text-sm text-muted-foreground italic">{explanation}</p>}
             </>
           )}
         </div>
