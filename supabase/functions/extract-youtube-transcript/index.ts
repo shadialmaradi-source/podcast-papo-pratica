@@ -13,10 +13,12 @@ const PLAN_VIDEO_LIMITS: Record<string, number> = {
   premium: 15,
 };
 
-const ADMIN_OVERRIDE_EMAIL = "shadi.almaradi@gmail.com";
+// Read admin override email from server-side env var so it never ships
+// in the client bundle. Empty string disables the override.
+const ADMIN_OVERRIDE_EMAIL = (Deno.env.get('ADMIN_OVERRIDE_EMAIL') || '').trim().toLowerCase();
 
 async function resolveCallerRole(supabase: any, userId: string, email?: string | null): Promise<'teacher' | 'student'> {
-  if ((email || '').trim().toLowerCase() === ADMIN_OVERRIDE_EMAIL) return 'teacher';
+  if (ADMIN_OVERRIDE_EMAIL && (email || '').trim().toLowerCase() === ADMIN_OVERRIDE_EMAIL) return 'teacher';
   try {
     const { data: roleData } = await supabase
       .from('user_roles')
