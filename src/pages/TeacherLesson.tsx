@@ -311,8 +311,8 @@ export default function TeacherLesson() {
   };
 
   const renderExerciseContent = (exercise: Exercise, revealed: boolean) => {
-    const c = (exercise.content || {}) as Record<string, unknown>;
-    const demoFallbacks: Record<string, Record<string, unknown>> = {
+    const c = (exercise.content || {}) as Record<string, any>;
+    const demoFallbacks: Record<string, Record<string, any>> = {
       multiple_choice: {
         question: "What is the main topic in this video?",
         options: ["A lost document", "A restaurant order", "A school lesson", "A weather report"],
