@@ -41,16 +41,14 @@ export const PARAGRAPH_LENGTHS = [
   { value: "long", label: "Long (~150-250 words)" },
 ] as const;
 
-export const EXERCISE_TYPES_PARAGRAPH = [
-  { id: "multiple_choice", label: "Multiple Choice (Quiz)" },
-] as const;
-
 export const EXERCISE_TYPES_YOUTUBE = [
   { id: "fill_in_blank", label: "Fill in the Blank" },
   { id: "multiple_choice", label: "Multiple Choice (Quiz)" },
   { id: "role_play", label: "Role-play" },
   { id: "spot_the_mistake", label: "Spot the Mistake" },
 ] as const;
+
+export const EXERCISE_TYPES_PARAGRAPH = EXERCISE_TYPES_YOUTUBE;
 
 export function extractYouTubeId(url: string): string | null {
   if (!url) return null;

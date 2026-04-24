@@ -17,7 +17,7 @@ const PLAN_VIDEO_LIMITS: Record<string, number> = {
 const EXERCISE_PROMPTS: Record<string, string> = {
   fill_in_blank: `Generate a fill-in-the-blank exercise. Return JSON: { "sentence": "string with ___ for the blank", "answer": "string", "hint": "string (optional grammar note)", "question_translation": "string", "answer_translation": "string" }`,
   multiple_choice: `Generate a multiple-choice quiz question. Return JSON: { "question": "string", "options": ["A", "B", "C", "D"], "correct": "A|B|C|D", "explanation": "string", "question_translation": "string", "answer_translation": "string (translation of the correct option)" }`,
-  role_play: `Generate a role-play scenario inspired by the video content. Return JSON: { "scenario": "string (2-3 sentences)", "teacher_role": "string", "student_role": "string", "starter": "string (first line)", "useful_phrases": ["phrase1", "phrase2", "phrase3"], "question_translation": "string (translation of scenario)", "answer_translation": "string (translation of starter)" }`,
+  role_play: `Generate a role-play scenario inspired by the lesson source content. Return JSON: { "scenario": "string (2-3 sentences)", "teacher_role": "string", "student_role": "string", "starter": "string (first line)", "useful_phrases": ["phrase1", "phrase2", "phrase3"], "question_translation": "string (translation of scenario)", "answer_translation": "string (translation of starter)" }`,
   spot_the_mistake: `Generate a spot-the-mistake exercise. Return JSON: { "instruction": "Find the mistake in this sentence:", "sentence": "string with ONE grammatical mistake", "corrected": "string (correct version)", "explanation": "string", "question_translation": "string (translation of the sentence with mistake)", "answer_translation": "string (translation of the corrected sentence)" }`,
 };
 
@@ -443,6 +443,8 @@ serve(async (req) => {
     const generatedExercises: any[] = [];
     const seenMultipleChoiceFingerprints = new Set<string>();
 
+    const lessonSourceDescriptor = lesson.youtube_url ? "video lesson source" : "paragraph lesson source";
+
     for (let q = 0; q < count; q++) {
       const selectedScene = sceneContexts.length > 0 ? sceneContexts[q % sceneContexts.length] : null;
       const transcriptContext = selectedScene
@@ -477,9 +479,10 @@ CEFR Level: ${lesson.cefr_level}.
 Topic: ${lesson.topic || "general conversation"}.
 Exercise format: ${exerciseType}.
 The "question_translation" and "answer_translation" fields MUST be in ${translationLanguage}.
+Ground every exercise in the provided ${lessonSourceDescriptor}.
 ${q > 0 ? `This is exercise ${q + 1} of ${count}. Make it DIFFERENT from previous exercises — vary the topic, grammar point, or vocabulary tested.` : ""}
 ${exerciseType === "multiple_choice" ? "For multiple-choice, each new question must test a different target than prior ones (different intent, vocabulary focus, and distractors)." : ""}
-${exerciseType === "role_play" ? "Create a role-play scenario directly inspired by the video content themes, vocabulary, and situations." : ""}
+${exerciseType === "role_play" ? "Create a role-play scenario directly inspired by the source themes, vocabulary, and situations." : ""}
 Return ONLY valid JSON, no markdown, no explanation.`;
 
         const userPrompt = `${typePrompt}
