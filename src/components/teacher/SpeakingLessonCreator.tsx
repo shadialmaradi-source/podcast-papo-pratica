@@ -331,10 +331,10 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
   const handleCreate = async () => {
     if (!user || !selectedTopic) return;
 
-    // Validate student email
+    const normalizedStudentEmail = studentEmail.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!studentEmail.trim() || !emailRegex.test(studentEmail.trim())) {
-      toast.error("Please enter a valid student email address.");
+    if (normalizedStudentEmail && !emailRegex.test(normalizedStudentEmail)) {
+      toast.error("Please enter a valid student email address or leave it empty to create a shareable lesson.");
       return;
     }
 
@@ -357,7 +357,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
           topic: selectedTopic.title,
           speaking_topic: selectedTopic.title,
           speaking_description: selectedTopic.description,
-          student_email: studentEmail.trim().toLowerCase(),
+          student_email: normalizedStudentEmail || null,
           share_token: shareToken,
           status: "ready",
           exercise_types: [],
@@ -404,14 +404,16 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
         if (vError) throw vError;
       }
 
-      // 4. Auto-add student to roster
-      await supabase
-        .from("teacher_students" as any)
-        .upsert({
-          teacher_id: user.id,
-          student_email: studentEmail.trim().toLowerCase(),
-          status: "invited",
-        } as any, { onConflict: "teacher_id,student_email", ignoreDuplicates: true });
+      // 4. Auto-add student to roster when an email was provided
+      if (normalizedStudentEmail) {
+        await supabase
+          .from("teacher_students" as any)
+          .upsert({
+            teacher_id: user.id,
+            student_email: normalizedStudentEmail,
+            status: "invited",
+          } as any, { onConflict: "teacher_id,student_email", ignoreDuplicates: true });
+      }
 
       trackEvent("speaking_lesson_created", {
         language,
@@ -834,7 +836,7 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
             </div>
 
             <div className="space-y-2">
-              <Label>Assign to Student *</Label>
+              <Label>Assign to Student <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <div className="relative">
                 <Input
                   type="email"
@@ -842,7 +844,6 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
                   onChange={(e) => setStudentEmail(e.target.value)}
                   placeholder="Enter student email..."
                   list="student-email-suggestions"
-                  required
                 />
                 <datalist id="student-email-suggestions">
                   {students.map((s) => (
@@ -852,6 +853,9 @@ export function SpeakingLessonCreator({ onCancel, onCreated }: SpeakingLessonCre
                   ))}
                 </datalist>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Add an email to assign this lesson directly to a student now, or leave it empty to create a shareable lesson link.
+              </p>
               {students.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Type a new email or select from your existing students.
