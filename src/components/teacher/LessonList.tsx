@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { BookOpen, User, Sparkles, Loader2, ChevronDown, ChevronUp, Play, ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, User, Sparkles, Loader2, ChevronDown, ChevronUp, Play, ChevronLeft, ChevronRight, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { ReuseLessonModal, type ReuseSourceLesson } from "@/components/teacher/ReuseLessonModal";
 
 interface Exercise {
   id: string;
@@ -25,6 +26,13 @@ interface Lesson {
   status: string;
   exercise_types: string[];
   created_at: string;
+  language: string | null;
+  translation_language: string | null;
+  lesson_type: string | null;
+  youtube_url: string | null;
+  paragraph_prompt: string | null;
+  paragraph_content: string | null;
+  transcript: string | null;
 }
 
 interface LessonListProps {
