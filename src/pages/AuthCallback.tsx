@@ -14,12 +14,43 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const promoteUserToTeacher = async (userId: string) => {
-      await supabase
+      const { data: updatedRole, error: updateRoleError } = await supabase
         .from("user_roles" as any)
         .update({ role: "teacher" } as any)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .select("role")
+        .maybeSingle();
 
-      await supabase.auth.updateUser({ data: { role: "teacher" } });
+      if (updateRoleError) {
+        console.error("Failed to promote user role to teacher", updateRoleError);
+        return false;
+      }
+
+      let confirmedRole = (updatedRole as any)?.role || null;
+
+      if (confirmedRole !== "teacher") {
+        const { data: refreshedRole, error: refreshRoleError } = await supabase
+          .from("user_roles" as any)
+          .select("role")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (refreshRoleError) {
+          console.error("Failed to confirm teacher role promotion", refreshRoleError);
+          return false;
+        }
+
+        confirmedRole = (refreshedRole as any)?.role || null;
+      }
+
+      if (confirmedRole !== "teacher") {
+        return false;
+      }
+
+      const { error: updateMetadataError } = await supabase.auth.updateUser({ data: { role: "teacher" } });
+      if (updateMetadataError) {
+        console.error("Failed to update teacher metadata", updateMetadataError);
+      }
 
       const { error: trialError } = await ensureTeacherTrialSubscription(userId);
       if (!trialError) {
@@ -29,6 +60,8 @@ export default function AuthCallback() {
           signup_method: "oauth",
         });
       }
+
+      return true;
     };
 
     const handleAuthCallback = async () => {
@@ -114,30 +147,32 @@ export default function AuthCallback() {
       const isNewUser = new Date(user.created_at).getTime() > Date.now() - 30000;
       const intendedRole = roleParam || metadataRole || dbRole || "student";
 
-      if (intendedRole === "teacher" && dbRole !== "teacher") {
-        await promoteUserToTeacher(user.id);
+      let actualRole = dbRole || intendedRole;
 
-        if (isNewUser) {
-          trackEvent("user_signup", { method: "oauth", role: "teacher" });
-          trackTeacherFunnelStep("signup_completed", {
-            method: "oauth",
-            source: "auth_callback",
-          });
-        } else {
-          trackEvent("teacher_role_upgraded", {
-            method: "oauth",
-            source: "auth_callback",
-          });
+      if (intendedRole === "teacher" && dbRole !== "teacher") {
+        const didPromoteToTeacher = await promoteUserToTeacher(user.id);
+
+        if (didPromoteToTeacher) {
+          actualRole = "teacher";
+
+          if (isNewUser) {
+            trackEvent("user_signup", { method: "oauth", role: "teacher" });
+            trackTeacherFunnelStep("signup_completed", {
+              method: "oauth",
+              source: "auth_callback",
+            });
+          } else {
+            trackEvent("teacher_role_upgraded", {
+              method: "oauth",
+              source: "auth_callback",
+            });
+          }
         }
       }
 
-      if (isNewUser && intendedRole === "student") {
+      if (isNewUser && actualRole !== "teacher") {
         trackEvent("user_signup", { method: "oauth", role: "student" });
       }
-
-      // Determine actual role for redirect.
-      // Existing users should follow DB role, not URL role param from the login entry point.
-      const actualRole = intendedRole === "teacher" ? "teacher" : (dbRole || intendedRole);
 
       // Check for pending lesson token
       const lessonRedirect = getPendingLessonRedirect();
