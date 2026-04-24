@@ -11,7 +11,10 @@ function normalizeLovableOrigin(origin: string): string {
       url.hostname = `id-preview--${projectDomainMatch[1]}.lovable.app`;
     }
 
-    return url.origin;
+    const normalizedPath = url.pathname.replace(/\/+$/, "");
+    const basePath = normalizedPath === "/" ? "" : normalizedPath;
+
+    return `${url.origin}${basePath}`;
   } catch {
     return origin.replace(/\/+$/, "");
   }
