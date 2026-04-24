@@ -1,64 +1,45 @@
+## Why the transcript is missing
 
-## Replace the broken YouTube audio resolver
+For lesson `6fe2cc3d…`:
+- `teacher_lessons.transcript` is `NULL`
+- The video `a1ZiLZA3v0I` **does** have a transcript stored in `youtube_transcripts` (189 chars, English)
+- The TeacherLesson page only renders the transcript if `lesson.transcript` is truthy:
+  ```ts
+  {lesson.transcript && (<TranscriptViewer transcript={lesson.transcript} ... />)}
+  ```
+- The only code path that writes to `teacher_lessons.transcript` is the `generate-lesson-exercises-by-type` edge function — i.e. the column is filled only **after** the teacher clicks one of the four "Generate Exercises" buttons. In the screenshot, no exercises have been generated yet, so the field stays null and the section is hidden.
 
-### Root cause (confirmed by logs)
+So the bug is: the teacher creates a YouTube lesson and lands on the page, but the transcript only appears after they generate at least one exercise — even though we already have the transcript on hand (or can fetch it).
 
-```
-[voxtral] player API HTTP 400
-[whisper] No audio URL resolved
-```
+## Fix
 
-`getYouTubeAudioUrl()` calls `https://www.youtube.com/youtubei/v1/player` with a **hardcoded ANDROID-client API key from 2018**. YouTube has since rotated keys and tightened that endpoint — it now returns 400 from server IPs. So Whisper and Voxtral never receive any audio. The chain ends with `null`, the video stays at `status='pending'`, and `segment-video-scenes` keeps logging `transcript_not_ready`.
+Make the transcript appear as soon as the lesson is opened, regardless of exercise generation.
 
-So even though Supadata + timedtext also have no captions for this Brazilian BBC video (no `pt-BR` track is published), the ASR fallbacks can't run because we can't get the audio bytes in the first place.
+### Step 1 — Backfill on lesson open (TeacherLesson.tsx)
 
-### Fix: swap the audio resolver to a maintained service
+In the existing `fetchScenes` / lesson-load effect, when `lesson.transcript` is null and we have a `youtube_url`:
 
-The cleanest, most reliable option from a Deno edge function is **Supadata's audio endpoint** (`/v1/youtube/video` or `/v1/youtube/audio` — Supadata already powers our caption path and is documented to expose audio download URLs). It returns a short-lived direct stream URL that we can pipe straight into Whisper.
+1. Look up the matching `youtube_videos` row by `video_id` (already done for scenes — reuse that result).
+2. Fetch `youtube_transcripts.transcript` for that `video_id` (DB id).
+3. If found, render it via `<TranscriptViewer>` and persist it back to `teacher_lessons.transcript` via an `update()` so future loads are instant and other code paths see it.
 
-```text
-getYouTubeAudioUrl(videoId)
-  └── GET https://api.supadata.ai/v1/youtube/video?videoId=…&audio=true
-        x-api-key: SUPADATA_API_KEY
-  └── return audioUrl from JSON response
-```
+This handles the case of this lesson immediately (transcript already exists in `youtube_transcripts`).
 
-If Supadata's audio endpoint is not enabled on the current plan, the resolver falls back to a second provider (`https://yt-dlp-api.fly.dev/audio?id=…` style hosted resolver — keyed by env var). Both are tiny swap-ins behind the same `getYouTubeAudioUrl` function, so the rest of the chain is untouched.
+### Step 2 — Fallback: extract on demand
 
-### Implementation
+If no `youtube_transcripts` row exists yet (new video the teacher just added), invoke the existing `extract-youtube-transcript` edge function with `{ videoUrl, teacherId, language }`, then re-fetch and persist as in Step 1. Show a small "Loading transcript…" skeleton above the exercise buttons while this runs.
 
-**File:** `supabase/functions/extract-youtube-transcript/index.ts`
+### Step 3 — Defensive UI
 
-1. **Rewrite `getYouTubeAudioUrl(videoId)`**:
-   - Try `SUPADATA_API_KEY` → call Supadata audio endpoint, return URL.
-   - On failure, try optional `AUDIO_RESOLVER_URL` env (a hosted yt-dlp microservice) — return URL.
-   - Log the chosen method (`[audio] resolved via supadata|fallback`) so we can see which path worked.
-   - Return `null` only if both fail; existing Whisper/Voxtral logging already handles that gracefully.
+- While loading: show a one-line skeleton in place of the transcript card.
+- On failure: show a small muted note "Transcript unavailable for this video" instead of silently hiding the section, so teachers know why.
 
-2. **Drop the dead `youtubei/v1/player` call entirely.** It's the source of the HTTP 400 noise and it will never come back.
+## Files to change
 
-3. **Add one safety net:** if `getYouTubeAudioUrl` returns `null`, log a clear actionable line (`[audio] no resolver available — set SUPADATA_API_KEY or AUDIO_RESOLVER_URL`) so future debugging is one log line, not a stack trace hunt.
+- `src/pages/TeacherLesson.tsx` — add transcript backfill logic in the lesson-load effect; update the render block around line 724 to handle loading / fallback states.
 
-### Why also explain the second lesson card
+No DB migration needed. No new edge function needed (reusing `extract-youtube-transcript`).
 
-`/teacher/lesson/6dfa46c8-…` shows the same video, no scenes, no transcript — same root cause. It points at the **same `youtube_videos` row** as `9f30ba71-…` (deduped by `video_id=tl-Pu3lFh7Q`). Once the resolver is fixed and the row is reset to `pending`, both lesson URLs will populate from the same successful Whisper run.
+## After the fix
 
-### Recovery after the fix
-
-- Reset `youtube_videos` row for `tl-Pu3lFh7Q` to `status='pending'`, clear `processed_at` and `processing_started_at`. Same single-row UPDATE migration as before.
-- Visit either lesson URL → `extract-youtube-transcript` runs → resolver returns audio URL → Whisper transcribes Portuguese → transcript saved → `segment-video-scenes` succeeds → scenes appear.
-
-### Files touched
-
-- `supabase/functions/extract-youtube-transcript/index.ts` — rewrite `getYouTubeAudioUrl` to use Supadata audio endpoint with optional fallback resolver; remove the dead `youtubei/v1/player` block; add clearer logs.
-- One-off migration — reset `youtube_videos` row for `tl-Pu3lFh7Q` to `pending`.
-- No client changes; no new secrets required (uses existing `SUPADATA_API_KEY`; `AUDIO_RESOLVER_URL` optional).
-
-### Open question before I build
-
-Supadata's audio endpoint might require a higher tier than the captions endpoint. If it does, I have two clean alternatives — pick one:
-
-- **A. Use a hosted yt-dlp service** (e.g. a tiny Fly.io / Render service running `yt-dlp`). One env var (`AUDIO_RESOLVER_URL`), most reliable long-term, ~free to host.
-- **B. Use `https://www.youtube.com/get_video_info`-style scraping in the edge function** — no extra service, but breaks every few months when YouTube changes signatures (this is exactly why the current code died).
-
-I recommend **A**. If you say "go", I'll implement Supadata-first + leave a documented `AUDIO_RESOLVER_URL` slot so you can plug in option A later without another code change.
+For the current lesson, the transcript stored in `youtube_transcripts` (189 chars) will be loaded and shown immediately under the video, and `teacher_lessons.transcript` will be backfilled on first open.
