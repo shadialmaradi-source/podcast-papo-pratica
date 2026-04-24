@@ -402,6 +402,13 @@ export function LessonList({ refresh }: LessonListProps) {
           </Button>
         </div>
       )}
+
+      <ReuseLessonModal
+        open={!!reuseSource}
+        onOpenChange={(v) => !v && setReuseSource(null)}
+        source={reuseSource}
+        onReused={fetchLessons}
+      />
     </div>
   );
 }
