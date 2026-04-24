@@ -65,6 +65,8 @@ export default function TeacherLesson() {
   const [completedScenes, setCompletedScenes] = useState<number[]>([]);
   const [dbVideoId, setDbVideoId] = useState<string | null>(null);
   const [scenesLoading, setScenesLoading] = useState(false);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [transcriptUnavailable, setTranscriptUnavailable] = useState(false);
 
   useEffect(() => { trackPageView("teacher_lesson", "teacher"); }, [id]);
 
