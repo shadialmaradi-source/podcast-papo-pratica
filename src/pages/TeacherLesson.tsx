@@ -245,6 +245,89 @@ export default function TeacherLesson() {
     fetchScenes();
   }, [lesson?.youtube_url]);
 
+  // Backfill transcript on lesson open if missing
+  useEffect(() => {
+    if (!lesson || !lesson.youtube_url || lesson.transcript) {
+      setTranscriptUnavailable(false);
+      return;
+    }
+    const ytId = extractYouTubeVideoId(lesson.youtube_url);
+    if (!ytId || !user) return;
+
+    let cancelled = false;
+    const loadTranscript = async () => {
+      setTranscriptLoading(true);
+      setTranscriptUnavailable(false);
+      try {
+        // 1. Look up youtube_videos row
+        const { data: videoRecord } = await supabase
+          .from("youtube_videos")
+          .select("id")
+          .eq("video_id", ytId)
+          .maybeSingle();
+
+        let transcriptText: string | null = null;
+
+        if (videoRecord?.id) {
+          const { data: tx } = await supabase
+            .from("youtube_transcripts")
+            .select("transcript")
+            .eq("video_id", videoRecord.id)
+            .maybeSingle();
+          transcriptText = tx?.transcript || null;
+        }
+
+        // 2. Fallback: extract via edge function
+        if (!transcriptText) {
+          const { data: extracted } = await supabase.functions.invoke(
+            "extract-youtube-transcript",
+            { body: { videoUrl: lesson.youtube_url, teacherId: user.id, language: lesson.language || "italian" } }
+          );
+          transcriptText = extracted?.transcript || null;
+
+          // Re-query if edge function only stored it
+          if (!transcriptText) {
+            const { data: videoRecord2 } = await supabase
+              .from("youtube_videos")
+              .select("id")
+              .eq("video_id", ytId)
+              .maybeSingle();
+            if (videoRecord2?.id) {
+              const { data: tx2 } = await supabase
+                .from("youtube_transcripts")
+                .select("transcript")
+                .eq("video_id", videoRecord2.id)
+                .maybeSingle();
+              transcriptText = tx2?.transcript || null;
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        if (transcriptText) {
+          setLesson((prev) => (prev ? { ...prev, transcript: transcriptText! } : prev));
+          // Persist on the teacher_lesson so future loads are instant
+          await supabase
+            .from("teacher_lessons")
+            .update({ transcript: transcriptText })
+            .eq("id", lesson.id);
+        } else {
+          setTranscriptUnavailable(true);
+        }
+      } catch (err) {
+        console.error("[TeacherLesson] transcript backfill failed:", err);
+        if (!cancelled) setTranscriptUnavailable(true);
+      } finally {
+        if (!cancelled) setTranscriptLoading(false);
+      }
+    };
+
+    loadTranscript();
+    return () => { cancelled = true; };
+  }, [lesson?.id, lesson?.youtube_url, lesson?.transcript, lesson?.language, user]);
+
+
   const handleComplete = async () => {
     if (!id) return;
     setCompleting(true);
