@@ -150,7 +150,7 @@ export function LessonList({ refresh }: LessonListProps) {
 
     const { data, error, count } = await supabase
       .from("teacher_lessons")
-      .select("id, title, student_email, cefr_level, topic, status, exercise_types, created_at", { count: "exact" })
+      .select("id, title, student_email, cefr_level, topic, status, exercise_types, created_at, language, translation_language, lesson_type, youtube_url, paragraph_prompt, paragraph_content, transcript", { count: "exact" })
       .eq("teacher_id", user.id)
       .order("created_at", { ascending: false })
       .range(from, to);
