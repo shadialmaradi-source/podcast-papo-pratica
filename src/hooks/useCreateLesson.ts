@@ -65,9 +65,14 @@ export function extractYouTubeId(url: string): string | null {
   return null;
 }
 
+const optionalStudentEmailSchema = z
+  .string()
+  .trim()
+  .refine((value) => value === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "Enter a valid student email");
+
 const baseSchema = {
   title: z.string().min(3, "Title must be at least 3 characters"),
-  student_email: z.string().email("Enter a valid student email"),
+  student_email: optionalStudentEmailSchema,
   cefr_level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
   exercise_types: z.array(z.string()).min(1, "Select at least one exercise type"),
   translation_language: z.string().min(1, "Select a translation language"),

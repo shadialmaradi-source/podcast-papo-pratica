@@ -276,8 +276,12 @@ export function CreateLessonForm({
           )} />
           <FormField control={form.control} name="student_email" render={({ field }) => (
             <FormItem>
-              <FormLabel>Student Email</FormLabel>
+              <FormLabel>Student Email <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
               <FormControl><Input placeholder="student@example.com" type="email" {...field} /></FormControl>
+              <p className="text-xs text-muted-foreground">
+                If you add an email, this lesson is linked directly to that student.
+                If you leave it blank, you can still create the lesson and share it later with a link.
+              </p>
               <FormMessage />
             </FormItem>
           )} />
