@@ -11,7 +11,8 @@ function normalizeLovableOrigin(origin: string): string {
       url.hostname = `id-preview--${projectDomainMatch[1]}.lovable.app`;
     }
 
-    return url.origin;
+    const normalizedPath = url.pathname.replace(/\/+$/, "");
+    return `${url.origin}${normalizedPath === "/" ? "" : normalizedPath}`;
   } catch {
     return origin.replace(/\/+$/, "");
   }
