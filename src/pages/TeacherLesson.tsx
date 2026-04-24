@@ -562,6 +562,14 @@ export default function TeacherLesson() {
   const activeGroup = activeGroupType
     ? displayExerciseGroups.find((group) => group.type === activeGroupType) ?? null
     : null;
+  const currentScene = scenes.find((scene) => scene.scene_index === currentSceneIndex);
+  const hasSceneTranscript = scenes.length > 0 && !!currentScene?.scene_transcript;
+  const transcriptToDisplay = hasSceneTranscript
+    ? currentScene?.scene_transcript ?? null
+    : lesson.transcript;
+  const transcriptTitle = hasSceneTranscript
+    ? `${lesson.title} – Scene ${(currentScene?.scene_index ?? 0) + 1}`
+    : lesson.title;
 
   const demoGuideSteps = [
     {
@@ -726,7 +734,6 @@ export default function TeacherLesson() {
                 {scenes.length > 0 ? (
                   <>
                     {(() => {
-                      const currentScene = scenes.find(s => s.scene_index === currentSceneIndex);
                       if (!currentScene) return null;
                       const sceneDuration = currentScene.end_time - currentScene.start_time;
                       return (
@@ -753,18 +760,6 @@ export default function TeacherLesson() {
                               }
                             }}
                           />
-                          {currentScene.scene_transcript && (
-                            <TranscriptViewer
-                              transcript={currentScene.scene_transcript}
-                              videoId={lesson.id}
-                              sourceLessonId={lesson.id}
-                              flashcardVideoId={undefined}
-                              videoTitle={`${lesson.title} – Scene ${currentScene.scene_index + 1}`}
-                              language={lesson.language || "italian"}
-                              isPremium={true}
-                              onUpgradeClick={() => navigate("/teacher/pricing")}
-                            />
-                          )}
                         </div>
                       );
                     })()}
@@ -806,13 +801,13 @@ export default function TeacherLesson() {
             )}
 
             {/* Transcript */}
-            {lesson.transcript ? (
+            {transcriptToDisplay ? (
               <TranscriptViewer
                 videoId={lesson.id}
                 sourceLessonId={lesson.id}
                 flashcardVideoId={undefined}
-                transcript={lesson.transcript}
-                videoTitle={lesson.title}
+                transcript={transcriptToDisplay}
+                videoTitle={transcriptTitle}
                 language={lesson.language || "italian"}
                 isPremium={true}
                 onUpgradeClick={() => navigate("/teacher/pricing")}
