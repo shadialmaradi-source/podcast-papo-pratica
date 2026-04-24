@@ -14,12 +14,20 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const promoteUserToTeacher = async (userId: string) => {
-      await supabase
+      const { data: updatedRole, error: updateRoleError } = await supabase
         .from("user_roles" as any)
         .update({ role: "teacher" } as any)
+        .select("role")
         .eq("user_id", userId);
 
-      await supabase.auth.updateUser({ data: { role: "teacher" } });
+      if (updateRoleError || !updatedRole || updatedRole.length === 0) {
+        return false;
+      }
+
+      const { error: metadataError } = await supabase.auth.updateUser({ data: { role: "teacher" } });
+      if (metadataError) {
+        return false;
+      }
 
       const { error: trialError } = await ensureTeacherTrialSubscription(userId);
       if (!trialError) {
@@ -29,6 +37,8 @@ export default function AuthCallback() {
           signup_method: "oauth",
         });
       }
+
+      return true;
     };
 
     const handleAuthCallback = async () => {
@@ -107,7 +117,7 @@ export default function AuthCallback() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      const dbRole = (roleData as any)?.role || null;
+      let dbRole = (roleData as any)?.role || null;
 
       // If the user explicitly started from teacher auth, honor that intent even when
       // OAuth roundtrips or previously-created student accounts would otherwise default to student.
@@ -115,15 +125,18 @@ export default function AuthCallback() {
       const intendedRole = roleParam || metadataRole || dbRole || "student";
 
       if (intendedRole === "teacher" && dbRole !== "teacher") {
-        await promoteUserToTeacher(user.id);
+        const promotionSucceeded = await promoteUserToTeacher(user.id);
+        if (promotionSucceeded) {
+          dbRole = "teacher";
+        }
 
-        if (isNewUser) {
+        if (promotionSucceeded && isNewUser) {
           trackEvent("user_signup", { method: "oauth", role: "teacher" });
           trackTeacherFunnelStep("signup_completed", {
             method: "oauth",
             source: "auth_callback",
           });
-        } else {
+        } else if (promotionSucceeded) {
           trackEvent("teacher_role_upgraded", {
             method: "oauth",
             source: "auth_callback",
@@ -137,7 +150,7 @@ export default function AuthCallback() {
 
       // Determine actual role for redirect.
       // Existing users should follow DB role, not URL role param from the login entry point.
-      const actualRole = intendedRole === "teacher" ? "teacher" : (dbRole || intendedRole);
+      const actualRole = dbRole || intendedRole;
 
       // Check for pending lesson token
       const lessonRedirect = getPendingLessonRedirect();
