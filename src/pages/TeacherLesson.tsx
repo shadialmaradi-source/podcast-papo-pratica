@@ -806,7 +806,7 @@ export default function TeacherLesson() {
             )}
 
             {/* Transcript */}
-            {lesson.transcript && (
+            {lesson.transcript ? (
               <TranscriptViewer
                 videoId={lesson.id}
                 sourceLessonId={lesson.id}
@@ -817,7 +817,21 @@ export default function TeacherLesson() {
                 isPremium={true}
                 onUpgradeClick={() => navigate("/teacher/pricing")}
               />
-            )}
+            ) : lesson.youtube_url && transcriptLoading ? (
+              <Card>
+                <CardContent className="py-6 flex items-center gap-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading transcript…
+                </CardContent>
+              </Card>
+            ) : lesson.youtube_url && transcriptUnavailable ? (
+              <Card>
+                <CardContent className="py-6 text-sm text-muted-foreground">
+                  Transcript unavailable for this video.
+                </CardContent>
+              </Card>
+            ) : null}
+
 
             {lesson.lesson_type === "paragraph" && lesson.paragraph_content && (
               <div className="space-y-3">
