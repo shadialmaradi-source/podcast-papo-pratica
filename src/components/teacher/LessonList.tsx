@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { BookOpen, User, Sparkles, Loader2, ChevronDown, ChevronUp, Play, ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, User, Sparkles, Loader2, ChevronDown, ChevronUp, Play, ChevronLeft, ChevronRight, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { ReuseLessonModal, type ReuseSourceLesson } from "@/components/teacher/ReuseLessonModal";
 
 interface Exercise {
   id: string;
@@ -25,6 +26,13 @@ interface Lesson {
   status: string;
   exercise_types: string[];
   created_at: string;
+  language: string | null;
+  translation_language: string | null;
+  lesson_type: string | null;
+  youtube_url: string | null;
+  paragraph_prompt: string | null;
+  paragraph_content: string | null;
+  transcript: string | null;
 }
 
 interface LessonListProps {
@@ -132,6 +140,7 @@ export function LessonList({ refresh }: LessonListProps) {
   const [generating, setGenerating] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [exercises, setExercises] = useState<Record<string, Exercise[]>>({});
+  const [reuseSource, setReuseSource] = useState<ReuseSourceLesson | null>(null);
 
   const fetchLessons = async () => {
     if (!user) return;
@@ -141,7 +150,7 @@ export function LessonList({ refresh }: LessonListProps) {
 
     const { data, error, count } = await supabase
       .from("teacher_lessons")
-      .select("id, title, student_email, cefr_level, topic, status, exercise_types, created_at", { count: "exact" })
+      .select("id, title, student_email, cefr_level, topic, status, exercise_types, created_at, language, translation_language, lesson_type, youtube_url, paragraph_prompt, paragraph_content, transcript", { count: "exact" })
       .eq("teacher_id", user.id)
       .order("created_at", { ascending: false })
       .range(from, to);
@@ -324,6 +333,30 @@ export function LessonList({ refresh }: LessonListProps) {
                     )}
                   </Button>
                 )}
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setReuseSource({
+                    id: lesson.id,
+                    title: lesson.title,
+                    cefr_level: lesson.cefr_level,
+                    translation_language: lesson.translation_language,
+                    language: lesson.language,
+                    lesson_type: lesson.lesson_type,
+                    exercise_types: lesson.exercise_types,
+                    youtube_url: lesson.youtube_url,
+                    paragraph_prompt: lesson.paragraph_prompt,
+                    paragraph_content: lesson.paragraph_content,
+                    transcript: lesson.transcript,
+                    topic: lesson.topic,
+                    student_email: lesson.student_email,
+                  })}
+                  className="text-xs"
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  Reuse
+                </Button>
               </div>
             </div>
 
@@ -369,6 +402,13 @@ export function LessonList({ refresh }: LessonListProps) {
           </Button>
         </div>
       )}
+
+      <ReuseLessonModal
+        open={!!reuseSource}
+        onOpenChange={(v) => !v && setReuseSource(null)}
+        source={reuseSource}
+        onReused={fetchLessons}
+      />
     </div>
   );
 }
