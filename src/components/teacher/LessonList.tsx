@@ -333,6 +333,30 @@ export function LessonList({ refresh }: LessonListProps) {
                     )}
                   </Button>
                 )}
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setReuseSource({
+                    id: lesson.id,
+                    title: lesson.title,
+                    cefr_level: lesson.cefr_level,
+                    translation_language: lesson.translation_language,
+                    language: lesson.language,
+                    lesson_type: lesson.lesson_type,
+                    exercise_types: lesson.exercise_types,
+                    youtube_url: lesson.youtube_url,
+                    paragraph_prompt: lesson.paragraph_prompt,
+                    paragraph_content: lesson.paragraph_content,
+                    transcript: lesson.transcript,
+                    topic: lesson.topic,
+                    student_email: lesson.student_email,
+                  })}
+                  className="text-xs"
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  Reuse
+                </Button>
               </div>
             </div>
 
