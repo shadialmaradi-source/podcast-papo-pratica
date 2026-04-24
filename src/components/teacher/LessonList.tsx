@@ -140,6 +140,7 @@ export function LessonList({ refresh }: LessonListProps) {
   const [generating, setGenerating] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [exercises, setExercises] = useState<Record<string, Exercise[]>>({});
+  const [reuseSource, setReuseSource] = useState<ReuseSourceLesson | null>(null);
 
   const fetchLessons = async () => {
     if (!user) return;
