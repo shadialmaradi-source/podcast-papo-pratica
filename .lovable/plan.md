@@ -1,45 +1,55 @@
-## Why the transcript is missing
+## Reuse lesson — with new student, level, and translation language
 
-For lesson `6fe2cc3d…`:
-- `teacher_lessons.transcript` is `NULL`
-- The video `a1ZiLZA3v0I` **does** have a transcript stored in `youtube_transcripts` (189 chars, English)
-- The TeacherLesson page only renders the transcript if `lesson.transcript` is truthy:
-  ```ts
-  {lesson.transcript && (<TranscriptViewer transcript={lesson.transcript} ... />)}
-  ```
-- The only code path that writes to `teacher_lessons.transcript` is the `generate-lesson-exercises-by-type` edge function — i.e. the column is filled only **after** the teacher clicks one of the four "Generate Exercises" buttons. In the screenshot, no exercises have been generated yet, so the field stays null and the section is hidden.
+Add a **Reuse** button next to each lesson on `/teacher/lessons`. Clicking it opens a small modal where the teacher picks:
 
-So the bug is: the teacher creates a YouTube lesson and lands on the page, but the transcript only appears after they generate at least one exercise — even though we already have the transcript on hand (or can fetch it).
+1. **Student email** (with autocomplete from the teacher's existing students; can also type a new one — leaving blank is allowed)
+2. **CEFR level** (A1–C2, defaults to original)
+3. **Translation language** (defaults to original)
 
-## Fix
+Everything else is copied 1:1 from the source lesson: title, video/paragraph content, transcript, exercise types, language, lesson type, topic. A fresh `share_token` is generated. **Exercises are not copied** — they're re-generated from scratch using the new level/translation language so the difficulty actually matches what the teacher picked. The new lesson is created with `status = 'draft'`, exercises generate in the background, then status flips to `'ready'`.
 
-Make the transcript appear as soon as the lesson is opened, regardless of exercise generation.
+### Flow
 
-### Step 1 — Backfill on lesson open (TeacherLesson.tsx)
+```text
+[Reuse] click
+   │
+   ▼
+ReuseLessonModal
+  - student email (combobox: existing students + free text)
+  - cefr_level (select, prefilled)
+  - translation_language (select, prefilled)
+  - [Cancel]  [Reuse lesson]
+   │
+   ▼
+1. Insert new teacher_lessons row
+   (copy: title, lesson_type, language, youtube_url, paragraph_*, transcript,
+    topic, exercise_types; new: teacher_id=me, student_email, cefr_level,
+    translation_language, share_token, status='draft')
+2. Upsert teacher_students if email is new
+3. For each exercise type → invoke generate-lesson-exercises-by-type
+   (already uses the lesson's own cefr_level + translation_language)
+4. Toast "Lesson reused — exercises generating…"
+5. Navigate to /teacher/lesson/<new-id>
+```
 
-In the existing `fetchScenes` / lesson-load effect, when `lesson.transcript` is null and we have a `youtube_url`:
+### Files
 
-1. Look up the matching `youtube_videos` row by `video_id` (already done for scenes — reuse that result).
-2. Fetch `youtube_transcripts.transcript` for that `video_id` (DB id).
-3. If found, render it via `<TranscriptViewer>` and persist it back to `teacher_lessons.transcript` via an `update()` so future loads are instant and other code paths see it.
+- **New:** `src/components/teacher/ReuseLessonModal.tsx` — the modal (Dialog + Select + email combobox + submit handler that does the insert + generate calls).
+- **Edit:** `src/components/teacher/LessonList.tsx`
+  - Fetch a couple more fields needed for the copy (`language`, `translation_language`, `lesson_type`, `youtube_url`, `paragraph_prompt`, `paragraph_content`, `transcript`, `topic`).
+  - Add a "Reuse" button (Copy icon) in the actions column next to Generate / Start.
+  - Wire it to open `ReuseLessonModal` with the source lesson.
+  - On success, refresh the list and navigate to the new lesson.
 
-This handles the case of this lesson immediately (transcript already exists in `youtube_transcripts`).
+### Why exercises are re-generated, not copied
 
-### Step 2 — Fallback: extract on demand
+The user explicitly wants to **change difficulty and translation language** — copied exercises would still be at the old level/translation. The existing `generate-lesson-exercises-by-type` edge function reads `cefr_level` and `translation_language` from the new lesson row, so it produces correct content automatically. Transcript is preserved, so generation is fast (no re-fetch).
 
-If no `youtube_transcripts` row exists yet (new video the teacher just added), invoke the existing `extract-youtube-transcript` edge function with `{ videoUrl, teacherId, language }`, then re-fetch and persist as in Step 1. Show a small "Loading transcript…" skeleton above the exercise buttons while this runs.
+### Edge cases handled
 
-### Step 3 — Defensive UI
+- Lesson limit trigger (`enforce_teacher_lesson_limit`) still applies → surfaced as a clear toast.
+- If the teacher's monthly quota is exceeded, the modal shows the error and stays open.
+- Empty student email allowed (creates an unassigned reusable copy).
+- If the source lesson has no transcript yet, the new lesson will fetch it on-demand the same way the original page does (existing logic from earlier fix).
 
-- While loading: show a one-line skeleton in place of the transcript card.
-- On failure: show a small muted note "Transcript unavailable for this video" instead of silently hiding the section, so teachers know why.
-
-## Files to change
-
-- `src/pages/TeacherLesson.tsx` — add transcript backfill logic in the lesson-load effect; update the render block around line 724 to handle loading / fallback states.
-
-No DB migration needed. No new edge function needed (reusing `extract-youtube-transcript`).
-
-## After the fix
-
-For the current lesson, the transcript stored in `youtube_transcripts` (189 chars) will be loaded and shown immediately under the video, and `teacher_lessons.transcript` will be backfilled on first open.
+No DB migration needed.
