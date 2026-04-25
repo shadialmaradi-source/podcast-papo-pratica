@@ -29,17 +29,11 @@ export function RoleSwitcher() {
     if (!user) return;
     setSwitching(true);
     try {
-      const { error } = await supabase
-        .from("user_roles" as any)
-        .update({ role: "teacher" } as any)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      toast.success("You're now a teacher! Redirecting to your dashboard...");
-      setTimeout(() => navigate("/teacher"), 1500);
-    } catch (err) {
-      toast.error("Failed to switch role. Please try again.");
+      // Role changes must be performed server-side to prevent privilege escalation.
+      // Please contact support or use the dedicated teacher signup flow.
+      toast.error(
+        "Role upgrades are no longer available from the app. Please contact support to switch to a teacher account."
+      );
     } finally {
       setSwitching(false);
     }
