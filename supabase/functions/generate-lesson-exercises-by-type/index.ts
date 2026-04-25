@@ -347,6 +347,7 @@ serve(async (req) => {
       const { data: reusableLessons } = await supabase
         .from("teacher_lessons")
         .select("id")
+        .eq("teacher_id", lesson.teacher_id)
         .eq("lesson_type", "youtube")
         .neq("id", lessonId)
         .eq("cefr_level", lesson.cefr_level || "A1")

@@ -462,39 +462,10 @@ serve(async (req) => {
 
     console.log(`[extract-youtube-transcript] Processing: ${id}, teacherId: ${teacherId || 'none'}`);
 
-    // Fast-path reuse: if canonical transcript already exists, return it and skip refetch/regeneration.
     const supabaseService = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-    const { data: existingVideo } = await supabaseService
-      .from('youtube_videos')
-      .select('id, status')
-      .eq('video_id', id)
-      .maybeSingle();
-
-    if (existingVideo?.id) {
-      const { data: existingTranscript } = await supabaseService
-        .from('youtube_transcripts')
-        .select('transcript, language')
-        .eq('video_id', existingVideo.id)
-        .maybeSingle();
-
-      const transcriptText = existingTranscript?.transcript?.trim() || '';
-      if (transcriptText.length > 50) {
-        console.log(`[extract-youtube-transcript] Reusing canonical transcript for ${id}`);
-        return new Response(
-          JSON.stringify({
-            success: true,
-            transcript: transcriptText,
-            language: existingTranscript?.language || language || 'english',
-            source: 'database',
-            reused: true,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
 
     // If teacherId is provided, require authenticated caller to match teacher identity
     if (teacherId) {
@@ -529,6 +500,36 @@ serve(async (req) => {
     // Resolve caller role for fallback gating
     const callerRole = await resolveCallerRole(supabaseService, userId, claimsData?.claims?.email);
     console.log(`[extract-youtube-transcript] Caller role: ${callerRole}`);
+
+    // Fast-path reuse: only after access checks and caller role resolution.
+    const { data: existingVideo } = await supabaseService
+      .from('youtube_videos')
+      .select('id, status')
+      .eq('video_id', id)
+      .maybeSingle();
+
+    if (existingVideo?.id) {
+      const { data: existingTranscript } = await supabaseService
+        .from('youtube_transcripts')
+        .select('transcript, language')
+        .eq('video_id', existingVideo.id)
+        .maybeSingle();
+
+      const transcriptText = existingTranscript?.transcript?.trim() || '';
+      if (transcriptText.length > 50) {
+        console.log(`[extract-youtube-transcript] Reusing canonical transcript for ${id}`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            transcript: transcriptText,
+            language: existingTranscript?.language || language || 'english',
+            source: 'database',
+            reused: true,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     let transcript: { text: string; lang: string; method: string } | null = null;
 
