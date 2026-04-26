@@ -343,10 +343,10 @@ serve(async (req) => {
 
     // Reuse from other lessons that share the exact same canonical input key.
     // Reuse key: canonical youtube_video_id + exercise_type + cefr_level + language + translation_language.
-    if (!forceRegenerate && sharedVideoId) {
+    if (!forceRegenerate && sharedVideoId && lesson.teacher_id) {
       const { data: reusableLessons } = await supabase
         .from("teacher_lessons")
-        .select("id")
+        .select("id, teacher_id")
         .eq("teacher_id", lesson.teacher_id)
         .eq("lesson_type", "youtube")
         .neq("id", lessonId)
@@ -357,7 +357,9 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(20);
 
-      const reusableLessonIds = (reusableLessons || []).map((row: any) => row.id);
+      const reusableLessonIds = (reusableLessons || [])
+        .filter((row: any) => row.teacher_id === lesson.teacher_id)
+        .map((row: any) => row.id);
       if (reusableLessonIds.length > 0) {
         const { data: reusableExercises, error: reusableExercisesError } = await supabase
           .from("lesson_exercises")
