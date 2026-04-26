@@ -236,7 +236,10 @@ const App = () => {
               <Route path="/speaking/:assignmentId" element={<ProtectedRoute section="student"><SpeakingAssignment /></ProtectedRoute>} />
               <Route path="/my-lessons" element={<ProtectedRoute section="student"><MyLessons /></ProtectedRoute>} />
               <Route path="/my-assignments" element={<ProtectedRoute section="student"><MyAssignments /></ProtectedRoute>} />
-              <Route path="/admin/import" element={<ProtectedRoute section="teacher"><AdminImport /></ProtectedRoute>} />
+              {/* /admin/import enforces its own founder allow-list (by user id / email) inside the page,
+                  so it must NOT be gated by section="teacher" — that would redirect founders whose
+                  primary role happens to be "student". */}
+              <Route path="/admin/import" element={<ProtectedRoute section="any"><AdminImport /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
