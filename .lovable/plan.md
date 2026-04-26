@@ -1,43 +1,49 @@
-## Diagnosis
+# Fix: form state wiped when switching browser tabs
 
-Your code is working correctly. The network logs confirm `stripe-checkout` returns a valid Stripe URL (status 200, `https://checkout.stripe.com/c/pay/cs_live_...`) within milliseconds. The blank skeleton page in your screenshot **is Stripe's own checkout page failing to render**, not your app.
+## What's happening
 
-### Root cause
+On `/admin/import`, when you fill in the YouTube URL or transcript and switch to another browser tab and come back, the fields reset to empty. The same bug affects every protected page that holds local form state (not just admin import).
 
-Stripe sets `X-Frame-Options: DENY` on `checkout.stripe.com` to prevent clickjacking. The Lovable preview shows your app inside an iframe (`https://479ee1fc-...lovableproject.com` embedded in `lovable.app`). When `Premium.tsx` line 102 runs:
+## Root cause
 
-```ts
-window.location.href = data.url;
-```
+When the browser tab regains focus, Supabase emits a `SIGNED_IN` / `TOKEN_REFRESHED` auth event. In `src/hooks/useAuth.tsx`, that handler:
 
-it navigates the **iframe** to Stripe. The browser blocks the load → blank skeleton screen.
+1. Sets `roleLoading = true`
+2. Re-fetches the user's role from the database
+3. Sets `roleLoading = false`
 
-This will also affect users who embed your app or open it from any context that puts it inside an iframe. In a regular browser tab (no iframe) it works fine — that's why this only shows up in the preview.
+`ProtectedRoute` in `src/App.tsx` (line 111) renders a `<LoadingFallback />` whenever `roleLoading` is true. That swap **unmounts** the page component (AdminImport), so all `useState` values — URL, transcript, language, results — are destroyed. When the role finishes loading, the page remounts fresh.
 
 ## Fix
 
-In `src/pages/Premium.tsx`, change the redirect to break out of the iframe to the top-level window, with a safe fallback to opening in a new tab if the parent frame is cross-origin and inaccessible.
+Two small, surgical changes:
 
-```ts
-if (response.ok && data?.url) {
-  try {
-    if (window.top && window.top !== window.self) {
-      window.top.location.href = data.url;   // break out of iframe
-    } else {
-      window.location.href = data.url;        // normal tab
-    }
-  } catch {
-    window.open(data.url, '_blank', 'noopener,noreferrer'); // cross-origin fallback
-  }
-}
-```
+### 1. `src/hooks/useAuth.tsx`
+- Only re-run the role/profile fetch when the user **actually changes** (different `user.id` than what's already in state), not on every `SIGNED_IN` / `TOKEN_REFRESHED` event triggered by tab focus or token refresh.
+- Skip toggling `roleLoading` back to `true` once a role is already resolved for the current user.
 
-### Files touched
+### 2. `src/App.tsx` — `ProtectedRoute`
+- Only show `<LoadingFallback />` for `roleLoading` on the **initial** load (when `role` is still `null`). If we already have a role for the current user, keep rendering children during background refreshes so their state is preserved.
 
-- **Edit** `src/pages/Premium.tsx` — replace the single `window.location.href = data.url` line with the iframe-aware navigation above.
+  Change line 111 from:
+  ```ts
+  if (loading || roleLoading || (shareToken && !user && resolvingLesson)) {
+  ```
+  to something like:
+  ```ts
+  if (loading || (roleLoading && !role) || (shareToken && !user && resolvingLesson)) {
+  ```
 
-### Out of scope
+## Why this is safe
 
-- No backend / edge function changes (the function works correctly).
-- No changes to the Stripe product, key, or webhook configuration.
-- The teacher checkout (`teacher-stripe-checkout`) is not affected by this report, but if you want, I can apply the same iframe-breakout fix to `TeacherPricing.tsx` in the same edit — let me know.
+- Role is still verified on first navigation to a protected page.
+- Section access check (`canAccessSection`) still runs on every render with the latest role.
+- We only avoid the unmount/remount flicker that happens on tab refocus — no security implication, since the role value is the same one we already validated when the user landed on the page.
+
+## Files touched
+- `src/hooks/useAuth.tsx`
+- `src/App.tsx`
+
+## Out of scope
+- No changes to AdminImport itself. The form state will simply persist correctly once the underlying remount bug is gone.
+- Not adding localStorage draft persistence for the form (can be a follow-up if you want drafts to survive full page reloads too — let me know).
