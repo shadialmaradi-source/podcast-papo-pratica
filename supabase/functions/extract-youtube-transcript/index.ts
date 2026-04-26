@@ -502,33 +502,40 @@ serve(async (req) => {
     console.log(`[extract-youtube-transcript] Caller role: ${callerRole}`);
 
     // Fast-path reuse: only after access checks and caller role resolution.
-    const { data: existingVideo } = await supabaseService
-      .from('youtube_videos')
-      .select('id, status')
-      .eq('video_id', id)
-      .maybeSingle();
-
-    if (existingVideo?.id) {
-      const { data: existingTranscript } = await supabaseService
-        .from('youtube_transcripts')
-        .select('transcript, language')
-        .eq('video_id', existingVideo.id)
+    // Restrict this path to teacher-scoped calls to avoid exposing transcripts
+    // that may have been generated from teacher-only ASR.
+    const canUseCachedTranscript = Boolean(teacherId) || callerRole === 'teacher' || callerRole === 'admin';
+    if (canUseCachedTranscript) {
+      const { data: existingVideo } = await supabaseService
+        .from('youtube_videos')
+        .select('id, status')
+        .eq('video_id', id)
         .maybeSingle();
 
-      const transcriptText = existingTranscript?.transcript?.trim() || '';
-      if (transcriptText.length > 50) {
-        console.log(`[extract-youtube-transcript] Reusing canonical transcript for ${id}`);
-        return new Response(
-          JSON.stringify({
-            success: true,
-            transcript: transcriptText,
-            language: existingTranscript?.language || language || 'english',
-            source: 'database',
-            reused: true,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (existingVideo?.id) {
+        const { data: existingTranscript } = await supabaseService
+          .from('youtube_transcripts')
+          .select('transcript, language')
+          .eq('video_id', existingVideo.id)
+          .maybeSingle();
+
+        const transcriptText = existingTranscript?.transcript?.trim() || '';
+        if (transcriptText.length > 50) {
+          console.log(`[extract-youtube-transcript] Reusing canonical transcript for ${id}`);
+          return new Response(
+            JSON.stringify({
+              success: true,
+              transcript: transcriptText,
+              language: existingTranscript?.language || language || 'english',
+              source: 'database',
+              reused: true,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
+    } else {
+      console.log(`[extract-youtube-transcript] Skipping cached transcript fast-path for caller role: ${callerRole}`);
     }
 
     let transcript: { text: string; lang: string; method: string } | null = null;
