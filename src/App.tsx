@@ -108,7 +108,10 @@ function ProtectedRoute({ children, section = "any" }: { children: React.ReactNo
     })();
   }, [loading, user, shareToken, location.pathname, location.search, location.hash]);
 
-  if (loading || roleLoading || (shareToken && !user && resolvingLesson)) {
+  // Only block on roleLoading during the *initial* resolution (role still null).
+  // Background refreshes (e.g. on browser tab refocus / token refresh) keep
+  // children mounted so their local state (form inputs, etc.) is preserved.
+  if (loading || (roleLoading && !role) || (shareToken && !user && resolvingLesson)) {
     return <LoadingFallback />;
   }
 
