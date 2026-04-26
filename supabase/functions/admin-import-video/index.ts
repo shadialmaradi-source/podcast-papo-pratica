@@ -29,6 +29,16 @@ const languageCodeMap: Record<string, string> = {
   'es': 'spanish', 'fr': 'french', 'de': 'german',
 };
 
+const SEGMENTATION_MIN_DURATION_SECONDS = 121;
+
+function isValidStoredScene(scene: Record<string, unknown> | null | undefined): boolean {
+  if (!scene) return false;
+  const start = Number(scene.start_time);
+  const end = Number(scene.end_time);
+  const transcript = typeof scene.scene_transcript === 'string' ? scene.scene_transcript.trim() : '';
+  return Number.isFinite(start) && Number.isFinite(end) && end > start && transcript.length > 0;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -76,25 +86,14 @@ serve(async (req) => {
     const videoId = extractVideoId(videoUrl);
     if (!videoId) throw new Error('Invalid YouTube URL');
 
+    const isShort = /youtube\.com\/shorts\//.test(videoUrl.trim());
+
     // Check if video already exists
     const { data: existingVideo } = await supabase
       .from('youtube_videos')
-      .select('id, status')
+      .select('id, status, duration')
       .eq('video_id', videoId)
       .single();
-
-    if (existingVideo && existingVideo.status === 'completed') {
-      return new Response(JSON.stringify({
-        success: true,
-        videoDbId: existingVideo.id,
-        message: 'Video already exists in library'
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // Delete failed attempts
-    if (existingVideo) {
-      await supabase.from('youtube_videos').delete().eq('id', existingVideo.id);
-    }
 
     // Fetch metadata via oEmbed
     const videoInfo = await getVideoInfo(videoId);
@@ -109,39 +108,51 @@ serve(async (req) => {
 
     console.log('Resolved language:', resolvedLanguage);
 
-    // Insert video record
-    const { data: video, error: videoError } = await supabase
-      .from('youtube_videos')
-      .insert({
-        video_id: videoId,
-        title: videoInfo.title,
-        description: videoInfo.description,
-        thumbnail_url: videoInfo.thumbnail,
-        duration: duration > 0 ? duration : null,
-        language: resolvedLanguage,
-        difficulty_level: 'beginner',
-        status: 'completed',
-        processed_at: new Date().toISOString(),
-        added_by_user_id: user.id,
-        is_curated: false,
-        is_short: false
-      })
-      .select()
-      .single();
+    const normalizedTranscript = transcript.trim();
+
+    // Upsert video record so admin updates don't bypass canonical rows/scenes.
+    const videoPayload = {
+      video_id: videoId,
+      title: videoInfo.title,
+      description: videoInfo.description,
+      thumbnail_url: videoInfo.thumbnail,
+      duration: duration > 0 ? duration : (existingVideo?.duration || null),
+      language: resolvedLanguage,
+      difficulty_level: 'beginner',
+      status: 'completed',
+      processed_at: new Date().toISOString(),
+      added_by_user_id: user.id,
+      is_curated: false,
+      is_short: isShort,
+    };
+
+    const videoMutation = existingVideo
+      ? supabase.from('youtube_videos').update(videoPayload).eq('id', existingVideo.id)
+      : supabase.from('youtube_videos').insert(videoPayload);
+
+    const { data: video, error: videoError } = await videoMutation.select().single();
 
     if (videoError) throw new Error(`Failed to create video: ${videoError.message}`);
 
     console.log('Created video:', video.id);
 
+    const { data: existingTranscriptRow } = await supabase
+      .from('youtube_transcripts')
+      .select('transcript')
+      .eq('video_id', video.id)
+      .maybeSingle();
+    const existingTranscript = existingTranscriptRow?.transcript?.trim() || '';
+    const transcriptChanged = existingTranscript !== normalizedTranscript;
+
     // Save transcript
     const { error: transcriptError } = await supabase
       .from('youtube_transcripts')
-      .insert({
+      .upsert({
         video_id: video.id,
-        transcript: transcript.trim(),
+        transcript: normalizedTranscript,
         language: resolvedLanguage,
-        word_count: transcript.trim().split(/\s+/).length
-      });
+        word_count: normalizedTranscript.split(/\s+/).length
+      }, { onConflict: 'video_id' });
 
     if (transcriptError) {
       console.error('Transcript save error:', transcriptError);
@@ -150,12 +161,59 @@ serve(async (req) => {
     // Extract and save topics
     await extractTopicsFromTranscript(supabase, transcript, video.id);
 
+    // Keep segmentation deterministic for admin imports and updates.
+    const { data: existingScenes } = await supabase
+      .from('video_scenes')
+      .select('id, start_time, end_time, scene_transcript')
+      .eq('video_id', video.id);
+    const validSceneCount = (existingScenes || []).filter(isValidStoredScene).length;
+    const hasOnlyValidScenes = (existingScenes?.length || 0) > 0 && validSceneCount === (existingScenes?.length || 0);
+    const resolvedDuration = Number(video.duration) || 0;
+    const shouldSegment = resolvedDuration >= SEGMENTATION_MIN_DURATION_SECONDS;
+
+    let segmentation: 'reused' | 'generated' | 'skipped_short' | 'skipped_transcript' | 'failed' = 'skipped_transcript';
+    if (!shouldSegment) {
+      segmentation = 'skipped_short';
+      if ((existingScenes?.length || 0) > 0) {
+        await supabase.from('video_scenes').delete().eq('video_id', video.id);
+      }
+    } else if (normalizedTranscript.length < 50) {
+      segmentation = 'skipped_transcript';
+    } else if (hasOnlyValidScenes && !transcriptChanged) {
+      segmentation = 'reused';
+    } else {
+      if ((existingScenes?.length || 0) > 0) {
+        await supabase.from('video_scenes').delete().eq('video_id', video.id);
+      }
+
+      const projectUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const segmentResponse = await fetch(`${projectUrl}/functions/v1/segment-video-scenes`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ videoId: video.id }),
+      });
+      segmentation = segmentResponse.ok ? 'generated' : 'failed';
+    }
+
+    console.log('[admin-import-video] Segmentation outcome', {
+      videoId: video.id,
+      transcriptChanged,
+      existingSceneCount: existingScenes?.length || 0,
+      validSceneCount,
+      resolvedDuration,
+      segmentation,
+    });
+
     return new Response(JSON.stringify({
       success: true,
       videoDbId: video.id,
       title: videoInfo.title,
       language: resolvedLanguage,
-      message: 'Video imported successfully'
+      message: existingVideo ? 'Video updated successfully' : 'Video imported successfully',
+      segmentation,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
