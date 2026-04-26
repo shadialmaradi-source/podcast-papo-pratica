@@ -1,55 +1,52 @@
-## Reuse lesson — with new student, level, and translation language
+## Problem
 
-Add a **Reuse** button next to each lesson on `/teacher/lessons`. Clicking it opens a small modal where the teacher picks:
+The student onboarding tour (Library tooltips: "Explore videos added by other learners", "Paste any YouTube link...", "Tap any video to start a lesson..."), Home hints, and Transcript tutorial all rely on `localStorage` keys (`has_seen_home_hints`, `library_tour_completed`, `transcript_tutorial_completed`) to remember completion.
 
-1. **Student email** (with autocomplete from the teacher's existing students; can also type a new one — leaving blank is allowed)
-2. **CEFR level** (A1–C2, defaults to original)
-3. **Translation language** (defaults to original)
+Because `localStorage` is **per-browser/device**, a returning student sees the entire tour again whenever they:
+- log in from a new device or browser
+- clear their browser data
+- use a private/incognito window
 
-Everything else is copied 1:1 from the source lesson: title, video/paragraph content, transcript, exercise types, language, lesson type, topic. A fresh `share_token` is generated. **Exercises are not copied** — they're re-generated from scratch using the new level/translation language so the difficulty actually matches what the teacher picked. The new lesson is created with `status = 'draft'`, exercises generate in the background, then status flips to `'ready'`.
+This is what happened in the screenshots — an existing account still saw the Library onboarding tooltips.
 
-### Flow
+## Solution
 
-```text
-[Reuse] click
-   │
-   ▼
-ReuseLessonModal
-  - student email (combobox: existing students + free text)
-  - cefr_level (select, prefilled)
-  - translation_language (select, prefilled)
-  - [Cancel]  [Reuse lesson]
-   │
-   ▼
-1. Insert new teacher_lessons row
-   (copy: title, lesson_type, language, youtube_url, paragraph_*, transcript,
-    topic, exercise_types; new: teacher_id=me, student_email, cefr_level,
-    translation_language, share_token, status='draft')
-2. Upsert teacher_students if email is new
-3. For each exercise type → invoke generate-lesson-exercises-by-type
-   (already uses the lesson's own cefr_level + translation_language)
-4. Toast "Lesson reused — exercises generating…"
-5. Navigate to /teacher/lesson/<new-id>
-```
+Promote student tour completion to **per-account state stored in the database**, with `localStorage` kept only as a fast-path cache. Once a student has completed (or skipped) the tour on any device, they will never see it again on any other device.
 
-### Files
+### Database
 
-- **New:** `src/components/teacher/ReuseLessonModal.tsx` — the modal (Dialog + Select + email combobox + submit handler that does the insert + generate calls).
-- **Edit:** `src/components/teacher/LessonList.tsx`
-  - Fetch a couple more fields needed for the copy (`language`, `translation_language`, `lesson_type`, `youtube_url`, `paragraph_prompt`, `paragraph_content`, `transcript`, `topic`).
-  - Add a "Reuse" button (Copy icon) in the actions column next to Generate / Start.
-  - Wire it to open `ReuseLessonModal` with the source lesson.
-  - On success, refresh the list and navigate to the new lesson.
+Add three boolean flags to `profiles`:
+- `home_hints_completed boolean not null default false`
+- `library_tour_completed boolean not null default false`
+- `transcript_tutorial_completed boolean not null default false`
 
-### Why exercises are re-generated, not copied
+**Backfill**: For all existing student profiles with `total_xp > 0` OR `current_streak > 0` OR `longest_streak > 0` OR `last_login_date is not null`, set all three flags to `true`. These users have already used the app and should not see onboarding again — this directly fixes the user's current account on every device.
 
-The user explicitly wants to **change difficulty and translation language** — copied exercises would still be at the old level/translation. The existing `generate-lesson-exercises-by-type` edge function reads `cefr_level` and `translation_language` from the new lesson row, so it produces correct content automatically. Transcript is preserved, so generation is fast (no re-fetch).
+No new RLS policies needed (existing self-update policy on `profiles` already covers these columns).
 
-### Edge cases handled
+### Hook changes (`src/hooks/useStudentTour.tsx`)
 
-- Lesson limit trigger (`enforce_teacher_lesson_limit`) still applies → surfaced as a clear toast.
-- If the teacher's monthly quota is exceeded, the modal shows the error and stays open.
-- Empty student email allowed (creates an unassigned reusable copy).
-- If the source lesson has no transcript yet, the new lesson will fetch it on-demand the same way the original page does (existing logic from earlier fix).
+- On mount, fetch the three flags from `profiles` for the logged-in user.
+- Treat the phase as completed if **either** the DB flag **or** the legacy `localStorage` key is set (DB wins; localStorage only used until the fetch resolves).
+- When `advancePhase` marks a phase done, write `true` to **both** the DB column and `localStorage` (fire-and-forget update; localStorage gives instant UX).
+- `skipAll` writes all three columns to `true` in one update.
+- While the DB fetch is pending, default to `completed` (do NOT flash the tour) — better to occasionally miss showing it to a brand-new user for a split second than to re-show it to returning users.
 
-No DB migration needed.
+### Brand-new user detection
+
+A truly new student (no profile row yet, or all progress fields empty) should still see the tour. The hook will:
+1. Wait for the profile fetch.
+2. If the user has any progress evidence (`total_xp > 0`, streaks > 0, or `last_login_date` set) AND none of the new flags are explicitly `true`, auto-mark all three flags as `true` in the DB and skip the tour. This covers users created before this migration who happen to lack the backfill (e.g. race conditions).
+3. Otherwise resolve to the first incomplete phase as today.
+
+### Files touched
+
+- **New migration** `supabase/migrations/<timestamp>_student_tour_completion_flags.sql` — adds the three columns and runs the backfill.
+- **Edit** `src/hooks/useStudentTour.tsx` — DB-backed resolution and persistence; keep the existing `StudentTourPhase` API unchanged so consumers (`Library.tsx`, `AppHome.tsx`, transcript tutorial) need no changes.
+- **Edit** `src/integrations/supabase/types.ts` — regenerated automatically by migration; included for completeness.
+
+### Out of scope
+
+- Teacher onboarding (already uses `teacher_profiles.onboarding_completed`).
+- Any visual changes to the tooltips themselves.
+- A "Replay tour" setting (could be added later if needed).
