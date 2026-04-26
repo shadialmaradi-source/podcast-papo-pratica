@@ -473,13 +473,16 @@ export type Database = {
           current_streak: number | null
           display_name: string | null
           full_name: string | null
+          home_hints_completed: boolean
           id: string
           last_login_date: string | null
+          library_tour_completed: boolean
           longest_streak: number | null
           native_language: string | null
           selected_language: string | null
           subscription_tier: string | null
           total_xp: number | null
+          transcript_tutorial_completed: boolean
           updated_at: string | null
           user_id: string
           username: string | null
@@ -493,13 +496,16 @@ export type Database = {
           current_streak?: number | null
           display_name?: string | null
           full_name?: string | null
+          home_hints_completed?: boolean
           id?: string
           last_login_date?: string | null
+          library_tour_completed?: boolean
           longest_streak?: number | null
           native_language?: string | null
           selected_language?: string | null
           subscription_tier?: string | null
           total_xp?: number | null
+          transcript_tutorial_completed?: boolean
           updated_at?: string | null
           user_id: string
           username?: string | null
@@ -513,13 +519,16 @@ export type Database = {
           current_streak?: number | null
           display_name?: string | null
           full_name?: string | null
+          home_hints_completed?: boolean
           id?: string
           last_login_date?: string | null
+          library_tour_completed?: boolean
           longest_streak?: number | null
           native_language?: string | null
           selected_language?: string | null
           subscription_tier?: string | null
           total_xp?: number | null
+          transcript_tutorial_completed?: boolean
           updated_at?: string | null
           user_id?: string
           username?: string | null
