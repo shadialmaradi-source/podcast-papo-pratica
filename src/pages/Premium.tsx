@@ -99,7 +99,19 @@ export default function Premium() {
       const data = await response.json();
 
       if (response.ok && data?.url) {
-        window.location.href = data.url;
+        // Stripe Checkout sets X-Frame-Options: DENY, so it cannot render
+        // inside an iframe (e.g. the Lovable preview). Navigate the TOP
+        // window when possible, and fall back to opening a new tab if the
+        // parent frame is cross-origin and inaccessible.
+        try {
+          if (window.top && window.top !== window.self) {
+            window.top.location.href = data.url;
+          } else {
+            window.location.href = data.url;
+          }
+        } catch {
+          window.open(data.url, '_blank', 'noopener,noreferrer');
+        }
       } else {
         const errorMsg = data?.error || data?.message || 'Unable to start checkout. Please try again.';
         console.error('Checkout error:', errorMsg);
