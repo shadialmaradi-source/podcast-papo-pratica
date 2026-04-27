@@ -92,7 +92,11 @@ export default function Auth() {
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data: roleData }) => {
-        if (roleData && (roleData as any).role === "teacher") {
+        const dbRole = (roleData as any)?.role;
+        // Honor teacher intent from URL when DB role hasn't been promoted yet
+        // (race between SIGNED_IN event and the post-signup user_roles update).
+        const effectiveRole = dbRole === "teacher" || rawRole === "teacher" ? "teacher" : dbRole;
+        if (effectiveRole === "teacher") {
           supabase
             .from("teacher_profiles" as any)
             .select("onboarding_completed")
