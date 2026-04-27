@@ -1,4 +1,4 @@
-import { Play, Clock } from "lucide-react";
+import { Play, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,8 @@ interface VideoCardProps {
   difficultyLevel: string;
   isCurated: boolean;
   isShort?: boolean;
+  isLocked?: boolean;
+  lockMessage?: string;
   onClick: () => void;
   onAssign?: () => void;
 }
@@ -87,6 +89,8 @@ export function VideoCard({
   difficultyLevel,
   isCurated,
   isShort,
+  isLocked = false,
+  lockMessage,
   onClick,
   onAssign,
 }: VideoCardProps) {
@@ -96,7 +100,8 @@ export function VideoCard({
     <Card
       className={cn(
         "overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] group",
-        isCurated ? "bg-card" : "bg-muted/30"
+        isCurated ? "bg-card" : "bg-muted/30",
+        isLocked && "border-primary/40"
       )}
       onClick={onClick}
     >
@@ -116,10 +121,22 @@ export function VideoCard({
         
         {/* Play overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-center justify-center">
-          <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
-            <Play className="w-5 h-5 text-primary-foreground ml-0.5" fill="currentColor" />
-          </div>
+          {isLocked ? (
+            <div className="w-12 h-12 rounded-full bg-black/70 flex items-center justify-center shadow-lg">
+              <Lock className="w-5 h-5 text-white" />
+            </div>
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
+              <Play className="w-5 h-5 text-primary-foreground ml-0.5" fill="currentColor" />
+            </div>
+          )}
         </div>
+
+        {isLocked && (
+          <Badge className="absolute top-2 left-2 bg-black/80 text-white text-[10px]">
+            Premium
+          </Badge>
+        )}
 
         {/* Curated badge */}
         {isCurated && (
@@ -179,6 +196,9 @@ export function VideoCard({
           >
             Assign to Student
           </button>
+        )}
+        {isLocked && lockMessage && (
+          <p className="mt-2 text-xs text-primary">{lockMessage}</p>
         )}
       </CardContent>
     </Card>

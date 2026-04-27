@@ -17,6 +17,7 @@ interface SceneNavigatorProps {
   currentSceneIndex: number;
   completedScenes: number[];
   onSceneSelect: (sceneIndex: number) => void;
+  maxAccessibleSceneIndex?: number | null;
 }
 
 const formatTime = (seconds: number) => {
@@ -30,6 +31,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({
   currentSceneIndex,
   completedScenes,
   onSceneSelect,
+  maxAccessibleSceneIndex = null,
 }) => {
   if (scenes.length === 0) return null;
 
@@ -42,6 +44,7 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({
         {scenes.map((scene) => {
           const isCompleted = completedScenes.includes(scene.scene_index);
           const isCurrent = scene.scene_index === currentSceneIndex;
+          const isPlanLocked = maxAccessibleSceneIndex !== null && scene.scene_index > maxAccessibleSceneIndex;
           const isFuture = !isCompleted && !isCurrent;
           const duration = Math.round(scene.end_time - scene.start_time);
 
@@ -51,18 +54,23 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({
               onClick={() => {
                 if (isCompleted || isCurrent) {
                   onSceneSelect(scene.scene_index);
+                } else if (isPlanLocked) {
+                  onSceneSelect(scene.scene_index);
                 }
               }}
-              disabled={isFuture}
+              disabled={isFuture && !isPlanLocked}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all text-sm",
                 isCurrent && "bg-primary/10 border border-primary/30 text-foreground",
                 isCompleted && !isCurrent && "bg-muted/50 text-muted-foreground hover:bg-muted/80 cursor-pointer",
-                isFuture && "opacity-50 cursor-not-allowed text-muted-foreground"
+                isFuture && !isPlanLocked && "opacity-50 cursor-not-allowed text-muted-foreground",
+                isPlanLocked && "bg-primary/5 border border-primary/20 text-primary hover:bg-primary/10 cursor-pointer"
               )}
             >
               <div className="flex-shrink-0">
-                {isCompleted ? (
+                {isPlanLocked ? (
+                  <Lock className="h-4 w-4 text-primary" />
+                ) : isCompleted ? (
                   <CheckCircle className="h-4 w-4 text-green-500" />
                 ) : isCurrent ? (
                   <PlayCircle className="h-4 w-4 text-primary" />
@@ -80,6 +88,9 @@ const SceneNavigator: React.FC<SceneNavigatorProps> = ({
                 <div className="text-xs text-muted-foreground">
                   {formatTime(scene.start_time)} – {formatTime(scene.end_time)} ({duration}s)
                 </div>
+                {isPlanLocked && (
+                  <div className="text-[11px] text-primary">Premium: scene locked</div>
+                )}
               </div>
             </button>
           );

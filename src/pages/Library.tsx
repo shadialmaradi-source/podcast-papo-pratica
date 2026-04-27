@@ -32,6 +32,7 @@ import { trackEvent, trackPageLoad, trackPageView } from "@/lib/analytics";
 import { AssignVideoModal } from "@/components/teacher/AssignVideoModal";
 import { useStudentTour } from "@/hooks/useStudentTour";
 import { isVideoShort } from "@/utils/videoClassification";
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface VideoTopic {
   topic: string;
@@ -58,6 +59,7 @@ export default function Library() {
   const { user } = useAuth();
   const { role } = useUserRole();
   const isTeacher = role === "teacher";
+  const { isPremium } = useSubscription();
   
   // State
   const [selectedLevel, setSelectedLevel] = useState<'beginner' | 'intermediate' | 'advanced'>(() => {
@@ -74,6 +76,8 @@ export default function Library() {
   const [loading, setLoading] = useState(true);
   const [userLanguage, setUserLanguage] = useState<string>(localStorage.getItem('onboarding_language') || 'english');
   const [curatedVideoIds, setCuratedVideoIds] = useState<Set<string>>(new Set());
+  const [monthlyUnlockedVideoIds, setMonthlyUnlockedVideoIds] = useState<Set<string>>(new Set());
+  const [monthlyUnlockedCount, setMonthlyUnlockedCount] = useState(0);
 
   // Import dialog state
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -217,6 +221,26 @@ export default function Library() {
     fetchQuota();
   }, [user]);
 
+  useEffect(() => {
+    const fetchLibraryUnlocks = async () => {
+      if (!user || isTeacher) return;
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
+      const { data, error } = await supabase
+        .from("student_library_video_unlocks" as any)
+        .select("video_id")
+        .eq("month_start", monthStart);
+      if (error) {
+        console.error("Error loading monthly library unlocks:", error);
+        return;
+      }
+      const unlockedIds = (data || []).map((row: any) => row.video_id).filter(Boolean);
+      setMonthlyUnlockedVideoIds(new Set(unlockedIds));
+      setMonthlyUnlockedCount(unlockedIds.length);
+    };
+    fetchLibraryUnlocks();
+  }, [user, isTeacher]);
+
   const handleImportVideo = async () => {
     if (!videoUrl.trim()) {
       toast.error("Please enter a video URL");
@@ -323,6 +347,16 @@ export default function Library() {
   const handleVideoClick = (videoId: string) => {
     const video = videos.find(v => v.id === videoId);
     if (video) {
+      const isLockedForFreeStudent =
+        !isTeacher &&
+        !isPremium &&
+        !monthlyUnlockedVideoIds.has(video.id) &&
+        monthlyUnlockedCount >= 15;
+      if (isLockedForFreeStudent) {
+        setUpgradeReason("You've unlocked 15 library videos this month. Upgrade to continue.");
+        setShowUpgradePrompt(true);
+        return;
+      }
       trackEvent('student_video_clicked', { video_id: video.id, source: video.is_curated ? 'curated' : 'community' });
       navigate(`/lesson/${video.id}`);
     }
@@ -447,6 +481,20 @@ export default function Library() {
                           difficultyLevel={video.difficulty_level}
                           isCurated={video.is_curated}
                           isShort={video.is_short}
+                          isLocked={
+                            !isTeacher &&
+                            !isPremium &&
+                            !monthlyUnlockedVideoIds.has(video.id) &&
+                            monthlyUnlockedCount >= 15
+                          }
+                          lockMessage={
+                            !isTeacher &&
+                            !isPremium &&
+                            !monthlyUnlockedVideoIds.has(video.id) &&
+                            monthlyUnlockedCount >= 15
+                              ? "Monthly free limit reached (15/15)"
+                              : undefined
+                          }
                           onClick={() => handleVideoClick(video.id)}
                           onAssign={isTeacher ? () => setAssignVideo({ id: video.id, title: video.title, videoId: video.video_id }) : undefined}
                         />
@@ -467,19 +515,33 @@ export default function Library() {
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {remainingVideos.map((video) => (
-                        <VideoCard
-                          key={video.id}
-                          id={video.id}
+                    <VideoCard
+                      key={video.id}
+                      id={video.id}
                           title={video.title}
                           thumbnailUrl={video.thumbnail_url}
                           topics={video.topics}
                           duration={video.duration}
-                          difficultyLevel={video.difficulty_level}
-                          isCurated={video.is_curated}
-                          isShort={video.is_short}
-                          onClick={() => handleVideoClick(video.id)}
-                          onAssign={isTeacher ? () => setAssignVideo({ id: video.id, title: video.title, videoId: video.video_id }) : undefined}
-                        />
+                      difficultyLevel={video.difficulty_level}
+                      isCurated={video.is_curated}
+                      isShort={video.is_short}
+                      isLocked={
+                        !isTeacher &&
+                        !isPremium &&
+                        !monthlyUnlockedVideoIds.has(video.id) &&
+                        monthlyUnlockedCount >= 15
+                      }
+                      lockMessage={
+                        !isTeacher &&
+                        !isPremium &&
+                        !monthlyUnlockedVideoIds.has(video.id) &&
+                        monthlyUnlockedCount >= 15
+                          ? "Monthly free limit reached (15/15)"
+                          : undefined
+                      }
+                      onClick={() => handleVideoClick(video.id)}
+                      onAssign={isTeacher ? () => setAssignVideo({ id: video.id, title: video.title, videoId: video.video_id }) : undefined}
+                    />
                       ))}
                     </div>
                   </div>

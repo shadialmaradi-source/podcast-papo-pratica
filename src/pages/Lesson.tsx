@@ -17,12 +17,15 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useLessonFlow } from "@/hooks/useLessonFlow";
+import { Lock } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
 
 export default function Lesson() {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
 
   const flow = useLessonFlow(videoId);
+  const { isPremium } = useSubscription();
 
   if (!videoId) {
     navigate("/library");
@@ -34,6 +37,7 @@ export default function Lesson() {
     scenes, currentSceneIndex, completedScenes, dbVideoId,
     youtubeVideoId, videoTitle, videoLanguage, videoDuration, currentScene,
     segmentationStatus,
+    accessBlock,
     nativeLanguage,
     handleLevelSelect, handleSceneVideoComplete, handleContinueToSpeaking,
     handleTryNextLevel, handleSkipToFlashcards, handleFlashcardsComplete,
@@ -53,6 +57,7 @@ export default function Lesson() {
               currentSceneIndex={currentSceneIndex}
               completedScenes={completedScenes}
               onSceneSelect={handleSceneSelect}
+              maxAccessibleSceneIndex={!isPremium && !flow.isAssignment ? 2 : null}
             />
           </div>
         </div>
@@ -84,6 +89,26 @@ export default function Lesson() {
     <div className="min-h-screen bg-background">
       {lessonState !== "complete" && lessonState !== "loading" && <BackButton />}
 
+      {accessBlock && (
+        <div className="max-w-2xl mx-auto px-4 py-10">
+          <div className="rounded-lg border bg-card p-8 text-center space-y-4">
+            <div className="mx-auto w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Lock className="w-5 h-5 text-primary" />
+            </div>
+            <h2 className="text-2xl font-semibold">Upgrade to continue this lesson</h2>
+            <p className="text-muted-foreground">
+              {accessBlock.reason === "monthly_video_limit_reached"
+                ? `Free plan reached this month’s library quota (${accessBlock.monthlyUnlockedCount || 15}/${accessBlock.monthlyLimit || 15} videos).`
+                : `Free plan includes only the first ${accessBlock.sceneLimit || 3} scenes of each library video.`}
+            </p>
+            <div className="flex gap-3 justify-center pt-2">
+              <Button onClick={() => navigate("/premium")}>See Premium</Button>
+              <Button variant="outline" onClick={handleBackToLibrary}>Back to library</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Dialog open={showLevelPopup} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
@@ -105,7 +130,7 @@ export default function Lesson() {
         </DialogContent>
       </Dialog>
 
-      {lessonState === "loading" && (
+      {!accessBlock && lessonState === "loading" && (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
@@ -115,7 +140,7 @@ export default function Lesson() {
         </div>
       )}
 
-      {lessonState === "scene-video" && currentScene && youtubeVideoId && (
+      {!accessBlock && lessonState === "scene-video" && currentScene && youtubeVideoId && (
         renderWithSceneNav(
           <div>
             <LessonVideoPlayer
@@ -144,7 +169,7 @@ export default function Lesson() {
         )
       )}
 
-      {lessonState === "scene-video" && !currentScene && youtubeVideoId && segmentationStatus.state === "failed" && (
+      {!accessBlock && lessonState === "scene-video" && !currentScene && youtubeVideoId && segmentationStatus.state === "failed" && (
         <div className="max-w-2xl mx-auto px-4 py-12">
           <div className="rounded-lg border bg-card p-8 text-center space-y-4">
             <h2 className="text-2xl font-semibold">We couldn't prepare this lesson</h2>
@@ -159,7 +184,7 @@ export default function Lesson() {
         </div>
       )}
 
-      {lessonState === "scene-video" && !currentScene && youtubeVideoId && segmentationStatus.state !== "failed" && (
+      {!accessBlock && lessonState === "scene-video" && !currentScene && youtubeVideoId && segmentationStatus.state !== "failed" && (
         <div>
           {!hasSceneData && segmentationStatus.state !== "idle" && (
             <div className="max-w-3xl mx-auto px-3 md:px-8 pt-3">
@@ -180,7 +205,7 @@ export default function Lesson() {
         </div>
       )}
 
-      {lessonState === "exercises" && (
+      {!accessBlock && lessonState === "exercises" && (
         hasSceneData ? renderWithSceneNav(
           <YouTubeExercises
             key={`${videoId}-${selectedLevel}-${currentSceneIndex}`}
@@ -214,7 +239,7 @@ export default function Lesson() {
         )
       )}
 
-      {lessonState === "speaking" && (
+      {!accessBlock && lessonState === "speaking" && (
         hasSceneData ? renderWithSceneNav(
           <YouTubeSpeaking videoId={videoId} level={selectedLevel} onComplete={flow.handleSpeakingComplete} onBack={handleBackToLibrary} sceneId={currentScene?.id} sceneTranscript={currentScene?.scene_transcript} dbVideoId={dbVideoId} />
         ) : (
@@ -222,7 +247,7 @@ export default function Lesson() {
         )
       )}
 
-    {lessonState === "flashcards" && (
+    {!accessBlock && lessonState === "flashcards" && (
   hasSceneData ? renderWithSceneNav(
     <VideoFlashcards
       videoId={videoId}
@@ -246,7 +271,7 @@ export default function Lesson() {
   )
 )}
 
-      {lessonState === "complete" && (
+      {!accessBlock && lessonState === "complete" && (
         <LessonCompleteScreen
           exerciseScore={lessonStats.exerciseScore}
           totalExercises={lessonStats.totalExercises}
