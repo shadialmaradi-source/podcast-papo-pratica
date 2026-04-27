@@ -248,6 +248,11 @@ export default function Auth() {
 
           if (emailConfirmationRequired) {
             setPendingVerificationEmail(email);
+          } else if (role === "teacher") {
+            // Explicit redirect for teacher signups so the role-fetch race in the
+            // global redirect effect can't bounce them into student onboarding.
+            navigate("/teacher/onboarding", { replace: true });
+            return;
           }
 
           toast({
