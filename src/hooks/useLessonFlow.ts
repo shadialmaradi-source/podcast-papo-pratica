@@ -32,6 +32,13 @@ interface ResolvedVideo {
   language: string | null;
   duration: number | null;
 }
+interface LibraryAccessDecision {
+  allowed: boolean;
+  reason?: "monthly_video_limit_reached" | "scene_limit_reached" | "auth_required" | string;
+  monthly_unlocked_count?: number;
+  monthly_limit?: number;
+  scene_limit?: number;
+}
 
 function normalizeScenes(rawScenes: VideoScene[]): VideoScene[] {
   return [...rawScenes]
@@ -76,6 +83,12 @@ export function useLessonFlow(videoId: string | undefined) {
     state: "idle" | "pending" | "failed";
     message: string | null;
   }>({ state: "idle", message: null });
+  const [accessBlock, setAccessBlock] = useState<{
+    reason: "monthly_video_limit_reached" | "scene_limit_reached";
+    monthlyUnlockedCount?: number;
+    monthlyLimit?: number;
+    sceneLimit?: number;
+  } | null>(null);
   const MAX_SEGMENT_RETRIES = 4;
   const SEGMENT_RETRY_DELAY = 8000;
 
@@ -125,6 +138,19 @@ export function useLessonFlow(videoId: string | undefined) {
     }
     return videoData as ResolvedVideo | null;
   };
+
+  const checkLibraryAccess = useCallback(async (params: { videoDbId: string; sceneIndex?: number }) => {
+    const { data, error } = await supabase.rpc("enforce_student_library_video_access", {
+      p_video_id: params.videoDbId,
+      p_scene_index: params.sceneIndex ?? null,
+      p_is_assignment: isAssignment,
+    });
+    if (error) {
+      console.error("Error enforcing library access:", error);
+      return { allowed: true } as LibraryAccessDecision;
+    }
+    return (data || { allowed: true }) as LibraryAccessDecision;
+  }, [isAssignment]);
 
   const [nativeLanguage, setNativeLanguage] = useState<string>("");
 
@@ -220,6 +246,11 @@ export function useLessonFlow(videoId: string | undefined) {
         const firstIncomplete = normalizedScenes.findIndex(
           (s: VideoScene) => !normalizedCompleted.includes(s.scene_index)
         );
+        if (!isAssignment && firstIncomplete >= 3) {
+          setAccessBlock({ reason: "scene_limit_reached", sceneLimit: 3 });
+          setLessonState("scene-video");
+          return;
+        }
         setCurrentSceneIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
 
         const derivedDuration = normalizedScenes[normalizedScenes.length - 1]?.end_time || knownDuration || 120;
@@ -344,6 +375,11 @@ export function useLessonFlow(videoId: string | undefined) {
       const firstIncomplete = normalizedScenes.findIndex(
         (s: VideoScene) => !normalizedCompleted.includes(s.scene_index)
       );
+      if (!isAssignment && firstIncomplete >= 3) {
+        setAccessBlock({ reason: "scene_limit_reached", sceneLimit: 3 });
+        setLessonState("scene-video");
+        return;
+      }
       setCurrentSceneIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
       const derivedDuration = normalizedScenes[normalizedScenes.length - 1]?.end_time || resolvedDuration;
       setVideoDuration(Math.max(derivedDuration, resolvedDuration));
@@ -365,8 +401,22 @@ export function useLessonFlow(videoId: string | undefined) {
 
   const initLesson = async () => {
     setLessonState("loading");
+    setAccessBlock(null);
     const videoData = await resolveVideoData();
     if (!videoData) { navigate("/library"); return; }
+    const accessDecision = await checkLibraryAccess({ videoDbId: videoData.id, sceneIndex: 0 });
+    if (!accessDecision.allowed) {
+      if (accessDecision.reason === "monthly_video_limit_reached" || accessDecision.reason === "scene_limit_reached") {
+        setAccessBlock({
+          reason: accessDecision.reason,
+          monthlyUnlockedCount: accessDecision.monthly_unlocked_count,
+          monthlyLimit: accessDecision.monthly_limit,
+          sceneLimit: accessDecision.scene_limit,
+        });
+      }
+      setLessonState("scene-video");
+      return;
+    }
     setDbVideoId(videoData.id);
     setYoutubeVideoId(videoData.video_id);
     setVideoTitle(videoData.title || "");
@@ -491,8 +541,28 @@ export function useLessonFlow(videoId: string | undefined) {
   };
 
   const handleSceneSelect = (sceneIndex: number) => {
-    setCurrentSceneIndex(sceneIndex);
-    setLessonState("scene-video");
+    if (!dbVideoId) {
+      setCurrentSceneIndex(sceneIndex);
+      setLessonState("scene-video");
+      return;
+    }
+    void (async () => {
+      const accessDecision = await checkLibraryAccess({ videoDbId: dbVideoId, sceneIndex });
+      if (!accessDecision.allowed) {
+        if (accessDecision.reason === "scene_limit_reached" || accessDecision.reason === "monthly_video_limit_reached") {
+          setAccessBlock({
+            reason: accessDecision.reason,
+            monthlyUnlockedCount: accessDecision.monthly_unlocked_count,
+            monthlyLimit: accessDecision.monthly_limit,
+            sceneLimit: accessDecision.scene_limit,
+          });
+        }
+        return;
+      }
+      setAccessBlock(null);
+      setCurrentSceneIndex(sceneIndex);
+      setLessonState("scene-video");
+    })();
   };
 
   const handleNextVideo = async () => {
@@ -574,6 +644,7 @@ export function useLessonFlow(videoId: string | undefined) {
     videoLanguage,
     videoDuration,
     segmentationStatus,
+    accessBlock,
     currentScene,
     isAssignment,
     nativeLanguage,
