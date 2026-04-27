@@ -139,7 +139,7 @@ export default function Auth() {
           })();
         }
       });
-  }, [user, navigate]);
+  }, [user, navigate, rawRole]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
