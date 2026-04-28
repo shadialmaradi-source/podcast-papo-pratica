@@ -157,6 +157,13 @@ export default function AuthCallback() {
       const lessonRedirect = getPendingLessonRedirect();
 
       if (actualRole === "teacher") {
+        // Pre-auth wizard data waiting? Finalize and skip teacher onboarding.
+        if (hasPendingTeacherOnboarding()) {
+          await finalizeTeacherOnboarding(user.id);
+          navigate("/teacher", { replace: true });
+          return;
+        }
+
         const { data: tp } = await supabase
           .from("teacher_profiles" as any)
           .select("onboarding_completed")
