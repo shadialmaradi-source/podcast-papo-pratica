@@ -35,6 +35,7 @@ const TeacherAnalytics = lazy(() => import("./pages/TeacherAnalytics"));
 const TeacherNotifications = lazy(() => import("./pages/TeacherNotifications"));
 const TeacherSettings = lazy(() => import("./pages/TeacherSettings"));
 const TeacherOnboarding = lazy(() => import("./pages/TeacherOnboarding"));
+const TeacherStart = lazy(() => import("./pages/TeacherStart"));
 const TeacherStudents = lazy(() => import("./pages/TeacherStudents"));
 const TeacherLessons = lazy(() => import("./pages/TeacherLessons"));
 const TeacherStudentDetail = lazy(() => import("./pages/TeacherStudentDetail"));
@@ -190,6 +191,7 @@ const App = () => {
               {/* Public routes */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/teachers" element={<TeacherLanding />} />
+              <Route path="/teacher/start" element={<TeacherStart />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />

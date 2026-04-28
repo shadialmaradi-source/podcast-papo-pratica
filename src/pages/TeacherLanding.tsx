@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { trackEvent } from "@/lib/analytics";
+import { supabase } from "@/integrations/supabase/client";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -155,9 +156,14 @@ export default function TeacherLanding() {
     trackEvent("teacher_landing_viewed");
   }, []);
 
-  const handleCTA = () => {
+  const handleCTA = async () => {
     trackEvent("teacher_landing_cta_clicked");
-    navigate("/auth?role=teacher");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      navigate("/teacher");
+      return;
+    }
+    navigate("/teacher/start");
   };
 
   return (

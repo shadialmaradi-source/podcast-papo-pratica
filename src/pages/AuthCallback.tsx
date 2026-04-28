@@ -6,6 +6,7 @@ import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionSe
 import { Loader2 } from "lucide-react";
 import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
 import { STUDENT_ONBOARDING_PROFILE_FIELDS, requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
+import { hasPendingTeacherOnboarding, finalizeTeacherOnboarding } from "@/utils/teacherPendingOnboarding";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -156,6 +157,13 @@ export default function AuthCallback() {
       const lessonRedirect = getPendingLessonRedirect();
 
       if (actualRole === "teacher") {
+        // Pre-auth wizard data waiting? Finalize and skip teacher onboarding.
+        if (hasPendingTeacherOnboarding()) {
+          await finalizeTeacherOnboarding(user.id);
+          navigate("/teacher", { replace: true });
+          return;
+        }
+
         const { data: tp } = await supabase
           .from("teacher_profiles" as any)
           .select("onboarding_completed")
