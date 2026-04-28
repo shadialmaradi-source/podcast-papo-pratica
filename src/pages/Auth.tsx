@@ -16,6 +16,7 @@ import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionSe
 import { Mail, Lock, LogIn, AlertCircle, BookOpen, Eye, EyeOff, GraduationCap, Headphones, Check } from "lucide-react";
 import { clearPendingLessonRedirect, getPendingLessonRedirect, getPendingLessonEmail } from "@/utils/authRedirect";
 import { STUDENT_ONBOARDING_PROFILE_FIELDS, requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
+import { hasPendingTeacherOnboarding, finalizeTeacherOnboarding } from "@/utils/teacherPendingOnboarding";
 
 type AuthRole = "teacher" | "student";
 
@@ -97,6 +98,13 @@ export default function Auth() {
         // (race between SIGNED_IN event and the post-signup user_roles update).
         const effectiveRole = dbRole === "teacher" || rawRole === "teacher" ? "teacher" : dbRole;
         if (effectiveRole === "teacher") {
+          // Pre-auth wizard data waiting? Finalize and skip /teacher/onboarding.
+          if (hasPendingTeacherOnboarding()) {
+            finalizeTeacherOnboarding(user.id).then(() => {
+              navigate("/teacher", { replace: true });
+            });
+            return;
+          }
           supabase
             .from("teacher_profiles" as any)
             .select("onboarding_completed")
