@@ -155,9 +155,14 @@ export default function TeacherLanding() {
     trackEvent("teacher_landing_viewed");
   }, []);
 
-  const handleCTA = () => {
+  const handleCTA = async () => {
     trackEvent("teacher_landing_cta_clicked");
-    navigate("/auth?role=teacher");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      navigate("/teacher");
+      return;
+    }
+    navigate("/teacher/start");
   };
 
   return (
