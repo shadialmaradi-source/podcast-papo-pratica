@@ -6,6 +6,7 @@ import { ensureTeacherTrialSubscription } from "@/services/teacherSubscriptionSe
 import { Loader2 } from "lucide-react";
 import { clearPendingLessonRedirect, getPendingLessonRedirect } from "@/utils/authRedirect";
 import { STUDENT_ONBOARDING_PROFILE_FIELDS, requiresOnboarding, shouldRouteToFirstLesson, hydrateProfileFromLesson, fetchLessonForHydration, extractShareTokenFromPath } from "@/utils/onboardingStatus";
+import { hasPendingTeacherOnboarding, finalizeTeacherOnboarding } from "@/utils/teacherPendingOnboarding";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
