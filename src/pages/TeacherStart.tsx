@@ -45,7 +45,7 @@ export default function TeacherStart() {
 
   const goToAuth = () => {
     setPendingTeacherOnboarding({ fullName, studentsCount, languageTaught, level, demoTried: true });
-    trackTeacherFunnelStep("preauth_form_completed", { source: "teacher_start" });
+    trackEvent("teacher_preauth_form_completed", { source: "teacher_start" });
     navigate(`/auth?role=teacher&mode=signup&from=teacher_start`);
   };
 
