@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowRight, ArrowLeft, Rocket, CheckCircle, Play, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { trackEvent, trackTeacherFunnelStep } from "@/lib/analytics";
+import { trackEvent } from "@/lib/analytics";
 import {
   getPendingTeacherOnboarding,
   setPendingTeacherOnboarding,
