@@ -263,7 +263,12 @@ export default function Auth() {
           } else if (role === "teacher") {
             // Explicit redirect for teacher signups so the role-fetch race in the
             // global redirect effect can't bounce them into student onboarding.
-            navigate("/teacher/onboarding", { replace: true });
+            if (hasPendingTeacherOnboarding() && signUpData.user) {
+              await finalizeTeacherOnboarding(signUpData.user.id);
+              navigate("/teacher", { replace: true });
+            } else {
+              navigate("/teacher/onboarding", { replace: true });
+            }
             return;
           }
 
